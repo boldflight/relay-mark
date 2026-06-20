@@ -1,0 +1,106 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "frontmatter": {
+    "title": "Marcus interview prep",
+    "scope": "private"
+  },
+  "blocks": [
+    {
+      "id": "b1",
+      "type": "heading",
+      "props": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Marcus interview prep"
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Marcus sounded nervous about Thursday's interview."
+        }
+      ]
+    },
+    {
+      "id": "src-1",
+      "type": "relay.source_bundle",
+      "props": {
+        "id": "src-1",
+        "title": "Interview anxiety evidence",
+        "scope": "private"
+      },
+      "content": [
+        {
+          "id": "b3",
+          "type": "relay.transcript_segment",
+          "props": {
+            "source": "transcript:meeting-123",
+            "speaker": "Marcus",
+            "start": "00:12:04",
+            "end": "00:12:48"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "I know the interview is important, but I keep freezing when I practice."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "type": "relay.agent_suggestion",
+      "props": {
+        "confidence": 0.82,
+        "evidence": ["src-1"],
+        "kind": "action",
+        "review": "draft"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "This sounds like a readiness/support moment, not just a scheduling note."
+        }
+      ],
+      "evidence_refs": ["src-1"]
+    },
+    {
+      "id": "b5",
+      "type": "relay.action_row",
+      "props": {
+        "action": "relay.task.create",
+        "target": "entity:marcus",
+        "destination": "mentor-follow-up",
+        "visibility": "private",
+        "review": "draft",
+        "evidence": ["src-1"]
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Send interview prep resources before Thursday."
+        }
+      ],
+      "evidence_refs": ["src-1"]
+    }
+  ],
+  "annotations": [],
+  "resources": [
+    {
+      "id": "meeting-123",
+      "type": "transcript",
+      "uri": "transcript:meeting-123",
+      "label": "Meeting transcript",
+      "scope": "private"
+    }
+  ]
+}

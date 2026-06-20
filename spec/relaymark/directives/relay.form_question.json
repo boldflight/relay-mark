@@ -1,0 +1,61 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "FormQuestion",
+  "ast_type": "relay.form_question",
+  "version": 1,
+  "category": "form",
+  "description": "A form question embedded in a RelayMark document.",
+  "attributes": {
+    "key": {
+      "type": "string",
+      "required": true,
+      "description": "Stable response key."
+    },
+    "label": {
+      "type": "string",
+      "required": true,
+      "description": "Question label shown to respondents."
+    },
+    "field_type": {
+      "type": "enum",
+      "required": true,
+      "values": ["short_text", "long_text", "single_select", "multi_select", "number", "date", "entity_ref", "file"]
+    },
+    "required": {
+      "type": "boolean",
+      "default": false
+    },
+    "options": {
+      "type": "array",
+      "items": "string",
+      "description": "Allowed options for select fields."
+    },
+    "visibility": {
+      "type": "enum",
+      "values": ["private", "team", "organization", "network", "public"],
+      "default": "private"
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text"],
+    "min": 0
+  },
+  "validation": [
+    "key must be unique within the compiled form manifest",
+    "select fields should define at least one option",
+    "field_type must map to a host-supported form response type"
+  ],
+  "projections": {
+    "relay_kit": "FormQuestion",
+    "html": "form-question",
+    "plain_text": "question label and helper text",
+    "manifest": ["forms"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true,
+    "visibility_attribute": "visibility"
+  }
+}

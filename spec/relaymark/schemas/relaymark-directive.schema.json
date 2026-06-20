@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://relaynotes.com/spec/relaymark/schemas/relaymark-directive.schema.json",
+  "title": "RelayMark Directive Definition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "ast_type",
+    "version",
+    "category",
+    "description",
+    "attributes",
+    "children",
+    "validation",
+    "projections"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$"
+    },
+    "ast_type": {
+      "type": "string",
+      "pattern": "^relay\\.[a-z][a-z0-9_]*$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "category": {
+      "type": "string",
+      "enum": ["relay_kit", "source", "form", "transcript", "widget"]
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/attribute"
+      }
+    },
+    "children": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["none", "inline", "block", "mixed"]
+        },
+        "allowed_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "validation": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "projections": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "relay_kit": {
+          "type": "string"
+        },
+        "html": {
+          "type": "string"
+        },
+        "plain_text": {
+          "type": "string"
+        },
+        "manifest": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["actions", "mentions", "forms", "sources"]
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requires_review": {
+          "type": "boolean"
+        },
+        "requires_evidence": {
+          "type": "boolean"
+        },
+        "allows_agent_creation": {
+          "type": "boolean"
+        },
+        "visibility_attribute": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "attribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "integer", "boolean", "array", "object", "enum"]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "description": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "items": {
+          "type": "string"
+        },
+        "default": true
+      }
+    }
+  }
+}

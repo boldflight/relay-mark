@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+.DS_Store
+.build/
+_build/
+deps/
+adapters/swift/.build/
+adapters/elixir/_build/
+adapters/elixir/deps/

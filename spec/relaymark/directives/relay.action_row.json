@@ -1,0 +1,70 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "ActionRow",
+  "ast_type": "relay.action_row",
+  "version": 1,
+  "category": "relay_kit",
+  "description": "A reviewable Relay action proposal attached to document context.",
+  "attributes": {
+    "action": {
+      "type": "string",
+      "required": true,
+      "description": "Durable Relay.Action.Registry id."
+    },
+    "target": {
+      "type": "string",
+      "description": "Target entity, event, note, task, or unresolved target reference."
+    },
+    "destination": {
+      "type": "string",
+      "description": "Optional destination surface or collection for the action."
+    },
+    "visibility": {
+      "type": "enum",
+      "values": ["private", "team", "organization", "network", "public"],
+      "default": "private"
+    },
+    "review": {
+      "type": "enum",
+      "values": ["draft", "ready", "accepted", "rejected"],
+      "default": "draft"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Agent confidence from 0.0 to 1.0 when applicable."
+    },
+    "evidence": {
+      "type": "array",
+      "items": "string",
+      "description": "Block or source ids that ground the proposal."
+    },
+    "args": {
+      "type": "object",
+      "description": "Host-validated action arguments."
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text", "relay.entity_ref"],
+    "min": 1
+  },
+  "validation": [
+    "action must resolve to a host Relay.Action.Registry id before execution",
+    "review must be draft or ready for agent-created blocks",
+    "accepted and rejected states may only be produced by host review flows",
+    "evidence refs should resolve to known blocks or source manifest entries when present",
+    "visibility must be allowed by the current document and user scope"
+  ],
+  "projections": {
+    "relay_kit": "ActionRow",
+    "html": "reviewable-action-card",
+    "plain_text": "action label and review state",
+    "manifest": ["actions"]
+  },
+  "policy": {
+    "requires_review": true,
+    "requires_evidence": false,
+    "allows_agent_creation": true,
+    "visibility_attribute": "visibility"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "type": "relaymark.conformance_suite",
+  "version": "0.1.0-draft",
+  "features": [
+    "frontmatter",
+    "commonmark.heading",
+    "commonmark.paragraph",
+    "directive.relay.source_bundle",
+    "directive.relay.transcript_segment",
+    "directive.relay.agent_suggestion",
+    "directive.relay.action_row",
+    "projection.manifest.actions",
+    "projection.manifest.sources"
+  ],
+  "fixtures": [
+    {
+      "id": "mentor-meeting",
+      "source": "../examples/mentor-meeting.relaymark",
+      "expected_ast": "../examples/mentor-meeting.ast.json",
+      "expected_manifest": "../examples/mentor-meeting.manifest.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json",
+        "../schemas/relaymark-manifest.schema.json"
+      ]
+    }
+  ]
+}

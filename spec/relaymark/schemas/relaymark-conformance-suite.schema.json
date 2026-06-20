@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://relaynotes.com/spec/relaymark/schemas/relaymark-conformance-suite.schema.json",
+  "title": "RelayMark Conformance Suite",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "version", "fixtures"],
+  "properties": {
+    "type": {
+      "const": "relaymark.conformance_suite"
+    },
+    "version": {
+      "type": "string"
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fixture"
+      }
+    }
+  },
+  "$defs": {
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "expected_ast"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "source": {
+          "type": "string"
+        },
+        "expected_ast": {
+          "type": "string"
+        },
+        "expected_manifest": {
+          "type": "string"
+        },
+        "expected_diagnostics": {
+          "type": "string"
+        },
+        "schemas": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    }
+  }
+}

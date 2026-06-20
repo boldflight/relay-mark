@@ -1,0 +1,45 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "UrlRef",
+  "ast_type": "relay.url_ref",
+  "version": 1,
+  "category": "source",
+  "description": "A reference to a URL source that grounds nearby content.",
+  "attributes": {
+    "url": {
+      "type": "string",
+      "required": true,
+      "description": "Source URL."
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable source label."
+    },
+    "scope": {
+      "type": "enum",
+      "values": ["private", "team", "organization", "network", "public"],
+      "default": "private"
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text"],
+    "min": 0
+  },
+  "validation": [
+    "url must use an allowed URL scheme",
+    "scope must be allowed by the current document and user scope"
+  ],
+  "projections": {
+    "relay_kit": "SourceRef",
+    "html": "source-ref",
+    "plain_text": "url source label",
+    "manifest": ["sources"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true,
+    "visibility_attribute": "scope"
+  }
+}

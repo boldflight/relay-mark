@@ -1,0 +1,44 @@
+{
+  "type": "relaymark.manifest",
+  "version": 1,
+  "actions": [
+    {
+      "block_id": "b5",
+      "action": "relay.task.create",
+      "target": "entity:marcus",
+      "destination": "mentor-follow-up",
+      "visibility": "private",
+      "review": "draft",
+      "evidence_refs": ["src-1"],
+      "args": {
+        "title": "Send interview prep resources before Thursday."
+      }
+    }
+  ],
+  "mentions": [
+    {
+      "block_id": "b5",
+      "kind": "entity",
+      "id": "marcus",
+      "label": "entity:marcus"
+    }
+  ],
+  "forms": [],
+  "sources": [
+    {
+      "block_id": "src-1",
+      "kind": "source_bundle",
+      "source_id": "src-1",
+      "label": "Interview anxiety evidence"
+    },
+    {
+      "block_id": "b3",
+      "kind": "transcript_range",
+      "source_id": "transcript:meeting-123",
+      "start": "00:12:04",
+      "end": "00:12:48",
+      "label": "Marcus"
+    }
+  ],
+  "diagnostics": []
+}

@@ -1,0 +1,29 @@
+---
+title: Marcus interview prep
+scope: private
+---
+
+# Marcus interview prep
+
+Marcus sounded nervous about Thursday's interview.
+
+@SourceBundle(id: "src-1", title: "Interview anxiety evidence") {
+  @TranscriptRange(source: "transcript:meeting-123", speaker: "Marcus", start: "00:12:04", end: "00:12:48") {
+    I know the interview is important, but I keep freezing when I practice.
+  }
+}
+
+@AgentSuggestion(confidence: 0.82, evidence: ["src-1"], kind: "action") {
+  This sounds like a readiness/support moment, not just a scheduling note.
+}
+
+@ActionRow(
+  action: "relay.task.create",
+  target: "entity:marcus",
+  destination: "mentor-follow-up",
+  visibility: "private",
+  review: "draft",
+  evidence: ["src-1"]
+) {
+  Send interview prep resources before Thursday.
+}

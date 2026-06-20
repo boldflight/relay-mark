@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://relaynotes.com/spec/relaymark/schemas/relaymark-document.schema.json",
+  "title": "RelayMark Document",
+  "description": "Canonical RelayMark AST document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "version", "blocks"],
+  "properties": {
+    "type": {
+      "const": "relaymark.document"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "frontmatter": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "annotations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/annotation"
+      },
+      "default": []
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/resource"
+      },
+      "default": []
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
+    "blockType": {
+      "type": "string",
+      "pattern": "^(paragraph|heading|list|list_item|quote|code|table|table_row|table_cell|image|horizontal_rule|relay\\.[a-z][a-z0-9_]*|widget\\.[a-z][a-z0-9_]*)$"
+    },
+    "inlineType": {
+      "type": "string",
+      "pattern": "^(text|hard_break|soft_break|link|emphasis|strong|code_span|relay\\.[a-z][a-z0-9_]*_ref)$"
+    },
+    "jsonValue": {
+      "anyOf": [
+        {"type": "null"},
+        {"type": "boolean"},
+        {"type": "number"},
+        {"type": "string"},
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      ]
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "$ref": "#/$defs/blockType"
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          },
+          "default": {}
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {"$ref": "#/$defs/inline"},
+              {"$ref": "#/$defs/block"}
+            ]
+          },
+          "default": []
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": []
+        },
+        "source_location": {
+          "$ref": "#/$defs/location"
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      }
+    },
+    "inline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/inlineType"
+        },
+        "text": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "href": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inline"
+          }
+        }
+      }
+    },
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "anchor"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^(comment|private_note|highlight|agent_suggestion|redaction|source_grounding|review_decision)$"
+        },
+        "anchor": {
+          "$ref": "#/$defs/anchor"
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inline"
+          }
+        }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id"],
+      "properties": {
+        "block_id": {
+          "$ref": "#/$defs/id"
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "quote": {
+          "type": "string"
+        }
+      }
+    },
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^(transcript|file|url|image|video|audio|entity|event|note|form_submission)$"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["private", "team", "organization", "network", "public"]
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

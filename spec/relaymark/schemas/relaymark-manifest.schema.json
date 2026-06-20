@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://relaynotes.com/spec/relaymark/schemas/relaymark-manifest.schema.json",
+  "title": "RelayMark Projection Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "version"],
+  "properties": {
+    "type": {
+      "const": "relaymark.manifest"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/action"
+      },
+      "default": []
+    },
+    "mentions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/mention"
+      },
+      "default": []
+    },
+    "forms": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/formQuestion"
+      },
+      "default": []
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/source"
+      },
+      "default": []
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "relaymark-diagnostic.schema.json"
+      },
+      "default": []
+    }
+  },
+  "$defs": {
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "action", "review"],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "action": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "target": {
+          "type": "string"
+        },
+        "destination": {
+          "type": "string"
+        },
+        "visibility": {
+          "type": "string"
+        },
+        "review": {
+          "type": "string",
+          "enum": ["draft", "ready", "accepted", "rejected"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "mention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "kind", "label"],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["entity", "event", "note", "task", "unresolved"]
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+    "formQuestion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "key", "label", "field_type"],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "field_type": {
+          "type": "string"
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "kind"],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["source_bundle", "transcript_range", "note_ref", "file_ref", "url_ref"]
+        },
+        "source_id": {
+          "type": "string"
+        },
+        "start": {
+          "type": "string"
+        },
+        "end": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
