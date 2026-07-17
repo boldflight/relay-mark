@@ -1,4 +1,5 @@
 import { directiveForName } from "./registry.js";
+import { isBlockNode } from "./node-kind.js";
 
 export function compileParsedDocument(parsed) {
   const allocator = createBlockIdAllocator();
@@ -83,7 +84,7 @@ function compileBlock(block, allocator, diagnostics) {
 
 function shouldFlattenRawDirectiveContent(astType, children) {
   return (
-    ["relay.action_row", "relay.agent_suggestion", "relay.transcript_segment"].includes(astType) &&
+    ["relay.action_row", "relay.agent_suggestion", "relay.claim", "relay.comparison", "relay.transcript_segment"].includes(astType) &&
     children.length === 1 &&
     children[0].kind === "paragraph"
   );
@@ -153,7 +154,7 @@ function visitBlocks(blocks, visitor) {
     visitor(block);
 
     if (Array.isArray(block.content)) {
-      const childBlocks = block.content.filter((child) => child && typeof child === "object" && "id" in child && "type" in child);
+      const childBlocks = block.content.filter(isBlockNode);
       visitBlocks(childBlocks, visitor);
     }
   }

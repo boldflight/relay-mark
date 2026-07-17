@@ -1,0 +1,203 @@
+{
+  "type": "relaymark.manifest",
+  "version": 1,
+  "actions": [
+    {
+      "block_id": "b10",
+      "action": "product_feedback",
+      "target": "entity:product-mac-mini-m4-pro",
+      "destination": "atlas",
+      "visibility": "public",
+      "review": "accepted",
+      "evidence_refs": [
+        "src-apple"
+      ],
+      "args": {
+        "identifier": "product-mac-mini-m4-pro",
+        "field": "attributes.memory_bandwidth_gbps",
+        "proposed_value": 273,
+        "reason": "First-party specifications resolve the value.",
+        "source_urls": [
+          "https://www.apple.com/mac-mini/specs/"
+        ],
+        "title": "Submit the verified memory-bandwidth correction to Atlas editorial review."
+      }
+    },
+    {
+      "block_id": "b11",
+      "action": "product_feedback",
+      "target": "entity:product-mac-mini-m4-pro",
+      "destination": "atlas",
+      "visibility": "public",
+      "review": "rejected",
+      "evidence_refs": [
+        "src-apple",
+        "src-mbench"
+      ],
+      "args": {
+        "identifier": "product-mac-mini-m4-pro",
+        "field": "attributes.gpu_core_count",
+        "proposed_value": 20,
+        "reason": "The sources disagree about the tested configuration.",
+        "source_urls": [
+          "https://www.apple.com/mac-mini/specs/",
+          "https://benchmarks.example.test/runs/2026-07-14"
+        ],
+        "title": "Submit the disputed GPU core count before the configuration conflict is resolved."
+      }
+    }
+  ],
+  "mentions": [
+    {
+      "block_id": "b2",
+      "kind": "entity",
+      "id": "app-m-bench",
+      "label": "M Bench"
+    },
+    {
+      "block_id": "b10",
+      "kind": "entity",
+      "id": "product-mac-mini-m4-pro",
+      "label": "entity:product-mac-mini-m4-pro"
+    },
+    {
+      "block_id": "b11",
+      "kind": "entity",
+      "id": "product-mac-mini-m4-pro",
+      "label": "entity:product-mac-mini-m4-pro"
+    }
+  ],
+  "references": [
+    {
+      "block_id": "b2",
+      "type": "relay.product_ref",
+      "id": "product-mac-mini-m4-pro",
+      "label": "Mac mini with M4 Pro"
+    },
+    {
+      "block_id": "b2",
+      "type": "relay.product_ref",
+      "id": "product-mac-studio-m4-max",
+      "label": "Mac Studio with M4 Max"
+    },
+    {
+      "block_id": "b2",
+      "type": "relay.entity_ref",
+      "id": "app-m-bench",
+      "label": "M Bench"
+    },
+    {
+      "block_id": "b7",
+      "type": "relay.product_ref",
+      "id": "product-mac-mini-m4-pro",
+      "label": "Mac mini with M4 Pro"
+    },
+    {
+      "block_id": "b7",
+      "type": "relay.product_ref",
+      "id": "product-mac-studio-m4-max",
+      "label": "Mac Studio with M4 Max"
+    }
+  ],
+  "forms": [],
+  "sources": [
+    {
+      "block_id": "src-apple",
+      "kind": "source_bundle",
+      "source_id": "src-apple",
+      "label": "Apple product specifications"
+    },
+    {
+      "block_id": "b3",
+      "kind": "url_ref",
+      "uri": "https://www.apple.com/mac-mini/specs/",
+      "label": "Mac mini technical specifications"
+    },
+    {
+      "block_id": "b4",
+      "kind": "url_ref",
+      "uri": "https://www.apple.com/mac-studio/specs/",
+      "label": "Mac Studio technical specifications"
+    },
+    {
+      "block_id": "src-mbench",
+      "kind": "source_bundle",
+      "source_id": "src-mbench",
+      "label": "Imported M Bench evidence"
+    },
+    {
+      "block_id": "b5",
+      "kind": "file_ref",
+      "source_id": "file-mbench-run-2026-07-14",
+      "uri": "relay:file/file-mbench-run-2026-07-14",
+      "label": "M Bench run exported 2026-07-14"
+    },
+    {
+      "block_id": "b6",
+      "kind": "url_ref",
+      "uri": "https://benchmarks.example.test/runs/2026-07-14",
+      "label": "Published benchmark run"
+    }
+  ],
+  "claims": [
+    {
+      "block_id": "b8",
+      "key": "mac-mini-gpu-core-count",
+      "subject": "entity:product-mac-mini-m4-pro",
+      "status": "disputed",
+      "confidence": 0.62,
+      "evidence_refs": [
+        "src-apple"
+      ],
+      "text": "Apple's selected configuration is recorded as a 20-core GPU."
+    },
+    {
+      "block_id": "b9",
+      "key": "mac-mini-gpu-core-count",
+      "subject": "entity:product-mac-mini-m4-pro",
+      "status": "disputed",
+      "confidence": 0.58,
+      "evidence_refs": [
+        "src-mbench"
+      ],
+      "text": "The imported benchmark file identifies the same machine as a 16-core GPU configuration."
+    }
+  ],
+  "comparisons": [
+    {
+      "block_id": "b7",
+      "title": "Price, memory bandwidth, and CPU score",
+      "subjects": [
+        "entity:product-mac-mini-m4-pro",
+        "entity:product-mac-studio-m4-max"
+      ],
+      "criteria": [
+        "price_usd",
+        "memory_bandwidth_gbps",
+        "cpu_score"
+      ],
+      "values": {
+        "price_usd": {
+          "entity:product-mac-mini-m4-pro": 1399,
+          "entity:product-mac-studio-m4-max": 1999
+        },
+        "memory_bandwidth_gbps": {
+          "entity:product-mac-mini-m4-pro": 273,
+          "entity:product-mac-studio-m4-max": 546
+        },
+        "cpu_score": {
+          "entity:product-mac-mini-m4-pro": 21500,
+          "entity:product-mac-studio-m4-max": 28400
+        }
+      },
+      "preferred": "entity:product-mac-mini-m4-pro",
+      "layout": "table",
+      "evidence_refs": [
+        "src-apple",
+        "src-mbench"
+      ],
+      "summary": "Mac mini with M4 Pro is the lower-cost fit; Mac Studio with M4 Max leads on memory bandwidth and the imported CPU score."
+    }
+  ],
+  "diagnostics": []
+}

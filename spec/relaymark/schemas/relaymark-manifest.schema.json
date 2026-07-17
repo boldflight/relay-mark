@@ -27,6 +27,13 @@
       },
       "default": []
     },
+    "references": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/reference"
+      },
+      "default": []
+    },
     "forms": {
       "type": "array",
       "items": {
@@ -38,6 +45,20 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/source"
+      },
+      "default": []
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/claim"
+      },
+      "default": []
+    },
+    "comparisons": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/comparison"
       },
       "default": []
     },
@@ -106,6 +127,32 @@
         }
       }
     },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "type"],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^relay\\.[a-z][a-z0-9_]*_ref$",
+          "not": {
+            "enum": ["relay.file_ref", "relay.note_ref", "relay.url_ref"]
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "href": {
+          "type": "string"
+        }
+      }
+    },
     "formQuestion": {
       "type": "object",
       "additionalProperties": false,
@@ -159,6 +206,89 @@
           "type": "string"
         },
         "label": {
+          "type": "string"
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "key", "status", "evidence_refs", "text"],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["unverified", "supported", "disputed", "refuted", "resolved"]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["block_id", "subjects", "criteria", "values", "layout", "evidence_refs", "summary"],
+      "properties": {
+        "block_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "subjects": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "values": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "preferred": {
+          "type": "string"
+        },
+        "layout": {
+          "type": "string",
+          "enum": ["table", "bar", "timeline", "checklist", "radar", "heatmap"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "summary": {
           "type": "string"
         }
       }

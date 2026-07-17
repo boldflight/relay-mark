@@ -1,0 +1,55 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "Claim",
+  "ast_type": "relay.claim",
+  "version": 1,
+  "category": "research",
+  "description": "A factual proposition with explicit evidence and verification state.",
+  "attributes": {
+    "key": {
+      "type": "string",
+      "required": true,
+      "description": "Stable key used to group equivalent or conflicting claims."
+    },
+    "subject": {
+      "type": "string",
+      "description": "Entity or other host reference that the claim describes."
+    },
+    "status": {
+      "type": "enum",
+      "values": ["unverified", "supported", "disputed", "refuted", "resolved"],
+      "default": "unverified"
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Confidence from 0.0 to 1.0 when available."
+    },
+    "evidence": {
+      "type": "array",
+      "items": "string",
+      "description": "Block or source ids that support or dispute the proposition."
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text", "relay.entity_ref"],
+    "min": 1
+  },
+  "validation": [
+    "key should be stable across equivalent or conflicting claims",
+    "evidence refs should resolve to known blocks or source manifest entries",
+    "confidence should be between 0.0 and 1.0 when present",
+    "resolved claims should preserve the evidence used for resolution"
+  ],
+  "projections": {
+    "relay_kit": "Claim",
+    "html": "research-claim",
+    "plain_text": "claim text and verification state",
+    "manifest": ["claims"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": true,
+    "allows_agent_creation": true
+  }
+}

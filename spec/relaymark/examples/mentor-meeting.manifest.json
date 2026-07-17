@@ -23,6 +23,7 @@
       "label": "entity:marcus"
     }
   ],
+  "references": [],
   "forms": [],
   "sources": [
     {
@@ -40,5 +41,7 @@
       "label": "Marcus"
     }
   ],
+  "claims": [],
+  "comparisons": [],
   "diagnostics": []
 }

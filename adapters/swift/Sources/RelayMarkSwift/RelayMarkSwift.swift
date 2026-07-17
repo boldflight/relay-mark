@@ -82,6 +82,16 @@ public struct RelayMarkDocument: Codable, Equatable, Sendable {
     public static func decodeJSON(_ data: Data) throws -> RelayMarkDocument {
         try RelayMarkDecoder.decode(RelayMarkDocument.self, from: data)
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        version = try container.decode(Int.self, forKey: .version)
+        frontmatter = try container.decodeIfPresent([String: RelayMarkValue].self, forKey: .frontmatter) ?? [:]
+        blocks = try container.decode([RelayMarkBlock].self, forKey: .blocks)
+        annotations = try container.decodeIfPresent([RelayMarkAnnotation].self, forKey: .annotations) ?? []
+        resources = try container.decodeIfPresent([RelayMarkResource].self, forKey: .resources) ?? []
+    }
 }
 
 public struct RelayMarkBlock: Codable, Equatable, Sendable {
@@ -135,11 +145,12 @@ public enum RelayMarkContent: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let probe = try decoder.container(keyedBy: ProbeKeys.self)
+        let type = try probe.decode(String.self, forKey: .type)
 
-        if probe.contains(.id) {
-            self = .block(try RelayMarkBlock(from: decoder))
-        } else {
+        if Self.isInlineType(type) {
             self = .inline(try RelayMarkInline(from: decoder))
+        } else {
+            self = .block(try RelayMarkBlock(from: decoder))
         }
     }
 
@@ -153,7 +164,18 @@ public enum RelayMarkContent: Codable, Equatable, Sendable {
     }
 
     enum ProbeKeys: String, CodingKey {
-        case id
+        case type
+    }
+
+    private static func isInlineType(_ type: String) -> Bool {
+        switch type {
+        case "text", "hard_break", "soft_break", "link", "emphasis", "strong", "code_span":
+            return true
+        case "relay.file_ref", "relay.note_ref", "relay.url_ref":
+            return false
+        default:
+            return type.hasPrefix("relay.") && type.hasSuffix("_ref")
+        }
     }
 }
 
@@ -239,12 +261,29 @@ public struct RelayMarkManifest: Codable, Equatable, Sendable {
     public let version: Int
     public let actions: [RelayMarkAction]
     public let mentions: [RelayMarkMention]
+    public let references: [RelayMarkReference]
     public let forms: [RelayMarkFormQuestion]
     public let sources: [RelayMarkSource]
+    public let claims: [RelayMarkClaim]
+    public let comparisons: [RelayMarkComparison]
     public let diagnostics: [RelayMarkDiagnostic]
 
     public static func decodeJSON(_ data: Data) throws -> RelayMarkManifest {
         try RelayMarkDecoder.decode(RelayMarkManifest.self, from: data)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        version = try container.decode(Int.self, forKey: .version)
+        actions = try container.decodeIfPresent([RelayMarkAction].self, forKey: .actions) ?? []
+        mentions = try container.decodeIfPresent([RelayMarkMention].self, forKey: .mentions) ?? []
+        references = try container.decodeIfPresent([RelayMarkReference].self, forKey: .references) ?? []
+        forms = try container.decodeIfPresent([RelayMarkFormQuestion].self, forKey: .forms) ?? []
+        sources = try container.decodeIfPresent([RelayMarkSource].self, forKey: .sources) ?? []
+        claims = try container.decodeIfPresent([RelayMarkClaim].self, forKey: .claims) ?? []
+        comparisons = try container.decodeIfPresent([RelayMarkComparison].self, forKey: .comparisons) ?? []
+        diagnostics = try container.decodeIfPresent([RelayMarkDiagnostic].self, forKey: .diagnostics) ?? []
     }
 }
 
@@ -296,6 +335,22 @@ public struct RelayMarkMention: Codable, Equatable, Sendable {
     }
 }
 
+public struct RelayMarkReference: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let type: String
+    public let id: String?
+    public let label: String?
+    public let href: String?
+
+    enum CodingKeys: String, CodingKey {
+        case blockID = "block_id"
+        case type
+        case id
+        case label
+        case href
+    }
+}
+
 public struct RelayMarkFormQuestion: Codable, Equatable, Sendable {
     public let blockID: String
     public let key: String
@@ -331,6 +386,50 @@ public struct RelayMarkSource: Codable, Equatable, Sendable {
         case end
         case uri
         case label
+    }
+}
+
+public struct RelayMarkClaim: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let key: String
+    public let subject: String?
+    public let status: String
+    public let confidence: Double?
+    public let evidenceRefs: [String]
+    public let text: String
+
+    enum CodingKeys: String, CodingKey {
+        case blockID = "block_id"
+        case key
+        case subject
+        case status
+        case confidence
+        case evidenceRefs = "evidence_refs"
+        case text
+    }
+}
+
+public struct RelayMarkComparison: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let title: String?
+    public let subjects: [String]
+    public let criteria: [String]
+    public let values: [String: RelayMarkValue]
+    public let preferred: String?
+    public let layout: String
+    public let evidenceRefs: [String]
+    public let summary: String
+
+    enum CodingKeys: String, CodingKey {
+        case blockID = "block_id"
+        case title
+        case subjects
+        case criteria
+        case values
+        case preferred
+        case layout
+        case evidenceRefs = "evidence_refs"
+        case summary
     }
 }
 

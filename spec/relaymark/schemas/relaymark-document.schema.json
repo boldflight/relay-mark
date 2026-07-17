@@ -51,11 +51,34 @@
     },
     "blockType": {
       "type": "string",
-      "pattern": "^(paragraph|heading|list|list_item|quote|code|table|table_row|table_cell|image|horizontal_rule|relay\\.[a-z][a-z0-9_]*|widget\\.[a-z][a-z0-9_]*)$"
+      "anyOf": [
+        {
+          "pattern": "^(paragraph|heading|list|list_item|quote|code|table|table_row|table_cell|image|horizontal_rule|widget\\.[a-z][a-z0-9_]*)$"
+        },
+        {
+          "pattern": "^relay\\.[a-z][a-z0-9_]*$",
+          "not": {
+            "pattern": "_ref$"
+          }
+        },
+        {
+          "enum": ["relay.file_ref", "relay.note_ref", "relay.url_ref"]
+        }
+      ]
     },
     "inlineType": {
       "type": "string",
-      "pattern": "^(text|hard_break|soft_break|link|emphasis|strong|code_span|relay\\.[a-z][a-z0-9_]*_ref)$"
+      "anyOf": [
+        {
+          "enum": ["text", "hard_break", "soft_break", "link", "emphasis", "strong", "code_span"]
+        },
+        {
+          "pattern": "^relay\\.[a-z][a-z0-9_]*_ref$",
+          "not": {
+            "enum": ["relay.file_ref", "relay.note_ref", "relay.url_ref"]
+          }
+        }
+      ]
     },
     "jsonValue": {
       "anyOf": [
@@ -228,7 +251,7 @@
         },
         "scope": {
           "type": "string",
-          "enum": ["private", "team", "organization", "network", "public"]
+          "enum": ["private", "org", "unlisted", "public"]
         },
         "props": {
           "type": "object",

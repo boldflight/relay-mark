@@ -1,16 +1,25 @@
 {
   "type": "relaymark.conformance_suite",
-  "version": "0.1.0-draft",
+  "version": "0.2.0-draft",
   "features": [
     "frontmatter",
     "commonmark.heading",
     "commonmark.paragraph",
+    "inline.relay.entity_ref",
+    "inline.relay.product_ref",
     "directive.relay.source_bundle",
     "directive.relay.transcript_segment",
+    "directive.relay.file_ref",
+    "directive.relay.url_ref",
     "directive.relay.agent_suggestion",
     "directive.relay.action_row",
+    "directive.relay.claim",
+    "directive.relay.comparison",
     "projection.manifest.actions",
-    "projection.manifest.sources"
+    "projection.manifest.references",
+    "projection.manifest.sources",
+    "projection.manifest.claims",
+    "projection.manifest.comparisons"
   ],
   "fixtures": [
     {
@@ -18,6 +27,16 @@
       "source": "../examples/mentor-meeting.relaymark",
       "expected_ast": "../examples/mentor-meeting.ast.json",
       "expected_manifest": "../examples/mentor-meeting.manifest.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json",
+        "../schemas/relaymark-manifest.schema.json"
+      ]
+    },
+    {
+      "id": "product-research",
+      "source": "../examples/product-research.relaymark",
+      "expected_ast": "../examples/product-research.ast.json",
+      "expected_manifest": "../examples/product-research.manifest.json",
       "schemas": [
         "../schemas/relaymark-document.schema.json",
         "../schemas/relaymark-manifest.schema.json"

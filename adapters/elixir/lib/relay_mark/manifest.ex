@@ -5,8 +5,11 @@ defmodule RelayMark.Manifest do
             version: 1,
             actions: [],
             mentions: [],
+            references: [],
             forms: [],
             sources: [],
+            claims: [],
+            comparisons: [],
             diagnostics: []
 
   @type t :: %__MODULE__{
@@ -14,8 +17,11 @@ defmodule RelayMark.Manifest do
           version: pos_integer(),
           actions: [RelayMark.Manifest.Action.t()],
           mentions: [RelayMark.Manifest.Mention.t()],
+          references: [RelayMark.Manifest.Reference.t()],
           forms: [RelayMark.Manifest.FormQuestion.t()],
           sources: [RelayMark.Manifest.Source.t()],
+          claims: [RelayMark.Manifest.Claim.t()],
+          comparisons: [RelayMark.Manifest.Comparison.t()],
           diagnostics: [map()]
         }
 
@@ -26,9 +32,42 @@ defmodule RelayMark.Manifest do
       version: Map.fetch!(map, "version"),
       actions: Enum.map(Map.get(map, "actions", []), &RelayMark.Manifest.Action.from_map/1),
       mentions: Enum.map(Map.get(map, "mentions", []), &RelayMark.Manifest.Mention.from_map/1),
+      references:
+        Enum.map(Map.get(map, "references", []), &RelayMark.Manifest.Reference.from_map/1),
       forms: Enum.map(Map.get(map, "forms", []), &RelayMark.Manifest.FormQuestion.from_map/1),
       sources: Enum.map(Map.get(map, "sources", []), &RelayMark.Manifest.Source.from_map/1),
+      claims: Enum.map(Map.get(map, "claims", []), &RelayMark.Manifest.Claim.from_map/1),
+      comparisons:
+        Enum.map(Map.get(map, "comparisons", []), &RelayMark.Manifest.Comparison.from_map/1),
       diagnostics: Map.get(map, "diagnostics", [])
+    }
+  end
+end
+
+defmodule RelayMark.Manifest.Reference do
+  @moduledoc "Inline Relay reference projection."
+
+  defstruct block_id: nil,
+            type: nil,
+            id: nil,
+            label: nil,
+            href: nil
+
+  @type t :: %__MODULE__{
+          block_id: String.t(),
+          type: String.t(),
+          id: String.t() | nil,
+          label: String.t() | nil,
+          href: String.t() | nil
+        }
+
+  def from_map(map) do
+    %__MODULE__{
+      block_id: Map.fetch!(map, "block_id"),
+      type: Map.fetch!(map, "type"),
+      id: Map.get(map, "id"),
+      label: Map.get(map, "label"),
+      href: Map.get(map, "href")
     }
   end
 end
@@ -156,6 +195,80 @@ defmodule RelayMark.Manifest.Source do
       end: Map.get(map, "end"),
       uri: Map.get(map, "uri"),
       label: Map.get(map, "label")
+    }
+  end
+end
+
+defmodule RelayMark.Manifest.Claim do
+  @moduledoc "Evidence-backed research claim projection."
+
+  defstruct block_id: nil,
+            key: nil,
+            subject: nil,
+            status: nil,
+            confidence: nil,
+            evidence_refs: [],
+            text: nil
+
+  @type t :: %__MODULE__{
+          block_id: String.t(),
+          key: String.t(),
+          subject: String.t() | nil,
+          status: String.t(),
+          confidence: number() | nil,
+          evidence_refs: [String.t()],
+          text: String.t()
+        }
+
+  def from_map(map) do
+    %__MODULE__{
+      block_id: Map.fetch!(map, "block_id"),
+      key: Map.fetch!(map, "key"),
+      subject: Map.get(map, "subject"),
+      status: Map.fetch!(map, "status"),
+      confidence: Map.get(map, "confidence"),
+      evidence_refs: Map.get(map, "evidence_refs", []),
+      text: Map.fetch!(map, "text")
+    }
+  end
+end
+
+defmodule RelayMark.Manifest.Comparison do
+  @moduledoc "Structured research comparison projection."
+
+  defstruct block_id: nil,
+            title: nil,
+            subjects: [],
+            criteria: [],
+            values: %{},
+            preferred: nil,
+            layout: nil,
+            evidence_refs: [],
+            summary: nil
+
+  @type t :: %__MODULE__{
+          block_id: String.t(),
+          title: String.t() | nil,
+          subjects: [String.t()],
+          criteria: [String.t()],
+          values: map(),
+          preferred: String.t() | nil,
+          layout: String.t(),
+          evidence_refs: [String.t()],
+          summary: String.t()
+        }
+
+  def from_map(map) do
+    %__MODULE__{
+      block_id: Map.fetch!(map, "block_id"),
+      title: Map.get(map, "title"),
+      subjects: Map.get(map, "subjects", []),
+      criteria: Map.get(map, "criteria", []),
+      values: Map.get(map, "values", %{}),
+      preferred: Map.get(map, "preferred"),
+      layout: Map.fetch!(map, "layout"),
+      evidence_refs: Map.get(map, "evidence_refs", []),
+      summary: Map.fetch!(map, "summary")
     }
   end
 end

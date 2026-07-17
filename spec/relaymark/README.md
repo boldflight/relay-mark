@@ -8,7 +8,7 @@ standalone repository later without depending on the Phoenix application.
 
 ## Status
 
-- Spec version: `0.1.0-draft`
+- Spec version: `0.2.0-draft`
 - Stability: draft
 - Compatibility target: CommonMark prose plus RelayMark directives
 - Canonical interchange model: RelayMark AST JSON
@@ -59,6 +59,8 @@ spec/relaymark/
   directives/
     relay.action_row.json
     relay.agent_suggestion.json
+    relay.claim.json
+    relay.comparison.json
     relay.file_ref.json
     relay.form_question.json
     relay.note_ref.json
@@ -69,6 +71,9 @@ spec/relaymark/
     mentor-meeting.relaymark
     mentor-meeting.ast.json
     mentor-meeting.manifest.json
+    product-research.relaymark
+    product-research.ast.json
+    product-research.manifest.json
   conformance/
     suite.json
 ```
@@ -95,6 +100,10 @@ names SHOULD use lower snake case. Directive names in source use PascalCase;
 compiled AST types use lowercase, namespaced identifiers such as
 `relay.action_row`.
 
+Visibility and scope attributes that map to Relay publishing MUST use Relay's
+canonical `private`, `org`, `unlisted`, or `public` values. Renderers and host
+apps MUST NOT translate these into product-specific sharing states.
+
 Unknown directives MUST fail validation in trusted document contexts. Import and
 recovery tools MAY preserve them as inert source text.
 
@@ -107,6 +116,14 @@ Every block MUST have a stable `id`. Every Relay semantic block MUST have a
 namespaced `type`. Implementations MAY generate ids during compilation, but a
 runtime that round-trips a document SHOULD preserve existing ids when source
 contains or maps to them.
+
+Inline Relay references such as `relay.entity_ref` and `relay.product_ref` MAY
+also have an `id`. Implementations MUST discriminate block and inline nodes by
+their registered `type`, not by the presence of `id`. The portable block
+registry reserves `relay.file_ref`, `relay.note_ref`, and `relay.url_ref` as
+source directives even though their names end in `_ref`; other
+`relay.*_ref` nodes are inline unless a trusted extension registry declares
+them as blocks.
 
 ## Directive Registry
 
@@ -141,7 +158,8 @@ Conforming runtimes SHOULD support at least these projections:
 - `html`: safe read-only HTML.
 - `plain_text`: text for search, embeddings, notifications, and summaries.
 - `relay_kit`: semantic render spec for Relay clients.
-- `manifest`: action, mention, form, and source projection data.
+- `manifest`: action, mention, inline reference, form, source, claim, and
+  comparison projection data.
 
 Runtimes MAY add `markdown`, `xml`, `epub`, `mcp`, or client-specific render
 targets as long as they do not change the AST contract.
@@ -156,8 +174,8 @@ RelayMark uses semantic-ish spec versions:
   validation codes.
 - Major versions may change directive syntax, AST semantics, or required fields.
 
-Every AST document MUST include `version`. Draft version `1` maps to spec
-`0.1.x` until the first stable release.
+Every AST document MUST include `version`. Draft AST version `1` maps to spec
+`0.x` until the first stable release.
 
 ## Conformance
 

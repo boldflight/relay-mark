@@ -1,0 +1,68 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "Comparison",
+  "ast_type": "relay.comparison",
+  "version": 1,
+  "category": "research",
+  "description": "A structured, evidence-backed comparison of two or more referenced subjects.",
+  "attributes": {
+    "title": {
+      "type": "string",
+      "description": "Human-readable comparison title."
+    },
+    "subjects": {
+      "type": "array",
+      "items": "string",
+      "required": true,
+      "description": "Two or more entity or host references being compared."
+    },
+    "criteria": {
+      "type": "array",
+      "items": "string",
+      "required": true,
+      "description": "Ordered comparison criteria."
+    },
+    "values": {
+      "type": "object",
+      "required": true,
+      "description": "Criterion-keyed JSON values for each subject."
+    },
+    "preferred": {
+      "type": "string",
+      "description": "Optional evidence-backed preferred subject reference."
+    },
+    "layout": {
+      "type": "enum",
+      "values": ["table", "bar", "timeline", "checklist", "radar", "heatmap"],
+      "default": "table"
+    },
+    "evidence": {
+      "type": "array",
+      "items": "string",
+      "description": "Block or source ids grounding the compared values."
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "heading", "table", "text", "relay.entity_ref"],
+    "min": 1
+  },
+  "validation": [
+    "subjects must contain at least two distinct references",
+    "criteria must contain at least one key",
+    "values should provide a value or an explicit null for every subject and criterion",
+    "preferred should resolve to one of subjects when present",
+    "evidence refs should resolve to known blocks or source manifest entries"
+  ],
+  "projections": {
+    "relay_kit": "Comparison",
+    "html": "research-comparison",
+    "plain_text": "comparison title and summary",
+    "manifest": ["comparisons"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": true,
+    "allows_agent_creation": true
+  }
+}

@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
+import { validateJSONSchema } from "./json-schema.js";
 import { compileRelayMark } from "./runtime.js";
 
 export function runConformanceSuite(path) {
@@ -12,20 +13,49 @@ export function runConformanceSuite(path) {
     const source = readFileSync(resolve(suiteDir, fixture.source), "utf8");
     const actual = compileRelayMark(source);
     const errors = [];
+    let expectedDocument;
+    let expectedManifest;
 
     if (fixture.expected_ast) {
-      const expectedAst = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_ast), "utf8"));
+      expectedDocument = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_ast), "utf8"));
 
-      if (!deepEqual(actual.document, expectedAst)) {
+      if (!deepEqual(actual.document, expectedDocument)) {
         errors.push("compiled AST did not match expected_ast");
       }
     }
 
     if (fixture.expected_manifest) {
-      const expectedManifest = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_manifest), "utf8"));
+      expectedManifest = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_manifest), "utf8"));
 
       if (!deepEqual(actual.manifest, expectedManifest)) {
         errors.push("projected manifest did not match expected_manifest");
+      }
+    }
+
+    for (const schemaReference of fixture.schemas || []) {
+      const schemaPath = resolve(suiteDir, schemaReference);
+
+      try {
+        const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+        const outputType = schema.properties?.type?.const;
+        const targets = schemaTargets(outputType, actual, expectedDocument, expectedManifest);
+
+        if (targets.length === 0) {
+          errors.push(
+            `schema ${basename(schemaPath)} does not identify relaymark.document or relaymark.manifest via properties.type.const`
+          );
+          continue;
+        }
+
+        for (const target of targets) {
+          for (const validationError of validateJSONSchema(target.value, schema, schemaPath)) {
+            errors.push(
+              `${target.label} failed ${basename(schemaPath)} at ${validationError.instance_path}: ${validationError.message}`
+            );
+          }
+        }
+      } catch (error) {
+        errors.push(`could not apply schema ${basename(schemaPath)}: ${error.message}`);
       }
     }
 
@@ -40,6 +70,28 @@ export function runConformanceSuite(path) {
     ok: fixtures.every((fixture) => fixture.ok),
     fixtures
   };
+}
+
+function schemaTargets(outputType, actual, expectedDocument, expectedManifest) {
+  if (outputType === "relaymark.document") {
+    return compactTargets([
+      { label: "compiled AST", value: actual.document },
+      { label: "expected AST", value: expectedDocument }
+    ]);
+  }
+
+  if (outputType === "relaymark.manifest") {
+    return compactTargets([
+      { label: "projected manifest", value: actual.manifest },
+      { label: "expected manifest", value: expectedManifest }
+    ]);
+  }
+
+  return [];
+}
+
+function compactTargets(targets) {
+  return targets.filter(({ value }) => value !== undefined);
 }
 
 function deepEqual(left, right) {

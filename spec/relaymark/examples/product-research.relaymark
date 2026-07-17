@@ -1,0 +1,93 @@
+---
+title: Mac desktop upgrade research
+scope: private
+research_date: 2026-07-16
+review_state: host-reviewed
+---
+
+# Mac desktop upgrade research
+
+Compare [Mac mini with M4 Pro](relay:product/product-mac-mini-m4-pro) and [Mac Studio with M4 Max](relay:product/product-mac-studio-m4-max) using first-party specifications and an imported [M Bench](relay:entity/app-m-bench) run.
+
+@SourceBundle(id: "src-apple", title: "Apple product specifications", scope: "public", confidence: 0.98) {
+  @UrlRef(url: "https://www.apple.com/mac-mini/specs/", label: "Mac mini technical specifications", scope: "public") {
+  }
+  @UrlRef(url: "https://www.apple.com/mac-studio/specs/", label: "Mac Studio technical specifications", scope: "public") {
+  }
+}
+
+@SourceBundle(id: "src-mbench", title: "Imported M Bench evidence", scope: "private", confidence: 0.91) {
+  @FileRef(id: "file-mbench-run-2026-07-14", uri: "relay:file/file-mbench-run-2026-07-14", label: "M Bench run exported 2026-07-14", scope: "private") {
+  }
+  @UrlRef(url: "https://benchmarks.example.test/runs/2026-07-14", label: "Published benchmark run", scope: "private") {
+  }
+}
+
+@Comparison(
+  title: "Price, memory bandwidth, and CPU score",
+  subjects: ["entity:product-mac-mini-m4-pro", "entity:product-mac-studio-m4-max"],
+  criteria: ["price_usd", "memory_bandwidth_gbps", "cpu_score"],
+  values: {
+    "price_usd": {
+      "entity:product-mac-mini-m4-pro": 1399,
+      "entity:product-mac-studio-m4-max": 1999
+    },
+    "memory_bandwidth_gbps": {
+      "entity:product-mac-mini-m4-pro": 273,
+      "entity:product-mac-studio-m4-max": 546
+    },
+    "cpu_score": {
+      "entity:product-mac-mini-m4-pro": 21500,
+      "entity:product-mac-studio-m4-max": 28400
+    }
+  },
+  preferred: "entity:product-mac-mini-m4-pro",
+  layout: "table",
+  evidence: ["src-apple", "src-mbench"]
+) {
+  [Mac mini with M4 Pro](relay:product/product-mac-mini-m4-pro) is the lower-cost fit; [Mac Studio with M4 Max](relay:product/product-mac-studio-m4-max) leads on memory bandwidth and the imported CPU score.
+}
+
+@Claim(key: "mac-mini-gpu-core-count", subject: "entity:product-mac-mini-m4-pro", status: "disputed", confidence: 0.62, evidence: ["src-apple"]) {
+  Apple's selected configuration is recorded as a 20-core GPU.
+}
+
+@Claim(key: "mac-mini-gpu-core-count", subject: "entity:product-mac-mini-m4-pro", status: "disputed", confidence: 0.58, evidence: ["src-mbench"]) {
+  The imported benchmark file identifies the same machine as a 16-core GPU configuration.
+}
+
+@ActionRow(
+  action: "product_feedback",
+  target: "entity:product-mac-mini-m4-pro",
+  destination: "atlas",
+  visibility: "public",
+  review: "accepted",
+  evidence: ["src-apple"],
+  args: {
+    "identifier": "product-mac-mini-m4-pro",
+    "field": "attributes.memory_bandwidth_gbps",
+    "proposed_value": 273,
+    "reason": "First-party specifications resolve the value.",
+    "source_urls": ["https://www.apple.com/mac-mini/specs/"]
+  }
+) {
+  Submit the verified memory-bandwidth correction to Atlas editorial review.
+}
+
+@ActionRow(
+  action: "product_feedback",
+  target: "entity:product-mac-mini-m4-pro",
+  destination: "atlas",
+  visibility: "public",
+  review: "rejected",
+  evidence: ["src-apple", "src-mbench"],
+  args: {
+    "identifier": "product-mac-mini-m4-pro",
+    "field": "attributes.gpu_core_count",
+    "proposed_value": 20,
+    "reason": "The sources disagree about the tested configuration.",
+    "source_urls": ["https://www.apple.com/mac-mini/specs/", "https://benchmarks.example.test/runs/2026-07-14"]
+  }
+) {
+  Submit the disputed GPU core count before the configuration conflict is resolved.
+}

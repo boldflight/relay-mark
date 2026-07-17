@@ -20,7 +20,7 @@
     },
     "scope": {
       "type": "enum",
-      "values": ["private", "team", "organization", "network", "public"],
+      "values": ["private", "org", "unlisted", "public"],
       "default": "private"
     }
   },

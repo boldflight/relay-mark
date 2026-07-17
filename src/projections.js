@@ -1,11 +1,16 @@
+import { isBlockNode, isInlineNode } from "./node-kind.js";
+
 export function projectManifest(document, diagnostics = []) {
   const manifest = {
     type: "relaymark.manifest",
     version: 1,
     actions: [],
     mentions: [],
+    references: [],
     forms: [],
     sources: [],
+    claims: [],
+    comparisons: [],
     diagnostics
   };
 
@@ -18,7 +23,7 @@ export function projectManifest(document, diagnostics = []) {
         destination: block.props.destination,
         visibility: block.props.visibility,
         review: block.props.review,
-        evidence_refs: block.evidence_refs || block.props.evidence || [],
+        evidence_refs: evidenceRefsFor(block),
         args: {
           ...(block.props.args || {}),
           title: toPlainText(block).trim()
@@ -33,6 +38,36 @@ export function projectManifest(document, diagnostics = []) {
           label: block.props.target
         });
       }
+    }
+
+    if (block.type === "relay.claim") {
+      manifest.claims.push(
+        compactObject({
+          block_id: block.id,
+          key: block.props.key,
+          subject: block.props.subject,
+          status: block.props.status || "unverified",
+          confidence: block.props.confidence,
+          evidence_refs: evidenceRefsFor(block),
+          text: toPlainText(block).trim()
+        })
+      );
+    }
+
+    if (block.type === "relay.comparison") {
+      manifest.comparisons.push(
+        compactObject({
+          block_id: block.id,
+          title: block.props.title,
+          subjects: block.props.subjects || [],
+          criteria: block.props.criteria || [],
+          values: block.props.values || {},
+          preferred: block.props.preferred,
+          layout: block.props.layout || "table",
+          evidence_refs: evidenceRefsFor(block),
+          summary: toPlainText(block).trim()
+        })
+      );
     }
 
     if (block.type === "relay.form_question") {
@@ -94,10 +129,11 @@ export function projectManifest(document, diagnostics = []) {
       });
     }
 
-    collectInlineMentions(block, manifest);
+    collectInlineReferences(block, manifest);
   });
 
   manifest.mentions = uniqueBy(JSON.stringify, manifest.mentions);
+  manifest.references = uniqueBy(JSON.stringify, manifest.references);
   return manifest;
 }
 
@@ -123,15 +159,29 @@ export function toPlainText(node) {
   return "";
 }
 
-function collectInlineMentions(block, manifest) {
+function collectInlineReferences(block, manifest) {
   for (const inline of inlineNodes(block.content || [])) {
+    if (inline.type?.startsWith("relay.") && inline.type.endsWith("_ref")) {
+      manifest.references.push(
+        compactObject({
+          block_id: block.id,
+          type: inline.type,
+          id: inline.id,
+          label: inline.label,
+          href: inline.href
+        })
+      );
+    }
+
     if (inline.type === "relay.entity_ref") {
-      manifest.mentions.push({
-        block_id: block.id,
-        kind: "entity",
-        id: inline.id,
-        label: inline.label
-      });
+      manifest.mentions.push(
+        compactObject({
+          block_id: block.id,
+          kind: "entity",
+          id: inline.id,
+          label: inline.label
+        })
+      );
     }
   }
 }
@@ -142,12 +192,13 @@ function inlineNodes(nodes) {
   for (const node of nodes) {
     if (!node || typeof node !== "object") continue;
 
-    if ("id" in node && "type" in node && Array.isArray(node.content)) {
-      result.push(...inlineNodes(node.content));
+    if (isBlockNode(node)) {
       continue;
     }
 
-    result.push(node);
+    if (isInlineNode(node)) {
+      result.push(node);
+    }
 
     if (Array.isArray(node.content)) {
       result.push(...inlineNodes(node.content));
@@ -162,7 +213,7 @@ function visitBlocks(blocks, visitor) {
     visitor(block);
 
     if (Array.isArray(block.content)) {
-      const childBlocks = block.content.filter((child) => child && typeof child === "object" && "id" in child && "type" in child);
+      const childBlocks = block.content.filter(isBlockNode);
       visitBlocks(childBlocks, visitor);
     }
   }
@@ -182,4 +233,16 @@ function uniqueBy(keyFn, items) {
   }
 
   return result;
+}
+
+function compactObject(object) {
+  return Object.fromEntries(Object.entries(object).filter(([, value]) => value !== undefined));
+}
+
+function evidenceRefsFor(block) {
+  if (Array.isArray(block.evidence_refs) && block.evidence_refs.length > 0) {
+    return block.evidence_refs;
+  }
+
+  return Array.isArray(block.props?.evidence) ? block.props.evidence : [];
 }

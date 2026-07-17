@@ -113,7 +113,7 @@ function parseDirective(lines, start, state) {
   while (index < lines.length) {
     headerLines.push(lines[index].trim());
 
-    if (lines[index].includes("{")) {
+    if (hasDirectiveBodyOpen(headerLines.join(" "))) {
       break;
     }
 
@@ -157,6 +157,36 @@ function parseDirective(lines, start, state) {
     },
     index: childResult.index
   };
+}
+
+function hasDirectiveBodyOpen(header) {
+  let parentheses = 0;
+  let quote = false;
+  let escape = false;
+
+  for (const char of header) {
+    if (escape) {
+      escape = false;
+      continue;
+    }
+
+    if (char === "\\") {
+      escape = true;
+      continue;
+    }
+
+    if (char === '"') {
+      quote = !quote;
+      continue;
+    }
+
+    if (quote) continue;
+    if (char === "(") parentheses += 1;
+    if (char === ")") parentheses -= 1;
+    if (char === "{" && parentheses === 0) return true;
+  }
+
+  return false;
 }
 
 function stripQuotes(value) {

@@ -33,7 +33,7 @@
     },
     "category": {
       "type": "string",
-      "enum": ["relay_kit", "source", "form", "transcript", "widget"]
+      "enum": ["relay_kit", "source", "form", "transcript", "research", "widget"]
     },
     "description": {
       "type": "string",
@@ -94,7 +94,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["actions", "mentions", "forms", "sources"]
+            "enum": ["actions", "mentions", "references", "forms", "sources", "claims", "comparisons"]
           }
         }
       }

@@ -44,6 +44,11 @@ defmodule RelayMark.Block do
     |> Enum.join()
   end
 
-  defp content_from_map(%{"id" => _} = map), do: from_map(map)
-  defp content_from_map(map), do: Inline.from_map(map)
+  defp content_from_map(%{"type" => type} = map) do
+    if Inline.inline_type?(type) do
+      Inline.from_map(map)
+    else
+      from_map(map)
+    end
+  end
 end
