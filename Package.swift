@@ -1,13 +1,13 @@
-// swift-tools-version: 6.4
+// swift-tools-version: 6.2
 
 import PackageDescription
 
 let package = Package(
     name: "RelayMark",
     platforms: [
-        .macOS(.v26),
-        .iOS(.v26),
-        .visionOS(.v26)
+        .macOS("26.0"),
+        .iOS("26.0"),
+        .visionOS("26.0")
     ],
     products: [
         .library(name: "RelayMarkSwift", targets: ["RelayMarkSwift"])
