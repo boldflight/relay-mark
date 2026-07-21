@@ -56,8 +56,9 @@ node bin/relaymark.mjs compile spec/relaymark/examples/mentor-meeting.relaymark
 `https://github.com/boldflight/relay-mark.git`. Published releases use semantic
 version tags. Applications should use a version requirement and commit their
 `Package.resolved`; the nested package remains available for focused adapter
-development. The Swift package manifest requires Swift tools 6.2 for Xcode 26
-compatibility and is also verified using the current Swift 6.4 beta toolchain.
+development. The Swift package manifest requires Swift tools 6.3 for the Xcode
+26.6 production baseline and is also verified using the current Swift 6.4 beta
+toolchain.
 
 The reference runtime intentionally starts small. Its job is to make the draft
 spec executable before richer client/editor adapters exist.
