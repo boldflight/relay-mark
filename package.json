@@ -1,6 +1,6 @@
 {
   "name": "@relay/relay-mark",
-  "version": "0.2.0-draft",
+  "version": "0.2.0",
   "private": true,
   "description": "RelayMark specification and reference runtime.",
   "type": "module",
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "test:swift": "swift test --package-path adapters/swift",
+    "test:swift": "swift test",
     "test:elixir": "cd adapters/elixir && mix test",
     "test:adapters": "npm run test:swift && npm run test:elixir",
     "conformance": "node bin/relaymark.mjs conformance spec/relaymark/conformance/suite.json",

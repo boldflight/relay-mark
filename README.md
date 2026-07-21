@@ -10,7 +10,8 @@ This repository owns the portable RelayMark contract:
 - `src/` - dependency-free reference runtime for parsing, validation, compiling,
   projections, and conformance.
 - `bin/relaymark.mjs` - small CLI wrapper.
-- `adapters/swift/` - generic Swift value-model adapter for AST and manifest
+- `adapters/swift/` - generic Swift value-model adapter for AST and manifest,
+  exposed as the root Swift package product `RelayMarkSwift`
   JSON.
 - `adapters/elixir/` - generic Elixir value-model adapter for AST and manifest
   JSON.
@@ -44,10 +45,18 @@ npm test
 npm run conformance
 npm run test:adapters
 npm run check
-swift test --package-path adapters/swift
+swift test
 (cd adapters/elixir && mix test)
 node bin/relaymark.mjs compile spec/relaymark/examples/mentor-meeting.relaymark
 ```
+
+## Swift package distribution
+
+`RelayMarkSwift` is distributed from the repository root at
+`https://github.com/boldflight/relay-mark.git`. Published releases use semantic
+version tags. Applications should use a version requirement and commit their
+`Package.resolved`; the nested package remains available for focused adapter
+development.
 
 The reference runtime intentionally starts small. Its job is to make the draft
 spec executable before richer client/editor adapters exist.
