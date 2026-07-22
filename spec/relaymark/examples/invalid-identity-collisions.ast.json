@@ -1,0 +1,89 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "frontmatter": {},
+  "blocks": [
+    {
+      "id": "b1",
+      "type": "relay.evidence_ref",
+      "props": {
+        "id": "duplicate-evidence",
+        "source": "note:one",
+        "selector": {},
+        "scope": "private"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "First evidence target."
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "type": "relay.evidence_ref",
+      "props": {
+        "id": "duplicate-evidence",
+        "source": "note:two",
+        "selector": {},
+        "scope": "private"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Conflicting evidence target."
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "type": "relay.action_row",
+      "props": {
+        "proposal_id": "duplicate-proposal",
+        "proposal_record_id": "10000000-0000-4000-8000-000000000001",
+        "proposal_revision": 1,
+        "action": "task_create",
+        "review": "undone",
+        "decision_id": "20000000-0000-4000-8000-000000000001",
+        "execution_id": "30000000-0000-4000-8000-000000000001",
+        "undo_id": "40000000-0000-4000-8000-000000000001",
+        "args": {
+          "name": "First task"
+        },
+        "visibility": "private"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "First proposal."
+        }
+      ]
+    },
+    {
+      "id": "b4",
+      "type": "relay.action_row",
+      "props": {
+        "proposal_id": "duplicate-proposal",
+        "proposal_record_id": "10000000-0000-4000-8000-000000000001",
+        "proposal_revision": 1,
+        "action": "task_create",
+        "review": "undone",
+        "decision_id": "20000000-0000-4000-8000-000000000001",
+        "execution_id": "30000000-0000-4000-8000-000000000001",
+        "undo_id": "40000000-0000-4000-8000-000000000001",
+        "args": {
+          "name": "Conflicting task"
+        },
+        "visibility": "private"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Conflicting proposal."
+        }
+      ]
+    }
+  ],
+  "annotations": [],
+  "resources": []
+}

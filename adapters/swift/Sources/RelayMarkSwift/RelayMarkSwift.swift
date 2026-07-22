@@ -171,7 +171,7 @@ public enum RelayMarkContent: Codable, Equatable, Sendable {
         switch type {
         case "text", "hard_break", "soft_break", "link", "emphasis", "strong", "code_span":
             return true
-        case "relay.file_ref", "relay.note_ref", "relay.url_ref":
+        case "relay.evidence_ref", "relay.file_ref", "relay.note_ref", "relay.url_ref":
             return false
         default:
             return type.hasPrefix("relay.") && type.hasSuffix("_ref")
@@ -289,34 +289,52 @@ public struct RelayMarkManifest: Codable, Equatable, Sendable {
 
 public struct RelayMarkAction: Codable, Equatable, Sendable {
     public let blockID: String
+    public let proposalID: String?
+    public let proposalRecordID: String?
+    public let proposalRevision: Int?
     public let action: String
     public let args: [String: RelayMarkValue]
     public let target: String?
     public let destination: String?
     public let visibility: String?
     public let review: String
+    public let decisionID: String?
+    public let executionID: String?
+    public let undoID: String?
     public let evidenceRefs: [String]
 
     enum CodingKeys: String, CodingKey {
         case blockID = "block_id"
+        case proposalID = "proposal_id"
+        case proposalRecordID = "proposal_record_id"
+        case proposalRevision = "proposal_revision"
         case action
         case args
         case target
         case destination
         case visibility
         case review
+        case decisionID = "decision_id"
+        case executionID = "execution_id"
+        case undoID = "undo_id"
         case evidenceRefs = "evidence_refs"
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         blockID = try container.decode(String.self, forKey: .blockID)
+        proposalID = try container.decodeIfPresent(String.self, forKey: .proposalID)
+        proposalRecordID = try container.decodeIfPresent(String.self, forKey: .proposalRecordID)
+        proposalRevision = try container.decodeIfPresent(Int.self, forKey: .proposalRevision)
         action = try container.decode(String.self, forKey: .action)
         args = try container.decodeIfPresent([String: RelayMarkValue].self, forKey: .args) ?? [:]
         target = try container.decodeIfPresent(String.self, forKey: .target)
         destination = try container.decodeIfPresent(String.self, forKey: .destination)
         visibility = try container.decodeIfPresent(String.self, forKey: .visibility)
         review = try container.decode(String.self, forKey: .review)
+        decisionID = try container.decodeIfPresent(String.self, forKey: .decisionID)
+        executionID = try container.decodeIfPresent(String.self, forKey: .executionID)
+        undoID = try container.decodeIfPresent(String.self, forKey: .undoID)
         evidenceRefs = try container.decodeIfPresent([String].self, forKey: .evidenceRefs) ?? []
     }
 }
@@ -372,20 +390,36 @@ public struct RelayMarkFormQuestion: Codable, Equatable, Sendable {
 public struct RelayMarkSource: Codable, Equatable, Sendable {
     public let blockID: String
     public let kind: String
+    public let evidenceID: String?
     public let sourceID: String?
+    public let sourceType: String?
+    public let sourceRevision: String?
+    public let selector: [String: RelayMarkValue]?
+    public let scope: String?
+    public let bundleRevision: Int?
+    public let sourceHash: String?
     public let start: String?
     public let end: String?
     public let uri: String?
     public let label: String?
+    public let excerpt: String?
 
     enum CodingKeys: String, CodingKey {
         case blockID = "block_id"
         case kind
+        case evidenceID = "evidence_id"
         case sourceID = "source_id"
+        case sourceType = "source_type"
+        case sourceRevision = "source_revision"
+        case selector
+        case scope
+        case bundleRevision = "bundle_revision"
+        case sourceHash = "source_hash"
         case start
         case end
         case uri
         case label
+        case excerpt
     }
 }
 

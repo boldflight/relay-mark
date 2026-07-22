@@ -79,6 +79,18 @@
         "block_id": {
           "type": "string"
         },
+        "proposal_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposal_record_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "proposal_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
         "action": {
           "type": "string"
         },
@@ -97,7 +109,19 @@
         },
         "review": {
           "type": "string",
-          "enum": ["draft", "ready", "accepted", "rejected"]
+          "enum": ["draft", "ready", "accepted", "rejected", "undone"]
+        },
+        "decision_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "execution_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "undo_id": {
+          "type": "string",
+          "minLength": 1
         },
         "evidence_refs": {
           "type": "array",
@@ -105,7 +129,74 @@
             "type": "string"
           }
         }
-      }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "review": {
+              "enum": ["draft", "ready", "accepted", "rejected"]
+            }
+          },
+          "not": {
+            "anyOf": [
+              {"required": ["proposal_id"]},
+              {"required": ["proposal_record_id"]},
+              {"required": ["proposal_revision"]},
+              {"required": ["decision_id"]},
+              {"required": ["execution_id"]},
+              {"required": ["undo_id"]}
+            ]
+          }
+        },
+        {
+          "required": ["proposal_id", "proposal_record_id", "proposal_revision"],
+          "properties": {
+            "review": {
+              "enum": ["draft", "ready"]
+            }
+          },
+          "not": {
+            "anyOf": [
+              {"required": ["decision_id"]},
+              {"required": ["execution_id"]},
+              {"required": ["undo_id"]}
+            ]
+          }
+        },
+        {
+          "required": ["proposal_id", "proposal_record_id", "proposal_revision", "decision_id", "execution_id"],
+          "properties": {
+            "review": {
+              "const": "accepted"
+            }
+          },
+          "not": {
+            "required": ["undo_id"]
+          }
+        },
+        {
+          "required": ["proposal_id", "proposal_record_id", "proposal_revision", "decision_id"],
+          "properties": {
+            "review": {
+              "const": "rejected"
+            }
+          },
+          "not": {
+            "anyOf": [
+              {"required": ["execution_id"]},
+              {"required": ["undo_id"]}
+            ]
+          }
+        },
+        {
+          "required": ["proposal_id", "proposal_record_id", "proposal_revision", "decision_id", "execution_id", "undo_id"],
+          "properties": {
+            "review": {
+              "const": "undone"
+            }
+          }
+        }
+      ]
     },
     "mention": {
       "type": "object",
@@ -139,7 +230,7 @@
           "type": "string",
           "pattern": "^relay\\.[a-z][a-z0-9_]*_ref$",
           "not": {
-            "enum": ["relay.file_ref", "relay.note_ref", "relay.url_ref"]
+            "enum": ["relay.evidence_ref", "relay.file_ref", "relay.note_ref", "relay.url_ref"]
           }
         },
         "id": {
@@ -191,9 +282,35 @@
         },
         "kind": {
           "type": "string",
-          "enum": ["source_bundle", "transcript_range", "note_ref", "file_ref", "url_ref"]
+          "enum": ["source_bundle", "evidence_ref", "transcript_range", "note_ref", "file_ref", "url_ref"]
+        },
+        "evidence_id": {
+          "type": "string",
+          "minLength": 1
         },
         "source_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_type": {
+          "type": "string"
+        },
+        "source_revision": {
+          "type": "string"
+        },
+        "selector": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["private", "org", "unlisted", "public"]
+        },
+        "bundle_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_hash": {
           "type": "string"
         },
         "start": {
@@ -207,8 +324,29 @@
         },
         "label": {
           "type": "string"
+        },
+        "excerpt": {
+          "type": "string"
         }
-      }
+      },
+      "oneOf": [
+        {
+          "required": ["kind", "source_id"],
+          "properties": {"kind": {"const": "source_bundle"}}
+        },
+        {
+          "required": ["kind", "evidence_id", "source_id"],
+          "properties": {"kind": {"const": "evidence_ref"}}
+        },
+        {
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "enum": ["transcript_range", "note_ref", "file_ref", "url_ref"]
+            }
+          }
+        }
+      ]
     },
     "claim": {
       "type": "object",

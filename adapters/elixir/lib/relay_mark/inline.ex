@@ -2,7 +2,7 @@ defmodule RelayMark.Inline do
   @moduledoc "RelayMark inline node struct."
 
   @commonmark_inline_types ~w(text hard_break soft_break link emphasis strong code_span)
-  @block_reference_types ~w(relay.file_ref relay.note_ref relay.url_ref)
+  @block_reference_types ~w(relay.evidence_ref relay.file_ref relay.note_ref relay.url_ref)
 
   defstruct type: nil,
             text: nil,

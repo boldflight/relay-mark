@@ -31,7 +31,8 @@ struct RelayMarkSwiftTests {
         #expect(document.blocks.count == 5)
 
         let sourceBundle = document.blocks[2]
-        #expect(sourceBundle.id == "src-1")
+        #expect(sourceBundle.id == "b3")
+        #expect(sourceBundle.props["id"]?.stringValue == "src-1")
         #expect(sourceBundle.type == "relay.source_bundle")
         #expect(sourceBundle.props["scope"]?.stringValue == "private")
         #expect(sourceBundle.childBlocks.first?.type == "relay.transcript_segment")
@@ -49,11 +50,70 @@ struct RelayMarkSwiftTests {
 
         #expect(manifest.type == "relaymark.manifest")
         #expect(manifest.actions.count == 1)
-        #expect(manifest.actions[0].blockID == "b5")
+        #expect(manifest.actions[0].blockID == "b6")
+        #expect(manifest.actions[0].proposalID == nil)
+        #expect(manifest.actions[0].proposalRecordID == nil)
+        #expect(manifest.actions[0].proposalRevision == nil)
         #expect(manifest.actions[0].action == "relay.task.create")
         #expect(manifest.actions[0].args["title"]?.stringValue == "Send interview prep resources before Thursday.")
         #expect(manifest.sources.map(\.kind) == ["source_bundle", "transcript_range"])
         #expect(manifest.diagnostics.isEmpty)
+    }
+
+    @Test
+    func decodesStableEvidenceAndActionLifecycleFixture() throws {
+        let document = try RelayMarkDocument.decodeJSON(fixtureData("agent-paper-review.ast.json"))
+        let manifest = try RelayMarkManifest.decodeJSON(fixtureData("agent-paper-review.manifest.json"))
+
+        let sourceBundle = document.blocks[2]
+        #expect(sourceBundle.id == "b3")
+        #expect(sourceBundle.props["id"]?.stringValue == "source-review-1")
+        #expect(sourceBundle.props["revision"]?.numberValue == 2)
+        #expect(sourceBundle.childBlocks.map(\.type) == [
+            "relay.evidence_ref",
+            "relay.evidence_ref",
+            "relay.evidence_ref"
+        ])
+
+        let transcriptEvidence = sourceBundle.childBlocks[0]
+        #expect(transcriptEvidence.id == "b4")
+        #expect(transcriptEvidence.props["id"]?.stringValue == "70000000-0000-4000-8000-000000000001")
+        #expect(transcriptEvidence.props["source_type"]?.stringValue == "transcript")
+
+        #expect(manifest.actions.map(\.proposalID) == [
+            "practice-task",
+            "coaching-touchpoint",
+            "interview-journey",
+            "practice-resource",
+            "practice-follow-up"
+        ])
+        #expect(manifest.actions.map(\.proposalRecordID) == [
+            "10000000-0000-4000-8000-000000000001",
+            "10000000-0000-4000-8000-000000000002",
+            "10000000-0000-4000-8000-000000000003",
+            "10000000-0000-4000-8000-000000000004",
+            "10000000-0000-4000-8000-000000000005"
+        ])
+        #expect(manifest.actions.map(\.proposalRevision) == [1, 2, 1, 1, 1])
+        #expect(manifest.actions.map(\.review) == ["ready", "accepted", "rejected", "undone", "ready"])
+        #expect(manifest.actions[1].executionID == "30000000-0000-4000-8000-000000000002")
+        #expect(manifest.actions[3].decisionID == "20000000-0000-4000-8000-000000000004")
+        #expect(manifest.actions[3].undoID == "40000000-0000-4000-8000-000000000004")
+        #expect(manifest.actions[0].args["name"]?.stringValue == "Practice interview answers twice")
+        #expect(manifest.actions[0].args["title"]?.stringValue == "Create Jordan's edited practice task.")
+        #expect(manifest.actions.last?.action == "follow_up_create")
+
+        #expect(manifest.sources.map(\.kind) == [
+            "source_bundle",
+            "evidence_ref",
+            "evidence_ref",
+            "evidence_ref"
+        ])
+        #expect(manifest.sources[1].blockID == "b4")
+        #expect(manifest.sources[1].evidenceID == "70000000-0000-4000-8000-000000000001")
+        #expect(manifest.sources[1].sourceRevision == "1")
+        #expect(manifest.sources[1].selector?["start_ms"]?.numberValue == 724000)
+        #expect(manifest.sources[1].excerpt == "I will practice twice before Thursday.")
     }
 
     @Test

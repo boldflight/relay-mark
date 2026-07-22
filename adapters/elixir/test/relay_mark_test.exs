@@ -24,7 +24,8 @@ defmodule RelayMarkTest do
     assert length(document.blocks) == 5
 
     source_bundle = Enum.at(document.blocks, 2)
-    assert source_bundle.id == "src-1"
+    assert source_bundle.id == "b3"
+    assert source_bundle.props["id"] == "src-1"
     assert source_bundle.type == "relay.source_bundle"
     assert source_bundle.props["scope"] == "private"
     assert hd(source_bundle.content).type == "relay.transcript_segment"
@@ -44,11 +45,95 @@ defmodule RelayMarkTest do
 
     assert manifest.type == "relaymark.manifest"
     assert [action] = manifest.actions
-    assert action.block_id == "b5"
+    assert action.block_id == "b6"
+    assert is_nil(action.proposal_id)
+    assert is_nil(action.proposal_record_id)
+    assert is_nil(action.proposal_revision)
     assert action.action == "relay.task.create"
     assert action.args["title"] == "Send interview prep resources before Thursday."
     assert Enum.map(manifest.sources, & &1.kind) == ["source_bundle", "transcript_range"]
     assert manifest.diagnostics == []
+  end
+
+  test "decodes stable evidence and lifecycle-aware action proposals" do
+    assert {:ok, document} =
+             "../../../spec/relaymark/examples/agent-paper-review.ast.json"
+             |> fixture()
+             |> RelayMark.decode_document()
+
+    source_bundle = Enum.at(document.blocks, 2)
+    assert source_bundle.id == "b3"
+    assert source_bundle.props["id"] == "source-review-1"
+    assert source_bundle.props["revision"] == 2
+
+    assert Enum.map(source_bundle.content, & &1.type) == [
+             "relay.evidence_ref",
+             "relay.evidence_ref",
+             "relay.evidence_ref"
+           ]
+
+    transcript_evidence = hd(source_bundle.content)
+    assert transcript_evidence.id == "b4"
+    assert transcript_evidence.props["id"] == "70000000-0000-4000-8000-000000000001"
+    assert transcript_evidence.props["source_type"] == "transcript"
+
+    assert {:ok, manifest} =
+             "../../../spec/relaymark/examples/agent-paper-review.manifest.json"
+             |> fixture()
+             |> RelayMark.decode_manifest()
+
+    assert Enum.map(manifest.actions, & &1.proposal_id) == [
+             "practice-task",
+             "coaching-touchpoint",
+             "interview-journey",
+             "practice-resource",
+             "practice-follow-up"
+           ]
+
+    assert Enum.map(manifest.actions, & &1.proposal_record_id) == [
+             "10000000-0000-4000-8000-000000000001",
+             "10000000-0000-4000-8000-000000000002",
+             "10000000-0000-4000-8000-000000000003",
+             "10000000-0000-4000-8000-000000000004",
+             "10000000-0000-4000-8000-000000000005"
+           ]
+
+    assert Enum.map(manifest.actions, & &1.proposal_revision) == [1, 2, 1, 1, 1]
+
+    assert Enum.map(manifest.actions, & &1.review) == [
+             "ready",
+             "accepted",
+             "rejected",
+             "undone",
+             "ready"
+           ]
+
+    assert Enum.at(manifest.actions, 1).execution_id ==
+             "30000000-0000-4000-8000-000000000002"
+
+    assert Enum.at(manifest.actions, 3).decision_id ==
+             "20000000-0000-4000-8000-000000000004"
+
+    assert Enum.at(manifest.actions, 3).undo_id ==
+             "40000000-0000-4000-8000-000000000004"
+
+    assert hd(manifest.actions).args["name"] == "Practice interview answers twice"
+    assert hd(manifest.actions).args["title"] == "Create Jordan's edited practice task."
+    assert List.last(manifest.actions).action == "follow_up_create"
+
+    assert Enum.map(manifest.sources, & &1.kind) == [
+             "source_bundle",
+             "evidence_ref",
+             "evidence_ref",
+             "evidence_ref"
+           ]
+
+    transcript_source = Enum.at(manifest.sources, 1)
+    assert transcript_source.block_id == "b4"
+    assert transcript_source.evidence_id == "70000000-0000-4000-8000-000000000001"
+    assert transcript_source.source_revision == "1"
+    assert transcript_source.selector["start_ms"] == 724_000
+    assert transcript_source.excerpt == "I will practice twice before Thursday."
   end
 
   test "decodes product research document fixture with inline product refs and source blocks" do

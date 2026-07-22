@@ -16,19 +16,27 @@ export function projectManifest(document, diagnostics = []) {
 
   visitBlocks(document.blocks || [], (block) => {
     if (block.type === "relay.action_row") {
-      manifest.actions.push({
-        block_id: block.id,
-        action: block.props.action,
-        target: block.props.target,
-        destination: block.props.destination,
-        visibility: block.props.visibility,
-        review: block.props.review,
-        evidence_refs: evidenceRefsFor(block),
-        args: {
-          ...(block.props.args || {}),
-          title: toPlainText(block).trim()
-        }
-      });
+      manifest.actions.push(
+        compactObject({
+          block_id: block.id,
+          proposal_id: block.props.proposal_id,
+          proposal_record_id: block.props.proposal_record_id,
+          proposal_revision: block.props.proposal_revision,
+          action: block.props.action,
+          target: block.props.target,
+          destination: block.props.destination,
+          visibility: block.props.visibility,
+          review: block.props.review,
+          decision_id: block.props.decision_id,
+          execution_id: block.props.execution_id,
+          undo_id: block.props.undo_id,
+          evidence_refs: evidenceRefsFor(block),
+          args: {
+            ...(block.props.args || {}),
+            title: toPlainText(block).trim()
+          }
+        })
+      );
 
       if (typeof block.props.target === "string" && block.props.target.startsWith("entity:")) {
         manifest.mentions.push({
@@ -82,12 +90,33 @@ export function projectManifest(document, diagnostics = []) {
     }
 
     if (block.type === "relay.source_bundle") {
-      manifest.sources.push({
-        block_id: block.id,
-        kind: "source_bundle",
-        source_id: block.props.id || block.id,
-        label: block.props.title
-      });
+      manifest.sources.push(
+        compactObject({
+          block_id: block.id,
+          kind: "source_bundle",
+          source_id: block.props.id,
+          bundle_revision: block.props.revision,
+          source_hash: block.props.source_hash,
+          label: block.props.title
+        })
+      );
+    }
+
+    if (block.type === "relay.evidence_ref") {
+      manifest.sources.push(
+        compactObject({
+          block_id: block.id,
+          kind: "evidence_ref",
+          evidence_id: block.props.id,
+          source_id: block.props.source,
+          source_type: block.props.source_type,
+          source_revision: block.props.source_revision,
+          selector: block.props.selector,
+          scope: block.props.scope,
+          label: block.props.label,
+          excerpt: toPlainText(block).trim() || undefined
+        })
+      );
     }
 
     if (block.type === "relay.transcript_segment") {

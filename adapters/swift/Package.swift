@@ -5,9 +5,9 @@ import PackageDescription
 let package = Package(
     name: "RelayMarkSwift",
     platforms: [
-        .macOS("26.0"),
-        .iOS("26.0"),
-        .visionOS("26.0")
+        .macOS("26.6"),
+        .iOS("26.6"),
+        .visionOS("26.6")
     ],
     products: [
         .library(name: "RelayMarkSwift", targets: ["RelayMarkSwift"])

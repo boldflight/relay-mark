@@ -9,11 +9,19 @@
     "id": {
       "type": "string",
       "required": true,
-      "description": "Stable source bundle id for evidence references."
+      "description": "Stable host source-bundle id for evidence references; distinct from the AST block id."
     },
     "title": {
       "type": "string",
       "description": "Human-readable source bundle title."
+    },
+    "revision": {
+      "type": "integer",
+      "description": "Non-negative bundle revision. Increment when the bundle membership or locators change."
+    },
+    "source_hash": {
+      "type": "string",
+      "description": "Host-computed digest of the exact source revision set when available."
     },
     "scope": {
       "type": "enum",
@@ -27,11 +35,13 @@
   },
   "children": {
     "mode": "block",
-    "allowed_types": ["relay.transcript_segment", "relay.note_ref", "relay.file_ref", "relay.url_ref"],
+    "allowed_types": ["relay.evidence_ref", "relay.transcript_segment", "relay.note_ref", "relay.file_ref", "relay.url_ref"],
     "min": 1
   },
   "validation": [
     "id must be unique within the document",
+    "revision must be a non-negative integer when present",
+    "the same id and revision must identify the same bundle membership and locators",
     "children must resolve to concrete source refs or draft source resolution issues",
     "scope must be allowed by the current document and user scope"
   ],

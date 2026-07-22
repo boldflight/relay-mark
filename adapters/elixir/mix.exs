@@ -4,7 +4,7 @@ defmodule RelayMarkElixir.MixProject do
   def project do
     [
       app: :relay_mark_elixir,
-      version: "0.2.0-draft",
+      version: "0.3.0-draft",
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: []

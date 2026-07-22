@@ -1,0 +1,32 @@
+[
+  {
+    "level": "error",
+    "code": "relaymark.identity.duplicate_evidence",
+    "message": "Identity 'duplicate-evidence' is ambiguous between relay.evidence_ref.props.id on block 'b1' and relay.evidence_ref.props.id on block 'b2'."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.identity.duplicate_proposal",
+    "message": "Identity 'duplicate-proposal' is ambiguous between relay.action_row.proposal_id on block 'b3' and relay.action_row.proposal_id on block 'b4'."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.identity.duplicate_proposal_record",
+    "message": "Identity '10000000-0000-4000-8000-000000000001' is ambiguous between relay.action_row.proposal_record_id on block 'b3' and relay.action_row.proposal_record_id on block 'b4'."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.identity.duplicate_decision",
+    "message": "Identity '20000000-0000-4000-8000-000000000001' is ambiguous between relay.action_row.decision_id on block 'b3' and relay.action_row.decision_id on block 'b4'."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.identity.duplicate_execution",
+    "message": "Identity '30000000-0000-4000-8000-000000000001' is ambiguous between relay.action_row.execution_id on block 'b3' and relay.action_row.execution_id on block 'b4'."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.identity.duplicate_undo",
+    "message": "Identity '40000000-0000-4000-8000-000000000001' is ambiguous between relay.action_row.undo_id on block 'b3' and relay.action_row.undo_id on block 'b4'."
+  }
+]

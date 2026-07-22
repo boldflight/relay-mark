@@ -1,6 +1,6 @@
 {
   "name": "@relay/relay-mark",
-  "version": "0.2.2",
+  "version": "0.3.0-draft",
   "private": true,
   "description": "RelayMark specification and reference runtime.",
   "type": "module",

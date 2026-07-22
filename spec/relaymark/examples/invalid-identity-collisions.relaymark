@@ -1,0 +1,43 @@
+@EvidenceRef(
+  id: "duplicate-evidence",
+  source: "note:one",
+  selector: {}
+) {
+  First evidence target.
+}
+
+@EvidenceRef(
+  id: "duplicate-evidence",
+  source: "note:two",
+  selector: {}
+) {
+  Conflicting evidence target.
+}
+
+@ActionRow(
+  proposal_id: "duplicate-proposal",
+  proposal_record_id: "10000000-0000-4000-8000-000000000001",
+  proposal_revision: 1,
+  action: "task_create",
+  review: "undone",
+  decision_id: "20000000-0000-4000-8000-000000000001",
+  execution_id: "30000000-0000-4000-8000-000000000001",
+  undo_id: "40000000-0000-4000-8000-000000000001",
+  args: {"name": "First task"}
+) {
+  First proposal.
+}
+
+@ActionRow(
+  proposal_id: "duplicate-proposal",
+  proposal_record_id: "10000000-0000-4000-8000-000000000001",
+  proposal_revision: 1,
+  action: "task_create",
+  review: "undone",
+  decision_id: "20000000-0000-4000-8000-000000000001",
+  execution_id: "30000000-0000-4000-8000-000000000001",
+  undo_id: "40000000-0000-4000-8000-000000000001",
+  args: {"name": "Conflicting task"}
+) {
+  Conflicting proposal.
+}

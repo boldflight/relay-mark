@@ -1,0 +1,319 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "frontmatter": {
+    "title": "Jordan coaching review",
+    "scope": "private",
+    "draft_revision": "2"
+  },
+  "blocks": [
+    {
+      "id": "b1",
+      "type": "heading",
+      "props": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Jordan coaching review"
+        }
+      ]
+    },
+    {
+      "id": "b2",
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Jordan wants a concrete practice plan before the next interview."
+        }
+      ]
+    },
+    {
+      "id": "b3",
+      "type": "relay.source_bundle",
+      "props": {
+        "id": "source-review-1",
+        "title": "Generated revision evidence",
+        "revision": 2,
+        "source_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "scope": "private"
+      },
+      "content": [
+        {
+          "id": "b4",
+          "type": "relay.evidence_ref",
+          "props": {
+            "id": "70000000-0000-4000-8000-000000000001",
+            "source": "capture-segment-revision:71000000-0000-4000-8000-000000000001",
+            "source_type": "transcript",
+            "source_revision": "1",
+            "selector": {
+              "start_ms": 724000,
+              "end_ms": 768000
+            },
+            "label": "Practice commitment",
+            "scope": "private"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "I will practice twice before Thursday."
+            }
+          ]
+        },
+        {
+          "id": "b5",
+          "type": "relay.evidence_ref",
+          "props": {
+            "id": "70000000-0000-4000-8000-000000000002",
+            "source": "note:61000000-0000-4000-8000-000000000001",
+            "source_type": "note",
+            "source_revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "selector": {
+              "start_offset": 0,
+              "end_offset": 48
+            },
+            "label": "Human note goal",
+            "scope": "private"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Focus the next check-in on interview confidence."
+            }
+          ]
+        },
+        {
+          "id": "b6",
+          "type": "relay.evidence_ref",
+          "props": {
+            "id": "70000000-0000-4000-8000-000000000003",
+            "source": "event:62000000-0000-4000-8000-000000000001",
+            "source_type": "calendar",
+            "source_revision": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "selector": {
+              "fields": [
+                "name",
+                "description",
+                "starts_at",
+                "ends_at"
+              ]
+            },
+            "label": "Next coaching session",
+            "scope": "private"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Thursday at 10:00 AM."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "b7",
+      "type": "relay.agent_suggestion",
+      "props": {
+        "confidence": 0.88,
+        "evidence": [
+          "70000000-0000-4000-8000-000000000001",
+          "70000000-0000-4000-8000-000000000002"
+        ],
+        "kind": "journey",
+        "review": "draft"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Turn Jordan's commitment into a small practice loop and revisit it at the next session."
+        }
+      ],
+      "evidence_refs": [
+        "70000000-0000-4000-8000-000000000001",
+        "70000000-0000-4000-8000-000000000002"
+      ]
+    },
+    {
+      "id": "b8",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Reviewable actions"
+        }
+      ]
+    },
+    {
+      "id": "b9",
+      "type": "relay.action_row",
+      "props": {
+        "proposal_id": "practice-task",
+        "proposal_record_id": "10000000-0000-4000-8000-000000000001",
+        "proposal_revision": 1,
+        "action": "task_create",
+        "target": "entity:63000000-0000-4000-8000-000000000001",
+        "destination": "64000000-0000-4000-8000-000000000001",
+        "visibility": "private",
+        "review": "ready",
+        "evidence": [
+          "70000000-0000-4000-8000-000000000001"
+        ],
+        "args": {
+          "name": "Practice interview answers twice",
+          "description": "Rehearse the two priority answers.",
+          "due_at": "2026-07-24T17:00:00Z",
+          "assignee_entity_id": "63000000-0000-4000-8000-000000000001"
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Create Jordan's edited practice task."
+        }
+      ],
+      "evidence_refs": [
+        "70000000-0000-4000-8000-000000000001"
+      ]
+    },
+    {
+      "id": "b10",
+      "type": "relay.action_row",
+      "props": {
+        "proposal_id": "coaching-touchpoint",
+        "proposal_record_id": "10000000-0000-4000-8000-000000000002",
+        "proposal_revision": 2,
+        "action": "log_touchpoint",
+        "target": "entity:63000000-0000-4000-8000-000000000001",
+        "visibility": "private",
+        "review": "accepted",
+        "decision_id": "20000000-0000-4000-8000-000000000002",
+        "execution_id": "30000000-0000-4000-8000-000000000002",
+        "evidence": [
+          "70000000-0000-4000-8000-000000000002"
+        ],
+        "args": {
+          "entity_id": "63000000-0000-4000-8000-000000000001",
+          "type": "meeting",
+          "occurred_at": "2026-07-22T17:00:00Z",
+          "notes": "Interview confidence practice plan"
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Log the reviewed coaching touchpoint."
+        }
+      ],
+      "evidence_refs": [
+        "70000000-0000-4000-8000-000000000002"
+      ]
+    },
+    {
+      "id": "b11",
+      "type": "relay.action_row",
+      "props": {
+        "proposal_id": "interview-journey",
+        "proposal_record_id": "10000000-0000-4000-8000-000000000003",
+        "proposal_revision": 1,
+        "action": "journey_advance",
+        "target": "entity:63000000-0000-4000-8000-000000000001",
+        "visibility": "private",
+        "review": "rejected",
+        "decision_id": "20000000-0000-4000-8000-000000000003",
+        "evidence": [
+          "70000000-0000-4000-8000-000000000002"
+        ],
+        "args": {
+          "entity_id": "63000000-0000-4000-8000-000000000001",
+          "pathway_slug": "interview-readiness"
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Advance Jordan's readiness journey before the next check-in."
+        }
+      ],
+      "evidence_refs": [
+        "70000000-0000-4000-8000-000000000002"
+      ]
+    },
+    {
+      "id": "b12",
+      "type": "relay.action_row",
+      "props": {
+        "proposal_id": "practice-resource",
+        "proposal_record_id": "10000000-0000-4000-8000-000000000004",
+        "proposal_revision": 1,
+        "action": "link_create",
+        "destination": "64000000-0000-4000-8000-000000000001",
+        "visibility": "private",
+        "review": "undone",
+        "decision_id": "20000000-0000-4000-8000-000000000004",
+        "execution_id": "30000000-0000-4000-8000-000000000004",
+        "undo_id": "40000000-0000-4000-8000-000000000004",
+        "evidence": [
+          "70000000-0000-4000-8000-000000000001",
+          "70000000-0000-4000-8000-000000000003"
+        ],
+        "args": {
+          "url": "https://example.com/interview-practice",
+          "name": "Interview practice guide",
+          "description": "A short practice worksheet."
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Share the interview practice guide before Thursday."
+        }
+      ],
+      "evidence_refs": [
+        "70000000-0000-4000-8000-000000000001",
+        "70000000-0000-4000-8000-000000000003"
+      ]
+    },
+    {
+      "id": "b13",
+      "type": "relay.action_row",
+      "props": {
+        "proposal_id": "practice-follow-up",
+        "proposal_record_id": "10000000-0000-4000-8000-000000000005",
+        "proposal_revision": 1,
+        "action": "follow_up_create",
+        "target": "entity:63000000-0000-4000-8000-000000000001",
+        "destination": "64000000-0000-4000-8000-000000000001",
+        "visibility": "private",
+        "review": "ready",
+        "evidence": [
+          "70000000-0000-4000-8000-000000000001",
+          "70000000-0000-4000-8000-000000000003"
+        ],
+        "args": {
+          "name": "Check in after interview practice",
+          "description": "Ask what felt more confident after practice.",
+          "due_at": "2026-07-25T17:00:00Z",
+          "assignee_entity_id": "63000000-0000-4000-8000-000000000001"
+        }
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Follow up with Jordan after the practice session."
+        }
+      ],
+      "evidence_refs": [
+        "70000000-0000-4000-8000-000000000001",
+        "70000000-0000-4000-8000-000000000003"
+      ]
+    }
+  ],
+  "annotations": [],
+  "resources": []
+}

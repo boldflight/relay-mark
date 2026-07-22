@@ -59,7 +59,7 @@
       ]
     },
     {
-      "id": "src-apple",
+      "id": "b3",
       "type": "relay.source_bundle",
       "props": {
         "id": "src-apple",
@@ -69,7 +69,7 @@
       },
       "content": [
         {
-          "id": "b3",
+          "id": "b4",
           "type": "relay.url_ref",
           "props": {
             "url": "https://www.apple.com/mac-mini/specs/",
@@ -79,7 +79,7 @@
           "content": []
         },
         {
-          "id": "b4",
+          "id": "b5",
           "type": "relay.url_ref",
           "props": {
             "url": "https://www.apple.com/mac-studio/specs/",
@@ -91,7 +91,7 @@
       ]
     },
     {
-      "id": "src-mbench",
+      "id": "b6",
       "type": "relay.source_bundle",
       "props": {
         "id": "src-mbench",
@@ -101,7 +101,7 @@
       },
       "content": [
         {
-          "id": "b5",
+          "id": "b7",
           "type": "relay.file_ref",
           "props": {
             "id": "file-mbench-run-2026-07-14",
@@ -112,7 +112,7 @@
           "content": []
         },
         {
-          "id": "b6",
+          "id": "b8",
           "type": "relay.url_ref",
           "props": {
             "url": "https://benchmarks.example.test/runs/2026-07-14",
@@ -124,7 +124,7 @@
       ]
     },
     {
-      "id": "b7",
+      "id": "b9",
       "type": "relay.comparison",
       "props": {
         "title": "Price, memory bandwidth, and CPU score",
@@ -184,7 +184,7 @@
       ]
     },
     {
-      "id": "b8",
+      "id": "b10",
       "type": "relay.claim",
       "props": {
         "key": "mac-mini-gpu-core-count",
@@ -206,7 +206,7 @@
       ]
     },
     {
-      "id": "b9",
+      "id": "b11",
       "type": "relay.claim",
       "props": {
         "key": "mac-mini-gpu-core-count",
@@ -228,7 +228,7 @@
       ]
     },
     {
-      "id": "b10",
+      "id": "b12",
       "type": "relay.action_row",
       "props": {
         "action": "product_feedback",
@@ -260,7 +260,7 @@
       ]
     },
     {
-      "id": "b11",
+      "id": "b13",
       "type": "relay.action_row",
       "props": {
         "action": "product_feedback",

@@ -3,6 +3,9 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
+The current reference runtime, portable spec, and generic adapters track the
+`0.3.0-draft` contract line.
+
 This repository owns the portable RelayMark contract:
 
 - `spec/relaymark/` - normative draft spec, JSON Schemas, directive registry,
@@ -59,6 +62,12 @@ version tags. Applications should use a version requirement and commit their
 development. The Swift package manifest requires Swift tools 6.3 for the Xcode
 26.6 production baseline and is also verified using the current Swift 6.4 beta
 toolchain.
+
+SwiftPM does not provide named `PackageDescription` enum cases for every Apple
+OS patch release, so both package manifests use the supported string form for
+their `26.6` deployment floors. `swift package dump-package` must preserve
+`26.6`; local verification uses Xcode 27 beta, while Xcode 26.6/Swift 6.3
+remains the production CI compatibility gate.
 
 The reference runtime intentionally starts small. Its job is to make the draft
 spec executable before richer client/editor adapters exist.

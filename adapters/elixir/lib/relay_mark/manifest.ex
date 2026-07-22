@@ -76,34 +76,52 @@ defmodule RelayMark.Manifest.Action do
   @moduledoc "Reviewable action projection."
 
   defstruct block_id: nil,
+            proposal_id: nil,
+            proposal_record_id: nil,
+            proposal_revision: nil,
             action: nil,
             args: %{},
             target: nil,
             destination: nil,
             visibility: nil,
             review: nil,
+            decision_id: nil,
+            execution_id: nil,
+            undo_id: nil,
             evidence_refs: []
 
   @type t :: %__MODULE__{
           block_id: String.t(),
+          proposal_id: String.t() | nil,
+          proposal_record_id: String.t() | nil,
+          proposal_revision: pos_integer() | nil,
           action: String.t(),
           args: map(),
           target: String.t() | nil,
           destination: String.t() | nil,
           visibility: String.t() | nil,
           review: String.t(),
+          decision_id: String.t() | nil,
+          execution_id: String.t() | nil,
+          undo_id: String.t() | nil,
           evidence_refs: [String.t()]
         }
 
   def from_map(map) do
     %__MODULE__{
       block_id: Map.fetch!(map, "block_id"),
+      proposal_id: Map.get(map, "proposal_id"),
+      proposal_record_id: Map.get(map, "proposal_record_id"),
+      proposal_revision: Map.get(map, "proposal_revision"),
       action: Map.fetch!(map, "action"),
       args: Map.get(map, "args", %{}),
       target: Map.get(map, "target"),
       destination: Map.get(map, "destination"),
       visibility: Map.get(map, "visibility"),
       review: Map.fetch!(map, "review"),
+      decision_id: Map.get(map, "decision_id"),
+      execution_id: Map.get(map, "execution_id"),
+      undo_id: Map.get(map, "undo_id"),
       evidence_refs: Map.get(map, "evidence_refs", [])
     }
   end
@@ -170,31 +188,55 @@ defmodule RelayMark.Manifest.Source do
 
   defstruct block_id: nil,
             kind: nil,
+            evidence_id: nil,
             source_id: nil,
+            source_type: nil,
+            source_revision: nil,
+            selector: nil,
+            scope: nil,
+            bundle_revision: nil,
+            source_hash: nil,
             start: nil,
             end: nil,
             uri: nil,
-            label: nil
+            label: nil,
+            excerpt: nil
 
   @type t :: %__MODULE__{
           block_id: String.t(),
           kind: String.t(),
+          evidence_id: String.t() | nil,
           source_id: String.t() | nil,
+          source_type: String.t() | nil,
+          source_revision: String.t() | nil,
+          selector: map() | nil,
+          scope: String.t() | nil,
+          bundle_revision: non_neg_integer() | nil,
+          source_hash: String.t() | nil,
           start: String.t() | nil,
           end: String.t() | nil,
           uri: String.t() | nil,
-          label: String.t() | nil
+          label: String.t() | nil,
+          excerpt: String.t() | nil
         }
 
   def from_map(map) do
     %__MODULE__{
       block_id: Map.fetch!(map, "block_id"),
       kind: Map.fetch!(map, "kind"),
+      evidence_id: Map.get(map, "evidence_id"),
       source_id: Map.get(map, "source_id"),
+      source_type: Map.get(map, "source_type"),
+      source_revision: Map.get(map, "source_revision"),
+      selector: Map.get(map, "selector"),
+      scope: Map.get(map, "scope"),
+      bundle_revision: Map.get(map, "bundle_revision"),
+      source_hash: Map.get(map, "source_hash"),
       start: Map.get(map, "start"),
       end: Map.get(map, "end"),
       uri: Map.get(map, "uri"),
-      label: Map.get(map, "label")
+      label: Map.get(map, "label"),
+      excerpt: Map.get(map, "excerpt")
     }
   end
 end

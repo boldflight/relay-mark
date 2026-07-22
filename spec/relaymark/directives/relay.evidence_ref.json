@@ -1,0 +1,65 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "EvidenceRef",
+  "ast_type": "relay.evidence_ref",
+  "version": 1,
+  "category": "source",
+  "description": "A stable, version-aware reference to evidence from any host-readable source.",
+  "attributes": {
+    "id": {
+      "type": "string",
+      "required": true,
+      "description": "Stable host evidence id used by claims, suggestions, and action proposals; distinct from the AST block id."
+    },
+    "source": {
+      "type": "string",
+      "required": true,
+      "description": "Host-readable source id or URI."
+    },
+    "source_type": {
+      "type": "string",
+      "description": "Open source category such as transcript, note, event, file, or URL."
+    },
+    "source_revision": {
+      "type": "string",
+      "description": "Immutable source revision id, digest, or version token when available."
+    },
+    "selector": {
+      "type": "object",
+      "description": "Host-interpreted locator such as a time range, text range, field path, or page region."
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable evidence label."
+    },
+    "scope": {
+      "type": "enum",
+      "values": ["private", "org", "unlisted", "public"],
+      "default": "private"
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text", "relay.entity_ref"],
+    "min": 0
+  },
+  "validation": [
+    "id must be unique within the document and stable across regenerated revisions",
+    "source must resolve through the host or remain an explicit unresolved review issue",
+    "source_revision should identify immutable evidence when the host can provide one",
+    "selector semantics are defined by source_type and validated by the host",
+    "scope must be allowed by the current document and user scope"
+  ],
+  "projections": {
+    "relay_kit": "EvidenceRef",
+    "html": "evidence-ref",
+    "plain_text": "evidence label or excerpt",
+    "manifest": ["sources"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true,
+    "visibility_attribute": "scope"
+  }
+}

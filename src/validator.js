@@ -19,6 +19,8 @@ export function validateDocument(document) {
     validateBlock(block, diagnostics, seenIds, evidenceTargets);
   }
 
+  validateDocumentIdentities(document, diagnostics);
+
   return diagnostics;
 }
 
@@ -77,14 +79,29 @@ function validateRelayBlock(block, diagnostics, evidenceTargets) {
     diagnostics.push(error("relaymark.policy.review_required", `${block.type} requires a review state.`));
   }
 
+  const evidenceRefs = evidenceRefsFor(block);
+
   if (directive.policy?.requires_evidence) {
-    const evidenceRefs = evidenceRefsFor(block);
 
     if (!evidenceRefs.some((reference) => typeof reference === "string" && reference.trim().length > 0)) {
       diagnostics.push(error("relaymark.policy.evidence_required", `${block.type} requires at least one evidence reference.`));
     }
+  }
 
+  if (evidenceRefs.length > 0) {
     validateEvidenceReferences(block, evidenceRefs, evidenceTargets, diagnostics);
+  }
+
+  if (block.type === "relay.action_row") {
+    validateActionProposal(block, diagnostics);
+  }
+
+  if (block.type === "relay.source_bundle") {
+    validateSourceBundle(block, diagnostics);
+  }
+
+  if (block.type === "relay.evidence_ref") {
+    validateEvidenceRef(block, diagnostics);
   }
 
   if (block.type === "relay.claim") {
@@ -93,6 +110,149 @@ function validateRelayBlock(block, diagnostics, evidenceTargets) {
 
   if (block.type === "relay.comparison") {
     validateComparison(block, diagnostics);
+  }
+}
+
+function validateActionProposal(block, diagnostics) {
+  const props = block.props || {};
+  const lifecycleFields = ["proposal_record_id", "proposal_revision", "decision_id", "execution_id", "undo_id"];
+  const lifecycleAware =
+    props.review === "undone" ||
+    props.proposal_id !== undefined ||
+    lifecycleFields.some((field) => props[field] !== undefined);
+
+  if (!lifecycleAware) return;
+
+  if (!nonEmptyString(props.proposal_id)) {
+    diagnostics.push(
+      error("relaymark.action.proposal_id", "relay.action_row lifecycle fields require a non-empty proposal_id.")
+    );
+    return;
+  }
+
+  if (!nonEmptyString(props.proposal_record_id)) {
+    diagnostics.push(
+      error(
+        "relaymark.action.proposal_record_id",
+        "relay.action_row lifecycle fields require a non-empty proposal_record_id for authorized review and undo."
+      )
+    );
+  } else if (props.proposal_record_id === props.proposal_id) {
+    diagnostics.push(
+      error(
+        "relaymark.action.proposal_identity",
+        "relay.action_row.proposal_record_id must be distinct from the generator/client proposal_id."
+      )
+    );
+  }
+
+  if (!Number.isInteger(props.proposal_revision) || props.proposal_revision < 1) {
+    diagnostics.push(
+      error(
+        "relaymark.action.proposal_revision",
+        "relay.action_row.proposal_revision must be a positive integer for lifecycle-aware proposals."
+      )
+    );
+  }
+
+  for (const field of ["decision_id", "execution_id", "undo_id"]) {
+    if (props[field] !== undefined && !nonEmptyString(props[field])) {
+      diagnostics.push(
+        error("relaymark.action.lifecycle_id", `relay.action_row.${field} must be a non-empty string when present.`)
+      );
+    }
+  }
+
+  if (["draft", "ready"].includes(props.review)) {
+    if (["decision_id", "execution_id", "undo_id"].some((field) => props[field] !== undefined)) {
+      diagnostics.push(
+        error(
+          "relaymark.action.lifecycle_state",
+          `relay.action_row in ${props.review} review must not carry decision, execution, or undo ids.`
+        )
+      );
+    }
+
+    return;
+  }
+
+  if (props.review === "accepted") {
+    if (!nonEmptyString(props.decision_id) || !nonEmptyString(props.execution_id) || props.undo_id !== undefined) {
+      diagnostics.push(
+        error(
+          "relaymark.action.lifecycle_state",
+          "Accepted relay.action_row proposals require decision_id and execution_id and must not carry undo_id."
+        )
+      );
+    }
+
+    return;
+  }
+
+  if (props.review === "rejected") {
+    if (!nonEmptyString(props.decision_id) || props.execution_id !== undefined || props.undo_id !== undefined) {
+      diagnostics.push(
+        error(
+          "relaymark.action.lifecycle_state",
+          "Rejected relay.action_row proposals require decision_id and must not carry execution_id or undo_id."
+        )
+      );
+    }
+
+    return;
+  }
+
+  if (props.review === "undone") {
+    if (
+      !nonEmptyString(props.decision_id) ||
+      !nonEmptyString(props.execution_id) ||
+      !nonEmptyString(props.undo_id) ||
+      props.decision_id === props.undo_id
+    ) {
+      diagnostics.push(
+        error(
+          "relaymark.action.lifecycle_state",
+          "Undone relay.action_row proposals retain the accept decision_id and execution_id and require a distinct undo_id."
+        )
+      );
+    }
+  }
+}
+
+function validateSourceBundle(block, diagnostics) {
+  if (!nonEmptyString(block.props?.id)) {
+    diagnostics.push(
+      error("relaymark.source_bundle.identity", "relay.source_bundle requires a non-empty host id.")
+    );
+  }
+
+  const revision = block.props?.revision;
+
+  if (revision !== undefined && (!Number.isInteger(revision) || revision < 0)) {
+    diagnostics.push(
+      error("relaymark.source_bundle.revision", "relay.source_bundle.revision must be a non-negative integer.")
+    );
+  }
+}
+
+function validateEvidenceRef(block, diagnostics) {
+  const props = block.props || {};
+
+  if (!nonEmptyString(props.id) || !nonEmptyString(props.source)) {
+    diagnostics.push(
+      error(
+        "relaymark.evidence.identity",
+        "relay.evidence_ref requires non-empty id and source values."
+      )
+    );
+  }
+
+  for (const field of ["source_type", "source_revision"]) {
+    if (props[field] !== undefined && !nonEmptyString(props[field])) {
+      diagnostics.push(
+        error("relaymark.evidence.source", `relay.evidence_ref.${field} must be a non-empty string when present.`)
+      );
+    }
   }
 }
 
@@ -198,6 +358,10 @@ function collectEvidenceTargets(document) {
       targets.add(block.props.id);
     }
 
+    if (block.type === "relay.evidence_ref" && nonEmptyString(block.props?.id)) {
+      targets.add(block.props.id);
+    }
+
     if (block.type === "relay.transcript_segment" && nonEmptyString(block.props?.source)) {
       targets.add(block.props.source);
     }
@@ -213,6 +377,82 @@ function collectEvidenceTargets(document) {
   });
 
   return targets;
+}
+
+function validateDocumentIdentities(document, diagnostics) {
+  const identities = {
+    evidence: new Map(),
+    proposal: new Map(),
+    proposal_record: new Map(),
+    decision: new Map(),
+    execution: new Map(),
+    undo: new Map()
+  };
+
+  visitBlocks(document.blocks || [], (block) => {
+    if (nonEmptyString(block.id) && !identities.evidence.has(block.id)) {
+      identities.evidence.set(block.id, `AST block '${block.id}'`);
+    }
+  });
+
+  for (const resource of document.resources || []) {
+    registerDocumentIdentity(
+      identities.evidence,
+      resource?.id,
+      "evidence",
+      `resource '${resource?.id}'`,
+      diagnostics
+    );
+  }
+
+  visitBlocks(document.blocks || [], (block) => {
+    if (["relay.source_bundle", "relay.evidence_ref"].includes(block.type)) {
+      if (block.props?.id !== block.id) {
+        registerDocumentIdentity(
+          identities.evidence,
+          block.props?.id,
+          "evidence",
+          `${block.type}.props.id on block '${block.id}'`,
+          diagnostics
+        );
+      }
+    }
+
+    if (block.type !== "relay.action_row") return;
+
+    for (const [field, namespace] of [
+      ["proposal_id", "proposal"],
+      ["proposal_record_id", "proposal_record"],
+      ["decision_id", "decision"],
+      ["execution_id", "execution"],
+      ["undo_id", "undo"]
+    ]) {
+      registerDocumentIdentity(
+        identities[namespace],
+        block.props?.[field],
+        namespace,
+        `relay.action_row.${field} on block '${block.id}'`,
+        diagnostics
+      );
+    }
+  });
+}
+
+function registerDocumentIdentity(registry, value, namespace, origin, diagnostics) {
+  if (!nonEmptyString(value)) return;
+
+  const prior = registry.get(value);
+
+  if (prior) {
+    diagnostics.push(
+      error(
+        `relaymark.identity.duplicate_${namespace}`,
+        `Identity '${value}' is ambiguous between ${prior} and ${origin}.`
+      )
+    );
+  } else {
+    registry.set(value, origin);
+  }
 }
 
 function visitBlocks(blocks, visitor) {

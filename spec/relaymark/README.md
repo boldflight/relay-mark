@@ -8,7 +8,7 @@ standalone repository later without depending on the Phoenix application.
 
 ## Status
 
-- Spec version: `0.2.0-draft`
+- Spec version: `0.3.0-draft`
 - Stability: draft
 - Compatibility target: CommonMark prose plus RelayMark directives
 - Canonical interchange model: RelayMark AST JSON
@@ -61,6 +61,7 @@ spec/relaymark/
     relay.agent_suggestion.json
     relay.claim.json
     relay.comparison.json
+    relay.evidence_ref.json
     relay.file_ref.json
     relay.form_question.json
     relay.note_ref.json
@@ -68,6 +69,12 @@ spec/relaymark/
     relay.transcript_segment.json
     relay.url_ref.json
   examples/
+    agent-paper-review.relaymark
+    agent-paper-review.ast.json
+    agent-paper-review.manifest.json
+    invalid-identity-collisions.relaymark
+    invalid-identity-collisions.ast.json
+    invalid-identity-collisions.diagnostics.json
     mentor-meeting.relaymark
     mentor-meeting.ast.json
     mentor-meeting.manifest.json
@@ -125,6 +132,84 @@ source directives even though their names end in `_ref`; other
 `relay.*_ref` nodes are inline unless a trusted extension registry declares
 them as blocks.
 
+### Evidence identity
+
+`relay.source_bundle` groups the exact evidence used for one generated or human
+claim. Its `id` MUST remain stable for the logical bundle. When bundle
+membership, source revisions, or selectors change, hosts SHOULD increment
+`revision`; hosts MAY also stamp `source_hash` with a digest of that exact input
+set.
+
+`relay.evidence_ref` is the portable citation target for evidence from any
+host-readable source. Its `id` MUST be stable across regeneration. `source`
+identifies the host source, `source_revision` pins an immutable revision when
+available, and `selector` locates the relevant time range, text range, field,
+page region, or other source-specific span. `source_type` and `selector` remain
+open and host-validated so the contract does not hard-code one product or media
+kind. Source-bundle and evidence ids live in directive properties and manifest
+source fields; they MUST NOT replace the schema-safe RelayMark AST `block.id`.
+
+`evidence_refs` MUST contain an AST block id, resource id, source-bundle
+property id, or evidence-ref property id from the same resolved document
+context. Durable citations to `relay.evidence_ref` use its host `props.id`, not
+its AST `block.id`. A runtime MUST report non-empty unresolved references
+rather than silently dropping or rebinding them. If evidence is deleted or
+becomes unreadable, hosts MUST degrade the citation or invalidate the
+derivative instead of pointing the existing id at different content.
+AST block ids, resource ids, source-bundle property ids, and evidence-ref
+property ids share one document evidence namespace and MUST NOT collide across
+different targets. A runtime MAY preserve a legacy v1 source node whose host id
+equals that same node's AST block id, but conforming compilers MUST allocate the
+two identities separately.
+
+### Action proposal identity
+
+`relay.action_row.action` is an open, server-owned action id. The host validates
+`args` against the action catalog before execution; RelayMark does not maintain
+a closed list of task, touchpoint, journey, resource, follow-up, or future
+action types.
+
+Durable review flows SHOULD provide `proposal_id`, `proposal_record_id`, and
+`proposal_revision`. `proposal_id` is the stable generator/client identity.
+`proposal_record_id` is the distinct host record address supplied to authorized
+review and undo actions; possessing it grants no authority by itself. Editing
+keeps both ids stable and increments the positive, one-indexed
+`proposal_revision`, allowing hosts to reject stale review commands. These host
+identifiers are stored in directive properties and manifest fields; they MUST
+NOT replace the schema-safe RelayMark AST `block.id`. Legacy action rows without
+these fields remain valid but do not provide a durable cross-revision proposal
+identity or an actionable review address.
+
+Relay Phase 3 adapters map the generation read model's database `id` to
+`proposal_record_id` and its generator/client `proposal_id` to RelayMark
+`proposal_id`. The native review action currently names its record-address
+argument `proposal_id`; callers pass `proposal_record_id` there and the server
+still performs current-session authorization on every mutation.
+
+Host-produced lifecycle snapshots use these optional identifiers:
+
+- `decision_id` identifies the durable accept or reject decision.
+- `execution_id` identifies the accepted action execution.
+- `undo_id` identifies the durable undo operation.
+
+Each proposal, proposal-record, decision, execution, and undo id MUST be unique
+within its corresponding document namespace.
+
+An accepted lifecycle-aware proposal requires `decision_id` and `execution_id`.
+A rejected proposal requires `decision_id` and has no execution or undo id. An
+undone proposal retains the original acceptance `decision_id` and
+`execution_id`, and adds a distinct `undo_id`. RelayMark MUST NOT contain
+bearer credentials, executable closures, or opaque authorization/undo tokens;
+clients resolve executable undo metadata through the authorized host action
+contract.
+
+Manifest version 1 preserves its original action-title projection: the action
+row's plain-text content is written to `args.title` after directive `args` are
+copied, so it wins if both provide `title`. Hosts should use their canonical
+payload field (for example Relay Phase 3 uses `name` for task, follow-up, and
+resource proposals) instead of relying on `args.title` to override the row
+label. Changing this precedence requires a future manifest version.
+
 ## Directive Registry
 
 Each directive in `directives/` defines:
@@ -144,8 +229,8 @@ separate trusted extension registry.
 
 1. `syntax`: source parses and directives are balanced.
 2. `schema`: AST and directive attributes match JSON Schemas.
-3. `semantic`: action ids, entity refs, and source refs resolve or become draft
-   review issues.
+3. `semantic`: action ids, proposal ids, entity refs, and evidence/source refs
+   resolve or become draft review issues.
 4. `policy`: sensitive changes require review, evidence, and audience scope.
 5. `projection`: the requested target can render or degrade every block.
 

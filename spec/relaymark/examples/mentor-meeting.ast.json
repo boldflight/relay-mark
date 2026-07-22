@@ -30,7 +30,7 @@
       ]
     },
     {
-      "id": "src-1",
+      "id": "b3",
       "type": "relay.source_bundle",
       "props": {
         "id": "src-1",
@@ -39,7 +39,7 @@
       },
       "content": [
         {
-          "id": "b3",
+          "id": "b4",
           "type": "relay.transcript_segment",
           "props": {
             "source": "transcript:meeting-123",
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "id": "b4",
+      "id": "b5",
       "type": "relay.agent_suggestion",
       "props": {
         "confidence": 0.82,
@@ -74,7 +74,7 @@
       "evidence_refs": ["src-1"]
     },
     {
-      "id": "b5",
+      "id": "b6",
       "type": "relay.action_row",
       "props": {
         "action": "relay.task.create",

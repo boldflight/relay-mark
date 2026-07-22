@@ -3,7 +3,7 @@
   "version": 1,
   "actions": [
     {
-      "block_id": "b10",
+      "block_id": "b12",
       "action": "product_feedback",
       "target": "entity:product-mac-mini-m4-pro",
       "destination": "atlas",
@@ -24,7 +24,7 @@
       }
     },
     {
-      "block_id": "b11",
+      "block_id": "b13",
       "action": "product_feedback",
       "target": "entity:product-mac-mini-m4-pro",
       "destination": "atlas",
@@ -55,13 +55,13 @@
       "label": "M Bench"
     },
     {
-      "block_id": "b10",
+      "block_id": "b12",
       "kind": "entity",
       "id": "product-mac-mini-m4-pro",
       "label": "entity:product-mac-mini-m4-pro"
     },
     {
-      "block_id": "b11",
+      "block_id": "b13",
       "kind": "entity",
       "id": "product-mac-mini-m4-pro",
       "label": "entity:product-mac-mini-m4-pro"
@@ -87,13 +87,13 @@
       "label": "M Bench"
     },
     {
-      "block_id": "b7",
+      "block_id": "b9",
       "type": "relay.product_ref",
       "id": "product-mac-mini-m4-pro",
       "label": "Mac mini with M4 Pro"
     },
     {
-      "block_id": "b7",
+      "block_id": "b9",
       "type": "relay.product_ref",
       "id": "product-mac-studio-m4-max",
       "label": "Mac Studio with M4 Max"
@@ -102,38 +102,38 @@
   "forms": [],
   "sources": [
     {
-      "block_id": "src-apple",
+      "block_id": "b3",
       "kind": "source_bundle",
       "source_id": "src-apple",
       "label": "Apple product specifications"
     },
     {
-      "block_id": "b3",
+      "block_id": "b4",
       "kind": "url_ref",
       "uri": "https://www.apple.com/mac-mini/specs/",
       "label": "Mac mini technical specifications"
     },
     {
-      "block_id": "b4",
+      "block_id": "b5",
       "kind": "url_ref",
       "uri": "https://www.apple.com/mac-studio/specs/",
       "label": "Mac Studio technical specifications"
     },
     {
-      "block_id": "src-mbench",
+      "block_id": "b6",
       "kind": "source_bundle",
       "source_id": "src-mbench",
       "label": "Imported M Bench evidence"
     },
     {
-      "block_id": "b5",
+      "block_id": "b7",
       "kind": "file_ref",
       "source_id": "file-mbench-run-2026-07-14",
       "uri": "relay:file/file-mbench-run-2026-07-14",
       "label": "M Bench run exported 2026-07-14"
     },
     {
-      "block_id": "b6",
+      "block_id": "b8",
       "kind": "url_ref",
       "uri": "https://benchmarks.example.test/runs/2026-07-14",
       "label": "Published benchmark run"
@@ -141,7 +141,7 @@
   ],
   "claims": [
     {
-      "block_id": "b8",
+      "block_id": "b10",
       "key": "mac-mini-gpu-core-count",
       "subject": "entity:product-mac-mini-m4-pro",
       "status": "disputed",
@@ -152,7 +152,7 @@
       "text": "Apple's selected configuration is recorded as a 20-core GPU."
     },
     {
-      "block_id": "b9",
+      "block_id": "b11",
       "key": "mac-mini-gpu-core-count",
       "subject": "entity:product-mac-mini-m4-pro",
       "status": "disputed",
@@ -165,7 +165,7 @@
   ],
   "comparisons": [
     {
-      "block_id": "b7",
+      "block_id": "b9",
       "title": "Price, memory bandwidth, and CPU score",
       "subjects": [
         "entity:product-mac-mini-m4-pro",

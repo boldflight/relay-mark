@@ -55,7 +55,7 @@ function compileBlock(block, allocator, diagnostics) {
 
     const astType = directive?.ast_type || `relay.unknown_${block.name.toLowerCase()}`;
     const props = applyAttributeDefaults(directive, block.attrs);
-    const id = props.id && astType === "relay.source_bundle" ? props.id : allocator.next();
+    const id = allocator.next();
     const content = shouldFlattenRawDirectiveContent(astType, block.children)
       ? parseInline(block.children[0].text)
       : block.children.map((child) => compileBlock(child, allocator, diagnostics));
@@ -84,7 +84,14 @@ function compileBlock(block, allocator, diagnostics) {
 
 function shouldFlattenRawDirectiveContent(astType, children) {
   return (
-    ["relay.action_row", "relay.agent_suggestion", "relay.claim", "relay.comparison", "relay.transcript_segment"].includes(astType) &&
+    [
+      "relay.action_row",
+      "relay.agent_suggestion",
+      "relay.claim",
+      "relay.comparison",
+      "relay.evidence_ref",
+      "relay.transcript_segment"
+    ].includes(astType) &&
     children.length === 1 &&
     children[0].kind === "paragraph"
   );

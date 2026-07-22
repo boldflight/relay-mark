@@ -1,6 +1,6 @@
 {
   "type": "relaymark.conformance_suite",
-  "version": "0.2.0-draft",
+  "version": "0.3.0-draft",
   "features": [
     "frontmatter",
     "commonmark.heading",
@@ -8,6 +8,7 @@
     "inline.relay.entity_ref",
     "inline.relay.product_ref",
     "directive.relay.source_bundle",
+    "directive.relay.evidence_ref",
     "directive.relay.transcript_segment",
     "directive.relay.file_ref",
     "directive.relay.url_ref",
@@ -16,8 +17,11 @@
     "directive.relay.claim",
     "directive.relay.comparison",
     "projection.manifest.actions",
+    "projection.manifest.action_lifecycle",
+    "projection.manifest.action_review_address",
     "projection.manifest.references",
     "projection.manifest.sources",
+    "projection.manifest.stable_evidence",
     "projection.manifest.claims",
     "projection.manifest.comparisons"
   ],
@@ -31,6 +35,22 @@
         "../schemas/relaymark-document.schema.json",
         "../schemas/relaymark-manifest.schema.json"
       ]
+    },
+    {
+      "id": "agent-paper-review",
+      "source": "../examples/agent-paper-review.relaymark",
+      "expected_ast": "../examples/agent-paper-review.ast.json",
+      "expected_manifest": "../examples/agent-paper-review.manifest.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json",
+        "../schemas/relaymark-manifest.schema.json"
+      ]
+    },
+    {
+      "id": "invalid-identity-collisions",
+      "source": "../examples/invalid-identity-collisions.relaymark",
+      "expected_ast": "../examples/invalid-identity-collisions.ast.json",
+      "expected_diagnostics": "../examples/invalid-identity-collisions.diagnostics.json"
     },
     {
       "id": "product-research",

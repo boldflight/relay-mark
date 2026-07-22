@@ -62,7 +62,7 @@
           }
         },
         {
-          "enum": ["relay.file_ref", "relay.note_ref", "relay.url_ref"]
+          "enum": ["relay.evidence_ref", "relay.file_ref", "relay.note_ref", "relay.url_ref"]
         }
       ]
     },
@@ -75,7 +75,7 @@
         {
           "pattern": "^relay\\.[a-z][a-z0-9_]*_ref$",
           "not": {
-            "enum": ["relay.file_ref", "relay.note_ref", "relay.url_ref"]
+            "enum": ["relay.evidence_ref", "relay.file_ref", "relay.note_ref", "relay.url_ref"]
           }
         }
       ]
@@ -145,7 +145,44 @@
             "$ref": "#/$defs/jsonValue"
           }
         }
-      }
+      },
+      "oneOf": [
+        {
+          "required": ["type", "props"],
+          "properties": {
+            "type": {"const": "relay.source_bundle"},
+            "props": {
+              "required": ["id"],
+              "properties": {
+                "id": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        },
+        {
+          "required": ["type", "props"],
+          "properties": {
+            "type": {"const": "relay.evidence_ref"},
+            "props": {
+              "required": ["id", "source"],
+              "properties": {
+                "id": {"type": "string", "minLength": 1},
+                "source": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        },
+        {
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "not": {
+                "enum": ["relay.source_bundle", "relay.evidence_ref"]
+              }
+            }
+          }
+        }
+      ]
     },
     "inline": {
       "type": "object",

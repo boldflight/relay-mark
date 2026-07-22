@@ -1,0 +1,135 @@
+---
+title: Jordan coaching review
+scope: private
+draft_revision: 2
+---
+
+# Jordan coaching review
+
+Jordan wants a concrete practice plan before the next interview.
+
+@SourceBundle(
+  id: "source-review-1",
+  title: "Generated revision evidence",
+  revision: 2,
+  source_hash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  scope: "private"
+) {
+  @EvidenceRef(
+    id: "70000000-0000-4000-8000-000000000001",
+    source: "capture-segment-revision:71000000-0000-4000-8000-000000000001",
+    source_type: "transcript",
+    source_revision: "1",
+    selector: {"start_ms": 724000, "end_ms": 768000},
+    label: "Practice commitment",
+    scope: "private"
+  ) {
+    I will practice twice before Thursday.
+  }
+  @EvidenceRef(
+    id: "70000000-0000-4000-8000-000000000002",
+    source: "note:61000000-0000-4000-8000-000000000001",
+    source_type: "note",
+    source_revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    selector: {"start_offset": 0, "end_offset": 48},
+    label: "Human note goal",
+    scope: "private"
+  ) {
+    Focus the next check-in on interview confidence.
+  }
+  @EvidenceRef(
+    id: "70000000-0000-4000-8000-000000000003",
+    source: "event:62000000-0000-4000-8000-000000000001",
+    source_type: "calendar",
+    source_revision: "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    selector: {"fields": ["name", "description", "starts_at", "ends_at"]},
+    label: "Next coaching session",
+    scope: "private"
+  ) {
+    Thursday at 10:00 AM.
+  }
+}
+
+@AgentSuggestion(confidence: 0.88, evidence: ["70000000-0000-4000-8000-000000000001", "70000000-0000-4000-8000-000000000002"], kind: "journey") {
+  Turn Jordan's commitment into a small practice loop and revisit it at the next session.
+}
+
+## Reviewable actions
+
+@ActionRow(
+  proposal_id: "practice-task",
+  proposal_record_id: "10000000-0000-4000-8000-000000000001",
+  proposal_revision: 1,
+  action: "task_create",
+  target: "entity:63000000-0000-4000-8000-000000000001",
+  destination: "64000000-0000-4000-8000-000000000001",
+  visibility: "private",
+  review: "ready",
+  evidence: ["70000000-0000-4000-8000-000000000001"],
+  args: {"name": "Practice interview answers twice", "description": "Rehearse the two priority answers.", "due_at": "2026-07-24T17:00:00Z", "assignee_entity_id": "63000000-0000-4000-8000-000000000001"}
+) {
+  Create Jordan's edited practice task.
+}
+
+@ActionRow(
+  proposal_id: "coaching-touchpoint",
+  proposal_record_id: "10000000-0000-4000-8000-000000000002",
+  proposal_revision: 2,
+  action: "log_touchpoint",
+  target: "entity:63000000-0000-4000-8000-000000000001",
+  visibility: "private",
+  review: "accepted",
+  decision_id: "20000000-0000-4000-8000-000000000002",
+  execution_id: "30000000-0000-4000-8000-000000000002",
+  evidence: ["70000000-0000-4000-8000-000000000002"],
+  args: {"entity_id": "63000000-0000-4000-8000-000000000001", "type": "meeting", "occurred_at": "2026-07-22T17:00:00Z", "notes": "Interview confidence practice plan"}
+) {
+  Log the reviewed coaching touchpoint.
+}
+
+@ActionRow(
+  proposal_id: "interview-journey",
+  proposal_record_id: "10000000-0000-4000-8000-000000000003",
+  proposal_revision: 1,
+  action: "journey_advance",
+  target: "entity:63000000-0000-4000-8000-000000000001",
+  visibility: "private",
+  review: "rejected",
+  decision_id: "20000000-0000-4000-8000-000000000003",
+  evidence: ["70000000-0000-4000-8000-000000000002"],
+  args: {"entity_id": "63000000-0000-4000-8000-000000000001", "pathway_slug": "interview-readiness"}
+) {
+  Advance Jordan's readiness journey before the next check-in.
+}
+
+@ActionRow(
+  proposal_id: "practice-resource",
+  proposal_record_id: "10000000-0000-4000-8000-000000000004",
+  proposal_revision: 1,
+  action: "link_create",
+  destination: "64000000-0000-4000-8000-000000000001",
+  visibility: "private",
+  review: "undone",
+  decision_id: "20000000-0000-4000-8000-000000000004",
+  execution_id: "30000000-0000-4000-8000-000000000004",
+  undo_id: "40000000-0000-4000-8000-000000000004",
+  evidence: ["70000000-0000-4000-8000-000000000001", "70000000-0000-4000-8000-000000000003"],
+  args: {"url": "https://example.com/interview-practice", "name": "Interview practice guide", "description": "A short practice worksheet."}
+) {
+  Share the interview practice guide before Thursday.
+}
+
+@ActionRow(
+  proposal_id: "practice-follow-up",
+  proposal_record_id: "10000000-0000-4000-8000-000000000005",
+  proposal_revision: 1,
+  action: "follow_up_create",
+  target: "entity:63000000-0000-4000-8000-000000000001",
+  destination: "64000000-0000-4000-8000-000000000001",
+  visibility: "private",
+  review: "ready",
+  evidence: ["70000000-0000-4000-8000-000000000001", "70000000-0000-4000-8000-000000000003"],
+  args: {"name": "Check in after interview practice", "description": "Ask what felt more confident after practice.", "due_at": "2026-07-25T17:00:00Z", "assignee_entity_id": "63000000-0000-4000-8000-000000000001"}
+) {
+  Follow up with Jordan after the practice session.
+}

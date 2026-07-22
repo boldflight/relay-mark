@@ -15,6 +15,7 @@ export function runConformanceSuite(path) {
     const errors = [];
     let expectedDocument;
     let expectedManifest;
+    let expectedDiagnostics;
 
     if (fixture.expected_ast) {
       expectedDocument = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_ast), "utf8"));
@@ -29,6 +30,14 @@ export function runConformanceSuite(path) {
 
       if (!deepEqual(actual.manifest, expectedManifest)) {
         errors.push("projected manifest did not match expected_manifest");
+      }
+    }
+
+    if (fixture.expected_diagnostics) {
+      expectedDiagnostics = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_diagnostics), "utf8"));
+
+      if (!deepEqual(actual.diagnostics, expectedDiagnostics)) {
+        errors.push("compiler diagnostics did not match expected_diagnostics");
       }
     }
 
