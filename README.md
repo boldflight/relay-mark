@@ -3,8 +3,8 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-The current reference runtime, portable spec, and generic adapters track the
-`0.3.0-draft` contract line.
+The current reference runtime, portable spec, and generic adapters implement
+the `0.3.0` contract line.
 
 This repository owns the portable RelayMark contract:
 
