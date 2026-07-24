@@ -81,6 +81,10 @@ spec/relaymark/
     product-research.relaymark
     product-research.ast.json
     product-research.manifest.json
+    scripture-ask-answered.ast.json
+    scripture-ask-answered.manifest.json
+    scripture-ask-refused.ast.json
+    scripture-ask-refused.manifest.json
   conformance/
     suite.json
 ```
@@ -190,6 +194,60 @@ preserve suffixed and named verse labels losslessly and MUST NOT infer ordering
 by comparing label strings. A host validates ordering against the release's
 authoritative coordinate inventory. `display_label` is optional presentation
 text and never contributes to evidence identity.
+
+### Agent answer profile
+
+`frontmatter.profile: "relaymark.agent_answer.v1"` identifies a bounded,
+evidence-backed answer paper rather than a chat transcript. The profile uses
+existing headings, paragraphs, `relay.claim`, `relay.source_bundle`, and
+`relay.evidence_ref` nodes; it does not define a new directive or manifest
+version.
+
+The frontmatter MUST contain:
+
+- `title` and a canonical Relay `scope`;
+- `question`, preserving the exact reader-submitted text;
+- `question_id`, equal to `sha256:` followed by the lowercase SHA-256 hex
+  digest of the exact `question` UTF-8 bytes, without trimming, Unicode
+  normalization, case folding, or whitespace rewriting; and
+- `outcome`, with exactly one of `answered` or `refused`.
+
+`question_id` is content identity. It MUST NOT contain or substitute for a
+request id, session id, organization id, credential, or authorization proof.
+
+An `answered` paper MUST contain, in order:
+
+1. one level-one answer heading;
+2. one or more non-empty `relay.claim` blocks with `status: "supported"`;
+3. one level-two heading whose plain text is `Evidence`; and
+4. one or more `relay.source_bundle` blocks containing the concrete
+   `relay.evidence_ref` blocks used by the claims.
+
+Every answered claim MUST have a non-empty stable `key` and one or more unique
+evidence references. Each reference MUST resolve exactly once to the `props.id`
+of a concrete `relay.evidence_ref` in the paper. The host owns source
+projection and MUST construct evidence blocks from the retrieved immutable
+sources; a model MAY select only evidence ids from that retrieved set. An
+optional claim confidence MUST be finite and between `0.0` and `1.0`.
+
+For a Scripture Ask surface, every evidence ref used by an answer claim MUST
+satisfy the Scripture release and span profiles above. A successful answer
+MUST NOT contain `relay.agent_suggestion`, `relay.action_row`, or manifest
+actions. Read-only answers do not imply proposed or authorized mutations.
+
+A `refused` paper MUST additionally contain
+`refusal_reason: "insufficient_evidence"` and MUST contain, in order, one
+level-one heading with plain text `Answer unavailable` and one non-empty
+reader-facing explanation paragraph. Version 1 refusals contain no claims,
+source bundles, evidence refs, resources, agent suggestions, action rows, or
+manifest actions. Refusal prose MUST NOT be interpreted as an answer claim.
+
+The outcome profile remains in the canonical AST frontmatter. Manifest version
+1 intentionally continues to project normalized claims and sources without
+duplicating the profile or outcome. Hosts MUST validate the AST and manifest
+together, reject any mismatch, and bind the exact transported document and
+manifest JSON bytes with separate host-envelope digests. Those digests and
+transport request ids are not RelayMark document fields.
 
 ### Action proposal identity
 

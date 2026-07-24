@@ -24,7 +24,8 @@
     "projection.manifest.stable_evidence",
     "projection.manifest.claims",
     "projection.manifest.comparisons",
-    "profile.scripture_evidence.v1"
+    "profile.scripture_evidence.v1",
+    "profile.agent_answer.v1"
   ],
   "fixtures": [
     {
@@ -68,6 +69,26 @@
       "input_ast": "../examples/scripture-evidence.ast.json",
       "expected_ast": "../examples/scripture-evidence.ast.json",
       "expected_manifest": "../examples/scripture-evidence.manifest.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json",
+        "../schemas/relaymark-manifest.schema.json"
+      ]
+    },
+    {
+      "id": "scripture-ask-answered",
+      "input_ast": "../examples/scripture-ask-answered.ast.json",
+      "expected_ast": "../examples/scripture-ask-answered.ast.json",
+      "expected_manifest": "../examples/scripture-ask-answered.manifest.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json",
+        "../schemas/relaymark-manifest.schema.json"
+      ]
+    },
+    {
+      "id": "scripture-ask-refused",
+      "input_ast": "../examples/scripture-ask-refused.ast.json",
+      "expected_ast": "../examples/scripture-ask-refused.ast.json",
+      "expected_manifest": "../examples/scripture-ask-refused.manifest.json",
       "schemas": [
         "../schemas/relaymark-document.schema.json",
         "../schemas/relaymark-manifest.schema.json"

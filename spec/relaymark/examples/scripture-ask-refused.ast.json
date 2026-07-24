@@ -1,0 +1,38 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "frontmatter": {
+    "title": "Answer unavailable",
+    "scope": "private",
+    "profile": "relaymark.agent_answer.v1",
+    "outcome": "refused",
+    "question_id": "sha256:b776b0f739964c4ebe9826ffef5212952a7a1ec9e90e2ac22f7839ae7ae56052",
+    "question": "Was Priscilla the author of Hebrews?",
+    "refusal_reason": "insufficient_evidence"
+  },
+  "blocks": [
+    {
+      "id": "refusalHeading1",
+      "type": "heading",
+      "props": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Answer unavailable"
+        }
+      ]
+    },
+    {
+      "id": "refusalExplanation1",
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "The reviewed evidence supplied for this request does not establish who wrote Hebrews, so Relay cannot answer this question from that evidence."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "type": "relaymark.manifest",
+  "version": 1,
+  "actions": [],
+  "mentions": [],
+  "references": [],
+  "forms": [],
+  "sources": [
+    {
+      "block_id": "askSourceBundle1",
+      "kind": "source_bundle",
+      "source_id": "urn:relay:scripture:source-bundle:ask-aquila-priscilla-1",
+      "bundle_revision": 1,
+      "label": "Selected Scripture evidence"
+    },
+    {
+      "block_id": "askEvidence1",
+      "kind": "evidence_ref",
+      "evidence_id": "urn:relay:scripture:evidence:acts-18-2-3",
+      "source_id": "askScriptureRelease1",
+      "source_type": "scripture",
+      "source_revision": "urn:relay:scripture:corpus:kjv:1769-fixture-1",
+      "selector": {
+        "profile": "relaymark.scripture_span.v1",
+        "start": {
+          "book_id": "ACT",
+          "coordinate_kind": "chapter",
+          "chapter": 18,
+          "verse_label": "2"
+        },
+        "end": {
+          "book_id": "ACT",
+          "coordinate_kind": "chapter",
+          "chapter": 18,
+          "verse_label": "3"
+        },
+        "content_digest": "sha256:955b3b135b11ce43996ec910c7e32ff42d5f1e8b03894d967cc85322cd095683",
+        "display_label": "Acts 18:2-3"
+      },
+      "scope": "public",
+      "label": "Acts 18:2-3",
+      "excerpt": "And found a certain Jew named Aquila, born in Pontus, lately come from Italy, with his wife Priscilla; (because that Claudius had commanded all Jews to depart from Rome:) and came unto them. And because he was of the same craft, he abode with them, and wrought: for by their occupation they were tentmakers.",
+      "scripture_release": {
+        "profile": "relaymark.scripture_release.v1",
+        "translation_id": "urn:relay:scripture:translation:kjv",
+        "edition_id": "urn:relay:scripture:edition:kjv-1769-fixture",
+        "corpus_release_id": "urn:relay:scripture:corpus:kjv:1769-fixture-1",
+        "versification_id": "urn:relay:scripture:versification:kjv",
+        "source": {
+          "name": "King James Version RelayMark Ask conformance excerpt",
+          "uri": "https://relaynotes.com/spec/relaymark/examples/scripture-ask-answered.ast.json",
+          "digest": "sha256:955b3b135b11ce43996ec910c7e32ff42d5f1e8b03894d967cc85322cd095683"
+        },
+        "license": {
+          "id": "public-domain",
+          "name": "Public Domain",
+          "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+        },
+        "attribution": "King James Version (public-domain conformance excerpt)",
+        "provenance": {
+          "coordinate_inventory_digest": "sha256:e3eb70ac90174aef02ab4a9193304ed7285a1a8c0d9e0a93cf1e9fd90fbc3b28",
+          "normalized_index_input_digest": "sha256:955b3b135b11ce43996ec910c7e32ff42d5f1e8b03894d967cc85322cd095683",
+          "authority": "RelayMark Ask conformance fixture; not a corpus authorization",
+          "imported_at": "2026-07-01T00:00:00Z"
+        }
+      }
+    }
+  ],
+  "claims": [
+    {
+      "block_id": "askClaim1",
+      "key": "scripture.ask.aquila-priscilla.acts-18-2-3",
+      "status": "supported",
+      "evidence_refs": [
+        "urn:relay:scripture:evidence:acts-18-2-3"
+      ],
+      "text": "Acts 18:2-3 identifies Aquila as a Jewish man from Pontus, names Priscilla as his wife, and says their occupation was tentmaking."
+    }
+  ],
+  "comparisons": [],
+  "diagnostics": []
+}
