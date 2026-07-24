@@ -1,5 +1,11 @@
 # RelayMark release notes
 
+## 0.4.1
+
+- Keeps the canonical Elixir JSON Schema 2020-12 validator compatible with
+  host applications using Decimal 3.
+- Preserves the RelayMark document-validation API and portable diagnostics.
+
 ## 0.4.0
 
 - Adds the portable `relaymark.scripture_release.v1` resource profile.
