@@ -14,9 +14,12 @@ export function validateDocument(document) {
 
   const seenIds = new Set();
   const evidenceTargets = collectEvidenceTargets(document);
+  const scriptureResources = collectScriptureResources(document);
+
+  validateScriptureResources(document, diagnostics);
 
   for (const block of document.blocks || []) {
-    validateBlock(block, diagnostics, seenIds, evidenceTargets);
+    validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources);
   }
 
   validateDocumentIdentities(document, diagnostics);
@@ -30,7 +33,7 @@ export function validateDirectiveNode(block) {
   return diagnostics;
 }
 
-function validateBlock(block, diagnostics, seenIds, evidenceTargets) {
+function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources) {
   if (!block.id) {
     diagnostics.push(error("relaymark.block.id", "Every block must have an id."));
   } else if (seenIds.has(block.id)) {
@@ -44,17 +47,17 @@ function validateBlock(block, diagnostics, seenIds, evidenceTargets) {
   }
 
   if (block.type?.startsWith("relay.")) {
-    validateRelayBlock(block, diagnostics, evidenceTargets);
+    validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResources);
   }
 
   for (const child of block.content || []) {
     if (isBlockNode(child)) {
-      validateBlock(child, diagnostics, seenIds, evidenceTargets);
+      validateBlock(child, diagnostics, seenIds, evidenceTargets, scriptureResources);
     }
   }
 }
 
-function validateRelayBlock(block, diagnostics, evidenceTargets) {
+function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResources) {
   const directive = directiveForType(block.type);
 
   if (!directive) {
@@ -101,7 +104,7 @@ function validateRelayBlock(block, diagnostics, evidenceTargets) {
   }
 
   if (block.type === "relay.evidence_ref") {
-    validateEvidenceRef(block, diagnostics);
+    validateEvidenceRef(block, diagnostics, scriptureResources);
   }
 
   if (block.type === "relay.claim") {
@@ -235,7 +238,7 @@ function validateSourceBundle(block, diagnostics) {
   }
 }
 
-function validateEvidenceRef(block, diagnostics) {
+function validateEvidenceRef(block, diagnostics, scriptureResources) {
   const props = block.props || {};
 
   if (!nonEmptyString(props.id) || !nonEmptyString(props.source)) {
@@ -254,6 +257,281 @@ function validateEvidenceRef(block, diagnostics) {
       );
     }
   }
+
+  if (props.source_type === "scripture") {
+    validateScriptureEvidenceRef(block, scriptureResources, diagnostics);
+  }
+}
+
+function validateScriptureResources(document, diagnostics) {
+  for (const resource of document.resources || []) {
+    if (resource?.type !== "scripture") continue;
+
+    const props = resource.props || {};
+
+    for (const field of [
+      "profile",
+      "translation_id",
+      "edition_id",
+      "corpus_release_id",
+      "versification_id",
+      "attribution"
+    ]) {
+      if (!nonEmptyString(props[field])) {
+        diagnostics.push(
+          error("relaymark.scripture.release", `scripture resource '${resource.id || "unknown"}' requires ${field}.`)
+        );
+      }
+    }
+
+    if (props.profile !== "relaymark.scripture_release.v1") {
+      diagnostics.push(
+        error(
+          "relaymark.scripture.release_profile",
+          `scripture resource '${resource.id || "unknown"}' must use relaymark.scripture_release.v1.`
+        )
+      );
+    }
+
+    validateRequiredStringObject(
+      props.source,
+      ["name", "uri", "digest"],
+      "source",
+      resource.id,
+      diagnostics
+    );
+    validateRequiredStringObject(
+      props.license,
+      ["id", "name", "url"],
+      "license",
+      resource.id,
+      diagnostics
+    );
+    validateRequiredStringObject(
+      props.provenance,
+      ["coordinate_inventory_digest", "normalized_index_input_digest"],
+      "provenance",
+      resource.id,
+      diagnostics
+    );
+    validateDigest(props.source?.digest, "source.digest", resource.id, diagnostics);
+    validateDigest(
+      props.provenance?.coordinate_inventory_digest,
+      "provenance.coordinate_inventory_digest",
+      resource.id,
+      diagnostics
+    );
+    validateDigest(
+      props.provenance?.normalized_index_input_digest,
+      "provenance.normalized_index_input_digest",
+      resource.id,
+      diagnostics
+    );
+
+    if (props.provenance?.source_archive_digest !== undefined) {
+      validateDigest(
+        props.provenance.source_archive_digest,
+        "provenance.source_archive_digest",
+        resource.id,
+        diagnostics
+      );
+    }
+
+    if (!["private", "org", "unlisted", "public"].includes(resource.scope)) {
+      diagnostics.push(
+        error(
+          "relaymark.scripture.release_scope",
+          `scripture resource '${resource.id || "unknown"}' requires an explicit valid scope.`
+        )
+      );
+    }
+  }
+}
+
+function validateScriptureEvidenceRef(block, scriptureResources, diagnostics) {
+  const props = block.props || {};
+  const matches = scriptureResources?.get(props.source) || [];
+
+  if (matches.length !== 1) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.source_resolution",
+        `relay.evidence_ref scripture source '${props.source || ""}' must resolve to exactly one scripture resource.`
+      )
+    );
+    return;
+  }
+
+  const resource = matches[0];
+  const release = resource.props || {};
+
+  if (props.source_revision !== release.corpus_release_id) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.source_revision",
+        "relay.evidence_ref.source_revision must equal the scripture resource corpus_release_id."
+      )
+    );
+  }
+
+  if (!scopeAllows(resource.scope, props.scope)) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.scope",
+        "relay.evidence_ref scope must not be broader than its scripture resource scope."
+      )
+    );
+  }
+
+  const selector = props.selector;
+
+  if (!selector || typeof selector !== "object" || Array.isArray(selector)) {
+    diagnostics.push(
+      error("relaymark.scripture.selector", "Scripture evidence requires a scripture span selector.")
+    );
+    return;
+  }
+
+  if (selector.profile !== "relaymark.scripture_span.v1") {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.selector_profile",
+        "Scripture evidence selector must use relaymark.scripture_span.v1."
+      )
+    );
+  }
+
+  const startValid = validateScriptureCoordinate(selector.start, "start", diagnostics);
+  const endValid = validateScriptureCoordinate(selector.end, "end", diagnostics);
+
+  if (
+    startValid &&
+    endValid &&
+    (selector.start.book_id !== selector.end.book_id ||
+      selector.start.coordinate_kind !== selector.end.coordinate_kind)
+  ) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.span_boundary",
+        "Scripture span start and end must use the same book and coordinate kind."
+      )
+    );
+  }
+
+  if (!sha256Digest(selector.content_digest)) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.content_digest",
+        "Scripture evidence requires a lowercase sha256 content_digest."
+      )
+    );
+  }
+
+  if (!plainText(block).trim()) {
+    diagnostics.push(
+      error("relaymark.scripture.excerpt", "Scripture evidence requires a non-empty exact excerpt.")
+    );
+  }
+}
+
+function validateScriptureCoordinate(coordinate, endpoint, diagnostics) {
+  if (!coordinate || typeof coordinate !== "object" || Array.isArray(coordinate)) {
+    diagnostics.push(
+      error("relaymark.scripture.coordinate", `Scripture selector ${endpoint} must be a coordinate object.`)
+    );
+    return false;
+  }
+
+  const kind = coordinate.coordinate_kind;
+  const commonValid = nonEmptyString(coordinate.book_id) && nonEmptyString(coordinate.verse_label);
+  let shapeValid = false;
+
+  if (kind === "chapter") {
+    shapeValid =
+      Number.isInteger(coordinate.chapter) &&
+      coordinate.chapter > 0 &&
+      coordinate.section_id === undefined;
+  } else if (kind === "section") {
+    shapeValid = nonEmptyString(coordinate.section_id) && coordinate.chapter === undefined;
+  }
+
+  if (!commonValid || !shapeValid) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.coordinate",
+        `Scripture selector ${endpoint} must be a lossless chapter or section coordinate with a string verse_label.`
+      )
+    );
+    return false;
+  }
+
+  return true;
+}
+
+function validateRequiredStringObject(value, fields, label, resourceId, diagnostics) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.release",
+        `scripture resource '${resourceId || "unknown"}' requires a ${label} object.`
+      )
+    );
+    return;
+  }
+
+  for (const field of fields) {
+    if (!nonEmptyString(value[field])) {
+      diagnostics.push(
+        error(
+          "relaymark.scripture.release",
+          `scripture resource '${resourceId || "unknown"}' requires ${label}.${field}.`
+        )
+      );
+    }
+  }
+}
+
+function validateDigest(value, field, resourceId, diagnostics) {
+  if (!sha256Digest(value)) {
+    diagnostics.push(
+      error(
+        "relaymark.scripture.digest",
+        `scripture resource '${resourceId || "unknown"}' requires ${field} as a lowercase sha256 digest.`
+      )
+    );
+  }
+}
+
+function collectScriptureResources(document) {
+  const resources = new Map();
+
+  for (const resource of document.resources || []) {
+    if (resource?.type !== "scripture" || !nonEmptyString(resource.id)) continue;
+    const matches = resources.get(resource.id) || [];
+    matches.push(resource);
+    resources.set(resource.id, matches);
+  }
+
+  return resources;
+}
+
+function scopeAllows(resourceScope, evidenceScope) {
+  const rank = new Map([
+    ["private", 0],
+    ["org", 1],
+    ["unlisted", 2],
+    ["public", 3]
+  ]);
+
+  return rank.has(resourceScope) && rank.has(evidenceScope) && rank.get(evidenceScope) <= rank.get(resourceScope);
+}
+
+function plainText(node) {
+  if (!node) return "";
+  if (Array.isArray(node)) return node.map(plainText).join("");
+  if (node.type === "text") return node.text || "";
+  if (Array.isArray(node.content)) return node.content.map(plainText).join("");
+  return "";
 }
 
 function validateClaim(block, diagnostics) {
@@ -475,6 +753,10 @@ function evidenceRefsFor(block) {
 
 function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function sha256Digest(value) {
+  return typeof value === "string" && /^sha256:[0-9a-f]{64}$/u.test(value);
 }
 
 function validateAttribute(type, name, value, attribute, diagnostics) {

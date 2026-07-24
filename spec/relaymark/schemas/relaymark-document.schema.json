@@ -160,6 +160,19 @@
           }
         },
         {
+          "required": ["type", "props", "content"],
+          "properties": {
+            "type": {"const": "relay.evidence_ref"},
+            "props": {
+              "$ref": "#/$defs/scriptureEvidenceProps"
+            },
+            "content": {
+              "type": "array",
+              "minItems": 1
+            }
+          }
+        },
+        {
           "required": ["type", "props"],
           "properties": {
             "type": {"const": "relay.evidence_ref"},
@@ -168,6 +181,12 @@
               "properties": {
                 "id": {"type": "string", "minLength": 1},
                 "source": {"type": "string", "minLength": 1}
+              },
+              "not": {
+                "required": ["source_type"],
+                "properties": {
+                  "source_type": {"const": "scripture"}
+                }
               }
             }
           }
@@ -278,7 +297,7 @@
         },
         "type": {
           "type": "string",
-          "pattern": "^(transcript|file|url|image|video|audio|entity|event|note|form_submission)$"
+          "pattern": "^(transcript|file|url|image|video|audio|entity|event|note|form_submission|scripture)$"
         },
         "uri": {
           "type": "string"
@@ -295,6 +314,153 @@
           "additionalProperties": {
             "$ref": "#/$defs/jsonValue"
           }
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["type", "scope", "props"],
+          "properties": {
+            "type": {"const": "scripture"},
+            "props": {
+              "$ref": "#/$defs/scriptureRelease"
+            }
+          }
+        },
+        {
+          "properties": {
+            "type": {
+              "not": {"const": "scripture"}
+            }
+          }
+        }
+      ]
+    },
+    "scriptureRelease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "translation_id",
+        "edition_id",
+        "corpus_release_id",
+        "versification_id",
+        "source",
+        "license",
+        "attribution",
+        "provenance"
+      ],
+      "properties": {
+        "profile": {"const": "relaymark.scripture_release.v1"},
+        "translation_id": {"type": "string", "minLength": 1},
+        "edition_id": {"type": "string", "minLength": 1},
+        "corpus_release_id": {"type": "string", "minLength": 1},
+        "versification_id": {"type": "string", "minLength": 1},
+        "source": {"$ref": "#/$defs/scriptureSource"},
+        "license": {"$ref": "#/$defs/scriptureLicense"},
+        "attribution": {"type": "string", "minLength": 1},
+        "provenance": {"$ref": "#/$defs/scriptureProvenance"}
+      }
+    },
+    "scriptureSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "uri", "digest"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "uri": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "scriptureLicense": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "url"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "minLength": 1}
+      }
+    },
+    "scriptureProvenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coordinate_inventory_digest", "normalized_index_input_digest"],
+      "properties": {
+        "coordinate_inventory_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "normalized_index_input_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "source_archive_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "authority": {"type": "string", "minLength": 1},
+        "imported_at": {"type": "string", "minLength": 1}
+      }
+    },
+    "scriptureCoordinate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["book_id", "coordinate_kind", "chapter", "verse_label"],
+          "properties": {
+            "book_id": {"type": "string", "minLength": 1},
+            "coordinate_kind": {"const": "chapter"},
+            "chapter": {"type": "integer", "minimum": 1},
+            "verse_label": {"type": "string", "minLength": 1}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["book_id", "coordinate_kind", "section_id", "verse_label"],
+          "properties": {
+            "book_id": {"type": "string", "minLength": 1},
+            "coordinate_kind": {"const": "section"},
+            "section_id": {"type": "string", "minLength": 1},
+            "verse_label": {"type": "string", "minLength": 1}
+          }
+        }
+      ]
+    },
+    "scriptureSpan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "start", "end", "content_digest"],
+      "properties": {
+        "profile": {"const": "relaymark.scripture_span.v1"},
+        "start": {"$ref": "#/$defs/scriptureCoordinate"},
+        "end": {"$ref": "#/$defs/scriptureCoordinate"},
+        "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "display_label": {"type": "string", "minLength": 1}
+      }
+    },
+    "scriptureEvidenceProps": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "id",
+        "source",
+        "source_type",
+        "source_revision",
+        "selector",
+        "scope"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "source": {"type": "string", "minLength": 1},
+        "source_type": {"const": "scripture"},
+        "source_revision": {"type": "string", "minLength": 1},
+        "selector": {"$ref": "#/$defs/scriptureSpan"},
+        "label": {"type": "string"},
+        "scope": {
+          "type": "string",
+          "enum": ["private", "org", "unlisted", "public"]
         }
       }
     },

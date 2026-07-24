@@ -6,7 +6,8 @@ defmodule RelayMarkValidatorTest do
   @valid_fixtures [
     "mentor-meeting.ast.json",
     "agent-paper-review.ast.json",
-    "product-research.ast.json"
+    "product-research.ast.json",
+    "scripture-evidence.ast.json"
   ]
 
   test "accepts every valid canonical AST conformance fixture" do
@@ -150,6 +151,48 @@ defmodule RelayMarkValidatorTest do
              "relaymark.comparison.preferred",
              "relaymark.comparison.values_coverage"
            ]
+  end
+
+  test "decodes the portable Scripture evidence fixture into typed adapters" do
+    document =
+      "scripture-evidence.ast.json"
+      |> decode_fixture()
+      |> RelayMark.Document.from_map()
+
+    assert {:ok, release} =
+             document.resources
+             |> hd()
+             |> RelayMark.Resource.scripture_release()
+
+    assert release.translation_id == "urn:relay:scripture:translation:kjv"
+    assert release.corpus_release_id == "urn:relay:scripture:corpus:kjv:1769-fixture-1"
+
+    manifest =
+      "scripture-evidence.manifest.json"
+      |> decode_fixture()
+      |> RelayMark.Manifest.from_map()
+
+    assert {:ok, evidence} =
+             manifest.sources
+             |> hd()
+             |> RelayMark.Scripture.Evidence.from_manifest_source()
+
+    assert evidence.source_revision == release.corpus_release_id
+    assert evidence.span.start.kind == :chapter
+    assert evidence.span.start.verse_label == "2"
+    assert evidence.span.end.verse_label == "3"
+
+    assert %RelayMark.Scripture.Coordinate{
+             kind: :section,
+             section_id: "prologue",
+             verse_label: "prologue"
+           } =
+             RelayMark.Scripture.Coordinate.from_map(%{
+               "book_id" => "SIR",
+               "coordinate_kind" => "section",
+               "section_id" => "prologue",
+               "verse_label" => "prologue"
+             })
   end
 
   test "bang validation raises with the same diagnostics" do

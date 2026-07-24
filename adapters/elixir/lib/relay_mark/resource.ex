@@ -28,4 +28,11 @@ defmodule RelayMark.Resource do
       props: Map.get(map, "props", %{})
     }
   end
+
+  @spec scripture_release(t()) :: {:ok, RelayMark.Scripture.Release.t()} | :error
+  def scripture_release(%__MODULE__{type: "scripture", props: props}) do
+    {:ok, RelayMark.Scripture.Release.from_map(props)}
+  end
+
+  def scripture_release(%__MODULE__{}), do: :error
 end

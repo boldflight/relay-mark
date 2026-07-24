@@ -160,6 +160,43 @@ struct RelayMarkSwiftTests {
         #expect(manifest.comparisons[0].values["price_usd"]?.objectValue?["entity:product-mac-mini-m4-pro"]?.numberValue == 1399)
     }
 
+    @Test
+    func decodesPortableScriptureEvidenceFixture() throws {
+        let document = try RelayMarkDocument.decodeJSON(fixtureData("scripture-evidence.ast.json"))
+        let manifest = try RelayMarkManifest.decodeJSON(fixtureData("scripture-evidence.manifest.json"))
+
+        let resource = try #require(document.resources.first)
+        let release = try resource.decodeScriptureRelease()
+        #expect(release.translationID == "urn:relay:scripture:translation:kjv")
+        #expect(release.corpusReleaseID == "urn:relay:scripture:corpus:kjv:1769-fixture-1")
+
+        let source = try #require(manifest.sources.first)
+        let evidence = try source.decodeScriptureEvidence()
+        #expect(evidence.sourceRevision == release.corpusReleaseID)
+        #expect(evidence.release.versificationID == "urn:relay:scripture:versification:kjv")
+
+        guard case let .chapter(bookID, chapter, startVerseLabel) = evidence.span.start,
+              case let .chapter(endBookID, endChapter, endVerseLabel) = evidence.span.end else {
+            Issue.record("Expected chapter coordinates")
+            return
+        }
+
+        #expect(bookID == "ACT")
+        #expect(chapter == 18)
+        #expect(startVerseLabel == "2")
+        #expect(endBookID == "ACT")
+        #expect(endChapter == 18)
+        #expect(endVerseLabel == "3")
+
+        let section = try RelayMarkDecoder.decode(
+            RelayMarkScriptureCoordinate.self,
+            from: Data(
+                #"{"book_id":"SIR","coordinate_kind":"section","section_id":"prologue","verse_label":"prologue"}"#.utf8
+            )
+        )
+        #expect(section == .section(bookID: "SIR", sectionID: "prologue", verseLabel: "prologue"))
+    }
+
     private func fixtureData(_ name: String) throws -> Data {
         let testFile = URL(fileURLWithPath: #filePath)
         let repoRoot = testFile

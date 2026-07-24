@@ -1,6 +1,9 @@
 import { isBlockNode, isInlineNode } from "./node-kind.js";
 
 export function projectManifest(document, diagnostics = []) {
+  const resourcesByID = new Map(
+    (document.resources || []).map((resource) => [resource.id, resource])
+  );
   const manifest = {
     type: "relaymark.manifest",
     version: 1,
@@ -103,6 +106,12 @@ export function projectManifest(document, diagnostics = []) {
     }
 
     if (block.type === "relay.evidence_ref") {
+      const sourceResource = resourcesByID.get(block.props.source);
+      const scriptureRelease =
+        block.props.source_type === "scripture" && sourceResource?.type === "scripture"
+          ? sourceResource.props
+          : undefined;
+
       manifest.sources.push(
         compactObject({
           block_id: block.id,
@@ -114,7 +123,8 @@ export function projectManifest(document, diagnostics = []) {
           selector: block.props.selector,
           scope: block.props.scope,
           label: block.props.label,
-          excerpt: toPlainText(block).trim() || undefined
+          excerpt: toPlainText(block).trim() || undefined,
+          scripture_release: scriptureRelease
         })
       );
     }

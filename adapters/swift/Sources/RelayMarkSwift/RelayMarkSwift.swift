@@ -254,6 +254,218 @@ public struct RelayMarkResource: Codable, Equatable, Sendable {
         scope = try container.decodeIfPresent(String.self, forKey: .scope)
         props = try container.decodeIfPresent([String: RelayMarkValue].self, forKey: .props) ?? [:]
     }
+
+    public func decodeScriptureRelease() throws -> RelayMarkScriptureRelease {
+        guard type == "scripture" else {
+            throw RelayMarkScriptureAdapterError.notScriptureResource
+        }
+
+        return try RelayMarkDecoder.decode(
+            RelayMarkScriptureRelease.self,
+            from: JSONEncoder().encode(RelayMarkValue.object(props))
+        )
+    }
+}
+
+public enum RelayMarkScriptureAdapterError: Error, Equatable, Sendable {
+    case notScriptureResource
+    case notScriptureEvidence
+}
+
+public struct RelayMarkScriptureSource: Codable, Equatable, Sendable {
+    public let name: String
+    public let uri: String
+    public let digest: String
+
+    public init(name: String, uri: String, digest: String) {
+        self.name = name
+        self.uri = uri
+        self.digest = digest
+    }
+}
+
+public struct RelayMarkScriptureLicense: Codable, Equatable, Sendable {
+    public let id: String
+    public let name: String
+    public let url: String
+
+    public init(id: String, name: String, url: String) {
+        self.id = id
+        self.name = name
+        self.url = url
+    }
+}
+
+public struct RelayMarkScriptureProvenance: Codable, Equatable, Sendable {
+    public let coordinateInventoryDigest: String
+    public let normalizedIndexInputDigest: String
+    public let sourceArchiveDigest: String?
+    public let authority: String?
+    public let importedAt: String?
+
+    enum CodingKeys: String, CodingKey {
+        case coordinateInventoryDigest = "coordinate_inventory_digest"
+        case normalizedIndexInputDigest = "normalized_index_input_digest"
+        case sourceArchiveDigest = "source_archive_digest"
+        case authority
+        case importedAt = "imported_at"
+    }
+
+    public init(
+        coordinateInventoryDigest: String,
+        normalizedIndexInputDigest: String,
+        sourceArchiveDigest: String? = nil,
+        authority: String? = nil,
+        importedAt: String? = nil
+    ) {
+        self.coordinateInventoryDigest = coordinateInventoryDigest
+        self.normalizedIndexInputDigest = normalizedIndexInputDigest
+        self.sourceArchiveDigest = sourceArchiveDigest
+        self.authority = authority
+        self.importedAt = importedAt
+    }
+}
+
+public struct RelayMarkScriptureRelease: Codable, Equatable, Sendable {
+    public let profile: String
+    public let translationID: String
+    public let editionID: String
+    public let corpusReleaseID: String
+    public let versificationID: String
+    public let source: RelayMarkScriptureSource
+    public let license: RelayMarkScriptureLicense
+    public let attribution: String
+    public let provenance: RelayMarkScriptureProvenance
+
+    enum CodingKeys: String, CodingKey {
+        case profile
+        case translationID = "translation_id"
+        case editionID = "edition_id"
+        case corpusReleaseID = "corpus_release_id"
+        case versificationID = "versification_id"
+        case source
+        case license
+        case attribution
+        case provenance
+    }
+
+    public init(
+        profile: String = "relaymark.scripture_release.v1",
+        translationID: String,
+        editionID: String,
+        corpusReleaseID: String,
+        versificationID: String,
+        source: RelayMarkScriptureSource,
+        license: RelayMarkScriptureLicense,
+        attribution: String,
+        provenance: RelayMarkScriptureProvenance
+    ) {
+        self.profile = profile
+        self.translationID = translationID
+        self.editionID = editionID
+        self.corpusReleaseID = corpusReleaseID
+        self.versificationID = versificationID
+        self.source = source
+        self.license = license
+        self.attribution = attribution
+        self.provenance = provenance
+    }
+}
+
+public enum RelayMarkScriptureCoordinate: Codable, Equatable, Sendable {
+    case chapter(bookID: String, chapter: Int, verseLabel: String)
+    case section(bookID: String, sectionID: String, verseLabel: String)
+
+    enum CodingKeys: String, CodingKey {
+        case bookID = "book_id"
+        case coordinateKind = "coordinate_kind"
+        case chapter
+        case sectionID = "section_id"
+        case verseLabel = "verse_label"
+    }
+
+    enum CoordinateKind: String, Codable {
+        case chapter
+        case section
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let bookID = try container.decode(String.self, forKey: .bookID)
+        let verseLabel = try container.decode(String.self, forKey: .verseLabel)
+
+        switch try container.decode(CoordinateKind.self, forKey: .coordinateKind) {
+        case .chapter:
+            self = .chapter(
+                bookID: bookID,
+                chapter: try container.decode(Int.self, forKey: .chapter),
+                verseLabel: verseLabel
+            )
+        case .section:
+            self = .section(
+                bookID: bookID,
+                sectionID: try container.decode(String.self, forKey: .sectionID),
+                verseLabel: verseLabel
+            )
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        switch self {
+        case let .chapter(bookID, chapter, verseLabel):
+            try container.encode(bookID, forKey: .bookID)
+            try container.encode(CoordinateKind.chapter, forKey: .coordinateKind)
+            try container.encode(chapter, forKey: .chapter)
+            try container.encode(verseLabel, forKey: .verseLabel)
+        case let .section(bookID, sectionID, verseLabel):
+            try container.encode(bookID, forKey: .bookID)
+            try container.encode(CoordinateKind.section, forKey: .coordinateKind)
+            try container.encode(sectionID, forKey: .sectionID)
+            try container.encode(verseLabel, forKey: .verseLabel)
+        }
+    }
+}
+
+public struct RelayMarkScriptureSpan: Codable, Equatable, Sendable {
+    public let profile: String
+    public let start: RelayMarkScriptureCoordinate
+    public let end: RelayMarkScriptureCoordinate
+    public let contentDigest: String
+    public let displayLabel: String?
+
+    enum CodingKeys: String, CodingKey {
+        case profile
+        case start
+        case end
+        case contentDigest = "content_digest"
+        case displayLabel = "display_label"
+    }
+
+    public init(
+        profile: String = "relaymark.scripture_span.v1",
+        start: RelayMarkScriptureCoordinate,
+        end: RelayMarkScriptureCoordinate,
+        contentDigest: String,
+        displayLabel: String? = nil
+    ) {
+        self.profile = profile
+        self.start = start
+        self.end = end
+        self.contentDigest = contentDigest
+        self.displayLabel = displayLabel
+    }
+}
+
+public struct RelayMarkScriptureEvidence: Equatable, Sendable {
+    public let evidenceID: String
+    public let sourceID: String
+    public let sourceRevision: String
+    public let span: RelayMarkScriptureSpan
+    public let release: RelayMarkScriptureRelease
+    public let scope: String
+    public let excerpt: String
 }
 
 public struct RelayMarkManifest: Codable, Equatable, Sendable {
@@ -403,6 +615,7 @@ public struct RelayMarkSource: Codable, Equatable, Sendable {
     public let uri: String?
     public let label: String?
     public let excerpt: String?
+    public let scriptureRelease: RelayMarkScriptureRelease?
 
     enum CodingKeys: String, CodingKey {
         case blockID = "block_id"
@@ -420,6 +633,38 @@ public struct RelayMarkSource: Codable, Equatable, Sendable {
         case uri
         case label
         case excerpt
+        case scriptureRelease = "scripture_release"
+    }
+
+    public func decodeScriptureEvidence() throws -> RelayMarkScriptureEvidence {
+        guard
+            kind == "evidence_ref",
+            sourceType == "scripture",
+            let evidenceID,
+            let sourceID,
+            let sourceRevision,
+            let selector,
+            let scriptureRelease,
+            let scope,
+            let excerpt
+        else {
+            throw RelayMarkScriptureAdapterError.notScriptureEvidence
+        }
+
+        let span = try RelayMarkDecoder.decode(
+            RelayMarkScriptureSpan.self,
+            from: JSONEncoder().encode(RelayMarkValue.object(selector))
+        )
+
+        return RelayMarkScriptureEvidence(
+            evidenceID: evidenceID,
+            sourceID: sourceID,
+            sourceRevision: sourceRevision,
+            span: span,
+            release: scriptureRelease,
+            scope: scope,
+            excerpt: excerpt
+        )
     }
 }
 

@@ -200,7 +200,8 @@ defmodule RelayMark.Manifest.Source do
             end: nil,
             uri: nil,
             label: nil,
-            excerpt: nil
+            excerpt: nil,
+            scripture_release: nil
 
   @type t :: %__MODULE__{
           block_id: String.t(),
@@ -217,7 +218,8 @@ defmodule RelayMark.Manifest.Source do
           end: String.t() | nil,
           uri: String.t() | nil,
           label: String.t() | nil,
-          excerpt: String.t() | nil
+          excerpt: String.t() | nil,
+          scripture_release: RelayMark.Scripture.Release.t() | nil
         }
 
   def from_map(map) do
@@ -236,7 +238,12 @@ defmodule RelayMark.Manifest.Source do
       end: Map.get(map, "end"),
       uri: Map.get(map, "uri"),
       label: Map.get(map, "label"),
-      excerpt: Map.get(map, "excerpt")
+      excerpt: Map.get(map, "excerpt"),
+      scripture_release:
+        case Map.get(map, "scripture_release") do
+          nil -> nil
+          release -> RelayMark.Scripture.Release.from_map(release)
+        end
     }
   end
 end

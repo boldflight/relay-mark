@@ -1,0 +1,90 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "blocks": [
+    {
+      "id": "scriptureEvidence1",
+      "type": "relay.evidence_ref",
+      "props": {
+        "id": "urn:relay:scripture:evidence:acts-18-2-3",
+        "source": "scriptureRelease1",
+        "source_type": "scripture",
+        "source_revision": "urn:relay:scripture:corpus:kjv:1769-fixture-1",
+        "selector": {
+          "profile": "relaymark.scripture_span.v1",
+          "start": {
+            "book_id": "ACT",
+            "coordinate_kind": "chapter",
+            "chapter": 18,
+            "verse_label": "2"
+          },
+          "end": {
+            "book_id": "ACT",
+            "coordinate_kind": "chapter",
+            "chapter": 18,
+            "verse_label": "3"
+          },
+          "content_digest": "sha256:955b3b135b11ce43996ec910c7e32ff42d5f1e8b03894d967cc85322cd095683",
+          "display_label": "Acts 18:2-3"
+        },
+        "label": "Acts 18:2-3",
+        "scope": "public"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "And found a certain Jew named Aquila, born in Pontus, lately come from Italy, with his wife Priscilla; (because that Claudius had commanded all Jews to depart from Rome:) and came unto them. And because he was of the same craft, he abode with them, and wrought: for by their occupation they were tentmakers."
+        }
+      ]
+    },
+    {
+      "id": "scriptureClaim1",
+      "type": "relay.claim",
+      "props": {
+        "key": "scripture.aquila-priscilla-arrival",
+        "status": "supported"
+      },
+      "evidence_refs": [
+        "urn:relay:scripture:evidence:acts-18-2-3"
+      ],
+      "content": [
+        {
+          "type": "text",
+          "text": "Acts introduces Aquila together with his wife Priscilla."
+        }
+      ]
+    }
+  ],
+  "resources": [
+    {
+      "id": "scriptureRelease1",
+      "type": "scripture",
+      "label": "King James Version conformance excerpt",
+      "scope": "public",
+      "props": {
+        "profile": "relaymark.scripture_release.v1",
+        "translation_id": "urn:relay:scripture:translation:kjv",
+        "edition_id": "urn:relay:scripture:edition:kjv-1769-fixture",
+        "corpus_release_id": "urn:relay:scripture:corpus:kjv:1769-fixture-1",
+        "versification_id": "urn:relay:scripture:versification:kjv",
+        "source": {
+          "name": "King James Version RelayMark conformance excerpt",
+          "uri": "https://relaynotes.com/spec/relaymark/examples/scripture-evidence.ast.json",
+          "digest": "sha256:955b3b135b11ce43996ec910c7e32ff42d5f1e8b03894d967cc85322cd095683"
+        },
+        "license": {
+          "id": "public-domain",
+          "name": "Public Domain",
+          "url": "https://creativecommons.org/publicdomain/mark/1.0/"
+        },
+        "attribution": "King James Version (public-domain conformance excerpt)",
+        "provenance": {
+          "coordinate_inventory_digest": "sha256:e3eb70ac90174aef02ab4a9193304ed7285a1a8c0d9e0a93cf1e9fd90fbc3b28",
+          "normalized_index_input_digest": "sha256:955b3b135b11ce43996ec910c7e32ff42d5f1e8b03894d967cc85322cd095683",
+          "authority": "RelayMark conformance fixture; not a corpus authorization",
+          "imported_at": "2026-07-01T00:00:00Z"
+        }
+      }
+    }
+  ]
+}

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
 import { validateJSONSchema } from "./json-schema.js";
 import { compileRelayMark } from "./runtime.js";
+import { projectManifest } from "./projections.js";
+import { validateDocument } from "./validator.js";
 
 export function runConformanceSuite(path) {
   const suitePath = resolve(path);
@@ -10,8 +12,9 @@ export function runConformanceSuite(path) {
   const fixtures = [];
 
   for (const fixture of suite.fixtures || []) {
-    const source = readFileSync(resolve(suiteDir, fixture.source), "utf8");
-    const actual = compileRelayMark(source);
+    const actual = fixture.input_ast
+      ? compileCanonicalAST(resolve(suiteDir, fixture.input_ast))
+      : compileRelayMark(readFileSync(resolve(suiteDir, fixture.source), "utf8"));
     const errors = [];
     let expectedDocument;
     let expectedManifest;
@@ -78,6 +81,17 @@ export function runConformanceSuite(path) {
   return {
     ok: fixtures.every((fixture) => fixture.ok),
     fixtures
+  };
+}
+
+function compileCanonicalAST(path) {
+  const document = JSON.parse(readFileSync(path, "utf8"));
+  const diagnostics = validateDocument(document);
+
+  return {
+    document,
+    diagnostics,
+    manifest: projectManifest(document, diagnostics)
   };
 }
 

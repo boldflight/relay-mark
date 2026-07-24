@@ -18,7 +18,7 @@
     },
     "source_type": {
       "type": "string",
-      "description": "Open source category such as transcript, note, event, file, or URL."
+      "description": "Open source category such as transcript, note, event, file, or URL. The reserved scripture value activates the relaymark.scripture_span.v1 profile."
     },
     "source_revision": {
       "type": "string",
@@ -26,7 +26,7 @@
     },
     "selector": {
       "type": "object",
-      "description": "Host-interpreted locator such as a time range, text range, field path, or page region."
+      "description": "Host-interpreted locator such as a time range, text range, field path, or page region. Scripture sources require a lossless relaymark.scripture_span.v1 selector."
     },
     "label": {
       "type": "string",
@@ -48,6 +48,8 @@
     "source must resolve through the host or remain an explicit unresolved review issue",
     "source_revision should identify immutable evidence when the host can provide one",
     "selector semantics are defined by source_type and validated by the host",
+    "source_type scripture requires source to resolve to one scripture resource and source_revision to equal its corpus_release_id",
+    "scripture selectors preserve chapter-or-section coordinates and verse_label as a string; ordering is validated against the release coordinate inventory",
     "scope must be allowed by the current document and user scope"
   ],
   "projections": {

@@ -8,7 +8,7 @@ standalone repository later without depending on the Phoenix application.
 
 ## Status
 
-- Spec version: `0.3.0-draft`
+- Spec version: `0.4.0-draft`
 - Stability: draft
 - Compatibility target: CommonMark prose plus RelayMark directives
 - Canonical interchange model: RelayMark AST JSON
@@ -161,6 +161,35 @@ property ids share one document evidence namespace and MUST NOT collide across
 different targets. A runtime MAY preserve a legacy v1 source node whose host id
 equals that same node's AST block id, but conforming compilers MUST allocate the
 two identities separately.
+
+#### Scripture evidence profile
+
+A resource with `type: "scripture"` and
+`props.profile: "relaymark.scripture_release.v1"` identifies one immutable,
+publishable Scripture release. Its properties MUST include canonical
+translation lineage, concrete edition, corpus release, versification, source
+digest, license, attribution, and provenance digests for both the coordinate
+inventory and normalized index input. Development hashes and app-local
+collection ids are not portable corpus identities.
+
+A `relay.evidence_ref` with `source_type: "scripture"` MUST resolve `source` to
+exactly one Scripture resource in the document. Its `source_revision` MUST equal
+that resource's `corpus_release_id`, and its scope MUST NOT be broader than the
+resource scope. The evidence excerpt MUST contain the exact selected source
+text; `selector.content_digest` binds that text to the immutable release.
+
+The selector profile is `relaymark.scripture_span.v1`. Both `start` and `end`
+are required, including for a singleton. Each coordinate has a canonical
+`book_id`, a non-empty string `verse_label`, and exactly one location shape:
+
+- `coordinate_kind: "chapter"` with a positive integer `chapter`; or
+- `coordinate_kind: "section"` with a stable non-empty `section_id`.
+
+Version 1 spans remain within one book and one coordinate kind. Runtimes MUST
+preserve suffixed and named verse labels losslessly and MUST NOT infer ordering
+by comparing label strings. A host validates ordering against the release's
+authoritative coordinate inventory. `display_label` is optional presentation
+text and never contributes to evidence identity.
 
 ### Action proposal identity
 

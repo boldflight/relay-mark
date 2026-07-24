@@ -305,6 +305,39 @@ describe("RelayMark reference runtime", () => {
     assert.equal(result.ok, true);
   });
 
+  it("validates and projects portable Scripture evidence", () => {
+    const fixture = JSON.parse(
+      readFileSync(resolve("spec/relaymark/examples/scripture-evidence.ast.json"), "utf8")
+    );
+
+    assert.deepEqual(validateDocument(fixture), []);
+    assert.equal(
+      projectManifest(fixture).sources[0].scripture_release.corpus_release_id,
+      "urn:relay:scripture:corpus:kjv:1769-fixture-1"
+    );
+
+    const invalid = structuredClone(fixture);
+    invalid.resources[0].scope = "org";
+    invalid.blocks[0].props.source_revision = "stale-release";
+    invalid.blocks[0].props.selector.end = {
+      book_id: "ACT",
+      coordinate_kind: "section",
+      section_id: "appendix",
+      verse_label: "3a"
+    };
+    invalid.blocks[0].props.selector.content_digest = "not-a-digest";
+
+    assert.deepEqual(
+      validateDocument(invalid).map(({ code }) => code),
+      [
+        "relaymark.scripture.source_revision",
+        "relaymark.scripture.scope",
+        "relaymark.scripture.span_boundary",
+        "relaymark.scripture.content_digest"
+      ]
+    );
+  });
+
   it("does not validate inline entity references as Relay blocks", () => {
     assert.equal(isInlineNode({ type: "relay.entity_ref", id: "product-1" }), true);
     assert.equal(isBlockNode({ type: "relay.url_ref", id: "b2" }), true);

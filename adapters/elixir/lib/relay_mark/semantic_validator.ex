@@ -52,10 +52,12 @@ defmodule RelayMark.SemanticValidator do
       |> validate_document_version(document)
 
     evidence_targets = collect_evidence_targets(document)
+    scripture_resources = collect_scripture_resources(document)
+    diagnostics = validate_scripture_resources(document, diagnostics)
 
     {diagnostics, _seen_ids} =
       Enum.reduce(document["blocks"] || [], {diagnostics, MapSet.new()}, fn block, state ->
-        validate_block(block, state, evidence_targets)
+        validate_block(block, state, evidence_targets, scripture_resources)
       end)
 
     validate_document_identities(document, diagnostics)
@@ -83,7 +85,7 @@ defmodule RelayMark.SemanticValidator do
     )
   end
 
-  defp validate_block(block, {diagnostics, seen_ids}, evidence_targets) do
+  defp validate_block(block, {diagnostics, seen_ids}, evidence_targets, scripture_resources) do
     id = block["id"]
 
     {diagnostics, seen_ids} =
@@ -118,21 +120,21 @@ defmodule RelayMark.SemanticValidator do
 
     diagnostics =
       if is_binary(type) and String.starts_with?(type, "relay.") do
-        validate_relay_block(block, diagnostics, evidence_targets)
+        validate_relay_block(block, diagnostics, evidence_targets, scripture_resources)
       else
         diagnostics
       end
 
     Enum.reduce(block["content"] || [], {diagnostics, seen_ids}, fn child, state ->
       if block_node?(child) do
-        validate_block(child, state, evidence_targets)
+        validate_block(child, state, evidence_targets, scripture_resources)
       else
         state
       end
     end)
   end
 
-  defp validate_relay_block(block, diagnostics, evidence_targets) do
+  defp validate_relay_block(block, diagnostics, evidence_targets, scripture_resources) do
     case @directive_registry[block["type"]] do
       nil ->
         append_error(
@@ -203,12 +205,23 @@ defmodule RelayMark.SemanticValidator do
 
         diagnostics =
           case block["type"] do
-            "relay.action_row" -> validate_action_proposal(block, diagnostics)
-            "relay.source_bundle" -> validate_source_bundle(block, diagnostics)
-            "relay.evidence_ref" -> validate_evidence_ref(block, diagnostics)
-            "relay.claim" -> validate_claim(block, diagnostics)
-            "relay.comparison" -> validate_comparison(block, diagnostics)
-            _other -> diagnostics
+            "relay.action_row" ->
+              validate_action_proposal(block, diagnostics)
+
+            "relay.source_bundle" ->
+              validate_source_bundle(block, diagnostics)
+
+            "relay.evidence_ref" ->
+              validate_evidence_ref(block, diagnostics, scripture_resources)
+
+            "relay.claim" ->
+              validate_claim(block, diagnostics)
+
+            "relay.comparison" ->
+              validate_comparison(block, diagnostics)
+
+            _other ->
+              diagnostics
           end
 
         diagnostics
@@ -380,7 +393,7 @@ defmodule RelayMark.SemanticValidator do
     end
   end
 
-  defp validate_evidence_ref(block, diagnostics) do
+  defp validate_evidence_ref(block, diagnostics, scripture_resources) do
     props = block["props"] || %{}
 
     diagnostics =
@@ -394,18 +407,339 @@ defmodule RelayMark.SemanticValidator do
         )
       end
 
-    Enum.reduce(["source_type", "source_revision"], diagnostics, fn field, acc ->
-      if Map.has_key?(props, field) and not non_empty_string?(props[field]) do
-        append_error(
-          acc,
-          "relaymark.evidence.source",
-          "relay.evidence_ref.#{field} must be a non-empty string when present."
-        )
+    diagnostics =
+      Enum.reduce(["source_type", "source_revision"], diagnostics, fn field, acc ->
+        if Map.has_key?(props, field) and not non_empty_string?(props[field]) do
+          append_error(
+            acc,
+            "relaymark.evidence.source",
+            "relay.evidence_ref.#{field} must be a non-empty string when present."
+          )
+        else
+          acc
+        end
+      end)
+
+    if props["source_type"] == "scripture" do
+      validate_scripture_evidence_ref(block, scripture_resources, diagnostics)
+    else
+      diagnostics
+    end
+  end
+
+  defp validate_scripture_resources(document, diagnostics) do
+    Enum.reduce(document["resources"] || [], diagnostics, fn resource, acc ->
+      if resource["type"] == "scripture" do
+        validate_scripture_resource(resource, acc)
       else
         acc
       end
     end)
   end
+
+  defp validate_scripture_resource(resource, diagnostics) do
+    props = resource["props"] || %{}
+
+    diagnostics =
+      Enum.reduce(
+        [
+          "profile",
+          "translation_id",
+          "edition_id",
+          "corpus_release_id",
+          "versification_id",
+          "attribution"
+        ],
+        diagnostics,
+        fn field, acc ->
+          if non_empty_string?(props[field]) do
+            acc
+          else
+            append_error(
+              acc,
+              "relaymark.scripture.release",
+              "scripture resource '#{resource["id"] || "unknown"}' requires #{field}."
+            )
+          end
+        end
+      )
+
+    diagnostics =
+      if props["profile"] == "relaymark.scripture_release.v1" do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.scripture.release_profile",
+          "scripture resource '#{resource["id"] || "unknown"}' must use relaymark.scripture_release.v1."
+        )
+      end
+
+    diagnostics
+    |> validate_required_string_object(
+      props["source"],
+      ["name", "uri", "digest"],
+      "source",
+      resource["id"]
+    )
+    |> validate_required_string_object(
+      props["license"],
+      ["id", "name", "url"],
+      "license",
+      resource["id"]
+    )
+    |> validate_required_string_object(
+      props["provenance"],
+      ["coordinate_inventory_digest", "normalized_index_input_digest"],
+      "provenance",
+      resource["id"]
+    )
+    |> validate_scripture_digest(
+      nested_value(props["source"], "digest"),
+      "source.digest",
+      resource["id"]
+    )
+    |> validate_scripture_digest(
+      nested_value(props["provenance"], "coordinate_inventory_digest"),
+      "provenance.coordinate_inventory_digest",
+      resource["id"]
+    )
+    |> validate_scripture_digest(
+      nested_value(props["provenance"], "normalized_index_input_digest"),
+      "provenance.normalized_index_input_digest",
+      resource["id"]
+    )
+    |> validate_optional_scripture_digest(
+      nested_value(props["provenance"], "source_archive_digest"),
+      "provenance.source_archive_digest",
+      resource["id"]
+    )
+    |> validate_scripture_resource_scope(resource)
+  end
+
+  defp validate_scripture_resource_scope(diagnostics, resource) do
+    if resource["scope"] in ["private", "org", "unlisted", "public"] do
+      diagnostics
+    else
+      append_error(
+        diagnostics,
+        "relaymark.scripture.release_scope",
+        "scripture resource '#{resource["id"] || "unknown"}' requires an explicit valid scope."
+      )
+    end
+  end
+
+  defp validate_required_string_object(diagnostics, value, fields, label, resource_id)
+       when is_map(value) do
+    Enum.reduce(fields, diagnostics, fn field, acc ->
+      if non_empty_string?(value[field]) do
+        acc
+      else
+        append_error(
+          acc,
+          "relaymark.scripture.release",
+          "scripture resource '#{resource_id || "unknown"}' requires #{label}.#{field}."
+        )
+      end
+    end)
+  end
+
+  defp validate_required_string_object(diagnostics, _value, _fields, label, resource_id) do
+    append_error(
+      diagnostics,
+      "relaymark.scripture.release",
+      "scripture resource '#{resource_id || "unknown"}' requires a #{label} object."
+    )
+  end
+
+  defp validate_scripture_digest(diagnostics, value, field, resource_id) do
+    if sha256_digest?(value) do
+      diagnostics
+    else
+      append_error(
+        diagnostics,
+        "relaymark.scripture.digest",
+        "scripture resource '#{resource_id || "unknown"}' requires #{field} as a lowercase sha256 digest."
+      )
+    end
+  end
+
+  defp validate_optional_scripture_digest(diagnostics, nil, _field, _resource_id),
+    do: diagnostics
+
+  defp validate_optional_scripture_digest(diagnostics, value, field, resource_id) do
+    validate_scripture_digest(diagnostics, value, field, resource_id)
+  end
+
+  defp validate_scripture_evidence_ref(block, scripture_resources, diagnostics) do
+    props = block["props"] || %{}
+    matches = Map.get(scripture_resources, props["source"], [])
+
+    case matches do
+      [resource] ->
+        release = resource["props"] || %{}
+
+        diagnostics =
+          if props["source_revision"] == release["corpus_release_id"] do
+            diagnostics
+          else
+            append_error(
+              diagnostics,
+              "relaymark.scripture.source_revision",
+              "relay.evidence_ref.source_revision must equal the scripture resource corpus_release_id."
+            )
+          end
+
+        diagnostics =
+          if scope_allows?(resource["scope"], props["scope"]) do
+            diagnostics
+          else
+            append_error(
+              diagnostics,
+              "relaymark.scripture.scope",
+              "relay.evidence_ref scope must not be broader than its scripture resource scope."
+            )
+          end
+
+        validate_scripture_selector(block, diagnostics)
+
+      _other ->
+        append_error(
+          diagnostics,
+          "relaymark.scripture.source_resolution",
+          "relay.evidence_ref scripture source '#{props["source"] || ""}' must resolve to exactly one scripture resource."
+        )
+    end
+  end
+
+  defp validate_scripture_selector(block, diagnostics) do
+    selector = get_in(block, ["props", "selector"])
+
+    if is_map(selector) do
+      diagnostics =
+        if selector["profile"] == "relaymark.scripture_span.v1" do
+          diagnostics
+        else
+          append_error(
+            diagnostics,
+            "relaymark.scripture.selector_profile",
+            "Scripture evidence selector must use relaymark.scripture_span.v1."
+          )
+        end
+
+      {diagnostics, start_valid} =
+        validate_scripture_coordinate(selector["start"], "start", diagnostics)
+
+      {diagnostics, end_valid} =
+        validate_scripture_coordinate(selector["end"], "end", diagnostics)
+
+      diagnostics =
+        if start_valid and end_valid and
+             (selector["start"]["book_id"] != selector["end"]["book_id"] or
+                selector["start"]["coordinate_kind"] != selector["end"]["coordinate_kind"]) do
+          append_error(
+            diagnostics,
+            "relaymark.scripture.span_boundary",
+            "Scripture span start and end must use the same book and coordinate kind."
+          )
+        else
+          diagnostics
+        end
+
+      diagnostics =
+        if sha256_digest?(selector["content_digest"]) do
+          diagnostics
+        else
+          append_error(
+            diagnostics,
+            "relaymark.scripture.content_digest",
+            "Scripture evidence requires a lowercase sha256 content_digest."
+          )
+        end
+
+      if block_plain_text(block) |> String.trim() |> non_empty_string?() do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.scripture.excerpt",
+          "Scripture evidence requires a non-empty exact excerpt."
+        )
+      end
+    else
+      append_error(
+        diagnostics,
+        "relaymark.scripture.selector",
+        "Scripture evidence requires a scripture span selector."
+      )
+    end
+  end
+
+  defp validate_scripture_coordinate(coordinate, endpoint, diagnostics) when is_map(coordinate) do
+    common_valid =
+      non_empty_string?(coordinate["book_id"]) and non_empty_string?(coordinate["verse_label"])
+
+    shape_valid =
+      case coordinate["coordinate_kind"] do
+        "chapter" ->
+          is_integer(coordinate["chapter"]) and coordinate["chapter"] > 0 and
+            not Map.has_key?(coordinate, "section_id")
+
+        "section" ->
+          non_empty_string?(coordinate["section_id"]) and
+            not Map.has_key?(coordinate, "chapter")
+
+        _other ->
+          false
+      end
+
+    if common_valid and shape_valid do
+      {diagnostics, true}
+    else
+      {append_error(
+         diagnostics,
+         "relaymark.scripture.coordinate",
+         "Scripture selector #{endpoint} must be a lossless chapter or section coordinate with a string verse_label."
+       ), false}
+    end
+  end
+
+  defp validate_scripture_coordinate(_coordinate, endpoint, diagnostics) do
+    {append_error(
+       diagnostics,
+       "relaymark.scripture.coordinate",
+       "Scripture selector #{endpoint} must be a coordinate object."
+     ), false}
+  end
+
+  defp collect_scripture_resources(document) do
+    Enum.reduce(document["resources"] || [], %{}, fn resource, acc ->
+      if resource["type"] == "scripture" and non_empty_string?(resource["id"]) do
+        Map.update(acc, resource["id"], [resource], &[resource | &1])
+      else
+        acc
+      end
+    end)
+  end
+
+  defp scope_allows?(resource_scope, evidence_scope) do
+    ranks = %{"private" => 0, "org" => 1, "unlisted" => 2, "public" => 3}
+
+    Map.has_key?(ranks, resource_scope) and Map.has_key?(ranks, evidence_scope) and
+      ranks[evidence_scope] <= ranks[resource_scope]
+  end
+
+  defp block_plain_text(node) when is_list(node) do
+    Enum.map_join(node, "", &block_plain_text/1)
+  end
+
+  defp block_plain_text(%{"type" => "text"} = node), do: node["text"] || ""
+
+  defp block_plain_text(%{"content" => content}) when is_list(content) do
+    block_plain_text(content)
+  end
+
+  defp block_plain_text(_node), do: ""
 
   defp validate_claim(block, diagnostics) do
     confidence = get_in(block, ["props", "confidence"])
@@ -795,7 +1129,16 @@ defmodule RelayMark.SemanticValidator do
     if non_empty_string?(value), do: MapSet.put(set, value), else: set
   end
 
+  defp nested_value(value, key) when is_map(value), do: value[key]
+  defp nested_value(_value, _key), do: nil
+
   defp non_empty_string?(value), do: is_binary(value) and String.trim(value) != ""
+
+  defp sha256_digest?(value) when is_binary(value) do
+    Regex.match?(~r/^sha256:[0-9a-f]{64}$/, value)
+  end
+
+  defp sha256_digest?(_value), do: false
 
   defp append_error(diagnostics, code, message) do
     diagnostics ++ [Diagnostic.error(code, message)]

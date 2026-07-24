@@ -30,13 +30,16 @@
     "fixture": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "source", "expected_ast"],
+      "required": ["id", "expected_ast"],
       "properties": {
         "id": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9_-]*$"
         },
         "source": {
+          "type": "string"
+        },
+        "input_ast": {
           "type": "string"
         },
         "expected_ast": {
@@ -55,7 +58,17 @@
           },
           "default": []
         }
-      }
+      },
+      "oneOf": [
+        {
+          "required": ["source"],
+          "not": {"required": ["input_ast"]}
+        },
+        {
+          "required": ["input_ast"],
+          "not": {"required": ["source"]}
+        }
+      ]
     }
   }
 }
