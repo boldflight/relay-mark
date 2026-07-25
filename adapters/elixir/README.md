@@ -32,7 +32,7 @@ compile-time canonical schema and directive registry remain available:
 ```elixir
 {:relay_mark_elixir,
  github: "boldflight/relay-mark",
- tag: "0.4.1",
+ tag: "0.5.0",
  subdir: "adapters/elixir"}
 ```
 

@@ -3,8 +3,10 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-The current reference runtime and generic adapters are released as `0.4.1` and
-implement the portable `0.4.0-draft` contract line.
+The next reviewed reference runtime and generic adapters are prepared as
+`0.5.0` and implement the portable `0.5.0-draft` contract line. The latest
+published tag remains `0.4.1` until the release commit passes its compatibility
+gates and is tagged.
 
 This repository owns the portable RelayMark contract:
 
