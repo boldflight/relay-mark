@@ -8,7 +8,7 @@ standalone repository later without depending on the Phoenix application.
 
 ## Status
 
-- Spec version: `0.4.0-draft`
+- Spec version: `0.5.0-draft`
 - Stability: draft
 - Compatibility target: CommonMark prose plus RelayMark directives
 - Canonical interchange model: RelayMark AST JSON
@@ -72,6 +72,10 @@ spec/relaymark/
     agent-paper-review.relaymark
     agent-paper-review.ast.json
     agent-paper-review.manifest.json
+    invalid-agent-answer-question-id.ast.json
+    invalid-agent-answer-question-id.diagnostics.json
+    invalid-agent-answer-refusal.ast.json
+    invalid-agent-answer-refusal.diagnostics.json
     invalid-identity-collisions.relaymark
     invalid-identity-collisions.ast.json
     invalid-identity-collisions.diagnostics.json

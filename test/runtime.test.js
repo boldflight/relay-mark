@@ -338,6 +338,96 @@ describe("RelayMark reference runtime", () => {
     );
   });
 
+  it("enforces answered and refused Agent Answer profile semantics", () => {
+    const answered = JSON.parse(
+      readFileSync(resolve("spec/relaymark/examples/scripture-ask-answered.ast.json"), "utf8")
+    );
+    const refused = JSON.parse(
+      readFileSync(resolve("spec/relaymark/examples/scripture-ask-refused.ast.json"), "utf8")
+    );
+
+    assert.deepEqual(validateDocument(answered), []);
+    assert.deepEqual(validateDocument(refused), []);
+
+    const invalidClaim = structuredClone(answered);
+    invalidClaim.blocks[1].props.status = "disputed";
+    assert.deepEqual(validateDocument(invalidClaim).map(({ code }) => code), [
+      "relaymark.agent_answer.claim"
+    ]);
+
+    const duplicateClaimEvidence = structuredClone(answered);
+    duplicateClaimEvidence.blocks[1].evidence_refs.push(
+      duplicateClaimEvidence.blocks[1].evidence_refs[0]
+    );
+    assert.deepEqual(validateDocument(duplicateClaimEvidence).map(({ code }) => code), [
+      "relaymark.agent_answer.claim_evidence"
+    ]);
+
+    const invalidAnsweredStructure = structuredClone(answered);
+    invalidAnsweredStructure.blocks[2].content[0].text = " Evidence";
+    assert.deepEqual(validateDocument(invalidAnsweredStructure).map(({ code }) => code), [
+      "relaymark.agent_answer.answered_structure"
+    ]);
+
+    const secondAnswerHeading = structuredClone(answered);
+    secondAnswerHeading.blocks.push({
+      id: "secondAnswerHeading",
+      type: "heading",
+      props: { level: 1 },
+      content: [{ type: "text", text: "Second answer" }]
+    });
+    assert.deepEqual(validateDocument(secondAnswerHeading).map(({ code }) => code), [
+      "relaymark.agent_answer.answered_structure"
+    ]);
+
+    const nonfiniteConfidence = structuredClone(answered);
+    nonfiniteConfidence.blocks[1].props.confidence = Number.POSITIVE_INFINITY;
+    assert.deepEqual(validateDocument(nonfiniteConfidence).map(({ code }) => code), [
+      "relaymark.claim.confidence_range"
+    ]);
+
+    const answeredWithRefusalReason = structuredClone(answered);
+    answeredWithRefusalReason.frontmatter.refusal_reason = "insufficient_evidence";
+    assert.deepEqual(validateDocument(answeredWithRefusalReason).map(({ code }) => code), [
+      "relaymark.agent_answer.refusal_reason"
+    ]);
+
+    const invalidRefusal = structuredClone(refused);
+    invalidRefusal.frontmatter.refusal_reason = "provider_failure";
+    invalidRefusal.blocks.push({
+      id: "forbiddenRefusalSource",
+      type: "relay.source_bundle",
+      props: { id: "forbidden-refusal-source" },
+      content: []
+    });
+    assert.deepEqual(validateDocument(invalidRefusal).map(({ code }) => code), [
+      "relaymark.agent_answer.refusal_reason",
+      "relaymark.agent_answer.refused_structure",
+      "relaymark.agent_answer.refused_content"
+    ]);
+
+    const inexactRefusalHeading = structuredClone(refused);
+    inexactRefusalHeading.blocks[0].content[0].text = "Answer unavailable ";
+    assert.deepEqual(validateDocument(inexactRefusalHeading).map(({ code }) => code), [
+      "relaymark.agent_answer.refused_structure"
+    ]);
+
+    for (const [field, value, expectedCode] of [
+      ["title", "", "relaymark.agent_answer.title"],
+      ["scope", "team", "relaymark.agent_answer.scope"],
+      ["question", "", "relaymark.agent_answer.question"],
+      ["outcome", "partial", "relaymark.agent_answer.outcome"]
+    ]) {
+      const invalidFrontmatter = structuredClone(answered);
+      invalidFrontmatter.frontmatter[field] = value;
+      assert.deepEqual(
+        validateDocument(invalidFrontmatter).map(({ code }) => code),
+        [expectedCode],
+        field
+      );
+    }
+  });
+
   it("does not validate inline entity references as Relay blocks", () => {
     assert.equal(isInlineNode({ type: "relay.entity_ref", id: "product-1" }), true);
     assert.equal(isBlockNode({ type: "relay.url_ref", id: "b2" }), true);
