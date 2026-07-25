@@ -197,6 +197,84 @@ struct RelayMarkSwiftTests {
         #expect(section == .section(bookID: "SIR", sectionID: "prologue", verseLabel: "prologue"))
     }
 
+    @Test
+    func decodesAnsweredAgentPaperFixture() throws {
+        let document = try RelayMarkDocument.decodeJSON(fixtureData("scripture-ask-answered.ast.json"))
+        let manifest = try RelayMarkManifest.decodeJSON(fixtureData("scripture-ask-answered.manifest.json"))
+
+        #expect(document.frontmatter["profile"]?.stringValue == "relaymark.agent_answer.v1")
+        #expect(document.frontmatter["outcome"]?.stringValue == "answered")
+        #expect(document.frontmatter["question_id"]?.stringValue == "sha256:6640f17d592931bf54f6d3bdf1c1b5f1a7a302bcdc4b7a2e626fd9671b6a1da8")
+        #expect(document.frontmatter["question"]?.stringValue == "What does Acts 18:2-3 say about Aquila and Priscilla?")
+        #expect(document.frontmatter["refusal_reason"] == nil)
+
+        let claim = try #require(manifest.claims.first)
+        #expect(manifest.claims.count == 1)
+        #expect(claim.blockID == "askClaim1")
+        #expect(claim.key == "scripture.ask.aquila-priscilla.acts-18-2-3")
+        #expect(claim.status == "supported")
+        #expect(claim.evidenceRefs == ["urn:relay:scripture:evidence:acts-18-2-3"])
+        #expect(claim.text == "Acts 18:2-3 identifies Aquila as a Jewish man from Pontus, names Priscilla as his wife, and says their occupation was tentmaking.")
+
+        #expect(manifest.sources.count == 2)
+        let sourceBundle = manifest.sources[0]
+        #expect(sourceBundle.kind == "source_bundle")
+        #expect(sourceBundle.sourceID == "urn:relay:scripture:source-bundle:ask-aquila-priscilla-1")
+        #expect(sourceBundle.bundleRevision == 1)
+
+        let source = manifest.sources[1]
+        let evidence = try source.decodeScriptureEvidence()
+        #expect(source.blockID == "askEvidence1")
+        #expect(evidence.evidenceID == "urn:relay:scripture:evidence:acts-18-2-3")
+        #expect(evidence.sourceID == "askScriptureRelease1")
+        #expect(evidence.sourceRevision == "urn:relay:scripture:corpus:kjv:1769-fixture-1")
+        #expect(evidence.scope == "public")
+        #expect(evidence.release.profile == "relaymark.scripture_release.v1")
+        #expect(evidence.release.translationID == "urn:relay:scripture:translation:kjv")
+        #expect(evidence.release.editionID == "urn:relay:scripture:edition:kjv-1769-fixture")
+        #expect(evidence.release.corpusReleaseID == evidence.sourceRevision)
+        #expect(evidence.release.versificationID == "urn:relay:scripture:versification:kjv")
+        #expect(evidence.release.source.digest == evidence.span.contentDigest)
+
+        guard case let .chapter(bookID, chapter, startVerseLabel) = evidence.span.start,
+              case let .chapter(endBookID, endChapter, endVerseLabel) = evidence.span.end else {
+            Issue.record("Expected chapter coordinates")
+            return
+        }
+
+        #expect(bookID == "ACT")
+        #expect(chapter == 18)
+        #expect(startVerseLabel == "2")
+        #expect(endBookID == "ACT")
+        #expect(endChapter == 18)
+        #expect(endVerseLabel == "3")
+
+        let resource = try #require(document.resources.first)
+        let release = try resource.decodeScriptureRelease()
+        #expect(document.resources.count == 1)
+        #expect(resource.id == evidence.sourceID)
+        #expect(release == evidence.release)
+        #expect(manifest.actions.isEmpty)
+    }
+
+    @Test
+    func decodesRefusedAgentPaperFixture() throws {
+        let document = try RelayMarkDocument.decodeJSON(fixtureData("scripture-ask-refused.ast.json"))
+        let manifest = try RelayMarkManifest.decodeJSON(fixtureData("scripture-ask-refused.manifest.json"))
+
+        #expect(document.frontmatter["profile"]?.stringValue == "relaymark.agent_answer.v1")
+        #expect(document.frontmatter["outcome"]?.stringValue == "refused")
+        #expect(document.frontmatter["question_id"]?.stringValue == "sha256:b776b0f739964c4ebe9826ffef5212952a7a1ec9e90e2ac22f7839ae7ae56052")
+        #expect(document.frontmatter["question"]?.stringValue == "Was Priscilla the author of Hebrews?")
+        #expect(document.frontmatter["refusal_reason"]?.stringValue == "insufficient_evidence")
+
+        #expect(document.blocks.map(\.type) == ["heading", "paragraph"])
+        #expect(document.resources.isEmpty)
+        #expect(manifest.claims.isEmpty)
+        #expect(manifest.sources.isEmpty)
+        #expect(manifest.actions.isEmpty)
+    }
+
     private func fixtureData(_ name: String) throws -> Data {
         let testFile = URL(fileURLWithPath: #filePath)
         let repoRoot = testFile
