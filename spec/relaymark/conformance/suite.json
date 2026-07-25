@@ -97,12 +97,20 @@
     {
       "id": "invalid-agent-answer-question-id",
       "input_ast": "../examples/invalid-agent-answer-question-id.ast.json",
-      "expected_diagnostics": "../examples/invalid-agent-answer-question-id.diagnostics.json"
+      "expected_ast": "../examples/invalid-agent-answer-question-id.ast.json",
+      "expected_diagnostics": "../examples/invalid-agent-answer-question-id.diagnostics.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json"
+      ]
     },
     {
       "id": "invalid-agent-answer-refusal",
       "input_ast": "../examples/invalid-agent-answer-refusal.ast.json",
-      "expected_diagnostics": "../examples/invalid-agent-answer-refusal.diagnostics.json"
+      "expected_ast": "../examples/invalid-agent-answer-refusal.ast.json",
+      "expected_diagnostics": "../examples/invalid-agent-answer-refusal.diagnostics.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json"
+      ]
     }
   ]
 }

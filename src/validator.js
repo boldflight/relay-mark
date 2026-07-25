@@ -87,8 +87,7 @@ function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResour
   const evidenceRefs = evidenceRefsFor(block);
 
   if (directive.policy?.requires_evidence) {
-
-    if (!evidenceRefs.some((reference) => typeof reference === "string" && reference.trim().length > 0)) {
+    if (!evidenceRefs.some(nonEmptyString)) {
       diagnostics.push(error("relaymark.policy.evidence_required", `${block.type} requires at least one evidence reference.`));
     }
   }
@@ -429,7 +428,7 @@ function validateScriptureEvidenceRef(block, scriptureResources, diagnostics) {
     );
   }
 
-  if (!plainText(block).trim()) {
+  if (!nonEmptyString(plainText(block))) {
     diagnostics.push(
       error("relaymark.scripture.excerpt", "Scripture evidence requires a non-empty exact excerpt.")
     );
@@ -611,15 +610,18 @@ function validateAnsweredAgentPaper(document, diagnostics) {
   const claims = evidenceHeadingIndex > 1 ? blocks.slice(1, evidenceHeadingIndex) : [];
   const sourceBundles = evidenceHeadingIndex >= 0 ? blocks.slice(evidenceHeadingIndex + 1) : [];
   let levelOneHeadingCount = 0;
+  let levelTwoHeadingCount = 0;
 
   visitBlocks(blocks, (block) => {
     if (headingLevel(block) === 1) levelOneHeadingCount += 1;
+    if (headingLevel(block) === 2) levelTwoHeadingCount += 1;
   });
 
   const structureValid =
     blocks.length >= 4 &&
     headingLevel(blocks[0]) === 1 &&
     levelOneHeadingCount === 1 &&
+    levelTwoHeadingCount === 1 &&
     claims.length > 0 &&
     claims.every((block) => block.type === "relay.claim") &&
     sourceBundles.length > 0 &&
@@ -650,7 +652,7 @@ function validateAnsweredAgentPaper(document, diagnostics) {
     if (
       !nonEmptyString(claim.props?.key) ||
       claim.props?.status !== "supported" ||
-      !plainText(claim).trim()
+      !nonEmptyString(plainText(claim))
     ) {
       diagnostics.push(
         error(
@@ -726,7 +728,7 @@ function validateRefusedAgentPaper(document, diagnostics) {
     levelOneHeadingCount !== 1 ||
     plainText(blocks[0]) !== "Answer unavailable" ||
     blocks[1]?.type !== "paragraph" ||
-    !plainText(blocks[1]).trim()
+    !nonEmptyString(plainText(blocks[1]))
   ) {
     diagnostics.push(
       error(
@@ -971,7 +973,12 @@ function evidenceRefsFor(block) {
 }
 
 function nonEmptyString(value) {
-  return typeof value === "string" && value.trim().length > 0;
+  return (
+    typeof value === "string" &&
+    !/^[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]*$/u.test(
+      value
+    )
+  );
 }
 
 function sha256Digest(value) {

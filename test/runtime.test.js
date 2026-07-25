@@ -380,11 +380,93 @@ describe("RelayMark reference runtime", () => {
       "relaymark.agent_answer.answered_structure"
     ]);
 
+    const nestedEvidenceHeading = structuredClone(answered);
+    nestedEvidenceHeading.blocks[3].content.push({
+      id: "nestedEvidenceHeading",
+      type: "heading",
+      props: { level: 2 },
+      content: [{ type: "text", text: "Nested heading" }]
+    });
+    assert.deepEqual(validateDocument(nestedEvidenceHeading).map(({ code }) => code), [
+      "relaymark.agent_answer.answered_structure"
+    ]);
+
+    const integralHeadingLevels = structuredClone(answered);
+    integralHeadingLevels.blocks[0].props.level = 1.0;
+    integralHeadingLevels.blocks[2].props.level = 2.0;
+    assert.deepEqual(validateDocument(integralHeadingLevels), []);
+
     const nonfiniteConfidence = structuredClone(answered);
     nonfiniteConfidence.blocks[1].props.confidence = Number.POSITIVE_INFINITY;
     assert.deepEqual(validateDocument(nonfiniteConfidence).map(({ code }) => code), [
       "relaymark.claim.confidence_range"
     ]);
+
+    const duplicatedConcreteEvidence = structuredClone(answered);
+    const duplicatedEvidence = structuredClone(duplicatedConcreteEvidence.blocks[3].content[0]);
+    duplicatedEvidence.id = "askEvidenceDuplicate";
+    duplicatedConcreteEvidence.blocks[3].content.push(duplicatedEvidence);
+    assert.deepEqual(validateDocument(duplicatedConcreteEvidence).map(({ code }) => code), [
+      "relaymark.agent_answer.claim_evidence",
+      "relaymark.identity.duplicate_evidence"
+    ]);
+
+    const nonConcreteEvidenceTarget = structuredClone(answered);
+    nonConcreteEvidenceTarget.blocks[1].evidence_refs = [
+      nonConcreteEvidenceTarget.blocks[3].props.id
+    ];
+    assert.deepEqual(validateDocument(nonConcreteEvidenceTarget).map(({ code }) => code), [
+      "relaymark.agent_answer.claim_evidence"
+    ]);
+
+    const exactQuestion = structuredClone(answered);
+    exactQuestion.frontmatter.question = "  Why did Priscilla travel? 🌿\n";
+    exactQuestion.frontmatter.question_id =
+      "sha256:4028e93caf14fa131e71f9a4983efc2dcca8f1220d2e58e0deb386cb6e33ed23";
+    assert.deepEqual(validateDocument(exactQuestion), []);
+
+    const unicodeWhitespaceTitle = structuredClone(answered);
+    unicodeWhitespaceTitle.frontmatter.title = "\u0085";
+    assert.deepEqual(validateDocument(unicodeWhitespaceTitle).map(({ code }) => code), [
+      "relaymark.agent_answer.title"
+    ]);
+
+    const unicodeWhitespaceClaim = structuredClone(answered);
+    unicodeWhitespaceClaim.blocks[1].content[0].text = "\u0085";
+    assert.deepEqual(validateDocument(unicodeWhitespaceClaim).map(({ code }) => code), [
+      "relaymark.agent_answer.claim"
+    ]);
+
+    const unicodeWhitespaceExplanation = structuredClone(refused);
+    unicodeWhitespaceExplanation.blocks[1].content[0].text = "\u0085";
+    assert.deepEqual(validateDocument(unicodeWhitespaceExplanation).map(({ code }) => code), [
+      "relaymark.agent_answer.refused_structure"
+    ]);
+
+    const unicodeWhitespaceEvidenceReference = structuredClone(answered);
+    unicodeWhitespaceEvidenceReference.blocks[1].evidence_refs = ["\u0085"];
+    assert.deepEqual(
+      validateDocument(unicodeWhitespaceEvidenceReference).map(({ code }) => code),
+      [
+        "relaymark.policy.evidence_required",
+        "relaymark.evidence.invalid_reference",
+        "relaymark.agent_answer.claim_evidence"
+      ]
+    );
+
+    const byteOrderMarkTitle = structuredClone(answered);
+    byteOrderMarkTitle.frontmatter.title = "\uFEFF";
+    assert.deepEqual(validateDocument(byteOrderMarkTitle), []);
+
+    const byteOrderMarkEvidenceReference = structuredClone(answered);
+    byteOrderMarkEvidenceReference.blocks[1].evidence_refs = ["\uFEFF"];
+    assert.deepEqual(
+      validateDocument(byteOrderMarkEvidenceReference).map(({ code }) => code),
+      [
+        "relaymark.evidence.unresolved_reference",
+        "relaymark.agent_answer.claim_evidence"
+      ]
+    );
 
     const answeredWithRefusalReason = structuredClone(answered);
     answeredWithRefusalReason.frontmatter.refusal_reason = "insufficient_evidence";
