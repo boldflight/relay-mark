@@ -84,6 +84,225 @@ public enum RelayMarkAgentAnswerValidationError: Error, Equatable, Sendable {
 public enum RelayMarkAgentAnswerValidator {
     private static let profile = "relaymark.agent_answer.v1"
     private static let canonicalScopes = ["private", "org", "unlisted", "public"]
+    private static let portableBlockReferenceTypes: Set<String> = [
+        "relay.evidence_ref",
+        "relay.file_ref",
+        "relay.note_ref",
+        "relay.url_ref"
+    ]
+    private static let portableCommonMarkBlockTypes: Set<String> = [
+        "paragraph",
+        "heading",
+        "list",
+        "list_item",
+        "quote",
+        "code",
+        "table",
+        "table_row",
+        "table_cell",
+        "image",
+        "horizontal_rule"
+    ]
+    private static let portableAnnotationTypes: Set<String> = [
+        "comment",
+        "private_note",
+        "highlight",
+        "agent_suggestion",
+        "redaction",
+        "source_grounding",
+        "review_decision"
+    ]
+    private static let portableResourceTypes: Set<String> = [
+        "transcript",
+        "file",
+        "url",
+        "image",
+        "video",
+        "audio",
+        "entity",
+        "event",
+        "note",
+        "form_submission",
+        "scripture"
+    ]
+
+    private enum DirectiveAttributeKind {
+        case string
+        case integer
+        case number
+        case boolean
+        case object
+        case stringArray
+        case enumeration([String])
+    }
+
+    private struct DirectiveAttribute {
+        let name: String
+        let kind: DirectiveAttributeKind
+        let required: Bool
+    }
+
+    private struct DirectiveDefinition {
+        let attributes: [DirectiveAttribute]
+        let requiresReview: Bool
+        let requiresEvidence: Bool
+    }
+
+    private static let directiveRegistry: [String: DirectiveDefinition] = {
+        func attribute(
+            _ name: String,
+            _ kind: DirectiveAttributeKind,
+            required: Bool = false
+        ) -> DirectiveAttribute {
+            DirectiveAttribute(name: name, kind: kind, required: required)
+        }
+
+        func directive(
+            _ attributes: [DirectiveAttribute],
+            requiresReview: Bool = false,
+            requiresEvidence: Bool = false
+        ) -> DirectiveDefinition {
+            DirectiveDefinition(
+                attributes: attributes,
+                requiresReview: requiresReview,
+                requiresEvidence: requiresEvidence
+            )
+        }
+
+        let scopes = ["private", "org", "unlisted", "public"]
+
+        return [
+            "relay.action_row": directive(
+                [
+                    attribute("proposal_id", .string),
+                    attribute("proposal_record_id", .string),
+                    attribute("proposal_revision", .integer),
+                    attribute("action", .string, required: true),
+                    attribute("target", .string),
+                    attribute("destination", .string),
+                    attribute("visibility", .enumeration(scopes)),
+                    attribute(
+                        "review",
+                        .enumeration(["draft", "ready", "accepted", "rejected", "undone"])
+                    ),
+                    attribute("decision_id", .string),
+                    attribute("execution_id", .string),
+                    attribute("undo_id", .string),
+                    attribute("confidence", .number),
+                    attribute("evidence", .stringArray),
+                    attribute("args", .object)
+                ],
+                requiresReview: true
+            ),
+            "relay.agent_suggestion": directive(
+                [
+                    attribute("confidence", .number),
+                    attribute("evidence", .stringArray),
+                    attribute(
+                        "review",
+                        .enumeration(["draft", "ready", "accepted", "rejected"])
+                    ),
+                    attribute(
+                        "kind",
+                        .enumeration(["note", "action", "match", "journey", "source", "share"])
+                    ),
+                    attribute("anchor", .string)
+                ],
+                requiresReview: true
+            ),
+            "relay.claim": directive(
+                [
+                    attribute("key", .string, required: true),
+                    attribute("subject", .string),
+                    attribute(
+                        "status",
+                        .enumeration(["unverified", "supported", "disputed", "refuted", "resolved"])
+                    ),
+                    attribute("confidence", .number),
+                    attribute("evidence", .stringArray)
+                ],
+                requiresEvidence: true
+            ),
+            "relay.comparison": directive(
+                [
+                    attribute("title", .string),
+                    attribute("subjects", .stringArray, required: true),
+                    attribute("criteria", .stringArray, required: true),
+                    attribute("values", .object, required: true),
+                    attribute("preferred", .string),
+                    attribute(
+                        "layout",
+                        .enumeration(["table", "bar", "timeline", "checklist", "radar", "heatmap"])
+                    ),
+                    attribute("evidence", .stringArray)
+                ],
+                requiresEvidence: true
+            ),
+            "relay.evidence_ref": directive([
+                attribute("id", .string, required: true),
+                attribute("source", .string, required: true),
+                attribute("source_type", .string),
+                attribute("source_revision", .string),
+                attribute("selector", .object),
+                attribute("label", .string),
+                attribute("scope", .enumeration(scopes))
+            ]),
+            "relay.file_ref": directive([
+                attribute("id", .string),
+                attribute("uri", .string),
+                attribute("label", .string),
+                attribute("scope", .enumeration(scopes))
+            ]),
+            "relay.form_question": directive([
+                attribute("key", .string, required: true),
+                attribute("label", .string, required: true),
+                attribute(
+                    "field_type",
+                    .enumeration([
+                        "short_text",
+                        "long_text",
+                        "single_select",
+                        "multi_select",
+                        "number",
+                        "date",
+                        "entity_ref",
+                        "file"
+                    ]),
+                    required: true
+                ),
+                attribute("required", .boolean),
+                attribute("options", .stringArray),
+                attribute("visibility", .enumeration(scopes))
+            ]),
+            "relay.note_ref": directive([
+                attribute("document", .string),
+                attribute("block", .string),
+                attribute("label", .string),
+                attribute("scope", .enumeration(scopes))
+            ]),
+            "relay.source_bundle": directive([
+                attribute("id", .string, required: true),
+                attribute("title", .string),
+                attribute("revision", .integer),
+                attribute("source_hash", .string),
+                attribute("scope", .enumeration(scopes)),
+                attribute("confidence", .number)
+            ]),
+            "relay.transcript_segment": directive([
+                attribute("source", .string),
+                attribute("speaker", .string),
+                attribute("speaker_entity", .string),
+                attribute("start", .string, required: true),
+                attribute("end", .string, required: true),
+                attribute("confidence", .number)
+            ]),
+            "relay.url_ref": directive([
+                attribute("url", .string, required: true),
+                attribute("label", .string),
+                attribute("scope", .enumeration(scopes))
+            ])
+        ]
+    }()
 
     public static func diagnostics(
         for document: RelayMarkDocument,
@@ -100,7 +319,7 @@ public enum RelayMarkAgentAnswerValidator {
 
         var diagnostics = canonicalDocumentDiagnostics(for: document)
         diagnostics.append(contentsOf: profileDiagnostics(for: document, context: context))
-        diagnostics.append(contentsOf: duplicateEvidenceIdentityDiagnostics(for: document))
+        diagnostics.append(contentsOf: documentIdentityDiagnostics(for: document))
         return diagnostics
     }
 
@@ -109,6 +328,11 @@ public enum RelayMarkAgentAnswerValidator {
         manifest: RelayMarkManifest,
         context: RelayMarkAgentAnswerValidationContext = .generic
     ) throws -> RelayMarkAgentAnswerProjection {
+        let schemaDiagnostics = portableSchemaDiagnostics(for: document)
+        guard schemaDiagnostics.isEmpty else {
+            throw RelayMarkAgentAnswerValidationError.diagnostics(schemaDiagnostics)
+        }
+
         let diagnostics = diagnostics(for: document, context: context)
 
         guard diagnostics.isEmpty else {
@@ -131,9 +355,16 @@ public enum RelayMarkAgentAnswerValidator {
         manifestJSON: Data,
         context: RelayMarkAgentAnswerValidationContext = .generic
     ) throws -> RelayMarkAgentAnswerTransport {
+        let rawDocument = try RelayMarkDecoder.decode(RelayMarkValue.self, from: documentJSON)
         let document = try RelayMarkDocument.decodeJSON(documentJSON)
         let manifest = try RelayMarkManifest.decodeJSON(manifestJSON)
-        let diagnostics = diagnostics(for: document, context: context)
+        let schemaDiagnostics = portableSchemaDiagnostics(
+            for: document,
+            rawDocument: rawDocument
+        )
+        let diagnostics = schemaDiagnostics.isEmpty
+            ? diagnostics(for: document, context: context)
+            : schemaDiagnostics
         let documentSHA256 = "sha256:\(sha256Hex(documentJSON))"
         let manifestSHA256 = "sha256:\(sha256Hex(manifestJSON))"
 
@@ -256,18 +487,732 @@ public enum RelayMarkAgentAnswerValidator {
                 )
             }
 
-            if block.type == "relay.claim" {
+            if block.type.hasPrefix("relay.") {
                 diagnostics.append(
-                    contentsOf: claimDiagnostics(
+                    contentsOf: relayBlockDiagnostics(
                         for: block,
-                        evidenceTargets: evidenceTargets
+                        evidenceTargets: evidenceTargets,
+                        scriptureResources: scriptureResources
                     )
                 )
-            } else if block.type == "relay.evidence_ref" {
+            }
+        }
+
+        return diagnostics
+    }
+
+    private static func portableSchemaDiagnostics(
+        for document: RelayMarkDocument,
+        rawDocument: RelayMarkValue? = nil
+    ) -> [RelayMarkDiagnostic] {
+        guard
+            document.type == "relaymark.document",
+            document.version >= 1,
+            document.blocks.allSatisfy(blockHasPortableSchemaShape),
+            document.annotations.allSatisfy(annotationHasPortableSchemaShape),
+            document.resources.allSatisfy(resourceHasPortableSchemaShape),
+            rawDocument.map(rawDocumentHasPortableSchemaShape) != false
+        else {
+            return [schemaDiagnostic()]
+        }
+
+        return []
+    }
+
+    private static func rawDocumentHasPortableSchemaShape(_ value: RelayMarkValue) -> Bool {
+        guard
+            let document = value.objectValue,
+            hasOnlyKeys(
+                document,
+                allowed: [
+                    "type",
+                    "version",
+                    "frontmatter",
+                    "blocks",
+                    "annotations",
+                    "resources",
+                    "meta"
+                ]
+            ),
+            document["frontmatter"].map({ $0.objectValue != nil }) != false,
+            document["meta"].map({ $0.objectValue != nil }) != false,
+            let blocks = document["blocks"]?.arrayValue,
+            blocks.allSatisfy(rawBlockHasPortableSchemaShape),
+            optionalArray(
+                document["annotations"],
+                hasElementsSatisfying: rawAnnotationHasPortableSchemaShape
+            ),
+            optionalArray(
+                document["resources"],
+                hasElementsSatisfying: rawResourceHasPortableSchemaShape
+            )
+        else {
+            return false
+        }
+
+        return true
+    }
+
+    private static func rawBlockHasPortableSchemaShape(_ value: RelayMarkValue) -> Bool {
+        guard
+            let block = value.objectValue,
+            hasOnlyKeys(
+                block,
+                allowed: [
+                    "id",
+                    "type",
+                    "props",
+                    "content",
+                    "evidence_refs",
+                    "source_location",
+                    "meta"
+                ]
+            ),
+            block["props"].map({ $0.objectValue != nil }) != false,
+            optionalArray(
+                block["evidence_refs"],
+                hasElementsSatisfying: { $0.stringValue != nil }
+            ),
+            block["source_location"].map(rawLocationHasPortableSchemaShape) != false,
+            block["meta"].map({ $0.objectValue != nil }) != false
+        else {
+            return false
+        }
+
+        guard let content = block["content"] else {
+            return true
+        }
+
+        guard let values = content.arrayValue else {
+            return false
+        }
+
+        return values.allSatisfy { child in
+            guard let type = child.objectValue?["type"]?.stringValue else {
+                return false
+            }
+
+            return isPortableInlineType(type)
+                ? rawInlineHasPortableSchemaShape(child)
+                : rawBlockHasPortableSchemaShape(child)
+        }
+    }
+
+    private static func rawInlineHasPortableSchemaShape(_ value: RelayMarkValue) -> Bool {
+        guard
+            let inline = value.objectValue,
+            hasOnlyKeys(
+                inline,
+                allowed: ["type", "text", "id", "label", "href", "props", "content"]
+            ),
+            inline["props"].map({ $0.objectValue != nil }) != false
+        else {
+            return false
+        }
+
+        guard let content = inline["content"] else {
+            return true
+        }
+
+        guard let values = content.arrayValue else {
+            return false
+        }
+
+        return values.allSatisfy(rawInlineHasPortableSchemaShape)
+    }
+
+    private static func rawAnnotationHasPortableSchemaShape(
+        _ value: RelayMarkValue
+    ) -> Bool {
+        guard
+            let annotation = value.objectValue,
+            hasOnlyKeys(
+                annotation,
+                allowed: ["id", "type", "anchor", "props", "content"]
+            ),
+            annotation["props"].map({ $0.objectValue != nil }) != false,
+            annotation["anchor"].map(rawAnchorHasPortableSchemaShape) == true
+        else {
+            return false
+        }
+
+        guard let content = annotation["content"] else {
+            return true
+        }
+
+        guard let values = content.arrayValue else {
+            return false
+        }
+
+        return values.allSatisfy(rawInlineHasPortableSchemaShape)
+    }
+
+    private static func rawAnchorHasPortableSchemaShape(_ value: RelayMarkValue) -> Bool {
+        guard
+            let anchor = value.objectValue,
+            hasOnlyKeys(anchor, allowed: ["block_id", "start", "end", "quote"])
+        else {
+            return false
+        }
+
+        for field in ["start", "end"] {
+            if
+                let value = anchor[field],
+                integerValue(value).map({ $0 >= 0 }) != true
+            {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private static func rawResourceHasPortableSchemaShape(
+        _ value: RelayMarkValue
+    ) -> Bool {
+        guard
+            let resource = value.objectValue,
+            hasOnlyKeys(
+                resource,
+                allowed: ["id", "type", "uri", "label", "scope", "props"]
+            ),
+            resource["props"].map({ $0.objectValue != nil }) != false
+        else {
+            return false
+        }
+
+        return true
+    }
+
+    private static func rawLocationHasPortableSchemaShape(
+        _ value: RelayMarkValue
+    ) -> Bool {
+        guard
+            let location = value.objectValue,
+            hasOnlyKeys(
+                location,
+                allowed: ["line", "column", "end_line", "end_column"]
+            )
+        else {
+            return false
+        }
+
+        for field in ["line", "column", "end_line", "end_column"] {
+            if
+                let value = location[field],
+                integerValue(value).map({ $0 >= 1 }) != true
+            {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private static func hasOnlyKeys(
+        _ object: [String: RelayMarkValue],
+        allowed: Set<String>
+    ) -> Bool {
+        Set(object.keys).isSubset(of: allowed)
+    }
+
+    private static func optionalArray(
+        _ value: RelayMarkValue?,
+        hasElementsSatisfying predicate: (RelayMarkValue) -> Bool
+    ) -> Bool {
+        guard let value else { return true }
+        guard let values = value.arrayValue else { return false }
+        return values.allSatisfy(predicate)
+    }
+
+    private static func blockHasPortableSchemaShape(_ block: RelayMarkBlock) -> Bool {
+        guard
+            isPortableID(block.id),
+            isPortableBlockType(block.type)
+        else {
+            return false
+        }
+
+        if block.type == "relay.source_bundle" {
+            guard isNonEmptySchemaString(block.props["id"]?.stringValue) else {
+                return false
+            }
+        }
+
+        if block.type == "relay.evidence_ref" {
+            guard
+                isNonEmptySchemaString(block.props["id"]?.stringValue),
+                isNonEmptySchemaString(block.props["source"]?.stringValue)
+            else {
+                return false
+            }
+
+            if block.props["source_type"]?.stringValue == "scripture" {
+                guard
+                    isNonEmptySchemaString(block.props["source_revision"]?.stringValue),
+                    scriptureSpanHasSchemaShape(block.props["selector"]?.objectValue),
+                    block.props["scope"]?.stringValue.map({ canonicalScopes.contains($0) }) == true,
+                    !block.content.isEmpty
+                else {
+                    return false
+                }
+            }
+        }
+
+        return block.content.allSatisfy { content in
+            switch content {
+            case .block(let child):
+                return blockHasPortableSchemaShape(child)
+            case .inline(let inline):
+                return inlineHasPortableSchemaShape(inline)
+            }
+        }
+    }
+
+    private static func inlineHasPortableSchemaShape(_ inline: RelayMarkInline) -> Bool {
+        isPortableInlineType(inline.type) &&
+            inline.content.allSatisfy(inlineHasPortableSchemaShape)
+    }
+
+    private static func annotationHasPortableSchemaShape(
+        _ annotation: RelayMarkAnnotation
+    ) -> Bool {
+        isPortableID(annotation.id) &&
+            portableAnnotationTypes.contains(annotation.type) &&
+            isPortableID(annotation.anchor.blockID) &&
+            annotation.anchor.start.map({ $0 >= 0 }) != false &&
+            annotation.anchor.end.map({ $0 >= 0 }) != false &&
+            annotation.content.allSatisfy(inlineHasPortableSchemaShape)
+    }
+
+    private static func resourceHasPortableSchemaShape(_ resource: RelayMarkResource) -> Bool {
+        guard
+            isPortableID(resource.id),
+            portableResourceTypes.contains(resource.type),
+            resource.scope.map({ canonicalScopes.contains($0) }) != false
+        else {
+            return false
+        }
+
+        guard resource.type == "scripture" else {
+            return true
+        }
+
+        guard
+            resource.scope.map({ canonicalScopes.contains($0) }) == true,
+            resource.props["profile"]?.stringValue == "relaymark.scripture_release.v1",
+            isNonEmptySchemaString(resource.props["translation_id"]?.stringValue),
+            isNonEmptySchemaString(resource.props["edition_id"]?.stringValue),
+            isNonEmptySchemaString(resource.props["corpus_release_id"]?.stringValue),
+            isNonEmptySchemaString(resource.props["versification_id"]?.stringValue),
+            isNonEmptySchemaString(resource.props["attribution"]?.stringValue),
+            scriptureSourceHasSchemaShape(resource.props["source"]?.objectValue),
+            scriptureLicenseHasSchemaShape(resource.props["license"]?.objectValue),
+            scriptureProvenanceHasSchemaShape(resource.props["provenance"]?.objectValue)
+        else {
+            return false
+        }
+
+        return Set(resource.props.keys).isSubset(
+            of: [
+                "profile",
+                "translation_id",
+                "edition_id",
+                "corpus_release_id",
+                "versification_id",
+                "source",
+                "license",
+                "attribution",
+                "provenance"
+            ]
+        )
+    }
+
+    private static func scriptureSourceHasSchemaShape(
+        _ source: [String: RelayMarkValue]?
+    ) -> Bool {
+        guard let source else { return false }
+        return Set(source.keys).isSubset(of: ["name", "uri", "digest"]) &&
+            isNonEmptySchemaString(source["name"]?.stringValue) &&
+            isNonEmptySchemaString(source["uri"]?.stringValue) &&
+            isSHA256Digest(source["digest"]?.stringValue)
+    }
+
+    private static func scriptureLicenseHasSchemaShape(
+        _ license: [String: RelayMarkValue]?
+    ) -> Bool {
+        guard let license else { return false }
+        return Set(license.keys).isSubset(of: ["id", "name", "url"]) &&
+            isNonEmptySchemaString(license["id"]?.stringValue) &&
+            isNonEmptySchemaString(license["name"]?.stringValue) &&
+            isNonEmptySchemaString(license["url"]?.stringValue)
+    }
+
+    private static func scriptureProvenanceHasSchemaShape(
+        _ provenance: [String: RelayMarkValue]?
+    ) -> Bool {
+        guard let provenance else { return false }
+        let allowedKeys: Set<String> = [
+            "coordinate_inventory_digest",
+            "normalized_index_input_digest",
+            "source_archive_digest",
+            "authority",
+            "imported_at"
+        ]
+
+        guard
+            Set(provenance.keys).isSubset(of: allowedKeys),
+            isSHA256Digest(provenance["coordinate_inventory_digest"]?.stringValue),
+            isSHA256Digest(provenance["normalized_index_input_digest"]?.stringValue)
+        else {
+            return false
+        }
+
+        if
+            let digest = provenance["source_archive_digest"],
+            !isSHA256Digest(digest.stringValue)
+        {
+            return false
+        }
+
+        for field in ["authority", "imported_at"]
+        where provenance[field] != nil &&
+            !isNonEmptySchemaString(provenance[field]?.stringValue) {
+            return false
+        }
+
+        return true
+    }
+
+    private static func scriptureSpanHasSchemaShape(
+        _ selector: [String: RelayMarkValue]?
+    ) -> Bool {
+        guard let selector else { return false }
+        let allowedKeys: Set<String> = [
+            "profile",
+            "start",
+            "end",
+            "content_digest",
+            "display_label"
+        ]
+
+        return Set(selector.keys).isSubset(of: allowedKeys) &&
+            selector["profile"]?.stringValue == "relaymark.scripture_span.v1" &&
+            scriptureCoordinateHasSchemaShape(selector["start"]?.objectValue) &&
+            scriptureCoordinateHasSchemaShape(selector["end"]?.objectValue) &&
+            isSHA256Digest(selector["content_digest"]?.stringValue) &&
+            (
+                selector["display_label"] == nil ||
+                isNonEmptySchemaString(selector["display_label"]?.stringValue)
+            )
+    }
+
+    private static func scriptureCoordinateHasSchemaShape(
+        _ coordinate: [String: RelayMarkValue]?
+    ) -> Bool {
+        guard
+            let coordinate,
+            isNonEmptySchemaString(coordinate["book_id"]?.stringValue),
+            isNonEmptySchemaString(coordinate["verse_label"]?.stringValue)
+        else {
+            return false
+        }
+
+        switch coordinate["coordinate_kind"]?.stringValue {
+        case "chapter":
+            return Set(coordinate.keys).isSubset(
+                of: ["book_id", "coordinate_kind", "chapter", "verse_label"]
+            ) &&
+                integerValue(coordinate["chapter"]).map({ $0 >= 1 }) == true
+        case "section":
+            return Set(coordinate.keys).isSubset(
+                of: ["book_id", "coordinate_kind", "section_id", "verse_label"]
+            ) &&
+                isNonEmptySchemaString(coordinate["section_id"]?.stringValue)
+        default:
+            return false
+        }
+    }
+
+    private static func isPortableID(_ value: String) -> Bool {
+        let bytes = Array(value.utf8)
+        guard let first = bytes.first, isASCIIAlpha(first) else {
+            return false
+        }
+
+        return bytes.dropFirst().allSatisfy {
+            isASCIIAlpha($0) ||
+                (48...57).contains($0) ||
+                $0 == 45 ||
+                $0 == 95
+        }
+    }
+
+    private static func isNonEmptySchemaString(_ value: String?) -> Bool {
+        value?.isEmpty == false
+    }
+
+    private static func isPortableBlockType(_ value: String) -> Bool {
+        if portableCommonMarkBlockTypes.contains(value) {
+            return true
+        }
+
+        if value.hasPrefix("widget.") {
+            return isPortableTypeSuffix(String(value.dropFirst("widget.".count)))
+        }
+
+        guard value.hasPrefix("relay.") else {
+            return false
+        }
+
+        let suffix = String(value.dropFirst("relay.".count))
+        guard isPortableTypeSuffix(suffix) else {
+            return false
+        }
+
+        return !suffix.hasSuffix("_ref") || portableBlockReferenceTypes.contains(value)
+    }
+
+    private static func isPortableInlineType(_ value: String) -> Bool {
+        let commonMarkTypes: Set<String> = [
+            "text",
+            "hard_break",
+            "soft_break",
+            "link",
+            "emphasis",
+            "strong",
+            "code_span"
+        ]
+
+        if commonMarkTypes.contains(value) {
+            return true
+        }
+
+        return value.hasPrefix("relay.") &&
+            value.hasSuffix("_ref") &&
+            !portableBlockReferenceTypes.contains(value) &&
+            isPortableTypeSuffix(String(value.dropFirst("relay.".count)))
+    }
+
+    private static func isPortableTypeSuffix(_ value: String) -> Bool {
+        let bytes = Array(value.utf8)
+        guard let first = bytes.first, (97...122).contains(first) else {
+            return false
+        }
+
+        return bytes.dropFirst().allSatisfy {
+            (97...122).contains($0) ||
+                (48...57).contains($0) ||
+                $0 == 95
+        }
+    }
+
+    private static func isASCIIAlpha(_ value: UInt8) -> Bool {
+        (65...90).contains(value) || (97...122).contains(value)
+    }
+
+    private static func relayBlockDiagnostics(
+        for block: RelayMarkBlock,
+        evidenceTargets: Set<String>,
+        scriptureResources: [String: [RelayMarkResource]]
+    ) -> [RelayMarkDiagnostic] {
+        guard let directive = directiveRegistry[block.type] else {
+            return [
+                diagnostic(
+                    "relaymark.directive.unknown_type",
+                    "Unknown Relay block type '\(block.type)'."
+                )
+            ]
+        }
+
+        var diagnostics: [RelayMarkDiagnostic] = []
+
+        for attribute in directive.attributes {
+            guard let value = block.props[attribute.name] else {
+                if attribute.required {
+                    diagnostics.append(
+                        diagnostic(
+                            "relaymark.attribute.required",
+                            "\(block.type).\(attribute.name) is required."
+                        )
+                    )
+                }
+                continue
+            }
+
+            diagnostics.append(
+                contentsOf: attributeDiagnostics(
+                    value,
+                    named: attribute.name,
+                    on: block.type,
+                    kind: attribute.kind
+                )
+            )
+        }
+
+        if directive.requiresReview, block.props["review"] == nil {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.policy.review_required",
+                    "\(block.type) requires a review state."
+                )
+            )
+        }
+
+        let references = evidenceReferences(for: block)
+
+        if directive.requiresEvidence, !references.contains(where: isNonEmptyString) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.policy.evidence_required",
+                    "\(block.type) requires at least one evidence reference."
+                )
+            )
+        }
+
+        if !references.isEmpty {
+            diagnostics.append(
+                contentsOf: evidenceReferenceListDiagnostics(
+                    for: block,
+                    references: references,
+                    evidenceTargets: evidenceTargets
+                )
+            )
+        }
+
+        switch block.type {
+        case "relay.action_row":
+            diagnostics.append(contentsOf: actionProposalDiagnostics(for: block))
+        case "relay.source_bundle":
+            diagnostics.append(contentsOf: sourceBundleDiagnostics(for: block))
+        case "relay.evidence_ref":
+            diagnostics.append(
+                contentsOf: evidenceReferenceDiagnostics(
+                    for: block,
+                    scriptureResources: scriptureResources
+                )
+            )
+        case "relay.claim":
+            diagnostics.append(contentsOf: claimConfidenceDiagnostics(for: block))
+        case "relay.comparison":
+            diagnostics.append(contentsOf: comparisonDiagnostics(for: block))
+        default:
+            break
+        }
+
+        return diagnostics
+    }
+
+    private static func attributeDiagnostics(
+        _ value: RelayMarkValue,
+        named name: String,
+        on type: String,
+        kind: DirectiveAttributeKind
+    ) -> [RelayMarkDiagnostic] {
+        switch kind {
+        case .enumeration(let values):
+            guard
+                let string = value.stringValue,
+                values.contains(string)
+            else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.enum",
+                        "\(type).\(name) must be one of \(values.joined(separator: ", "))."
+                    )
+                ]
+            }
+        case .stringArray:
+            guard let values = value.arrayValue else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.array",
+                        "\(type).\(name) must be an array."
+                    )
+                ]
+            }
+
+            guard values.allSatisfy({ $0.stringValue != nil }) else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.array_items",
+                        "\(type).\(name) must contain only strings."
+                    )
+                ]
+            }
+        case .integer:
+            guard integerValue(value) != nil else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.integer",
+                        "\(type).\(name) must be an integer."
+                    )
+                ]
+            }
+        case .number:
+            guard value.numberValue != nil else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.number",
+                        "\(type).\(name) must be a number."
+                    )
+                ]
+            }
+        case .boolean:
+            guard value.boolValue != nil else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.boolean",
+                        "\(type).\(name) must be a boolean."
+                    )
+                ]
+            }
+        case .object:
+            guard value.objectValue != nil else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.object",
+                        "\(type).\(name) must be an object."
+                    )
+                ]
+            }
+        case .string:
+            guard value.stringValue != nil else {
+                return [
+                    diagnostic(
+                        "relaymark.attribute.string",
+                        "\(type).\(name) must be a string."
+                    )
+                ]
+            }
+        }
+
+        return []
+    }
+
+    private static func evidenceReferenceListDiagnostics(
+        for block: RelayMarkBlock,
+        references: [String],
+        evidenceTargets: Set<String>
+    ) -> [RelayMarkDiagnostic] {
+        var diagnostics: [RelayMarkDiagnostic] = []
+
+        for reference in references {
+            guard isNonEmptyString(reference) else {
                 diagnostics.append(
-                    contentsOf: evidenceReferenceDiagnostics(
-                        for: block,
-                        scriptureResources: scriptureResources
+                    diagnostic(
+                        "relaymark.evidence.invalid_reference",
+                        "\(block.type) evidence references must be non-empty strings."
+                    )
+                )
+                continue
+            }
+
+            if !evidenceTargets.contains(reference) {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.evidence.unresolved_reference",
+                        "\(block.type) evidence reference '\(reference)' does not resolve."
                     )
                 )
             }
@@ -680,54 +1625,236 @@ public enum RelayMarkAgentAnswerValidator {
         }
     }
 
-    private static func claimDiagnostics(
-        for block: RelayMarkBlock,
-        evidenceTargets: Set<String>
+    private static func actionProposalDiagnostics(
+        for block: RelayMarkBlock
     ) -> [RelayMarkDiagnostic] {
+        let props = block.props
+        let lifecycleFields = [
+            "proposal_record_id",
+            "proposal_revision",
+            "decision_id",
+            "execution_id",
+            "undo_id"
+        ]
+        let lifecycleAware =
+            props["review"]?.stringValue == "undone" ||
+            props["proposal_id"] != nil ||
+            lifecycleFields.contains(where: { props[$0] != nil })
+
+        guard lifecycleAware else { return [] }
+
+        guard isNonEmptyString(props["proposal_id"]?.stringValue) else {
+            return [
+                diagnostic(
+                    "relaymark.action.proposal_id",
+                    "relay.action_row lifecycle fields require a non-empty proposal_id."
+                )
+            ]
+        }
+
         var diagnostics: [RelayMarkDiagnostic] = []
 
-        let references = evidenceReferences(for: block)
-
-        if !references.contains(where: isNonEmptyString) {
+        if !isNonEmptyString(props["proposal_record_id"]?.stringValue) {
             diagnostics.append(
                 diagnostic(
-                    "relaymark.policy.evidence_required",
-                    "relay.claim requires at least one evidence reference."
+                    "relaymark.action.proposal_record_id",
+                    "relay.action_row lifecycle fields require a non-empty proposal_record_id for authorized review and undo."
+                )
+            )
+        } else if props["proposal_record_id"]?.stringValue == props["proposal_id"]?.stringValue {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.action.proposal_identity",
+                    "relay.action_row.proposal_record_id must be distinct from the generator/client proposal_id."
                 )
             )
         }
 
-        for reference in references {
-            guard isNonEmptyString(reference) else {
-                diagnostics.append(
-                    diagnostic(
-                        "relaymark.evidence.invalid_reference",
-                        "relay.claim evidence references must be non-empty strings."
-                    )
+        if integerValue(props["proposal_revision"]).map({ $0 >= 1 }) != true {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.action.proposal_revision",
+                    "relay.action_row.proposal_revision must be a positive integer for lifecycle-aware proposals."
                 )
-                continue
-            }
-
-            if !evidenceTargets.contains(reference) {
-                diagnostics.append(
-                    diagnostic(
-                        "relaymark.evidence.unresolved_reference",
-                        "relay.claim evidence reference '\(reference)' does not resolve."
-                    )
-                )
-            }
+            )
         }
 
+        for field in ["decision_id", "execution_id", "undo_id"]
+        where props[field] != nil && !isNonEmptyString(props[field]?.stringValue) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.action.lifecycle_id",
+                    "relay.action_row.\(field) must be a non-empty string when present."
+                )
+            )
+        }
+
+        switch props["review"]?.stringValue {
+        case "draft", "ready":
+            if ["decision_id", "execution_id", "undo_id"].contains(where: { props[$0] != nil }) {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.action.lifecycle_state",
+                        "relay.action_row in \(props["review"]?.stringValue ?? "") review must not carry decision, execution, or undo ids."
+                    )
+                )
+            }
+        case "accepted":
+            if
+                !isNonEmptyString(props["decision_id"]?.stringValue) ||
+                !isNonEmptyString(props["execution_id"]?.stringValue) ||
+                props["undo_id"] != nil
+            {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.action.lifecycle_state",
+                        "Accepted relay.action_row proposals require decision_id and execution_id and must not carry undo_id."
+                    )
+                )
+            }
+        case "rejected":
+            if
+                !isNonEmptyString(props["decision_id"]?.stringValue) ||
+                props["execution_id"] != nil ||
+                props["undo_id"] != nil
+            {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.action.lifecycle_state",
+                        "Rejected relay.action_row proposals require decision_id and must not carry execution_id or undo_id."
+                    )
+                )
+            }
+        case "undone":
+            if
+                !isNonEmptyString(props["decision_id"]?.stringValue) ||
+                !isNonEmptyString(props["execution_id"]?.stringValue) ||
+                !isNonEmptyString(props["undo_id"]?.stringValue) ||
+                props["decision_id"]?.stringValue == props["undo_id"]?.stringValue
+            {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.action.lifecycle_state",
+                        "Undone relay.action_row proposals retain the accept decision_id and execution_id and require a distinct undo_id."
+                    )
+                )
+            }
+        default:
+            break
+        }
+
+        return diagnostics
+    }
+
+    private static func sourceBundleDiagnostics(
+        for block: RelayMarkBlock
+    ) -> [RelayMarkDiagnostic] {
+        var diagnostics: [RelayMarkDiagnostic] = []
+
+        if !isNonEmptyString(block.props["id"]?.stringValue) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.source_bundle.identity",
+                    "relay.source_bundle requires a non-empty host id."
+                )
+            )
+        }
+
+        if
+            let revision = block.props["revision"],
+            integerValue(revision).map({ $0 >= 0 }) != true
+        {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.source_bundle.revision",
+                    "relay.source_bundle.revision must be a non-negative integer."
+                )
+            )
+        }
+
+        return diagnostics
+    }
+
+    private static func claimConfidenceDiagnostics(
+        for block: RelayMarkBlock
+    ) -> [RelayMarkDiagnostic] {
         if
             let confidence = block.props["confidence"]?.numberValue,
             !confidence.isFinite || confidence < 0 || confidence > 1
         {
-            diagnostics.append(
+            return [
                 diagnostic(
                     "relaymark.claim.confidence_range",
                     "relay.claim.confidence must be between 0.0 and 1.0."
                 )
+            ]
+        }
+
+        return []
+    }
+
+    private static func comparisonDiagnostics(
+        for block: RelayMarkBlock
+    ) -> [RelayMarkDiagnostic] {
+        let subjects =
+            block.props["subjects"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        let criteria =
+            block.props["criteria"]?.arrayValue?.compactMap(\.stringValue) ?? []
+        let validSubjects = subjects.filter(isNonEmptyString)
+        let validCriteria = criteria.filter(isNonEmptyString)
+        var diagnostics: [RelayMarkDiagnostic] = []
+
+        if validSubjects.count < 2 || Set(validSubjects).count != validSubjects.count {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.comparison.subjects",
+                    "relay.comparison.subjects must contain at least two distinct, non-empty references."
+                )
             )
+        }
+
+        if validCriteria.isEmpty || Set(validCriteria).count != validCriteria.count {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.comparison.criteria",
+                    "relay.comparison.criteria must contain at least one distinct, non-empty key."
+                )
+            )
+        }
+
+        if
+            let preferred = block.props["preferred"]?.stringValue,
+            !subjects.contains(preferred)
+        {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.comparison.preferred",
+                    "relay.comparison.preferred must be one of relay.comparison.subjects."
+                )
+            )
+        }
+
+        if let values = block.props["values"]?.objectValue {
+            for criterion in unique(validCriteria) {
+                guard let criterionValues = values[criterion]?.objectValue else {
+                    diagnostics.append(
+                        diagnostic(
+                            "relaymark.comparison.values_criterion",
+                            "relay.comparison.values.\(criterion) must be an object keyed by subject reference."
+                        )
+                    )
+                    continue
+                }
+
+                for subject in unique(validSubjects) where criterionValues[subject] == nil {
+                    diagnostics.append(
+                        diagnostic(
+                            "relaymark.comparison.values_coverage",
+                            "relay.comparison.values.\(criterion) must include '\(subject)' with a value or explicit null."
+                        )
+                    )
+                }
+            }
         }
 
         return diagnostics
@@ -1028,49 +2155,112 @@ public enum RelayMarkAgentAnswerValidator {
         return diagnostics
     }
 
-    private static func duplicateEvidenceIdentityDiagnostics(
+    private static func documentIdentityDiagnostics(
         for document: RelayMarkDocument
     ) -> [RelayMarkDiagnostic] {
-        var identities: [String: String] = [:]
+        var evidenceIdentities: [String: String] = [:]
+        var proposalIdentities: [String: String] = [:]
+        var proposalRecordIdentities: [String: String] = [:]
+        var decisionIdentities: [String: String] = [:]
+        var executionIdentities: [String: String] = [:]
+        var undoIdentities: [String: String] = [:]
         var diagnostics: [RelayMarkDiagnostic] = []
 
         visitBlocks(document.blocks) { block in
-            if isNonEmptyString(block.id), identities[block.id] == nil {
-                identities[block.id] = "AST block '\(block.id)'"
+            if isNonEmptyString(block.id), evidenceIdentities[block.id] == nil {
+                evidenceIdentities[block.id] = "AST block '\(block.id)'"
             }
         }
 
         for resource in document.resources {
-            registerEvidenceIdentity(
+            registerDocumentIdentity(
                 resource.id,
+                namespace: "evidence",
                 origin: "resource '\(resource.id)'",
-                identities: &identities,
+                identities: &evidenceIdentities,
                 diagnostics: &diagnostics
             )
         }
 
         visitBlocks(document.blocks) { block in
-            guard block.type == "relay.source_bundle" || block.type == "relay.evidence_ref" else {
-                return
+            if block.type == "relay.source_bundle" || block.type == "relay.evidence_ref" {
+                let value = block.props["id"]?.stringValue
+
+                if value != block.id {
+                    registerDocumentIdentity(
+                        value,
+                        namespace: "evidence",
+                        origin: "\(block.type).props.id on block '\(block.id)'",
+                        identities: &evidenceIdentities,
+                        diagnostics: &diagnostics
+                    )
+                }
             }
 
-            let value = block.props["id"]?.stringValue
+            guard block.type == "relay.action_row" else { return }
 
-            if value != block.id {
-                registerEvidenceIdentity(
-                    value,
-                    origin: "\(block.type).props.id on block '\(block.id)'",
-                    identities: &identities,
-                    diagnostics: &diagnostics
-                )
+            for (field, namespace) in [
+                ("proposal_id", "proposal"),
+                ("proposal_record_id", "proposal_record"),
+                ("decision_id", "decision"),
+                ("execution_id", "execution"),
+                ("undo_id", "undo")
+            ] {
+                let origin = "relay.action_row.\(field) on block '\(block.id)'"
+
+                switch namespace {
+                case "proposal":
+                    registerDocumentIdentity(
+                        block.props[field]?.stringValue,
+                        namespace: namespace,
+                        origin: origin,
+                        identities: &proposalIdentities,
+                        diagnostics: &diagnostics
+                    )
+                case "proposal_record":
+                    registerDocumentIdentity(
+                        block.props[field]?.stringValue,
+                        namespace: namespace,
+                        origin: origin,
+                        identities: &proposalRecordIdentities,
+                        diagnostics: &diagnostics
+                    )
+                case "decision":
+                    registerDocumentIdentity(
+                        block.props[field]?.stringValue,
+                        namespace: namespace,
+                        origin: origin,
+                        identities: &decisionIdentities,
+                        diagnostics: &diagnostics
+                    )
+                case "execution":
+                    registerDocumentIdentity(
+                        block.props[field]?.stringValue,
+                        namespace: namespace,
+                        origin: origin,
+                        identities: &executionIdentities,
+                        diagnostics: &diagnostics
+                    )
+                case "undo":
+                    registerDocumentIdentity(
+                        block.props[field]?.stringValue,
+                        namespace: namespace,
+                        origin: origin,
+                        identities: &undoIdentities,
+                        diagnostics: &diagnostics
+                    )
+                default:
+                    break
+                }
             }
         }
 
         return diagnostics
     }
 
-    private static func registerEvidenceIdentity(
+    private static func registerDocumentIdentity(
         _ value: String?,
+        namespace: String,
         origin: String,
         identities: inout [String: String],
         diagnostics: inout [RelayMarkDiagnostic]
@@ -1080,7 +2270,7 @@ public enum RelayMarkAgentAnswerValidator {
         if let prior = identities[value] {
             diagnostics.append(
                 diagnostic(
-                    "relaymark.identity.duplicate_evidence",
+                    "relaymark.identity.duplicate_\(namespace)",
                     "Identity '\(value)' is ambiguous between \(prior) and \(origin)."
                 )
             )
@@ -1582,6 +2772,13 @@ public enum RelayMarkAgentAnswerValidator {
 
     private static func diagnostic(_ code: String, _ message: String) -> RelayMarkDiagnostic {
         RelayMarkDiagnostic(level: "error", code: code, message: message)
+    }
+
+    private static func schemaDiagnostic() -> RelayMarkDiagnostic {
+        diagnostic(
+            "relaymark.schema.invalid",
+            "Document does not conform to the RelayMark document schema."
+        )
     }
 
     private static func manifestMismatchDiagnostic() -> RelayMarkDiagnostic {

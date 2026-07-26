@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Testing
 @testable import RelayMarkSwift
@@ -23,6 +24,10 @@ struct RelayMarkAgentAnswerTests {
         for pair in receipt.pairs {
             let documentJSON = try receiptData(pair.document.path, relativeTo: receiptURL)
             let manifestJSON = try receiptData(pair.manifest.path, relativeTo: receiptURL)
+
+            #expect(sha256Hex(documentJSON) == pair.document.sha256)
+            #expect(sha256Hex(manifestJSON) == pair.manifest.sha256)
+
             let result = try RelayMarkAgentAnswerValidator.validateTransport(
                 documentJSON: documentJSON,
                 manifestJSON: manifestJSON,
@@ -165,7 +170,13 @@ struct RelayMarkAgentAnswerTests {
             context: .scriptureAsk
         )
         #expect(invalidEnvelopeTransport.projection == nil)
-        #expect(invalidEnvelopeTransport.diagnostics == expectedEnvelopeDiagnostics)
+        #expect(invalidEnvelopeTransport.diagnostics == [
+            RelayMarkDiagnostic(
+                level: "error",
+                code: "relaymark.schema.invalid",
+                message: "Document does not conform to the RelayMark document schema."
+            )
+        ])
 
         let duplicateBlockJSON = try mutateJSON(
             fixtureData("scripture-ask-answered.ast.json")
@@ -199,6 +210,132 @@ struct RelayMarkAgentAnswerTests {
         )
         #expect(duplicateBlockTransport.projection == nil)
         #expect(duplicateBlockTransport.diagnostics == expectedDuplicateDiagnostics)
+    }
+
+    @Test
+    func rejectsNonPortableTransportedDocumentAndDirectiveShapes() throws {
+        let answeredManifest = try fixtureData("scripture-ask-answered.manifest.json")
+
+        let unknownDirectiveJSON = try mutateJSON(
+            fixtureData("scripture-ask-answered.ast.json")
+        ) {
+            var blocks = try requireArray($0["blocks"])
+            var sourceBundle = try requireDictionary(blocks[3])
+            var content = try requireArray(sourceBundle["content"])
+            content.append([
+                "id": "unknownNestedDirective",
+                "type": "relay.fake",
+                "props": [:]
+            ])
+            sourceBundle["content"] = content
+            blocks[3] = sourceBundle
+            $0["blocks"] = blocks
+        }
+        let unknownDirective = try RelayMarkAgentAnswerValidator.validateTransport(
+            documentJSON: unknownDirectiveJSON,
+            manifestJSON: answeredManifest,
+            context: .scriptureAsk
+        )
+        #expect(unknownDirective.diagnostics == [
+            RelayMarkDiagnostic(
+                level: "error",
+                code: "relaymark.directive.unknown_type",
+                message: "Unknown Relay block type 'relay.fake'."
+            )
+        ])
+
+        let missingRequiredAttributeJSON = try mutateJSON(
+            fixtureData("scripture-ask-answered.ast.json")
+        ) {
+            var blocks = try requireArray($0["blocks"])
+            var sourceBundle = try requireDictionary(blocks[3])
+            var content = try requireArray(sourceBundle["content"])
+            content.append([
+                "id": "missingURLAttribute",
+                "type": "relay.url_ref",
+                "props": [:]
+            ])
+            sourceBundle["content"] = content
+            blocks[3] = sourceBundle
+            $0["blocks"] = blocks
+        }
+        let missingRequiredAttribute =
+            try RelayMarkAgentAnswerValidator.validateTransport(
+                documentJSON: missingRequiredAttributeJSON,
+                manifestJSON: answeredManifest,
+                context: .scriptureAsk
+            )
+        #expect(missingRequiredAttribute.diagnostics == [
+            RelayMarkDiagnostic(
+                level: "error",
+                code: "relaymark.attribute.required",
+                message: "relay.url_ref.url is required."
+            )
+        ])
+
+        let negativeRevisionDocument = try mutateJSON(
+            fixtureData("scripture-ask-answered.ast.json")
+        ) {
+            var blocks = try requireArray($0["blocks"])
+            var sourceBundle = try requireDictionary(blocks[3])
+            var props = try requireDictionary(sourceBundle["props"])
+            props["revision"] = -1
+            sourceBundle["props"] = props
+            blocks[3] = sourceBundle
+            $0["blocks"] = blocks
+        }
+        let negativeRevisionManifest = try mutateJSON(answeredManifest) {
+            var sources = try requireArray($0["sources"])
+            var sourceBundle = try requireDictionary(sources[0])
+            sourceBundle["bundle_revision"] = -1
+            sources[0] = sourceBundle
+            $0["sources"] = sources
+        }
+        let negativeRevision = try RelayMarkAgentAnswerValidator.validateTransport(
+            documentJSON: negativeRevisionDocument,
+            manifestJSON: negativeRevisionManifest,
+            context: .scriptureAsk
+        )
+        #expect(negativeRevision.diagnostics == [
+            RelayMarkDiagnostic(
+                level: "error",
+                code: "relaymark.source_bundle.revision",
+                message: "relay.source_bundle.revision must be a non-negative integer."
+            )
+        ])
+
+        let schemaDiagnostic = RelayMarkDiagnostic(
+            level: "error",
+            code: "relaymark.schema.invalid",
+            message: "Document does not conform to the RelayMark document schema."
+        )
+        let illegalBlockIDJSON = try mutateJSON(
+            fixtureData("scripture-ask-answered.ast.json")
+        ) {
+            var blocks = try requireArray($0["blocks"])
+            var heading = try requireDictionary(blocks[0])
+            heading["id"] = "1-illegal"
+            blocks[0] = heading
+            $0["blocks"] = blocks
+        }
+        let illegalBlockID = try RelayMarkAgentAnswerValidator.validateTransport(
+            documentJSON: illegalBlockIDJSON,
+            manifestJSON: answeredManifest,
+            context: .scriptureAsk
+        )
+        #expect(illegalBlockID.diagnostics == [schemaDiagnostic])
+
+        let additionalPropertyJSON = try mutateJSON(
+            fixtureData("scripture-ask-answered.ast.json")
+        ) {
+            $0["unexpected"] = true
+        }
+        let additionalProperty = try RelayMarkAgentAnswerValidator.validateTransport(
+            documentJSON: additionalPropertyJSON,
+            manifestJSON: answeredManifest,
+            context: .scriptureAsk
+        )
+        #expect(additionalProperty.diagnostics == [schemaDiagnostic])
     }
 
     @Test
@@ -359,6 +496,51 @@ struct RelayMarkAgentAnswerTests {
                 message: "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
             )
         ])
+    }
+
+    @Test
+    func enforcesStrictPortableUTF8AndJSONAtTheTransportBoundary() throws {
+        let refusedDocument = try fixtureData("scripture-ask-refused.ast.json")
+        let refusedManifest = try fixtureData("scripture-ask-refused.manifest.json")
+        let titleField = Data(#""title": "Answer unavailable""#.utf8)
+        let invalidUTF8 = try replacingFirst(
+            in: refusedDocument,
+            target: titleField,
+            replacement: Data(#""title": """#.utf8) + Data([0x80]) + Data(#""""#.utf8)
+        )
+        let rawControlCharacter = try replacingFirst(
+            in: refusedDocument,
+            target: titleField,
+            replacement: Data("\"title\": \"Bad\nTitle\"".utf8)
+        )
+        let loneEscapedSurrogate = try replacingFirst(
+            in: refusedDocument,
+            target: titleField,
+            replacement: Data(#""title": "\uD800""#.utf8)
+        )
+
+        for invalidDocument in [invalidUTF8, rawControlCharacter, loneEscapedSurrogate] {
+            #expect(throws: (any Error).self) {
+                try RelayMarkAgentAnswerValidator.validateTransport(
+                    documentJSON: invalidDocument,
+                    manifestJSON: refusedManifest,
+                    context: .scriptureAsk
+                )
+            }
+        }
+
+        let escapedSurrogatePair = try replacingFirst(
+            in: refusedDocument,
+            target: titleField,
+            replacement: Data(#""title": "\uD83D\uDE00""#.utf8)
+        )
+        let accepted = try RelayMarkAgentAnswerValidator.validateTransport(
+            documentJSON: escapedSurrogatePair,
+            manifestJSON: refusedManifest,
+            context: .scriptureAsk
+        )
+        #expect(accepted.isValid)
+        #expect(accepted.projection?.title == "😀")
     }
 
     @Test
@@ -558,6 +740,17 @@ struct RelayMarkAgentAnswerTests {
         return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
     }
 
+    private func replacingFirst(
+        in data: Data,
+        target: Data,
+        replacement: Data
+    ) throws -> Data {
+        let range = try #require(data.range(of: target))
+        var result = data
+        result.replaceSubrange(range, with: replacement)
+        return result
+    }
+
     private func requireDictionary(_ value: Any?) throws -> [String: Any] {
         try #require(value as? [String: Any])
     }
@@ -599,6 +792,12 @@ struct RelayMarkAgentAnswerTests {
                 .appendingPathComponent(path)
                 .standardizedFileURL
         )
+    }
+
+    private func sha256Hex(_ data: Data) -> String {
+        SHA256.hash(data: data)
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 
     private func fixtureData(_ name: String) throws -> Data {
