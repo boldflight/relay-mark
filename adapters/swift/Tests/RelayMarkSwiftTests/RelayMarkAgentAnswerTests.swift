@@ -302,6 +302,43 @@ struct RelayMarkAgentAnswerTests {
     }
 
     @Test
+    func preservesDepthFirstClaimAndScriptureDiagnosticOrder() throws {
+        let document = try mutatedDocument("scripture-ask-answered.ast.json") {
+            var blocks = try requireArray($0["blocks"])
+            var claim = try requireDictionary(blocks[1])
+            var claimProps = try requireDictionary(claim["props"])
+            claimProps["confidence"] = 2
+            claim["props"] = claimProps
+            blocks[1] = claim
+            $0["blocks"] = blocks
+
+            try mutateFirstEvidence(in: &$0) {
+                var evidenceProps = try requireDictionary($0["props"])
+                evidenceProps["source_revision"] = "stale-release"
+                $0["props"] = evidenceProps
+            }
+        }
+
+        #expect(
+            RelayMarkAgentAnswerValidator.diagnostics(
+                for: document,
+                context: .scriptureAsk
+            ) == [
+                RelayMarkDiagnostic(
+                    level: "error",
+                    code: "relaymark.claim.confidence_range",
+                    message: "relay.claim.confidence must be between 0.0 and 1.0."
+                ),
+                RelayMarkDiagnostic(
+                    level: "error",
+                    code: "relaymark.scripture.source_revision",
+                    message: "relay.evidence_ref.source_revision must equal the scripture resource corpus_release_id."
+                )
+            ]
+        )
+    }
+
+    @Test
     func rejectsMissingProfileBeforeManifestComparison() throws {
         let documentJSON = try mutateJSON(fixtureData("scripture-ask-answered.ast.json")) {
             var frontmatter = try requireDictionary($0["frontmatter"])

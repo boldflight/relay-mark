@@ -99,7 +99,6 @@ public enum RelayMarkAgentAnswerValidator {
         }
 
         var diagnostics = canonicalDocumentDiagnostics(for: document)
-        diagnostics.append(contentsOf: baseAgentAnswerDiagnostics(for: document))
         diagnostics.append(contentsOf: profileDiagnostics(for: document, context: context))
         diagnostics.append(contentsOf: duplicateEvidenceIdentityDiagnostics(for: document))
         return diagnostics
@@ -228,6 +227,7 @@ public enum RelayMarkAgentAnswerValidator {
         diagnostics.append(contentsOf: scriptureResourceDiagnostics(for: document))
 
         let scriptureResources = scriptureResourcesByID(in: document)
+        let evidenceTargets = evidenceTargets(in: document)
         var seenBlockIDs = Set<String>()
 
         visitBlocks(document.blocks) { block in
@@ -256,7 +256,14 @@ public enum RelayMarkAgentAnswerValidator {
                 )
             }
 
-            if block.type == "relay.evidence_ref" {
+            if block.type == "relay.claim" {
+                diagnostics.append(
+                    contentsOf: claimDiagnostics(
+                        for: block,
+                        evidenceTargets: evidenceTargets
+                    )
+                )
+            } else if block.type == "relay.evidence_ref" {
                 diagnostics.append(
                     contentsOf: evidenceReferenceDiagnostics(
                         for: block,
@@ -673,57 +680,54 @@ public enum RelayMarkAgentAnswerValidator {
         }
     }
 
-    private static func baseAgentAnswerDiagnostics(
-        for document: RelayMarkDocument
+    private static func claimDiagnostics(
+        for block: RelayMarkBlock,
+        evidenceTargets: Set<String>
     ) -> [RelayMarkDiagnostic] {
         var diagnostics: [RelayMarkDiagnostic] = []
-        let targets = evidenceTargets(in: document)
 
-        visitBlocks(document.blocks) { block in
-            guard block.type == "relay.claim" else { return }
-            let references = evidenceReferences(for: block)
+        let references = evidenceReferences(for: block)
 
-            if !references.contains(where: isNonEmptyString) {
+        if !references.contains(where: isNonEmptyString) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.policy.evidence_required",
+                    "relay.claim requires at least one evidence reference."
+                )
+            )
+        }
+
+        for reference in references {
+            guard isNonEmptyString(reference) else {
                 diagnostics.append(
                     diagnostic(
-                        "relaymark.policy.evidence_required",
-                        "relay.claim requires at least one evidence reference."
+                        "relaymark.evidence.invalid_reference",
+                        "relay.claim evidence references must be non-empty strings."
+                    )
+                )
+                continue
+            }
+
+            if !evidenceTargets.contains(reference) {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.evidence.unresolved_reference",
+                        "relay.claim evidence reference '\(reference)' does not resolve."
                     )
                 )
             }
+        }
 
-            for reference in references {
-                guard isNonEmptyString(reference) else {
-                    diagnostics.append(
-                        diagnostic(
-                            "relaymark.evidence.invalid_reference",
-                            "relay.claim evidence references must be non-empty strings."
-                        )
-                    )
-                    continue
-                }
-
-                if !targets.contains(reference) {
-                    diagnostics.append(
-                        diagnostic(
-                            "relaymark.evidence.unresolved_reference",
-                            "relay.claim evidence reference '\(reference)' does not resolve."
-                        )
-                    )
-                }
-            }
-
-            if
-                let confidence = block.props["confidence"]?.numberValue,
-                !confidence.isFinite || confidence < 0 || confidence > 1
-            {
-                diagnostics.append(
-                    diagnostic(
-                        "relaymark.claim.confidence_range",
-                        "relay.claim.confidence must be between 0.0 and 1.0."
-                    )
+        if
+            let confidence = block.props["confidence"]?.numberValue,
+            !confidence.isFinite || confidence < 0 || confidence > 1
+        {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.claim.confidence_range",
+                    "relay.claim.confidence must be between 0.0 and 1.0."
                 )
-            }
+            )
         }
 
         return diagnostics
