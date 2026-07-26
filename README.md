@@ -3,10 +3,10 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-The next reviewed reference runtime and generic adapters are prepared as
-`0.5.0` and implement the portable `0.5.0-draft` contract line. The latest
-published tag remains `0.4.1` until the release commit passes its compatibility
-gates and is tagged.
+RelayMark `0.5.0` implements the portable `0.5.0-draft` contract line in the
+reference runtime and generic adapters. Tagged releases are the distribution
+boundary for Swift and Elixir consumers; package-manifest versions or an
+untagged branch do not establish publication.
 
 This repository owns the portable RelayMark contract:
 
