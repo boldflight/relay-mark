@@ -164,19 +164,14 @@ struct RelayMarkAgentAnswerTests {
             ) == expectedEnvelopeDiagnostics
         )
 
-        let invalidEnvelopeTransport = try RelayMarkAgentAnswerValidator.validateTransport(
-            documentJSON: invalidEnvelopeJSON,
-            manifestJSON: fixtureData("scripture-ask-answered.manifest.json"),
-            context: .scriptureAsk
+        let answeredManifest = try fixtureData("scripture-ask-answered.manifest.json")
+        #expect(
+            transportValidationError(
+                documentJSON: invalidEnvelopeJSON,
+                manifestJSON: answeredManifest,
+                context: .scriptureAsk
+            ) == .diagnostics([schemaDiagnostic()])
         )
-        #expect(invalidEnvelopeTransport.projection == nil)
-        #expect(invalidEnvelopeTransport.diagnostics == [
-            RelayMarkDiagnostic(
-                level: "error",
-                code: "relaymark.schema.invalid",
-                message: "Document does not conform to the RelayMark document schema."
-            )
-        ])
 
         let duplicateBlockJSON = try mutateJSON(
             fixtureData("scripture-ask-answered.ast.json")
@@ -304,11 +299,6 @@ struct RelayMarkAgentAnswerTests {
             )
         ])
 
-        let schemaDiagnostic = RelayMarkDiagnostic(
-            level: "error",
-            code: "relaymark.schema.invalid",
-            message: "Document does not conform to the RelayMark document schema."
-        )
         let illegalBlockIDJSON = try mutateJSON(
             fixtureData("scripture-ask-answered.ast.json")
         ) {
@@ -318,24 +308,26 @@ struct RelayMarkAgentAnswerTests {
             blocks[0] = heading
             $0["blocks"] = blocks
         }
-        let illegalBlockID = try RelayMarkAgentAnswerValidator.validateTransport(
-            documentJSON: illegalBlockIDJSON,
-            manifestJSON: answeredManifest,
-            context: .scriptureAsk
+        #expect(
+            transportValidationError(
+                documentJSON: illegalBlockIDJSON,
+                manifestJSON: answeredManifest,
+                context: .scriptureAsk
+            ) == .diagnostics([schemaDiagnostic()])
         )
-        #expect(illegalBlockID.diagnostics == [schemaDiagnostic])
 
         let additionalPropertyJSON = try mutateJSON(
             fixtureData("scripture-ask-answered.ast.json")
         ) {
             $0["unexpected"] = true
         }
-        let additionalProperty = try RelayMarkAgentAnswerValidator.validateTransport(
-            documentJSON: additionalPropertyJSON,
-            manifestJSON: answeredManifest,
-            context: .scriptureAsk
+        #expect(
+            transportValidationError(
+                documentJSON: additionalPropertyJSON,
+                manifestJSON: answeredManifest,
+                context: .scriptureAsk
+            ) == .diagnostics([schemaDiagnostic()])
         )
-        #expect(additionalProperty.diagnostics == [schemaDiagnostic])
     }
 
     @Test
@@ -476,26 +468,80 @@ struct RelayMarkAgentAnswerTests {
     }
 
     @Test
-    func rejectsMissingProfileBeforeManifestComparison() throws {
-        let documentJSON = try mutateJSON(fixtureData("scripture-ask-answered.ast.json")) {
+    func validatesSchemaBeforeTypedDecodeProfileAndSemantics() throws {
+        let document = try fixtureData("scripture-ask-answered.ast.json")
+        let manifest = try fixtureData("scripture-ask-answered.manifest.json")
+        let expectedSchemaError = RelayMarkAgentAnswerValidationError.diagnostics([
+            schemaDiagnostic()
+        ])
+        let expectedProfileDiagnostic = RelayMarkDiagnostic(
+            level: "error",
+            code: "relaymark.agent_answer.profile",
+            message: "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
+        )
+
+        let missingTypeAndProfile = try mutateJSON(document) {
+            $0.removeValue(forKey: "type")
             var frontmatter = try requireDictionary($0["frontmatter"])
             frontmatter.removeValue(forKey: "profile")
             $0["frontmatter"] = frontmatter
         }
-        let result = try RelayMarkAgentAnswerValidator.validateTransport(
-            documentJSON: documentJSON,
-            manifestJSON: fixtureData("scripture-ask-answered.manifest.json"),
-            context: .scriptureAsk
+        #expect(
+            transportValidationError(
+                documentJSON: missingTypeAndProfile,
+                manifestJSON: manifest,
+                context: .scriptureAsk
+            ) == expectedSchemaError
         )
 
-        #expect(result.projection == nil)
-        #expect(result.diagnostics == [
-            RelayMarkDiagnostic(
-                level: "error",
-                code: "relaymark.agent_answer.profile",
-                message: "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
+        let illegalIDAndWrongProfile = try mutateJSON(document) {
+            var frontmatter = try requireDictionary($0["frontmatter"])
+            frontmatter["profile"] = "relaymark.agent_answer.v2"
+            $0["frontmatter"] = frontmatter
+            var blocks = try requireArray($0["blocks"])
+            var heading = try requireDictionary(blocks[0])
+            heading["id"] = "1-illegal"
+            blocks[0] = heading
+            $0["blocks"] = blocks
+        }
+        #expect(
+            transportValidationError(
+                documentJSON: illegalIDAndWrongProfile,
+                manifestJSON: manifest,
+                context: .scriptureAsk
+            ) == expectedSchemaError
+        )
+
+        let emptyEvidenceReference = try mutateJSON(document) {
+            var blocks = try requireArray($0["blocks"])
+            var claim = try requireDictionary(blocks[1])
+            claim["evidence_refs"] = [""]
+            blocks[1] = claim
+            $0["blocks"] = blocks
+        }
+        #expect(
+            transportValidationError(
+                documentJSON: emptyEvidenceReference,
+                manifestJSON: manifest,
+                context: .scriptureAsk
+            ) == expectedSchemaError
+        )
+
+        for profile in [nil, "relaymark.agent_answer.v2"] as [String?] {
+            let schemaValidDocument = try mutateJSON(document) {
+                var frontmatter = try requireDictionary($0["frontmatter"])
+                frontmatter["profile"] = profile
+                $0["frontmatter"] = frontmatter
+            }
+            let result = try RelayMarkAgentAnswerValidator.validateTransport(
+                documentJSON: schemaValidDocument,
+                manifestJSON: manifest,
+                context: .scriptureAsk
             )
-        ])
+
+            #expect(result.projection == nil)
+            #expect(result.diagnostics == [expectedProfileDiagnostic])
+        }
     }
 
     @Test
@@ -791,6 +837,33 @@ struct RelayMarkAgentAnswerTests {
                 .deletingLastPathComponent()
                 .appendingPathComponent(path)
                 .standardizedFileURL
+        )
+    }
+
+    private func transportValidationError(
+        documentJSON: Data,
+        manifestJSON: Data,
+        context: RelayMarkAgentAnswerValidationContext
+    ) -> RelayMarkAgentAnswerValidationError? {
+        do {
+            _ = try RelayMarkAgentAnswerValidator.validateTransport(
+                documentJSON: documentJSON,
+                manifestJSON: manifestJSON,
+                context: context
+            )
+            return nil
+        } catch let error as RelayMarkAgentAnswerValidationError {
+            return error
+        } catch {
+            return nil
+        }
+    }
+
+    private func schemaDiagnostic() -> RelayMarkDiagnostic {
+        RelayMarkDiagnostic(
+            level: "error",
+            code: "relaymark.schema.invalid",
+            message: "Document does not conform to the RelayMark document schema."
         )
     }
 

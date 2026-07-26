@@ -356,15 +356,15 @@ public enum RelayMarkAgentAnswerValidator {
         context: RelayMarkAgentAnswerValidationContext = .generic
     ) throws -> RelayMarkAgentAnswerTransport {
         let rawDocument = try RelayMarkDecoder.decode(RelayMarkValue.self, from: documentJSON)
+        let schemaDiagnostics = portableSchemaDiagnostics(for: rawDocument)
+
+        guard schemaDiagnostics.isEmpty else {
+            throw RelayMarkAgentAnswerValidationError.diagnostics(schemaDiagnostics)
+        }
+
         let document = try RelayMarkDocument.decodeJSON(documentJSON)
         let manifest = try RelayMarkManifest.decodeJSON(manifestJSON)
-        let schemaDiagnostics = portableSchemaDiagnostics(
-            for: document,
-            rawDocument: rawDocument
-        )
-        let diagnostics = schemaDiagnostics.isEmpty
-            ? diagnostics(for: document, context: context)
-            : schemaDiagnostics
+        let diagnostics = diagnostics(for: document, context: context)
         let documentSHA256 = "sha256:\(sha256Hex(documentJSON))"
         let manifestSHA256 = "sha256:\(sha256Hex(manifestJSON))"
 
@@ -502,21 +502,27 @@ public enum RelayMarkAgentAnswerValidator {
     }
 
     private static func portableSchemaDiagnostics(
-        for document: RelayMarkDocument,
-        rawDocument: RelayMarkValue? = nil
+        for document: RelayMarkDocument
     ) -> [RelayMarkDiagnostic] {
         guard
             document.type == "relaymark.document",
             document.version >= 1,
             document.blocks.allSatisfy(blockHasPortableSchemaShape),
             document.annotations.allSatisfy(annotationHasPortableSchemaShape),
-            document.resources.allSatisfy(resourceHasPortableSchemaShape),
-            rawDocument.map(rawDocumentHasPortableSchemaShape) != false
+            document.resources.allSatisfy(resourceHasPortableSchemaShape)
         else {
             return [schemaDiagnostic()]
         }
 
         return []
+    }
+
+    private static func portableSchemaDiagnostics(
+        for rawDocument: RelayMarkValue
+    ) -> [RelayMarkDiagnostic] {
+        rawDocumentHasPortableSchemaShape(rawDocument)
+            ? []
+            : [schemaDiagnostic()]
     }
 
     private static func rawDocumentHasPortableSchemaShape(_ value: RelayMarkValue) -> Bool {
@@ -534,6 +540,8 @@ public enum RelayMarkAgentAnswerValidator {
                     "meta"
                 ]
             ),
+            document["type"]?.stringValue == "relaymark.document",
+            integerValue(document["version"]).map({ $0 >= 1 }) == true,
             document["frontmatter"].map({ $0.objectValue != nil }) != false,
             document["meta"].map({ $0.objectValue != nil }) != false,
             let blocks = document["blocks"]?.arrayValue,
@@ -568,15 +576,48 @@ public enum RelayMarkAgentAnswerValidator {
                     "meta"
                 ]
             ),
+            block["id"]?.stringValue.map(isPortableID) == true,
+            block["type"]?.stringValue.map(isPortableBlockType) == true,
             block["props"].map({ $0.objectValue != nil }) != false,
             optionalArray(
                 block["evidence_refs"],
-                hasElementsSatisfying: { $0.stringValue != nil }
+                hasElementsSatisfying: {
+                    isNonEmptySchemaString($0.stringValue)
+                }
             ),
             block["source_location"].map(rawLocationHasPortableSchemaShape) != false,
             block["meta"].map({ $0.objectValue != nil }) != false
         else {
             return false
+        }
+
+        let type = block["type"]?.stringValue
+        let props = block["props"]?.objectValue
+
+        if type == "relay.source_bundle" {
+            guard isNonEmptySchemaString(props?["id"]?.stringValue) else {
+                return false
+            }
+        }
+
+        if type == "relay.evidence_ref" {
+            guard
+                isNonEmptySchemaString(props?["id"]?.stringValue),
+                isNonEmptySchemaString(props?["source"]?.stringValue)
+            else {
+                return false
+            }
+
+            if props?["source_type"]?.stringValue == "scripture" {
+                guard
+                    isNonEmptySchemaString(props?["source_revision"]?.stringValue),
+                    scriptureSpanHasSchemaShape(props?["selector"]?.objectValue),
+                    props?["scope"]?.stringValue.map({ canonicalScopes.contains($0) }) == true,
+                    block["content"]?.arrayValue?.isEmpty == false
+                else {
+                    return false
+                }
+            }
         }
 
         guard let content = block["content"] else {
@@ -592,9 +633,12 @@ public enum RelayMarkAgentAnswerValidator {
                 return false
             }
 
-            return isPortableInlineType(type)
-                ? rawInlineHasPortableSchemaShape(child)
-                : rawBlockHasPortableSchemaShape(child)
+            if isPortableInlineType(type) {
+                return rawInlineHasPortableSchemaShape(child)
+            }
+
+            return isPortableBlockType(type) &&
+                rawBlockHasPortableSchemaShape(child)
         }
     }
 
@@ -605,6 +649,11 @@ public enum RelayMarkAgentAnswerValidator {
                 inline,
                 allowed: ["type", "text", "id", "label", "href", "props", "content"]
             ),
+            inline["type"]?.stringValue.map(isPortableInlineType) == true,
+            inline["text"].map({ $0.stringValue != nil }) != false,
+            inline["id"].map({ $0.stringValue != nil }) != false,
+            inline["label"].map({ $0.stringValue != nil }) != false,
+            inline["href"].map({ $0.stringValue != nil }) != false,
             inline["props"].map({ $0.objectValue != nil }) != false
         else {
             return false
@@ -630,6 +679,10 @@ public enum RelayMarkAgentAnswerValidator {
                 annotation,
                 allowed: ["id", "type", "anchor", "props", "content"]
             ),
+            annotation["id"]?.stringValue.map(isPortableID) == true,
+            annotation["type"]?.stringValue.map({
+                portableAnnotationTypes.contains($0)
+            }) == true,
             annotation["props"].map({ $0.objectValue != nil }) != false,
             annotation["anchor"].map(rawAnchorHasPortableSchemaShape) == true
         else {
@@ -650,7 +703,9 @@ public enum RelayMarkAgentAnswerValidator {
     private static func rawAnchorHasPortableSchemaShape(_ value: RelayMarkValue) -> Bool {
         guard
             let anchor = value.objectValue,
-            hasOnlyKeys(anchor, allowed: ["block_id", "start", "end", "quote"])
+            hasOnlyKeys(anchor, allowed: ["block_id", "start", "end", "quote"]),
+            anchor["block_id"]?.stringValue.map(isPortableID) == true,
+            anchor["quote"].map({ $0.stringValue != nil }) != false
         else {
             return false
         }
@@ -676,12 +731,32 @@ public enum RelayMarkAgentAnswerValidator {
                 resource,
                 allowed: ["id", "type", "uri", "label", "scope", "props"]
             ),
+            resource["id"]?.stringValue.map(isPortableID) == true,
+            resource["type"]?.stringValue.map({
+                portableResourceTypes.contains($0)
+            }) == true,
+            resource["uri"].map({ $0.stringValue != nil }) != false,
+            resource["label"].map({ $0.stringValue != nil }) != false,
+            resource["scope"].map({
+                $0.stringValue.map({ canonicalScopes.contains($0) }) == true
+            }) != false,
             resource["props"].map({ $0.objectValue != nil }) != false
         else {
             return false
         }
 
-        return true
+        guard resource["type"]?.stringValue == "scripture" else {
+            return true
+        }
+
+        guard
+            resource["scope"]?.stringValue.map({ canonicalScopes.contains($0) }) == true,
+            let props = resource["props"]?.objectValue
+        else {
+            return false
+        }
+
+        return scriptureReleaseHasSchemaShape(props)
     }
 
     private static func rawLocationHasPortableSchemaShape(
@@ -728,7 +803,8 @@ public enum RelayMarkAgentAnswerValidator {
     private static func blockHasPortableSchemaShape(_ block: RelayMarkBlock) -> Bool {
         guard
             isPortableID(block.id),
-            isPortableBlockType(block.type)
+            isPortableBlockType(block.type),
+            block.evidenceRefs.allSatisfy(isNonEmptySchemaString)
         else {
             return false
         }
@@ -800,20 +876,32 @@ public enum RelayMarkAgentAnswerValidator {
 
         guard
             resource.scope.map({ canonicalScopes.contains($0) }) == true,
-            resource.props["profile"]?.stringValue == "relaymark.scripture_release.v1",
-            isNonEmptySchemaString(resource.props["translation_id"]?.stringValue),
-            isNonEmptySchemaString(resource.props["edition_id"]?.stringValue),
-            isNonEmptySchemaString(resource.props["corpus_release_id"]?.stringValue),
-            isNonEmptySchemaString(resource.props["versification_id"]?.stringValue),
-            isNonEmptySchemaString(resource.props["attribution"]?.stringValue),
-            scriptureSourceHasSchemaShape(resource.props["source"]?.objectValue),
-            scriptureLicenseHasSchemaShape(resource.props["license"]?.objectValue),
-            scriptureProvenanceHasSchemaShape(resource.props["provenance"]?.objectValue)
+            scriptureReleaseHasSchemaShape(resource.props)
         else {
             return false
         }
 
-        return Set(resource.props.keys).isSubset(
+        return true
+    }
+
+    private static func scriptureReleaseHasSchemaShape(
+        _ props: [String: RelayMarkValue]
+    ) -> Bool {
+        guard
+            props["profile"]?.stringValue == "relaymark.scripture_release.v1",
+            isNonEmptySchemaString(props["translation_id"]?.stringValue),
+            isNonEmptySchemaString(props["edition_id"]?.stringValue),
+            isNonEmptySchemaString(props["corpus_release_id"]?.stringValue),
+            isNonEmptySchemaString(props["versification_id"]?.stringValue),
+            isNonEmptySchemaString(props["attribution"]?.stringValue),
+            scriptureSourceHasSchemaShape(props["source"]?.objectValue),
+            scriptureLicenseHasSchemaShape(props["license"]?.objectValue),
+            scriptureProvenanceHasSchemaShape(props["provenance"]?.objectValue)
+        else {
+            return false
+        }
+
+        return Set(props.keys).isSubset(
             of: [
                 "profile",
                 "translation_id",
