@@ -131,6 +131,177 @@ struct RelayMarkAgentAnswerTests {
     }
 
     @Test
+    func rejectsInvalidDocumentEnvelopeAndDuplicateBlockIDsBeforeProjection() throws {
+        let invalidEnvelopeJSON = try mutateJSON(
+            fixtureData("scripture-ask-answered.ast.json")
+        ) {
+            $0["type"] = "relaymark.manifest"
+            $0["version"] = 0
+        }
+        let invalidEnvelope = try RelayMarkDocument.decodeJSON(invalidEnvelopeJSON)
+        let expectedEnvelopeDiagnostics = [
+            RelayMarkDiagnostic(
+                level: "error",
+                code: "relaymark.document.type",
+                message: "Document type must be relaymark.document."
+            ),
+            RelayMarkDiagnostic(
+                level: "error",
+                code: "relaymark.document.version",
+                message: "Document version must be a positive integer."
+            )
+        ]
+
+        #expect(
+            RelayMarkAgentAnswerValidator.diagnostics(
+                for: invalidEnvelope,
+                context: .scriptureAsk
+            ) == expectedEnvelopeDiagnostics
+        )
+
+        let invalidEnvelopeTransport = try RelayMarkAgentAnswerValidator.validateTransport(
+            documentJSON: invalidEnvelopeJSON,
+            manifestJSON: fixtureData("scripture-ask-answered.manifest.json"),
+            context: .scriptureAsk
+        )
+        #expect(invalidEnvelopeTransport.projection == nil)
+        #expect(invalidEnvelopeTransport.diagnostics == expectedEnvelopeDiagnostics)
+
+        let duplicateBlockJSON = try mutateJSON(
+            fixtureData("scripture-ask-answered.ast.json")
+        ) {
+            var blocks = try requireArray($0["blocks"])
+            var evidenceHeading = try requireDictionary(blocks[2])
+            evidenceHeading["id"] = "askClaim1"
+            blocks[2] = evidenceHeading
+            $0["blocks"] = blocks
+        }
+        let duplicateBlock = try RelayMarkDocument.decodeJSON(duplicateBlockJSON)
+        let expectedDuplicateDiagnostics = [
+            RelayMarkDiagnostic(
+                level: "error",
+                code: "relaymark.block.duplicate_id",
+                message: "Duplicate block id 'askClaim1'."
+            )
+        ]
+
+        #expect(
+            RelayMarkAgentAnswerValidator.diagnostics(
+                for: duplicateBlock,
+                context: .scriptureAsk
+            ) == expectedDuplicateDiagnostics
+        )
+
+        let duplicateBlockTransport = try RelayMarkAgentAnswerValidator.validateTransport(
+            documentJSON: duplicateBlockJSON,
+            manifestJSON: fixtureData("scripture-ask-answered.manifest.json"),
+            context: .scriptureAsk
+        )
+        #expect(duplicateBlockTransport.projection == nil)
+        #expect(duplicateBlockTransport.diagnostics == expectedDuplicateDiagnostics)
+    }
+
+    @Test
+    func enforcesPortableScriptureReleaseAndSpanSemanticsBeforeProjection() throws {
+        let missingRelease = try mutatedDocument("scripture-ask-answered.ast.json") {
+            try mutateFirstEvidence(in: &$0) {
+                var props = try requireDictionary($0["props"])
+                props["source"] = "missing-scripture-release"
+                $0["props"] = props
+            }
+        }
+        #expect(
+            RelayMarkAgentAnswerValidator.diagnostics(
+                for: missingRelease,
+                context: .scriptureAsk
+            ) == [
+                RelayMarkDiagnostic(
+                    level: "error",
+                    code: "relaymark.scripture.source_resolution",
+                    message: "relay.evidence_ref scripture source 'missing-scripture-release' must resolve to exactly one scripture resource."
+                )
+            ]
+        )
+
+        let invalidRelease = try mutatedDocument("scripture-ask-answered.ast.json") {
+            try mutateFirstResource(in: &$0) {
+                var props = try requireDictionary($0["props"])
+                var source = try requireDictionary(props["source"])
+                var provenance = try requireDictionary(props["provenance"])
+                props["profile"] = "relaymark.scripture_release.v2"
+                source["digest"] = "SHA256:not-canonical"
+                provenance["coordinate_inventory_digest"] = "not-a-digest"
+                props["source"] = source
+                props["provenance"] = provenance
+                $0["props"] = props
+                $0["scope"] = "invalid"
+            }
+        }
+        #expect(
+            RelayMarkAgentAnswerValidator.diagnostics(
+                for: invalidRelease,
+                context: .scriptureAsk
+            ).map(\.code) == [
+                "relaymark.scripture.release_profile",
+                "relaymark.scripture.digest",
+                "relaymark.scripture.digest",
+                "relaymark.scripture.release_scope",
+                "relaymark.scripture.scope"
+            ]
+        )
+
+        let invalidEvidence = try mutatedDocument("scripture-ask-answered.ast.json") {
+            try mutateFirstResource(in: &$0) {
+                $0["scope"] = "org"
+            }
+            try mutateFirstEvidence(in: &$0) {
+                var props = try requireDictionary($0["props"])
+                var selector = try requireDictionary(props["selector"])
+                var end = try requireDictionary(selector["end"])
+                props["source_revision"] = "stale-release"
+                end["book_id"] = "ROM"
+                selector["end"] = end
+                selector["content_digest"] = "not-a-digest"
+                props["selector"] = selector
+                $0["props"] = props
+            }
+        }
+        #expect(
+            RelayMarkAgentAnswerValidator.diagnostics(
+                for: invalidEvidence,
+                context: .scriptureAsk
+            ).map(\.code) == [
+                "relaymark.scripture.source_revision",
+                "relaymark.scripture.scope",
+                "relaymark.scripture.span_boundary",
+                "relaymark.scripture.content_digest"
+            ]
+        )
+
+        let invalidSelector = try mutatedDocument("scripture-ask-answered.ast.json") {
+            try mutateFirstEvidence(in: &$0) {
+                var props = try requireDictionary($0["props"])
+                var selector = try requireDictionary(props["selector"])
+                var start = try requireDictionary(selector["start"])
+                selector["profile"] = "relaymark.scripture_span.v2"
+                start["chapter"] = 0
+                selector["start"] = start
+                props["selector"] = selector
+                $0["props"] = props
+            }
+        }
+        #expect(
+            RelayMarkAgentAnswerValidator.diagnostics(
+                for: invalidSelector,
+                context: .scriptureAsk
+            ).map(\.code) == [
+                "relaymark.scripture.selector_profile",
+                "relaymark.scripture.coordinate"
+            ]
+        )
+    }
+
+    @Test
     func rejectsMissingProfileBeforeManifestComparison() throws {
         let documentJSON = try mutateJSON(fixtureData("scripture-ask-answered.ast.json")) {
             var frontmatter = try requireDictionary($0["frontmatter"])
@@ -356,6 +527,32 @@ struct RelayMarkAgentAnswerTests {
 
     private func requireArray(_ value: Any?) throws -> [Any] {
         try #require(value as? [Any])
+    }
+
+    private func mutateFirstResource(
+        in document: inout [String: Any],
+        mutate: (inout [String: Any]) throws -> Void
+    ) throws {
+        var resources = try requireArray(document["resources"])
+        var resource = try requireDictionary(resources[0])
+        try mutate(&resource)
+        resources[0] = resource
+        document["resources"] = resources
+    }
+
+    private func mutateFirstEvidence(
+        in document: inout [String: Any],
+        mutate: (inout [String: Any]) throws -> Void
+    ) throws {
+        var blocks = try requireArray(document["blocks"])
+        var sourceBundle = try requireDictionary(blocks[3])
+        var content = try requireArray(sourceBundle["content"])
+        var evidence = try requireDictionary(content[0])
+        try mutate(&evidence)
+        content[0] = evidence
+        sourceBundle["content"] = content
+        blocks[3] = sourceBundle
+        document["blocks"] = blocks
     }
 
     private func receiptData(_ path: String, relativeTo receiptURL: URL) throws -> Data {

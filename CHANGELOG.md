@@ -14,6 +14,9 @@
   Elixir against the same exact answered and refused fixture bytes.
 - Makes Scripture Ask validation an explicit host action-context policy rather
   than document-inferred state.
+- Makes the Swift Agent Answer gate reject invalid document envelopes and
+  duplicate block ids, and validate complete Scripture release/resource/span
+  semantics before canonical manifest projection.
 
 Existing AST and manifest documents remain version 1. The profile uses existing
 headings, paragraphs, claims, source bundles, evidence references, resources,

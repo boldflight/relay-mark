@@ -98,7 +98,8 @@ public enum RelayMarkAgentAnswerValidator {
             ]
         }
 
-        var diagnostics = baseAgentAnswerDiagnostics(for: document)
+        var diagnostics = canonicalDocumentDiagnostics(for: document)
+        diagnostics.append(contentsOf: baseAgentAnswerDiagnostics(for: document))
         diagnostics.append(contentsOf: profileDiagnostics(for: document, context: context))
         diagnostics.append(contentsOf: duplicateEvidenceIdentityDiagnostics(for: document))
         return diagnostics
@@ -199,6 +200,477 @@ public enum RelayMarkAgentAnswerValidator {
             document: document,
             manifest: manifest
         )
+    }
+
+    private static func canonicalDocumentDiagnostics(
+        for document: RelayMarkDocument
+    ) -> [RelayMarkDiagnostic] {
+        var diagnostics: [RelayMarkDiagnostic] = []
+
+        if document.type != "relaymark.document" {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.document.type",
+                    "Document type must be relaymark.document."
+                )
+            )
+        }
+
+        if document.version < 1 {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.document.version",
+                    "Document version must be a positive integer."
+                )
+            )
+        }
+
+        diagnostics.append(contentsOf: scriptureResourceDiagnostics(for: document))
+
+        let scriptureResources = scriptureResourcesByID(in: document)
+        var seenBlockIDs = Set<String>()
+
+        visitBlocks(document.blocks) { block in
+            if block.id.isEmpty {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.block.id",
+                        "Every block must have an id."
+                    )
+                )
+            } else if !seenBlockIDs.insert(block.id).inserted {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.block.duplicate_id",
+                        "Duplicate block id '\(block.id)'."
+                    )
+                )
+            }
+
+            if block.type.isEmpty {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.block.type",
+                        "Block '\(block.id.isEmpty ? "unknown" : block.id)' must have a type."
+                    )
+                )
+            }
+
+            if block.type == "relay.evidence_ref" {
+                diagnostics.append(
+                    contentsOf: evidenceReferenceDiagnostics(
+                        for: block,
+                        scriptureResources: scriptureResources
+                    )
+                )
+            }
+        }
+
+        return diagnostics
+    }
+
+    private static func scriptureResourceDiagnostics(
+        for document: RelayMarkDocument
+    ) -> [RelayMarkDiagnostic] {
+        var diagnostics: [RelayMarkDiagnostic] = []
+
+        for resource in document.resources where resource.type == "scripture" {
+            let props = resource.props
+            let resourceID = resource.id.isEmpty ? "unknown" : resource.id
+
+            for field in [
+                "profile",
+                "translation_id",
+                "edition_id",
+                "corpus_release_id",
+                "versification_id",
+                "attribution"
+            ] where !isNonEmptyString(props[field]?.stringValue) {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.scripture.release",
+                        "scripture resource '\(resourceID)' requires \(field)."
+                    )
+                )
+            }
+
+            if props["profile"]?.stringValue != "relaymark.scripture_release.v1" {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.scripture.release_profile",
+                        "scripture resource '\(resourceID)' must use relaymark.scripture_release.v1."
+                    )
+                )
+            }
+
+            diagnostics.append(
+                contentsOf: requiredStringObjectDiagnostics(
+                    props["source"]?.objectValue,
+                    fields: ["name", "uri", "digest"],
+                    label: "source",
+                    resourceID: resourceID
+                )
+            )
+            diagnostics.append(
+                contentsOf: requiredStringObjectDiagnostics(
+                    props["license"]?.objectValue,
+                    fields: ["id", "name", "url"],
+                    label: "license",
+                    resourceID: resourceID
+                )
+            )
+            diagnostics.append(
+                contentsOf: requiredStringObjectDiagnostics(
+                    props["provenance"]?.objectValue,
+                    fields: [
+                        "coordinate_inventory_digest",
+                        "normalized_index_input_digest"
+                    ],
+                    label: "provenance",
+                    resourceID: resourceID
+                )
+            )
+
+            let source = props["source"]?.objectValue
+            let provenance = props["provenance"]?.objectValue
+
+            diagnostics.append(
+                contentsOf: scriptureDigestDiagnostics(
+                    source?["digest"]?.stringValue,
+                    field: "source.digest",
+                    resourceID: resourceID
+                )
+            )
+            diagnostics.append(
+                contentsOf: scriptureDigestDiagnostics(
+                    provenance?["coordinate_inventory_digest"]?.stringValue,
+                    field: "provenance.coordinate_inventory_digest",
+                    resourceID: resourceID
+                )
+            )
+            diagnostics.append(
+                contentsOf: scriptureDigestDiagnostics(
+                    provenance?["normalized_index_input_digest"]?.stringValue,
+                    field: "provenance.normalized_index_input_digest",
+                    resourceID: resourceID
+                )
+            )
+
+            if let sourceArchiveDigest = provenance?["source_archive_digest"] {
+                diagnostics.append(
+                    contentsOf: scriptureDigestDiagnostics(
+                        sourceArchiveDigest.stringValue,
+                        field: "provenance.source_archive_digest",
+                        resourceID: resourceID
+                    )
+                )
+            }
+
+            if !canonicalScopes.contains(resource.scope ?? "") {
+                diagnostics.append(
+                    diagnostic(
+                        "relaymark.scripture.release_scope",
+                        "scripture resource '\(resourceID)' requires an explicit valid scope."
+                    )
+                )
+            }
+        }
+
+        return diagnostics
+    }
+
+    private static func requiredStringObjectDiagnostics(
+        _ object: [String: RelayMarkValue]?,
+        fields: [String],
+        label: String,
+        resourceID: String
+    ) -> [RelayMarkDiagnostic] {
+        guard let object else {
+            return [
+                diagnostic(
+                    "relaymark.scripture.release",
+                    "scripture resource '\(resourceID)' requires a \(label) object."
+                )
+            ]
+        }
+
+        return fields.compactMap { field in
+            guard !isNonEmptyString(object[field]?.stringValue) else {
+                return nil
+            }
+
+            return diagnostic(
+                "relaymark.scripture.release",
+                "scripture resource '\(resourceID)' requires \(label).\(field)."
+            )
+        }
+    }
+
+    private static func scriptureDigestDiagnostics(
+        _ value: String?,
+        field: String,
+        resourceID: String
+    ) -> [RelayMarkDiagnostic] {
+        guard isSHA256Digest(value) else {
+            return [
+                diagnostic(
+                    "relaymark.scripture.digest",
+                    "scripture resource '\(resourceID)' requires \(field) as a lowercase sha256 digest."
+                )
+            ]
+        }
+
+        return []
+    }
+
+    private static func scriptureResourcesByID(
+        in document: RelayMarkDocument
+    ) -> [String: [RelayMarkResource]] {
+        var resources: [String: [RelayMarkResource]] = [:]
+
+        for resource in document.resources
+        where resource.type == "scripture" && isNonEmptyString(resource.id) {
+            resources[resource.id, default: []].append(resource)
+        }
+
+        return resources
+    }
+
+    private static func evidenceReferenceDiagnostics(
+        for block: RelayMarkBlock,
+        scriptureResources: [String: [RelayMarkResource]]
+    ) -> [RelayMarkDiagnostic] {
+        let props = block.props
+        var diagnostics: [RelayMarkDiagnostic] = []
+
+        if
+            !isNonEmptyString(props["id"]?.stringValue) ||
+            !isNonEmptyString(props["source"]?.stringValue)
+        {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.evidence.identity",
+                    "relay.evidence_ref requires non-empty id and source values."
+                )
+            )
+        }
+
+        for field in ["source_type", "source_revision"]
+        where props[field] != nil && !isNonEmptyString(props[field]?.stringValue) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.evidence.source",
+                    "relay.evidence_ref.\(field) must be a non-empty string when present."
+                )
+            )
+        }
+
+        guard props["source_type"]?.stringValue == "scripture" else {
+            return diagnostics
+        }
+
+        diagnostics.append(
+            contentsOf: scriptureEvidenceDiagnostics(
+                for: block,
+                scriptureResources: scriptureResources
+            )
+        )
+        return diagnostics
+    }
+
+    private static func scriptureEvidenceDiagnostics(
+        for block: RelayMarkBlock,
+        scriptureResources: [String: [RelayMarkResource]]
+    ) -> [RelayMarkDiagnostic] {
+        let props = block.props
+        let sourceID = props["source"]?.stringValue ?? ""
+        let matches = scriptureResources[sourceID] ?? []
+
+        guard matches.count == 1, let resource = matches.first else {
+            return [
+                diagnostic(
+                    "relaymark.scripture.source_resolution",
+                    "relay.evidence_ref scripture source '\(sourceID)' must resolve to exactly one scripture resource."
+                )
+            ]
+        }
+
+        var diagnostics: [RelayMarkDiagnostic] = []
+        let release = resource.props
+
+        if props["source_revision"]?.stringValue != release["corpus_release_id"]?.stringValue {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.source_revision",
+                    "relay.evidence_ref.source_revision must equal the scripture resource corpus_release_id."
+                )
+            )
+        }
+
+        if !scopeAllows(resourceScope: resource.scope, evidenceScope: props["scope"]?.stringValue) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.scope",
+                    "relay.evidence_ref scope must not be broader than its scripture resource scope."
+                )
+            )
+        }
+
+        guard let selector = props["selector"]?.objectValue else {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.selector",
+                    "Scripture evidence requires a scripture span selector."
+                )
+            )
+            return diagnostics
+        }
+
+        if selector["profile"]?.stringValue != "relaymark.scripture_span.v1" {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.selector_profile",
+                    "Scripture evidence selector must use relaymark.scripture_span.v1."
+                )
+            )
+        }
+
+        let start = scriptureCoordinate(
+            selector["start"]?.objectValue,
+            endpoint: "start",
+            diagnostics: &diagnostics
+        )
+        let end = scriptureCoordinate(
+            selector["end"]?.objectValue,
+            endpoint: "end",
+            diagnostics: &diagnostics
+        )
+
+        if
+            let start,
+            let end,
+            start.bookID != end.bookID || start.kind != end.kind
+        {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.span_boundary",
+                    "Scripture span start and end must use the same book and coordinate kind."
+                )
+            )
+        }
+
+        if !isSHA256Digest(selector["content_digest"]?.stringValue) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.content_digest",
+                    "Scripture evidence requires a lowercase sha256 content_digest."
+                )
+            )
+        }
+
+        if !isNonEmptyString(validationPlainText(block)) {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.excerpt",
+                    "Scripture evidence requires a non-empty exact excerpt."
+                )
+            )
+        }
+
+        return diagnostics
+    }
+
+    private struct ValidatedScriptureCoordinate {
+        let bookID: String
+        let kind: String
+    }
+
+    private static func scriptureCoordinate(
+        _ coordinate: [String: RelayMarkValue]?,
+        endpoint: String,
+        diagnostics: inout [RelayMarkDiagnostic]
+    ) -> ValidatedScriptureCoordinate? {
+        guard let coordinate else {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.coordinate",
+                    "Scripture selector \(endpoint) must be a coordinate object."
+                )
+            )
+            return nil
+        }
+
+        let bookID = coordinate["book_id"]?.stringValue
+        let verseLabel = coordinate["verse_label"]?.stringValue
+        let kind = coordinate["coordinate_kind"]?.stringValue
+        let commonValid = isNonEmptyString(bookID) && isNonEmptyString(verseLabel)
+        let shapeValid: Bool
+
+        switch kind {
+        case "chapter":
+            shapeValid =
+                integerValue(coordinate["chapter"]).map { $0 > 0 } == true &&
+                coordinate["section_id"] == nil
+        case "section":
+            shapeValid =
+                isNonEmptyString(coordinate["section_id"]?.stringValue) &&
+                coordinate["chapter"] == nil
+        default:
+            shapeValid = false
+        }
+
+        guard commonValid, shapeValid, let bookID, let kind else {
+            diagnostics.append(
+                diagnostic(
+                    "relaymark.scripture.coordinate",
+                    "Scripture selector \(endpoint) must be a lossless chapter or section coordinate with a string verse_label."
+                )
+            )
+            return nil
+        }
+
+        return ValidatedScriptureCoordinate(bookID: bookID, kind: kind)
+    }
+
+    private static func scopeAllows(
+        resourceScope: String?,
+        evidenceScope: String?
+    ) -> Bool {
+        let ranks = [
+            "private": 0,
+            "org": 1,
+            "unlisted": 2,
+            "public": 3
+        ]
+
+        guard
+            let resourceScope,
+            let evidenceScope,
+            let resourceRank = ranks[resourceScope],
+            let evidenceRank = ranks[evidenceScope]
+        else {
+            return false
+        }
+
+        return evidenceRank <= resourceRank
+    }
+
+    private static func isSHA256Digest(_ value: String?) -> Bool {
+        guard let value else {
+            return false
+        }
+
+        let bytes = Array(value.utf8)
+        guard
+            bytes.count == 71,
+            bytes.starts(with: Array("sha256:".utf8))
+        else {
+            return false
+        }
+
+        return bytes.dropFirst(7).allSatisfy {
+            (48...57).contains($0) || (97...102).contains($0)
+        }
     }
 
     private static func baseAgentAnswerDiagnostics(
