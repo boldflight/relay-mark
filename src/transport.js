@@ -24,20 +24,20 @@ export function validateTransportedAgentAnswerPair(
   const manifest = decodeExactJSON(manifestBytes);
   const diagnostics = [];
 
-  if (document.frontmatter?.profile !== agentAnswerProfile) {
-    diagnostics.push(
-      error(
-        "relaymark.agent_answer.profile",
-        "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
-      )
-    );
-  } else if (
+  if (
     validateJSONSchema(document, documentSchema, documentSchemaPath).length > 0
   ) {
     diagnostics.push(
       error(
         "relaymark.schema.invalid",
         "Document does not conform to the RelayMark document schema."
+      )
+    );
+  } else if (document.frontmatter?.profile !== agentAnswerProfile) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.profile",
+        "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
       )
     );
   } else {

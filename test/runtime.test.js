@@ -642,7 +642,7 @@ describe("RelayMark reference runtime", () => {
   });
 
   it("runs the canonical document schema before transported Agent Answer semantics", () => {
-    const document = JSON.parse(
+    const baseDocument = JSON.parse(
       readFileSync(
         resolve("spec/relaymark/examples/scripture-ask-refused.ast.json"),
         "utf8"
@@ -651,18 +651,28 @@ describe("RelayMark reference runtime", () => {
     const manifest = readFileSync(
       resolve("spec/relaymark/examples/scripture-ask-refused.manifest.json")
     );
-    document.blocks[0].id = "1-invalid";
 
-    assert.deepEqual(
-      validateTransportedAgentAnswerPair(JSON.stringify(document), manifest).diagnostics,
-      [
-        {
-          level: "error",
-          code: "relaymark.schema.invalid",
-          message: "Document does not conform to the RelayMark document schema."
-        }
-      ]
-    );
+    for (const profile of [undefined, "relaymark.wrong_profile.v1"]) {
+      const document = structuredClone(baseDocument);
+      document.blocks[0].id = "1-invalid";
+
+      if (profile === undefined) {
+        delete document.frontmatter.profile;
+      } else {
+        document.frontmatter.profile = profile;
+      }
+
+      assert.deepEqual(
+        validateTransportedAgentAnswerPair(JSON.stringify(document), manifest).diagnostics,
+        [
+          {
+            level: "error",
+            code: "relaymark.schema.invalid",
+            message: "Document does not conform to the RelayMark document schema."
+          }
+        ]
+      );
+    }
   });
 
   it("rejects transported Agent Answer action and content projection drift", () => {

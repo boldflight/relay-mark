@@ -6,7 +6,15 @@ defmodule RelayMark.AgentAnswer do
   envelope metadata and are never inserted into the RelayMark document.
   """
 
-  alias RelayMark.{Diagnostic, Document, JSON, Manifest, ManifestProjection}
+  alias RelayMark.{
+    Diagnostic,
+    Document,
+    JSON,
+    Manifest,
+    ManifestProjection,
+    Schema,
+    SemanticValidator
+  }
 
   @profile "relaymark.agent_answer.v1"
 
@@ -25,27 +33,26 @@ defmodule RelayMark.AgentAnswer do
     with {:ok, document} <- decode_json(document_json, "document"),
          {:ok, manifest} <- decode_json(manifest_json, "manifest") do
       diagnostics =
-        if get_in(document, ["frontmatter", "profile"]) == @profile do
-          case RelayMark.validate_document(document, validation_context) do
-            :ok -> []
-            {:error, [%{"code" => "relaymark.schema.invalid"} | _]} ->
+        case Schema.validate_document_schema(document) do
+          {:error, _schema_error} ->
+            [
+              Diagnostic.error(
+                "relaymark.schema.invalid",
+                "Document does not conform to the RelayMark document schema."
+              )
+            ]
+
+          :ok ->
+            if get_in(document, ["frontmatter", "profile"]) == @profile do
+              SemanticValidator.validate(document, validation_context)
+            else
               [
                 Diagnostic.error(
-                  "relaymark.schema.invalid",
-                  "Document does not conform to the RelayMark document schema."
+                  "relaymark.agent_answer.profile",
+                  "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
                 )
               ]
-
-            {:error, diagnostics} ->
-              diagnostics
-          end
-        else
-          [
-            Diagnostic.error(
-              "relaymark.agent_answer.profile",
-              "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
-            )
-          ]
+            end
         end
 
       diagnostics =

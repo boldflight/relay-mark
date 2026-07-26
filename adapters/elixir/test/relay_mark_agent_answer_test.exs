@@ -90,22 +90,26 @@ defmodule RelayMarkAgentAnswerTest do
       "scripture-ask-refused.ast.json"
       |> decode_fixture()
       |> put_in(["blocks", Access.at(0), "id"], "1-invalid")
-      |> Jason.encode!()
 
     manifest_json = fixture("scripture-ask-refused.manifest.json")
 
-    assert {:error,
-            [
-              %{
-                "level" => "error",
-                "code" => "relaymark.schema.invalid",
-                "message" => "Document does not conform to the RelayMark document schema."
-              }
-            ]} =
-             RelayMark.validate_transported_agent_answer_pair(
-               invalid_document,
-               manifest_json
-             )
+    for document <- [
+          update_in(invalid_document["frontmatter"], &Map.delete(&1, "profile")),
+          put_in(invalid_document, ["frontmatter", "profile"], "relaymark.wrong_profile.v1")
+        ] do
+      assert {:error,
+              [
+                %{
+                  "level" => "error",
+                  "code" => "relaymark.schema.invalid",
+                  "message" => "Document does not conform to the RelayMark document schema."
+                }
+              ]} =
+               RelayMark.validate_transported_agent_answer_pair(
+                 Jason.encode!(document),
+                 manifest_json
+               )
+    end
   end
 
   test "rejects action and content drift from the transported canonical projection" do
