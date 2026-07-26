@@ -28,7 +28,16 @@ defmodule RelayMark.AgentAnswer do
         if get_in(document, ["frontmatter", "profile"]) == @profile do
           case RelayMark.validate_document(document, validation_context) do
             :ok -> []
-            {:error, diagnostics} -> diagnostics
+            {:error, [%{"code" => "relaymark.schema.invalid"} | _]} ->
+              [
+                Diagnostic.error(
+                  "relaymark.schema.invalid",
+                  "Document does not conform to the RelayMark document schema."
+                )
+              ]
+
+            {:error, diagnostics} ->
+              diagnostics
           end
         else
           [

@@ -581,6 +581,90 @@ describe("RelayMark reference runtime", () => {
     }
   });
 
+  it("rejects non-portable transported JSON and accepts escaped scalar pairs", () => {
+    const documentPath = resolve(
+      "spec/relaymark/examples/scripture-ask-refused.ast.json"
+    );
+    const manifestPath = resolve(
+      "spec/relaymark/examples/scripture-ask-refused.manifest.json"
+    );
+    const documentBytes = readFileSync(documentPath);
+    const manifestBytes = readFileSync(manifestPath);
+    const titleBytes = Buffer.from("Answer unavailable");
+    const titleOffset = documentBytes.indexOf(titleBytes);
+
+    assert.notEqual(titleOffset, -1);
+
+    const invalidUTF8 = Buffer.from(documentBytes);
+    invalidUTF8[titleOffset] = 0xff;
+
+    assert.throws(
+      () => validateTransportedAgentAnswerPair(invalidUTF8, manifestBytes),
+      TypeError
+    );
+
+    const rawControl = Buffer.from(
+      documentBytes
+        .toString("utf8")
+        .replace("Answer unavailable", "Answer\nunavailable")
+    );
+
+    assert.throws(
+      () => validateTransportedAgentAnswerPair(rawControl, manifestBytes),
+      SyntaxError
+    );
+
+    const loneSurrogate = Buffer.from(
+      documentBytes
+        .toString("utf8")
+        .replace("Answer unavailable", "\\ud83d")
+    );
+
+    assert.throws(
+      () => validateTransportedAgentAnswerPair(loneSurrogate, manifestBytes),
+      SyntaxError
+    );
+
+    const escapedScalarPair = JSON.parse(documentBytes.toString("utf8"));
+    escapedScalarPair.frontmatter.title = "😀";
+    const escapedScalarPairJSON = JSON.stringify(escapedScalarPair).replaceAll(
+      "😀",
+      "\\ud83d\\ude00"
+    );
+    const escapedScalarManifest = JSON.stringify(projectManifest(escapedScalarPair));
+    const result = validateTransportedAgentAnswerPair(
+      escapedScalarPairJSON,
+      escapedScalarManifest
+    );
+
+    assert.deepEqual(result.diagnostics, []);
+    assert.equal(result.document.frontmatter.title, "😀");
+  });
+
+  it("runs the canonical document schema before transported Agent Answer semantics", () => {
+    const document = JSON.parse(
+      readFileSync(
+        resolve("spec/relaymark/examples/scripture-ask-refused.ast.json"),
+        "utf8"
+      )
+    );
+    const manifest = readFileSync(
+      resolve("spec/relaymark/examples/scripture-ask-refused.manifest.json")
+    );
+    document.blocks[0].id = "1-invalid";
+
+    assert.deepEqual(
+      validateTransportedAgentAnswerPair(JSON.stringify(document), manifest).diagnostics,
+      [
+        {
+          level: "error",
+          code: "relaymark.schema.invalid",
+          message: "Document does not conform to the RelayMark document schema."
+        }
+      ]
+    );
+  });
+
   it("rejects transported Agent Answer action and content projection drift", () => {
     const refusedDocument = readFileSync(
       resolve("spec/relaymark/examples/scripture-ask-refused.ast.json")

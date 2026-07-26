@@ -35,6 +35,79 @@ defmodule RelayMarkAgentAnswerTest do
     end
   end
 
+  test "rejects non-portable transported JSON and accepts escaped scalar pairs" do
+    document_json = fixture("scripture-ask-refused.ast.json")
+    manifest_json = fixture("scripture-ask-refused.manifest.json")
+
+    invalid_utf8 =
+      :binary.replace(
+        document_json,
+        "Answer unavailable",
+        <<"Answer ", 0xFF, "unavailable">>,
+        [:global]
+      )
+
+    assert_transport_document_json_error(invalid_utf8, manifest_json)
+
+    raw_control =
+      :binary.replace(
+        document_json,
+        "Answer unavailable",
+        "Answer\nunavailable",
+        [:global]
+      )
+
+    assert_transport_document_json_error(raw_control, manifest_json)
+
+    lone_surrogate =
+      :binary.replace(
+        document_json,
+        "Answer unavailable",
+        "\\uD83D",
+        [:global]
+      )
+
+    assert_transport_document_json_error(lone_surrogate, manifest_json)
+
+    escaped_scalar_pair =
+      document_json
+      |> decode()
+      |> put_in(["frontmatter", "title"], "😀")
+      |> Jason.encode!()
+      |> String.replace("😀", "\\uD83D\\uDE00")
+
+    assert {:ok, pair} =
+             RelayMark.validate_transported_agent_answer_pair(
+               escaped_scalar_pair,
+               manifest_json
+             )
+
+    assert pair.document.frontmatter["title"] == "😀"
+  end
+
+  test "normalizes transported document schema failures across adapters" do
+    invalid_document =
+      "scripture-ask-refused.ast.json"
+      |> decode_fixture()
+      |> put_in(["blocks", Access.at(0), "id"], "1-invalid")
+      |> Jason.encode!()
+
+    manifest_json = fixture("scripture-ask-refused.manifest.json")
+
+    assert {:error,
+            [
+              %{
+                "level" => "error",
+                "code" => "relaymark.schema.invalid",
+                "message" => "Document does not conform to the RelayMark document schema."
+              }
+            ]} =
+             RelayMark.validate_transported_agent_answer_pair(
+               invalid_document,
+               manifest_json
+             )
+  end
+
   test "rejects action and content drift from the transported canonical projection" do
     refused_document =
       fixture("scripture-ask-refused.ast.json")
@@ -116,5 +189,20 @@ defmodule RelayMarkAgentAnswerTest do
   defp sha256(bytes) do
     :crypto.hash(:sha256, bytes)
     |> Base.encode16(case: :lower)
+  end
+
+  defp assert_transport_document_json_error(document_json, manifest_json) do
+    assert {:error,
+            [
+              %{
+                "level" => "error",
+                "code" => "relaymark.transport.document_json",
+                "message" => "Transported RelayMark document must be valid UTF-8 JSON."
+              }
+            ]} =
+             RelayMark.validate_transported_agent_answer_pair(
+               document_json,
+               manifest_json
+             )
   end
 end

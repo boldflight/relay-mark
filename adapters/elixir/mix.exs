@@ -20,7 +20,7 @@ defmodule RelayMarkElixir.MixProject do
   defp deps do
     [
       {:jsv, "~> 0.21.2"},
-      {:jason, "~> 1.4", runtime: false}
+      {:jason, "~> 1.4"}
     ]
   end
 end
