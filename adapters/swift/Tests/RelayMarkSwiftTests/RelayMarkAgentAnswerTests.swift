@@ -527,6 +527,21 @@ struct RelayMarkAgentAnswerTests {
             ) == expectedSchemaError
         )
 
+        let numericScriptureEvidenceLabel = try mutateJSON(document) {
+            try mutateFirstEvidence(in: &$0) {
+                var props = try requireDictionary($0["props"])
+                props["label"] = 123
+                $0["props"] = props
+            }
+        }
+        #expect(
+            transportValidationError(
+                documentJSON: numericScriptureEvidenceLabel,
+                manifestJSON: manifest,
+                context: .scriptureAsk
+            ) == expectedSchemaError
+        )
+
         for profile in [nil, "relaymark.agent_answer.v2"] as [String?] {
             let schemaValidDocument = try mutateJSON(document) {
                 var frontmatter = try requireDictionary($0["frontmatter"])

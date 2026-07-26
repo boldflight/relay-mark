@@ -613,6 +613,7 @@ public enum RelayMarkAgentAnswerValidator {
                     isNonEmptySchemaString(props?["source_revision"]?.stringValue),
                     scriptureSpanHasSchemaShape(props?["selector"]?.objectValue),
                     props?["scope"]?.stringValue.map({ canonicalScopes.contains($0) }) == true,
+                    props?["label"].map({ $0.stringValue != nil }) != false,
                     block["content"]?.arrayValue?.isEmpty == false
                 else {
                     return false
@@ -828,6 +829,7 @@ public enum RelayMarkAgentAnswerValidator {
                     isNonEmptySchemaString(block.props["source_revision"]?.stringValue),
                     scriptureSpanHasSchemaShape(block.props["selector"]?.objectValue),
                     block.props["scope"]?.stringValue.map({ canonicalScopes.contains($0) }) == true,
+                    block.props["label"].map({ $0.stringValue != nil }) != false,
                     !block.content.isEmpty
                 else {
                     return false
