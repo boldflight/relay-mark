@@ -44,8 +44,9 @@ defmodule RelayMark.SemanticValidator do
                          }}
                       end)
 
-  @spec validate(map()) :: [Diagnostic.t()]
-  def validate(document) when is_map(document) do
+  @spec validate(map(), map()) :: [Diagnostic.t()]
+  def validate(document, validation_context \\ %{})
+      when is_map(document) and is_map(validation_context) do
     diagnostics =
       []
       |> validate_document_type(document)
@@ -60,7 +61,7 @@ defmodule RelayMark.SemanticValidator do
         validate_block(block, state, evidence_targets, scripture_resources)
       end)
 
-    diagnostics = validate_agent_answer_profile(document, diagnostics)
+    diagnostics = validate_agent_answer_profile(document, diagnostics, validation_context)
     validate_document_identities(document, diagnostics)
   end
 
@@ -757,7 +758,7 @@ defmodule RelayMark.SemanticValidator do
     end
   end
 
-  defp validate_agent_answer_profile(document, diagnostics) do
+  defp validate_agent_answer_profile(document, diagnostics, validation_context) do
     frontmatter = document["frontmatter"] || %{}
 
     if frontmatter["profile"] == "relaymark.agent_answer.v1" do
@@ -809,7 +810,7 @@ defmodule RelayMark.SemanticValidator do
 
       case frontmatter["outcome"] do
         "answered" ->
-          validate_answered_agent_paper(document, diagnostics)
+          validate_answered_agent_paper(document, diagnostics, validation_context)
 
         "refused" ->
           validate_refused_agent_paper(document, diagnostics)
@@ -826,7 +827,7 @@ defmodule RelayMark.SemanticValidator do
     end
   end
 
-  defp validate_answered_agent_paper(document, diagnostics) do
+  defp validate_answered_agent_paper(document, diagnostics, validation_context) do
     blocks = document["blocks"] || []
 
     evidence_heading_index =
@@ -873,17 +874,20 @@ defmodule RelayMark.SemanticValidator do
         )
       end
 
-    evidence_counts =
+    {evidence_counts, evidence_blocks} =
       source_bundles
       |> Enum.filter(&(&1["type"] == "relay.source_bundle"))
-      |> Enum.reduce(%{}, fn source_bundle, counts ->
-        visit_blocks([source_bundle], counts, fn block, acc ->
+      |> Enum.reduce({%{}, %{}}, fn source_bundle, state ->
+        visit_blocks([source_bundle], state, fn block, {counts, blocks_by_id} ->
           evidence_id = get_in(block, ["props", "id"])
 
           if block["type"] == "relay.evidence_ref" and non_empty_string?(evidence_id) do
-            Map.update(acc, evidence_id, 1, &(&1 + 1))
+            {
+              Map.update(counts, evidence_id, 1, &(&1 + 1)),
+              Map.update(blocks_by_id, evidence_id, [block], &[block | &1])
+            }
           else
-            acc
+            {counts, blocks_by_id}
           end
         end)
       end)
@@ -922,6 +926,28 @@ defmodule RelayMark.SemanticValidator do
           )
         end
       end)
+
+    diagnostics =
+      if validation_surface(validation_context) == "scripture_ask" and
+           Enum.any?(
+             Enum.filter(claims, &(&1["type"] == "relay.claim")),
+             fn claim ->
+               Enum.any?(evidence_refs_for(claim), fn reference ->
+                 case Map.get(evidence_blocks, reference, []) do
+                   [%{"props" => %{"source_type" => "scripture"}}] -> false
+                   _other -> true
+                 end
+               end)
+             end
+           ) do
+        append_error(
+          diagnostics,
+          "relaymark.agent_answer.scripture_evidence",
+          "A Scripture Ask host context requires every answered claim evidence ref to resolve to relay.evidence_ref source_type scripture."
+        )
+      else
+        diagnostics
+      end
 
     contains_forbidden_block =
       visit_blocks(blocks, false, fn block, found ->
@@ -1282,6 +1308,10 @@ defmodule RelayMark.SemanticValidator do
       true ->
         []
     end
+  end
+
+  defp validation_surface(validation_context) do
+    validation_context["surface"] || validation_context[:surface]
   end
 
   defp validate_attribute(type, name, value, %{"type" => "enum"} = attribute, diagnostics) do

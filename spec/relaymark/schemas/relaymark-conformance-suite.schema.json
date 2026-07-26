@@ -42,6 +42,9 @@
         "input_ast": {
           "type": "string"
         },
+        "input_manifest": {
+          "type": "string"
+        },
         "expected_ast": {
           "type": "string"
         },
@@ -57,12 +60,27 @@
             "type": "string"
           },
           "default": []
+        },
+        "validation_context": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "surface": {
+              "type": "string",
+              "enum": ["scripture_ask"]
+            }
+          }
         }
       },
       "oneOf": [
         {
           "required": ["source"],
-          "not": {"required": ["input_ast"]}
+          "not": {
+            "anyOf": [
+              {"required": ["input_ast"]},
+              {"required": ["input_manifest"]}
+            ]
+          }
         },
         {
           "required": ["input_ast"],

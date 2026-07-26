@@ -1,0 +1,90 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "frontmatter": {
+    "title": "Non-Scripture evidence",
+    "scope": "private",
+    "profile": "relaymark.agent_answer.v1",
+    "question": "What does this source say?",
+    "question_id": "sha256:cd7190157dab01e82ba1be791895fffb745d726d9ae1af3096910066e57a6d67",
+    "outcome": "answered"
+  },
+  "blocks": [
+    {
+      "id": "invalidScriptureAnswerHeading",
+      "type": "heading",
+      "props": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "What the source says"
+        }
+      ]
+    },
+    {
+      "id": "invalidScriptureClaim",
+      "type": "relay.claim",
+      "props": {
+        "key": "source.answer",
+        "status": "supported"
+      },
+      "evidence_refs": [
+        "invalid-scripture-evidence"
+      ],
+      "content": [
+        {
+          "type": "text",
+          "text": "The source contains an answer."
+        }
+      ]
+    },
+    {
+      "id": "invalidScriptureEvidenceHeading",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Evidence"
+        }
+      ]
+    },
+    {
+      "id": "invalidScriptureSourceBundle",
+      "type": "relay.source_bundle",
+      "props": {
+        "id": "invalid-scripture-source-bundle",
+        "revision": 1,
+        "scope": "private"
+      },
+      "content": [
+        {
+          "id": "invalidScriptureEvidence",
+          "type": "relay.evidence_ref",
+          "props": {
+            "id": "invalid-scripture-evidence",
+            "source": "https://example.com/source",
+            "source_type": "url",
+            "source_revision": "web-1",
+            "selector": {
+              "url": "https://example.com/source"
+            },
+            "scope": "private"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "A non-Scripture source excerpt."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "annotations": [],
+  "resources": []
+}

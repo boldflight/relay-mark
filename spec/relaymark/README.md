@@ -84,6 +84,10 @@ spec/relaymark/
     invalid-agent-answer-question-id.diagnostics.json
     invalid-agent-answer-refusal.ast.json
     invalid-agent-answer-refusal.diagnostics.json
+    invalid-agent-answer-scripture-evidence.ast.json
+    invalid-agent-answer-scripture-evidence.diagnostics.json
+    invalid-agent-answer-manifest-action.manifest.json
+    invalid-agent-answer-manifest-action.diagnostics.json
     invalid-identity-collisions.relaymark
     invalid-identity-collisions.ast.json
     invalid-identity-collisions.diagnostics.json
@@ -98,6 +102,7 @@ spec/relaymark/
     scripture-ask-refused.ast.json
     scripture-ask-refused.manifest.json
   conformance/
+    agent-answer-fixture-receipt.json
     suite.json
 ```
 
@@ -235,6 +240,12 @@ An `answered` paper MUST contain, in order:
 4. one or more `relay.source_bundle` blocks containing the concrete
    `relay.evidence_ref` blocks used by the claims.
 
+The answer heading MUST be the first top-level block. The `Evidence` heading
+MUST be top-level after all claims and before all source bundles. “One” means
+exactly one total level-one heading and exactly one total level-two heading
+across the complete recursively nested block tree; another heading at either
+level makes the answered structure invalid.
+
 Every answered claim MUST have a non-empty stable `key` and one or more unique
 evidence references. Each reference MUST resolve exactly once to the `props.id`
 of a concrete `relay.evidence_ref` in the paper. The host owns source
@@ -242,10 +253,19 @@ projection and MUST construct evidence blocks from the retrieved immutable
 sources; a model MAY select only evidence ids from that retrieved set. An
 optional claim confidence MUST be finite and between `0.0` and `1.0`.
 
-For a Scripture Ask surface, every evidence ref used by an answer claim MUST
-satisfy the Scripture release and span profiles above. A successful answer
-MUST NOT contain `relay.agent_suggestion`, `relay.action_row`, or manifest
-actions. Read-only answers do not imply proposed or authorized mutations.
+The Agent Answer profile is surface-neutral. A runtime MUST NOT infer a
+Scripture Ask surface from the profile, filename, title, resource, or evidence
+content. The host that owns the exact action context supplies
+`surface: "scripture_ask"` as non-document validation context. When and only
+when that explicit context is present, every evidence ref used by an answer
+claim MUST resolve exactly once to a `relay.evidence_ref` whose
+`source_type` is `scripture`; that evidence MUST then satisfy the Scripture
+release and span profiles above. Validation context is never serialized into
+the AST or manifest and grants no authorization.
+
+A successful answer MUST NOT contain `relay.agent_suggestion`,
+`relay.action_row`, or manifest actions. Read-only answers do not imply
+proposed or authorized mutations.
 
 A `refused` paper MUST additionally contain
 `refusal_reason: "insufficient_evidence"` and MUST contain, in order, one
@@ -260,6 +280,16 @@ duplicating the profile or outcome. Hosts MUST validate the AST and manifest
 together, reject any mismatch, and bind the exact transported document and
 manifest JSON bytes with separate host-envelope digests. Those digests and
 transport request ids are not RelayMark document fields.
+
+The reusable transported-pair validators accept the exact canonical document
+and manifest UTF-8 JSON bytes, validate the Agent Answer profile with explicit
+host context, derive the canonical manifest projection, and compare the entire
+manifest by JSON value. Equality ignores object-key order only; it preserves
+array order and rejects missing, additional, or changed projection content,
+including injected actions. A successful result exposes separate lowercase
+SHA-256 digests prefixed with `sha256:` for the exact accepted byte sequences.
+Callers MUST NOT decode and re-encode either payload before calculating those
+digests.
 
 ### Action proposal identity
 
@@ -369,3 +399,8 @@ expected output schemas, and produce equivalent AST and manifest JSON.
 
 Conformance equality should ignore object key order. It should not ignore
 missing ids, missing diagnostics, changed action ids, or changed source refs.
+
+`conformance/agent-answer-fixture-receipt.json` binds the exact raw answered
+and refused AST/manifest fixture bytes. Conforming release gates for
+`profile.agent_answer.v1` MUST verify every receipted SHA-256 value before
+decoding and MUST validate each receipted document/manifest pair together.

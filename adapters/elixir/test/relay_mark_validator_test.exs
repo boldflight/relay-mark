@@ -9,7 +9,8 @@ defmodule RelayMarkValidatorTest do
     "product-research.ast.json",
     "scripture-evidence.ast.json",
     "scripture-ask-answered.ast.json",
-    "scripture-ask-refused.ast.json"
+    "scripture-ask-refused.ast.json",
+    "invalid-agent-answer-scripture-evidence.ast.json"
   ]
 
   test "accepts every valid canonical AST conformance fixture" do

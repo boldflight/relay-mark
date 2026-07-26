@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { directiveForType } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
 
-export function validateDocument(document) {
+export function validateDocument(document, validationContext = {}) {
   const diagnostics = [];
 
   if (document.type !== "relaymark.document") {
@@ -23,7 +23,7 @@ export function validateDocument(document) {
     validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources);
   }
 
-  validateAgentAnswerProfile(document, diagnostics);
+  validateAgentAnswerProfile(document, diagnostics, validationContext);
   validateDocumentIdentities(document, diagnostics);
 
   return diagnostics;
@@ -548,7 +548,7 @@ function validateClaim(block, diagnostics) {
   }
 }
 
-function validateAgentAnswerProfile(document, diagnostics) {
+function validateAgentAnswerProfile(document, diagnostics, validationContext) {
   const frontmatter = document.frontmatter || {};
 
   if (frontmatter.profile !== "relaymark.agent_answer.v1") return;
@@ -596,13 +596,13 @@ function validateAgentAnswerProfile(document, diagnostics) {
   }
 
   if (frontmatter.outcome === "answered") {
-    validateAnsweredAgentPaper(document, diagnostics);
+    validateAnsweredAgentPaper(document, diagnostics, validationContext);
   } else {
     validateRefusedAgentPaper(document, diagnostics);
   }
 }
 
-function validateAnsweredAgentPaper(document, diagnostics) {
+function validateAnsweredAgentPaper(document, diagnostics, validationContext) {
   const blocks = document.blocks || [];
   const evidenceHeadingIndex = blocks.findIndex(
     (block) => headingLevel(block) === 2 && plainText(block) === "Evidence"
@@ -637,11 +637,15 @@ function validateAnsweredAgentPaper(document, diagnostics) {
   }
 
   const evidenceCounts = new Map();
+  const evidenceBlocks = new Map();
 
   for (const sourceBundle of sourceBundles.filter((block) => block.type === "relay.source_bundle")) {
     visitBlocks([sourceBundle], (block) => {
       if (block.type !== "relay.evidence_ref" || !nonEmptyString(block.props?.id)) return;
       evidenceCounts.set(block.props.id, (evidenceCounts.get(block.props.id) || 0) + 1);
+      const blocksForID = evidenceBlocks.get(block.props.id) || [];
+      blocksForID.push(block);
+      evidenceBlocks.set(block.props.id, blocksForID);
     });
   }
 
@@ -671,6 +675,26 @@ function validateAnsweredAgentPaper(document, diagnostics) {
         error(
           "relaymark.agent_answer.claim_evidence",
           `Answered claim '${claim.id || "unknown"}' must cite one or more unique concrete evidence refs that each resolve exactly once inside the paper's source bundles.`
+        )
+      );
+    }
+  }
+
+  if (validationContext?.surface === "scripture_ask") {
+    const hasInvalidScriptureEvidence = claims
+      .filter((block) => block.type === "relay.claim")
+      .some((claim) =>
+        evidenceRefsFor(claim).some((reference) => {
+          const matches = evidenceBlocks.get(reference) || [];
+          return matches.length !== 1 || matches[0].props?.source_type !== "scripture";
+        })
+      );
+
+    if (hasInvalidScriptureEvidence) {
+      diagnostics.push(
+        error(
+          "relaymark.agent_answer.scripture_evidence",
+          "A Scripture Ask host context requires every answered claim evidence ref to resolve to relay.evidence_ref source_type scripture."
         )
       );
     }

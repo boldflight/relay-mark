@@ -7,9 +7,13 @@
 - Adds canonical answered and refused Scripture Ask AST/manifest fixtures to the
   shared conformance suite.
 - Enforces the profile's outcome, structure, evidence, and read-only boundaries
-  in the reference runtime and the Elixir validator.
-- Proves the same canonical fixture bytes through the generic Swift and Elixir
-  adapters without adding a product-specific API.
+  with portable diagnostics in the reference runtime and both generic adapters.
+- Adds reusable transported AST/manifest pair validation that rejects canonical
+  projection, action, and answer-content drift.
+- Adds a machine-readable SHA-256 receipt asserted by JavaScript, Swift, and
+  Elixir against the same exact answered and refused fixture bytes.
+- Makes Scripture Ask validation an explicit host action-context policy rather
+  than document-inferred state.
 
 Existing AST and manifest documents remain version 1. The profile uses existing
 headings, paragraphs, claims, source bundles, evidence references, resources,

@@ -2,8 +2,15 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { compileRelayMark, isBlockNode, isInlineNode, projectManifest } from "../src/index.js";
+import { dirname, join, resolve } from "node:path";
+import {
+  compileRelayMark,
+  isBlockNode,
+  isInlineNode,
+  projectManifest,
+  sha256Digest,
+  validateTransportedAgentAnswerPair
+} from "../src/index.js";
 import { runConformanceSuite } from "../src/conformance.js";
 import { validateJSONSchema } from "../src/json-schema.js";
 import { validateDocument } from "../src/validator.js";
@@ -508,6 +515,116 @@ describe("RelayMark reference runtime", () => {
         field
       );
     }
+  });
+
+  it("applies Scripture evidence rules only from explicit host action context", () => {
+    const document = JSON.parse(
+      readFileSync(
+        resolve("spec/relaymark/examples/invalid-agent-answer-scripture-evidence.ast.json"),
+        "utf8"
+      )
+    );
+    const expected = JSON.parse(
+      readFileSync(
+        resolve(
+          "spec/relaymark/examples/invalid-agent-answer-scripture-evidence.diagnostics.json"
+        ),
+        "utf8"
+      )
+    );
+
+    assert.deepEqual(validateDocument(document), []);
+    assert.deepEqual(validateDocument(document, { surface: "scripture_ask" }), expected);
+
+    const combinedInvalid = structuredClone(document);
+    combinedInvalid.blocks[1].props.status = "disputed";
+    combinedInvalid.blocks[1].evidence_refs.push(
+      combinedInvalid.blocks[1].evidence_refs[0]
+    );
+    assert.deepEqual(
+      validateDocument(combinedInvalid, { surface: "scripture_ask" }).map(({ code }) => code),
+      [
+        "relaymark.agent_answer.claim",
+        "relaymark.agent_answer.claim_evidence",
+        "relaymark.agent_answer.scripture_evidence"
+      ]
+    );
+  });
+
+  it("validates exact transported Agent Answer bytes and canonical manifest projection", () => {
+    const receiptPath = resolve(
+      "spec/relaymark/conformance/agent-answer-fixture-receipt.json"
+    );
+    const receiptDirectory = dirname(receiptPath);
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+
+    assert.equal(receipt.type, "relaymark.fixture_receipt");
+    assert.equal(receipt.version, "0.5.0-draft");
+    assert.equal(receipt.algorithm, "sha256");
+
+    for (const pair of receipt.pairs) {
+      const documentBytes = readFileSync(resolve(receiptDirectory, pair.document.path));
+      const manifestBytes = readFileSync(resolve(receiptDirectory, pair.manifest.path));
+
+      assert.equal(sha256Digest(documentBytes), `sha256:${pair.document.sha256}`, pair.id);
+      assert.equal(sha256Digest(manifestBytes), `sha256:${pair.manifest.sha256}`, pair.id);
+
+      const result = validateTransportedAgentAnswerPair(
+        documentBytes,
+        manifestBytes,
+        { surface: "scripture_ask" }
+      );
+
+      assert.deepEqual(result.diagnostics, [], pair.id);
+      assert.equal(result.document_digest, `sha256:${pair.document.sha256}`, pair.id);
+      assert.equal(result.manifest_digest, `sha256:${pair.manifest.sha256}`, pair.id);
+    }
+  });
+
+  it("rejects transported Agent Answer action and content projection drift", () => {
+    const refusedDocument = readFileSync(
+      resolve("spec/relaymark/examples/scripture-ask-refused.ast.json")
+    );
+    const forgedActionManifest = readFileSync(
+      resolve("spec/relaymark/examples/invalid-agent-answer-manifest-action.manifest.json")
+    );
+    const expected = JSON.parse(
+      readFileSync(
+        resolve(
+          "spec/relaymark/examples/invalid-agent-answer-manifest-action.diagnostics.json"
+        ),
+        "utf8"
+      )
+    );
+
+    assert.deepEqual(
+      validateTransportedAgentAnswerPair(
+        refusedDocument,
+        forgedActionManifest,
+        { surface: "scripture_ask" }
+      ).diagnostics,
+      expected
+    );
+
+    const answeredDocument = readFileSync(
+      resolve("spec/relaymark/examples/scripture-ask-answered.ast.json")
+    );
+    const contentDrift = JSON.parse(
+      readFileSync(
+        resolve("spec/relaymark/examples/scripture-ask-answered.manifest.json"),
+        "utf8"
+      )
+    );
+    contentDrift.claims[0].text = "A forged answer.";
+
+    assert.deepEqual(
+      validateTransportedAgentAnswerPair(
+        answeredDocument,
+        JSON.stringify(contentDrift),
+        { surface: "scripture_ask" }
+      ).diagnostics,
+      expected
+    );
   });
 
   it("does not validate inline entity references as Relay blocks", () => {
