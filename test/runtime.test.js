@@ -2,8 +2,15 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
-import { compileRelayMark, isBlockNode, isInlineNode, projectManifest } from "../src/index.js";
+import { dirname, join, resolve } from "node:path";
+import {
+  compileRelayMark,
+  isBlockNode,
+  isInlineNode,
+  projectManifest,
+  sha256Digest,
+  validateTransportedAgentAnswerPair
+} from "../src/index.js";
 import { runConformanceSuite } from "../src/conformance.js";
 import { validateJSONSchema } from "../src/json-schema.js";
 import { validateDocument } from "../src/validator.js";
@@ -335,6 +342,382 @@ describe("RelayMark reference runtime", () => {
         "relaymark.scripture.span_boundary",
         "relaymark.scripture.content_digest"
       ]
+    );
+  });
+
+  it("enforces answered and refused Agent Answer profile semantics", () => {
+    const answered = JSON.parse(
+      readFileSync(resolve("spec/relaymark/examples/scripture-ask-answered.ast.json"), "utf8")
+    );
+    const refused = JSON.parse(
+      readFileSync(resolve("spec/relaymark/examples/scripture-ask-refused.ast.json"), "utf8")
+    );
+
+    assert.deepEqual(validateDocument(answered), []);
+    assert.deepEqual(validateDocument(refused), []);
+
+    const invalidClaim = structuredClone(answered);
+    invalidClaim.blocks[1].props.status = "disputed";
+    assert.deepEqual(validateDocument(invalidClaim).map(({ code }) => code), [
+      "relaymark.agent_answer.claim"
+    ]);
+
+    const duplicateClaimEvidence = structuredClone(answered);
+    duplicateClaimEvidence.blocks[1].evidence_refs.push(
+      duplicateClaimEvidence.blocks[1].evidence_refs[0]
+    );
+    assert.deepEqual(validateDocument(duplicateClaimEvidence).map(({ code }) => code), [
+      "relaymark.agent_answer.claim_evidence"
+    ]);
+
+    const invalidAnsweredStructure = structuredClone(answered);
+    invalidAnsweredStructure.blocks[2].content[0].text = " Evidence";
+    assert.deepEqual(validateDocument(invalidAnsweredStructure).map(({ code }) => code), [
+      "relaymark.agent_answer.answered_structure"
+    ]);
+
+    const secondAnswerHeading = structuredClone(answered);
+    secondAnswerHeading.blocks.push({
+      id: "secondAnswerHeading",
+      type: "heading",
+      props: { level: 1 },
+      content: [{ type: "text", text: "Second answer" }]
+    });
+    assert.deepEqual(validateDocument(secondAnswerHeading).map(({ code }) => code), [
+      "relaymark.agent_answer.answered_structure"
+    ]);
+
+    const nestedEvidenceHeading = structuredClone(answered);
+    nestedEvidenceHeading.blocks[3].content.push({
+      id: "nestedEvidenceHeading",
+      type: "heading",
+      props: { level: 2 },
+      content: [{ type: "text", text: "Nested heading" }]
+    });
+    assert.deepEqual(validateDocument(nestedEvidenceHeading).map(({ code }) => code), [
+      "relaymark.agent_answer.answered_structure"
+    ]);
+
+    const integralHeadingLevels = structuredClone(answered);
+    integralHeadingLevels.blocks[0].props.level = 1.0;
+    integralHeadingLevels.blocks[2].props.level = 2.0;
+    assert.deepEqual(validateDocument(integralHeadingLevels), []);
+
+    const nonfiniteConfidence = structuredClone(answered);
+    nonfiniteConfidence.blocks[1].props.confidence = Number.POSITIVE_INFINITY;
+    assert.deepEqual(validateDocument(nonfiniteConfidence).map(({ code }) => code), [
+      "relaymark.claim.confidence_range"
+    ]);
+
+    const duplicatedConcreteEvidence = structuredClone(answered);
+    const duplicatedEvidence = structuredClone(duplicatedConcreteEvidence.blocks[3].content[0]);
+    duplicatedEvidence.id = "askEvidenceDuplicate";
+    duplicatedConcreteEvidence.blocks[3].content.push(duplicatedEvidence);
+    assert.deepEqual(validateDocument(duplicatedConcreteEvidence).map(({ code }) => code), [
+      "relaymark.agent_answer.claim_evidence",
+      "relaymark.identity.duplicate_evidence"
+    ]);
+
+    const nonConcreteEvidenceTarget = structuredClone(answered);
+    nonConcreteEvidenceTarget.blocks[1].evidence_refs = [
+      nonConcreteEvidenceTarget.blocks[3].props.id
+    ];
+    assert.deepEqual(validateDocument(nonConcreteEvidenceTarget).map(({ code }) => code), [
+      "relaymark.agent_answer.claim_evidence"
+    ]);
+
+    const exactQuestion = structuredClone(answered);
+    exactQuestion.frontmatter.question = "  Why did Priscilla travel? 🌿\n";
+    exactQuestion.frontmatter.question_id =
+      "sha256:4028e93caf14fa131e71f9a4983efc2dcca8f1220d2e58e0deb386cb6e33ed23";
+    assert.deepEqual(validateDocument(exactQuestion), []);
+
+    const unicodeWhitespaceTitle = structuredClone(answered);
+    unicodeWhitespaceTitle.frontmatter.title = "\u0085";
+    assert.deepEqual(validateDocument(unicodeWhitespaceTitle).map(({ code }) => code), [
+      "relaymark.agent_answer.title"
+    ]);
+
+    const unicodeWhitespaceClaim = structuredClone(answered);
+    unicodeWhitespaceClaim.blocks[1].content[0].text = "\u0085";
+    assert.deepEqual(validateDocument(unicodeWhitespaceClaim).map(({ code }) => code), [
+      "relaymark.agent_answer.claim"
+    ]);
+
+    const unicodeWhitespaceExplanation = structuredClone(refused);
+    unicodeWhitespaceExplanation.blocks[1].content[0].text = "\u0085";
+    assert.deepEqual(validateDocument(unicodeWhitespaceExplanation).map(({ code }) => code), [
+      "relaymark.agent_answer.refused_structure"
+    ]);
+
+    const unicodeWhitespaceEvidenceReference = structuredClone(answered);
+    unicodeWhitespaceEvidenceReference.blocks[1].evidence_refs = ["\u0085"];
+    assert.deepEqual(
+      validateDocument(unicodeWhitespaceEvidenceReference).map(({ code }) => code),
+      [
+        "relaymark.policy.evidence_required",
+        "relaymark.evidence.invalid_reference",
+        "relaymark.agent_answer.claim_evidence"
+      ]
+    );
+
+    const byteOrderMarkTitle = structuredClone(answered);
+    byteOrderMarkTitle.frontmatter.title = "\uFEFF";
+    assert.deepEqual(validateDocument(byteOrderMarkTitle), []);
+
+    const byteOrderMarkEvidenceReference = structuredClone(answered);
+    byteOrderMarkEvidenceReference.blocks[1].evidence_refs = ["\uFEFF"];
+    assert.deepEqual(
+      validateDocument(byteOrderMarkEvidenceReference).map(({ code }) => code),
+      [
+        "relaymark.evidence.unresolved_reference",
+        "relaymark.agent_answer.claim_evidence"
+      ]
+    );
+
+    const answeredWithRefusalReason = structuredClone(answered);
+    answeredWithRefusalReason.frontmatter.refusal_reason = "insufficient_evidence";
+    assert.deepEqual(validateDocument(answeredWithRefusalReason).map(({ code }) => code), [
+      "relaymark.agent_answer.refusal_reason"
+    ]);
+
+    const invalidRefusal = structuredClone(refused);
+    invalidRefusal.frontmatter.refusal_reason = "provider_failure";
+    invalidRefusal.blocks.push({
+      id: "forbiddenRefusalSource",
+      type: "relay.source_bundle",
+      props: { id: "forbidden-refusal-source" },
+      content: []
+    });
+    assert.deepEqual(validateDocument(invalidRefusal).map(({ code }) => code), [
+      "relaymark.agent_answer.refusal_reason",
+      "relaymark.agent_answer.refused_structure",
+      "relaymark.agent_answer.refused_content"
+    ]);
+
+    const inexactRefusalHeading = structuredClone(refused);
+    inexactRefusalHeading.blocks[0].content[0].text = "Answer unavailable ";
+    assert.deepEqual(validateDocument(inexactRefusalHeading).map(({ code }) => code), [
+      "relaymark.agent_answer.refused_structure"
+    ]);
+
+    for (const [field, value, expectedCode] of [
+      ["title", "", "relaymark.agent_answer.title"],
+      ["scope", "team", "relaymark.agent_answer.scope"],
+      ["question", "", "relaymark.agent_answer.question"],
+      ["outcome", "partial", "relaymark.agent_answer.outcome"]
+    ]) {
+      const invalidFrontmatter = structuredClone(answered);
+      invalidFrontmatter.frontmatter[field] = value;
+      assert.deepEqual(
+        validateDocument(invalidFrontmatter).map(({ code }) => code),
+        [expectedCode],
+        field
+      );
+    }
+  });
+
+  it("applies Scripture evidence rules only from explicit host action context", () => {
+    const document = JSON.parse(
+      readFileSync(
+        resolve("spec/relaymark/examples/invalid-agent-answer-scripture-evidence.ast.json"),
+        "utf8"
+      )
+    );
+    const expected = JSON.parse(
+      readFileSync(
+        resolve(
+          "spec/relaymark/examples/invalid-agent-answer-scripture-evidence.diagnostics.json"
+        ),
+        "utf8"
+      )
+    );
+
+    assert.deepEqual(validateDocument(document), []);
+    assert.deepEqual(validateDocument(document, { surface: "scripture_ask" }), expected);
+
+    const combinedInvalid = structuredClone(document);
+    combinedInvalid.blocks[1].props.status = "disputed";
+    combinedInvalid.blocks[1].evidence_refs.push(
+      combinedInvalid.blocks[1].evidence_refs[0]
+    );
+    assert.deepEqual(
+      validateDocument(combinedInvalid, { surface: "scripture_ask" }).map(({ code }) => code),
+      [
+        "relaymark.agent_answer.claim",
+        "relaymark.agent_answer.claim_evidence",
+        "relaymark.agent_answer.scripture_evidence"
+      ]
+    );
+  });
+
+  it("validates exact transported Agent Answer bytes and canonical manifest projection", () => {
+    const receiptPath = resolve(
+      "spec/relaymark/conformance/agent-answer-fixture-receipt.json"
+    );
+    const receiptDirectory = dirname(receiptPath);
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
+
+    assert.equal(receipt.type, "relaymark.fixture_receipt");
+    assert.equal(receipt.version, "0.5.0-draft");
+    assert.equal(receipt.algorithm, "sha256");
+
+    for (const pair of receipt.pairs) {
+      const documentBytes = readFileSync(resolve(receiptDirectory, pair.document.path));
+      const manifestBytes = readFileSync(resolve(receiptDirectory, pair.manifest.path));
+
+      assert.equal(sha256Digest(documentBytes), `sha256:${pair.document.sha256}`, pair.id);
+      assert.equal(sha256Digest(manifestBytes), `sha256:${pair.manifest.sha256}`, pair.id);
+
+      const result = validateTransportedAgentAnswerPair(
+        documentBytes,
+        manifestBytes,
+        { surface: "scripture_ask" }
+      );
+
+      assert.deepEqual(result.diagnostics, [], pair.id);
+      assert.equal(result.document_digest, `sha256:${pair.document.sha256}`, pair.id);
+      assert.equal(result.manifest_digest, `sha256:${pair.manifest.sha256}`, pair.id);
+    }
+  });
+
+  it("rejects non-portable transported JSON and accepts escaped scalar pairs", () => {
+    const documentPath = resolve(
+      "spec/relaymark/examples/scripture-ask-refused.ast.json"
+    );
+    const manifestPath = resolve(
+      "spec/relaymark/examples/scripture-ask-refused.manifest.json"
+    );
+    const documentBytes = readFileSync(documentPath);
+    const manifestBytes = readFileSync(manifestPath);
+    const titleBytes = Buffer.from("Answer unavailable");
+    const titleOffset = documentBytes.indexOf(titleBytes);
+
+    assert.notEqual(titleOffset, -1);
+
+    const invalidUTF8 = Buffer.from(documentBytes);
+    invalidUTF8[titleOffset] = 0xff;
+
+    assert.throws(
+      () => validateTransportedAgentAnswerPair(invalidUTF8, manifestBytes),
+      TypeError
+    );
+
+    const rawControl = Buffer.from(
+      documentBytes
+        .toString("utf8")
+        .replace("Answer unavailable", "Answer\nunavailable")
+    );
+
+    assert.throws(
+      () => validateTransportedAgentAnswerPair(rawControl, manifestBytes),
+      SyntaxError
+    );
+
+    const loneSurrogate = Buffer.from(
+      documentBytes
+        .toString("utf8")
+        .replace("Answer unavailable", "\\ud83d")
+    );
+
+    assert.throws(
+      () => validateTransportedAgentAnswerPair(loneSurrogate, manifestBytes),
+      SyntaxError
+    );
+
+    const escapedScalarPair = JSON.parse(documentBytes.toString("utf8"));
+    escapedScalarPair.frontmatter.title = "😀";
+    const escapedScalarPairJSON = JSON.stringify(escapedScalarPair).replaceAll(
+      "😀",
+      "\\ud83d\\ude00"
+    );
+    const escapedScalarManifest = JSON.stringify(projectManifest(escapedScalarPair));
+    const result = validateTransportedAgentAnswerPair(
+      escapedScalarPairJSON,
+      escapedScalarManifest
+    );
+
+    assert.deepEqual(result.diagnostics, []);
+    assert.equal(result.document.frontmatter.title, "😀");
+  });
+
+  it("runs the canonical document schema before transported Agent Answer semantics", () => {
+    const baseDocument = JSON.parse(
+      readFileSync(
+        resolve("spec/relaymark/examples/scripture-ask-refused.ast.json"),
+        "utf8"
+      )
+    );
+    const manifest = readFileSync(
+      resolve("spec/relaymark/examples/scripture-ask-refused.manifest.json")
+    );
+
+    for (const profile of [undefined, "relaymark.wrong_profile.v1"]) {
+      const document = structuredClone(baseDocument);
+      document.blocks[0].id = "1-invalid";
+
+      if (profile === undefined) {
+        delete document.frontmatter.profile;
+      } else {
+        document.frontmatter.profile = profile;
+      }
+
+      assert.deepEqual(
+        validateTransportedAgentAnswerPair(JSON.stringify(document), manifest).diagnostics,
+        [
+          {
+            level: "error",
+            code: "relaymark.schema.invalid",
+            message: "Document does not conform to the RelayMark document schema."
+          }
+        ]
+      );
+    }
+  });
+
+  it("rejects transported Agent Answer action and content projection drift", () => {
+    const refusedDocument = readFileSync(
+      resolve("spec/relaymark/examples/scripture-ask-refused.ast.json")
+    );
+    const forgedActionManifest = readFileSync(
+      resolve("spec/relaymark/examples/invalid-agent-answer-manifest-action.manifest.json")
+    );
+    const expected = JSON.parse(
+      readFileSync(
+        resolve(
+          "spec/relaymark/examples/invalid-agent-answer-manifest-action.diagnostics.json"
+        ),
+        "utf8"
+      )
+    );
+
+    assert.deepEqual(
+      validateTransportedAgentAnswerPair(
+        refusedDocument,
+        forgedActionManifest,
+        { surface: "scripture_ask" }
+      ).diagnostics,
+      expected
+    );
+
+    const answeredDocument = readFileSync(
+      resolve("spec/relaymark/examples/scripture-ask-answered.ast.json")
+    );
+    const contentDrift = JSON.parse(
+      readFileSync(
+        resolve("spec/relaymark/examples/scripture-ask-answered.manifest.json"),
+        "utf8"
+      )
+    );
+    contentDrift.claims[0].text = "A forged answer.";
+
+    assert.deepEqual(
+      validateTransportedAgentAnswerPair(
+        answeredDocument,
+        JSON.stringify(contentDrift),
+        { surface: "scripture_ask" }
+      ).diagnostics,
+      expected
     );
   });
 

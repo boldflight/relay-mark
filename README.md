@@ -3,8 +3,10 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-The current reference runtime and generic adapters are released as `0.4.1` and
-implement the portable `0.4.0-draft` contract line.
+RelayMark `0.5.0` implements the portable `0.5.0-draft` contract line in the
+reference runtime and generic adapters. Tagged releases are the distribution
+boundary for Swift and Elixir consumers; package-manifest versions or an
+untagged branch do not establish publication.
 
 This repository owns the portable RelayMark contract:
 
@@ -13,11 +15,10 @@ This repository owns the portable RelayMark contract:
 - `src/` - dependency-free reference runtime for parsing, validation, compiling,
   projections, and conformance.
 - `bin/relaymark.mjs` - small CLI wrapper.
-- `adapters/swift/` - generic Swift value-model adapter for AST and manifest,
-  exposed as the root Swift package product `RelayMarkSwift`
-  JSON.
-- `adapters/elixir/` - generic Elixir value-model adapter for AST and manifest
-  JSON.
+- `adapters/swift/` - generic Swift value models and Agent Answer validation,
+  exposed as the root Swift package product `RelayMarkSwift`.
+- `adapters/elixir/` - generic Elixir value models, document validation, and
+  Agent Answer transported-pair validation.
 
 Relay app integrations belong in client repositories. Generic runtime pieces and
 portable adapters belong here.
@@ -29,7 +30,7 @@ Keep these in this repo:
 - Core parser, validator, compiler, projection, and conformance runner.
 - JSON Schema and fixture definitions.
 - Generic TypeScript/JavaScript APIs.
-- Generic Swift and Elixir value models for RelayMark AST and manifests.
+- Generic Swift and Elixir value models and portable validation helpers.
 - A future generic Tiptap/ProseMirror adapter if it only maps RelayMark AST to
   editor nodes and back.
 
@@ -51,6 +52,18 @@ npm run check
 swift test
 (cd adapters/elixir && mix test)
 node bin/relaymark.mjs compile spec/relaymark/examples/mentor-meeting.relaymark
+```
+
+Validate one exact transported Agent Answer pair with the reference runtime:
+
+```js
+import { validateTransportedAgentAnswerPair } from "./src/index.js";
+
+const result = validateTransportedAgentAnswerPair(documentBytes, manifestBytes, {
+  surface: "scripture_ask"
+});
+
+if (result.diagnostics.length > 0) reject(result.diagnostics);
 ```
 
 ## Swift package distribution

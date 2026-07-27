@@ -183,6 +183,107 @@ defmodule RelayMarkTest do
     assert comparison.values["price_usd"]["entity:product-mac-mini-m4-pro"] == 1399
   end
 
+  test "decodes the canonical answered Scripture Ask paper and its evidence projection" do
+    assert {:ok, document} =
+             "../../../spec/relaymark/examples/scripture-ask-answered.ast.json"
+             |> fixture()
+             |> RelayMark.decode_document()
+
+    assert %{
+             "profile" => "relaymark.agent_answer.v1",
+             "outcome" => "answered",
+             "question" => "What does Acts 18:2-3 say about Aquila and Priscilla?",
+             "question_id" =>
+               "sha256:6640f17d592931bf54f6d3bdf1c1b5f1a7a302bcdc4b7a2e626fd9671b6a1da8"
+           } = document.frontmatter
+
+    assert [answer_heading, claim, evidence_heading, source_bundle] = document.blocks
+    assert answer_heading.type == "heading"
+
+    assert RelayMark.Block.plain_text(answer_heading) ==
+             "What Acts says about Aquila and Priscilla"
+
+    assert claim.type == "relay.claim"
+    assert claim.props["key"] == "scripture.ask.aquila-priscilla.acts-18-2-3"
+    assert claim.props["status"] == "supported"
+    assert claim.evidence_refs == ["urn:relay:scripture:evidence:acts-18-2-3"]
+
+    assert RelayMark.Block.plain_text(claim) ==
+             "Acts 18:2-3 identifies Aquila as a Jewish man from Pontus, names Priscilla as his wife, and says their occupation was tentmaking."
+
+    assert RelayMark.Block.plain_text(evidence_heading) == "Evidence"
+    assert [evidence_block] = source_bundle.content
+    assert evidence_block.type == "relay.evidence_ref"
+    assert evidence_block.props["id"] == "urn:relay:scripture:evidence:acts-18-2-3"
+    assert evidence_block.props["source"] == "askScriptureRelease1"
+
+    assert [release_resource] = document.resources
+    assert {:ok, release} = RelayMark.Resource.scripture_release(release_resource)
+    assert release.corpus_release_id == "urn:relay:scripture:corpus:kjv:1769-fixture-1"
+
+    assert {:ok, manifest} =
+             "../../../spec/relaymark/examples/scripture-ask-answered.manifest.json"
+             |> fixture()
+             |> RelayMark.decode_manifest()
+
+    assert [claim_projection] = manifest.claims
+    assert claim_projection.block_id == "askClaim1"
+    assert claim_projection.key == "scripture.ask.aquila-priscilla.acts-18-2-3"
+    assert claim_projection.status == "supported"
+    assert claim_projection.evidence_refs == ["urn:relay:scripture:evidence:acts-18-2-3"]
+
+    assert [source_bundle_projection, evidence_projection] = manifest.sources
+    assert source_bundle_projection.kind == "source_bundle"
+
+    assert source_bundle_projection.source_id ==
+             "urn:relay:scripture:source-bundle:ask-aquila-priscilla-1"
+
+    assert {:ok, evidence} =
+             RelayMark.Scripture.Evidence.from_manifest_source(evidence_projection)
+
+    assert evidence.evidence_id == "urn:relay:scripture:evidence:acts-18-2-3"
+    assert evidence.source_id == "askScriptureRelease1"
+    assert evidence.source_revision == release.corpus_release_id
+    assert evidence.span.start.book_id == "ACT"
+    assert evidence.span.start.chapter == 18
+    assert evidence.span.start.verse_label == "2"
+    assert evidence.span.end.verse_label == "3"
+    assert evidence.release == release
+    assert manifest.actions == []
+  end
+
+  test "decodes the canonical refused Scripture Ask paper without answer projections" do
+    assert {:ok, document} =
+             "../../../spec/relaymark/examples/scripture-ask-refused.ast.json"
+             |> fixture()
+             |> RelayMark.decode_document()
+
+    assert %{
+             "profile" => "relaymark.agent_answer.v1",
+             "outcome" => "refused",
+             "question" => "Was Priscilla the author of Hebrews?",
+             "question_id" =>
+               "sha256:b776b0f739964c4ebe9826ffef5212952a7a1ec9e90e2ac22f7839ae7ae56052",
+             "refusal_reason" => "insufficient_evidence"
+           } = document.frontmatter
+
+    assert [heading, explanation] = document.blocks
+    assert heading.type == "heading"
+    assert RelayMark.Block.plain_text(heading) == "Answer unavailable"
+    assert explanation.type == "paragraph"
+    assert RelayMark.Block.plain_text(explanation) != ""
+    assert document.resources == []
+
+    assert {:ok, manifest} =
+             "../../../spec/relaymark/examples/scripture-ask-refused.manifest.json"
+             |> fixture()
+             |> RelayMark.decode_manifest()
+
+    assert manifest.claims == []
+    assert manifest.sources == []
+    assert manifest.actions == []
+  end
+
   defp fixture(relative_path) do
     __DIR__
     |> Path.join(relative_path)

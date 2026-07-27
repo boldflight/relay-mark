@@ -44,8 +44,9 @@ defmodule RelayMark.SemanticValidator do
                          }}
                       end)
 
-  @spec validate(map()) :: [Diagnostic.t()]
-  def validate(document) when is_map(document) do
+  @spec validate(map(), map()) :: [Diagnostic.t()]
+  def validate(document, validation_context \\ %{})
+      when is_map(document) and is_map(validation_context) do
     diagnostics =
       []
       |> validate_document_type(document)
@@ -60,6 +61,7 @@ defmodule RelayMark.SemanticValidator do
         validate_block(block, state, evidence_targets, scripture_resources)
       end)
 
+    diagnostics = validate_agent_answer_profile(document, diagnostics, validation_context)
     validate_document_identities(document, diagnostics)
   end
 
@@ -657,7 +659,7 @@ defmodule RelayMark.SemanticValidator do
           )
         end
 
-      if block_plain_text(block) |> String.trim() |> non_empty_string?() do
+      if block_plain_text(block) |> non_empty_string?() do
         diagnostics
       else
         append_error(
@@ -744,7 +746,8 @@ defmodule RelayMark.SemanticValidator do
   defp validate_claim(block, diagnostics) do
     confidence = get_in(block, ["props", "confidence"])
 
-    if is_number(confidence) and (confidence < 0 or confidence > 1) do
+    if is_number(confidence) and
+         (not finite_number?(confidence) or confidence < 0 or confidence > 1) do
       append_error(
         diagnostics,
         "relaymark.claim.confidence_range",
@@ -754,6 +757,299 @@ defmodule RelayMark.SemanticValidator do
       diagnostics
     end
   end
+
+  defp validate_agent_answer_profile(document, diagnostics, validation_context) do
+    frontmatter = document["frontmatter"] || %{}
+
+    if frontmatter["profile"] == "relaymark.agent_answer.v1" do
+      diagnostics =
+        if non_empty_string?(frontmatter["title"]) do
+          diagnostics
+        else
+          append_error(
+            diagnostics,
+            "relaymark.agent_answer.title",
+            "relaymark.agent_answer.v1 requires a non-empty title."
+          )
+        end
+
+      diagnostics =
+        if frontmatter["scope"] in ["private", "org", "unlisted", "public"] do
+          diagnostics
+        else
+          append_error(
+            diagnostics,
+            "relaymark.agent_answer.scope",
+            "relaymark.agent_answer.v1 requires an explicit private, org, unlisted, or public scope."
+          )
+        end
+
+      diagnostics =
+        if non_empty_string?(frontmatter["question"]) do
+          expected_question_id =
+            "sha256:" <>
+              (:crypto.hash(:sha256, frontmatter["question"])
+               |> Base.encode16(case: :lower))
+
+          if frontmatter["question_id"] == expected_question_id do
+            diagnostics
+          else
+            append_error(
+              diagnostics,
+              "relaymark.agent_answer.question_id",
+              "relaymark.agent_answer.v1 question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
+            )
+          end
+        else
+          append_error(
+            diagnostics,
+            "relaymark.agent_answer.question",
+            "relaymark.agent_answer.v1 requires a non-empty exact question."
+          )
+        end
+
+      case frontmatter["outcome"] do
+        "answered" ->
+          validate_answered_agent_paper(document, diagnostics, validation_context)
+
+        "refused" ->
+          validate_refused_agent_paper(document, diagnostics)
+
+        _other ->
+          append_error(
+            diagnostics,
+            "relaymark.agent_answer.outcome",
+            "relaymark.agent_answer.v1 outcome must be answered or refused."
+          )
+      end
+    else
+      diagnostics
+    end
+  end
+
+  defp validate_answered_agent_paper(document, diagnostics, validation_context) do
+    blocks = document["blocks"] || []
+
+    evidence_heading_index =
+      Enum.find_index(blocks, fn block ->
+        heading_level(block) == 2 and block_plain_text(block) == "Evidence"
+      end)
+
+    claims =
+      if is_integer(evidence_heading_index) and evidence_heading_index > 1 do
+        Enum.slice(blocks, 1, evidence_heading_index - 1)
+      else
+        []
+      end
+
+    source_bundles =
+      if is_integer(evidence_heading_index) do
+        Enum.drop(blocks, evidence_heading_index + 1)
+      else
+        []
+      end
+
+    {level_one_heading_count, level_two_heading_count} =
+      visit_blocks(blocks, {0, 0}, fn block, {level_one_count, level_two_count} ->
+        {
+          if(heading_level(block) == 1, do: level_one_count + 1, else: level_one_count),
+          if(heading_level(block) == 2, do: level_two_count + 1, else: level_two_count)
+        }
+      end)
+
+    structure_valid =
+      length(blocks) >= 4 and heading_level(List.first(blocks)) == 1 and
+        level_one_heading_count == 1 and level_two_heading_count == 1 and claims != [] and
+        Enum.all?(claims, &(&1["type"] == "relay.claim")) and source_bundles != [] and
+        Enum.all?(source_bundles, &(&1["type"] == "relay.source_bundle"))
+
+    diagnostics =
+      if structure_valid do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.agent_answer.answered_structure",
+          "An answered relaymark.agent_answer.v1 paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
+        )
+      end
+
+    {evidence_counts, evidence_blocks} =
+      source_bundles
+      |> Enum.filter(&(&1["type"] == "relay.source_bundle"))
+      |> Enum.reduce({%{}, %{}}, fn source_bundle, state ->
+        visit_blocks([source_bundle], state, fn block, {counts, blocks_by_id} ->
+          evidence_id = get_in(block, ["props", "id"])
+
+          if block["type"] == "relay.evidence_ref" and non_empty_string?(evidence_id) do
+            {
+              Map.update(counts, evidence_id, 1, &(&1 + 1)),
+              Map.update(blocks_by_id, evidence_id, [block], &[block | &1])
+            }
+          else
+            {counts, blocks_by_id}
+          end
+        end)
+      end)
+
+    diagnostics =
+      claims
+      |> Enum.filter(&(&1["type"] == "relay.claim"))
+      |> Enum.reduce(diagnostics, fn claim, acc ->
+        props = claim["props"] || %{}
+        evidence_refs = evidence_refs_for(claim)
+
+        acc =
+          if non_empty_string?(props["key"]) and props["status"] == "supported" and
+               non_empty_string?(block_plain_text(claim)) do
+            acc
+          else
+            append_error(
+              acc,
+              "relaymark.agent_answer.claim",
+              "Answered claim '#{claim["id"] || "unknown"}' requires a non-empty key and text with supported status."
+            )
+          end
+
+        unique_refs = MapSet.new(evidence_refs)
+
+        if evidence_refs != [] and MapSet.size(unique_refs) == length(evidence_refs) and
+             Enum.all?(evidence_refs, fn reference ->
+               non_empty_string?(reference) and Map.get(evidence_counts, reference, 0) == 1
+             end) do
+          acc
+        else
+          append_error(
+            acc,
+            "relaymark.agent_answer.claim_evidence",
+            "Answered claim '#{claim["id"] || "unknown"}' must cite one or more unique concrete evidence refs that each resolve exactly once inside the paper's source bundles."
+          )
+        end
+      end)
+
+    diagnostics =
+      if validation_surface(validation_context) == "scripture_ask" and
+           Enum.any?(
+             Enum.filter(claims, &(&1["type"] == "relay.claim")),
+             fn claim ->
+               Enum.any?(evidence_refs_for(claim), fn reference ->
+                 case Map.get(evidence_blocks, reference, []) do
+                   [%{"props" => %{"source_type" => "scripture"}}] -> false
+                   _other -> true
+                 end
+               end)
+             end
+           ) do
+        append_error(
+          diagnostics,
+          "relaymark.agent_answer.scripture_evidence",
+          "A Scripture Ask host context requires every answered claim evidence ref to resolve to relay.evidence_ref source_type scripture."
+        )
+      else
+        diagnostics
+      end
+
+    contains_forbidden_block =
+      visit_blocks(blocks, false, fn block, found ->
+        found or block["type"] in ["relay.agent_suggestion", "relay.action_row"]
+      end)
+
+    diagnostics =
+      if contains_forbidden_block do
+        append_error(
+          diagnostics,
+          "relaymark.agent_answer.read_only",
+          "An answered relaymark.agent_answer.v1 paper must not contain agent suggestions or action rows."
+        )
+      else
+        diagnostics
+      end
+
+    if Map.has_key?(document["frontmatter"] || %{}, "refusal_reason") do
+      append_error(
+        diagnostics,
+        "relaymark.agent_answer.refusal_reason",
+        "An answered relaymark.agent_answer.v1 paper must not contain refusal_reason."
+      )
+    else
+      diagnostics
+    end
+  end
+
+  defp validate_refused_agent_paper(document, diagnostics) do
+    blocks = document["blocks"] || []
+
+    {nested_block_count, level_one_heading_count} =
+      visit_blocks(blocks, {0, 0}, fn block, {block_count, heading_count} ->
+        {
+          block_count + 1,
+          if(heading_level(block) == 1, do: heading_count + 1, else: heading_count)
+        }
+      end)
+
+    diagnostics =
+      if get_in(document, ["frontmatter", "refusal_reason"]) == "insufficient_evidence" do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.agent_answer.refusal_reason",
+          "A refused relaymark.agent_answer.v1 paper requires refusal_reason insufficient_evidence."
+        )
+      end
+
+    explanation = Enum.at(blocks, 1)
+
+    structure_valid =
+      length(blocks) == 2 and nested_block_count == 2 and
+        heading_level(List.first(blocks)) == 1 and level_one_heading_count == 1 and
+        block_plain_text(List.first(blocks)) == "Answer unavailable" and
+        explanation["type"] == "paragraph" and non_empty_string?(block_plain_text(explanation))
+
+    diagnostics =
+      if structure_valid do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.agent_answer.refused_structure",
+          "A refused relaymark.agent_answer.v1 paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
+        )
+      end
+
+    forbidden_types = [
+      "relay.claim",
+      "relay.source_bundle",
+      "relay.evidence_ref",
+      "relay.agent_suggestion",
+      "relay.action_row"
+    ]
+
+    contains_forbidden_block =
+      visit_blocks(blocks, false, fn block, found ->
+        found or block["type"] in forbidden_types
+      end)
+
+    if contains_forbidden_block or (document["resources"] || []) != [] do
+      append_error(
+        diagnostics,
+        "relaymark.agent_answer.refused_content",
+        "A refused relaymark.agent_answer.v1 paper must not contain claims, sources, resources, evidence, suggestions, or actions."
+      )
+    else
+      diagnostics
+    end
+  end
+
+  defp heading_level(%{"type" => "heading", "props" => %{"level" => level}})
+       when is_integer(level),
+       do: level
+
+  defp heading_level(%{"type" => "heading", "props" => %{"level" => level}})
+       when is_float(level) and trunc(level) == level,
+       do: trunc(level)
+
+  defp heading_level(_block), do: nil
 
   defp validate_comparison(block, diagnostics) do
     props = block["props"] || %{}
@@ -1014,6 +1310,10 @@ defmodule RelayMark.SemanticValidator do
     end
   end
 
+  defp validation_surface(validation_context) do
+    validation_context["surface"] || validation_context[:surface]
+  end
+
   defp validate_attribute(type, name, value, %{"type" => "enum"} = attribute, diagnostics) do
     values = attribute["values"] || []
 
@@ -1132,7 +1432,41 @@ defmodule RelayMark.SemanticValidator do
   defp nested_value(value, key) when is_map(value), do: value[key]
   defp nested_value(_value, _key), do: nil
 
-  defp non_empty_string?(value), do: is_binary(value) and String.trim(value) != ""
+  defp non_empty_string?(value) when is_binary(value) do
+    value
+    |> String.to_charlist()
+    |> Enum.any?(&(not relaymark_whitespace?(&1)))
+  end
+
+  defp non_empty_string?(_value), do: false
+
+  defp relaymark_whitespace?(codepoint)
+       when codepoint in 0x0009..0x000D or codepoint in 0x2000..0x200A,
+       do: true
+
+  defp relaymark_whitespace?(codepoint)
+       when codepoint in [
+              0x0020,
+              0x0085,
+              0x00A0,
+              0x1680,
+              0x2028,
+              0x2029,
+              0x202F,
+              0x205F,
+              0x3000
+            ],
+       do: true
+
+  defp relaymark_whitespace?(_codepoint), do: false
+
+  defp finite_number?(value) when is_integer(value), do: true
+
+  defp finite_number?(value) when is_float(value) do
+    value
+    |> :erlang.float_to_binary([:compact])
+    |> then(&(&1 not in ["nan", "inf", "-inf"]))
+  end
 
   defp sha256_digest?(value) when is_binary(value) do
     Regex.match?(~r/^sha256:[0-9a-f]{64}$/, value)

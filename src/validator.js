@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import { directiveForType } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
 
-export function validateDocument(document) {
+export function validateDocument(document, validationContext = {}) {
   const diagnostics = [];
 
   if (document.type !== "relaymark.document") {
@@ -22,6 +23,7 @@ export function validateDocument(document) {
     validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources);
   }
 
+  validateAgentAnswerProfile(document, diagnostics, validationContext);
   validateDocumentIdentities(document, diagnostics);
 
   return diagnostics;
@@ -85,8 +87,7 @@ function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResour
   const evidenceRefs = evidenceRefsFor(block);
 
   if (directive.policy?.requires_evidence) {
-
-    if (!evidenceRefs.some((reference) => typeof reference === "string" && reference.trim().length > 0)) {
+    if (!evidenceRefs.some(nonEmptyString)) {
       diagnostics.push(error("relaymark.policy.evidence_required", `${block.type} requires at least one evidence reference.`));
     }
   }
@@ -427,7 +428,7 @@ function validateScriptureEvidenceRef(block, scriptureResources, diagnostics) {
     );
   }
 
-  if (!plainText(block).trim()) {
+  if (!nonEmptyString(plainText(block))) {
     diagnostics.push(
       error("relaymark.scripture.excerpt", "Scripture evidence requires a non-empty exact excerpt.")
     );
@@ -537,11 +538,255 @@ function plainText(node) {
 function validateClaim(block, diagnostics) {
   const confidence = block.props?.confidence;
 
-  if (typeof confidence === "number" && Number.isFinite(confidence) && (confidence < 0 || confidence > 1)) {
+  if (
+    typeof confidence === "number" &&
+    (!Number.isFinite(confidence) || confidence < 0 || confidence > 1)
+  ) {
     diagnostics.push(
       error("relaymark.claim.confidence_range", "relay.claim.confidence must be between 0.0 and 1.0.")
     );
   }
+}
+
+function validateAgentAnswerProfile(document, diagnostics, validationContext) {
+  const frontmatter = document.frontmatter || {};
+
+  if (frontmatter.profile !== "relaymark.agent_answer.v1") return;
+
+  if (!nonEmptyString(frontmatter.title)) {
+    diagnostics.push(
+      error("relaymark.agent_answer.title", "relaymark.agent_answer.v1 requires a non-empty title.")
+    );
+  }
+
+  if (!["private", "org", "unlisted", "public"].includes(frontmatter.scope)) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.scope",
+        "relaymark.agent_answer.v1 requires an explicit private, org, unlisted, or public scope."
+      )
+    );
+  }
+
+  if (!nonEmptyString(frontmatter.question)) {
+    diagnostics.push(
+      error("relaymark.agent_answer.question", "relaymark.agent_answer.v1 requires a non-empty exact question.")
+    );
+  } else {
+    const expectedQuestionID = `sha256:${createHash("sha256").update(frontmatter.question, "utf8").digest("hex")}`;
+
+    if (frontmatter.question_id !== expectedQuestionID) {
+      diagnostics.push(
+        error(
+          "relaymark.agent_answer.question_id",
+          "relaymark.agent_answer.v1 question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
+        )
+      );
+    }
+  }
+
+  if (!["answered", "refused"].includes(frontmatter.outcome)) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.outcome",
+        "relaymark.agent_answer.v1 outcome must be answered or refused."
+      )
+    );
+    return;
+  }
+
+  if (frontmatter.outcome === "answered") {
+    validateAnsweredAgentPaper(document, diagnostics, validationContext);
+  } else {
+    validateRefusedAgentPaper(document, diagnostics);
+  }
+}
+
+function validateAnsweredAgentPaper(document, diagnostics, validationContext) {
+  const blocks = document.blocks || [];
+  const evidenceHeadingIndex = blocks.findIndex(
+    (block) => headingLevel(block) === 2 && plainText(block) === "Evidence"
+  );
+  const claims = evidenceHeadingIndex > 1 ? blocks.slice(1, evidenceHeadingIndex) : [];
+  const sourceBundles = evidenceHeadingIndex >= 0 ? blocks.slice(evidenceHeadingIndex + 1) : [];
+  let levelOneHeadingCount = 0;
+  let levelTwoHeadingCount = 0;
+
+  visitBlocks(blocks, (block) => {
+    if (headingLevel(block) === 1) levelOneHeadingCount += 1;
+    if (headingLevel(block) === 2) levelTwoHeadingCount += 1;
+  });
+
+  const structureValid =
+    blocks.length >= 4 &&
+    headingLevel(blocks[0]) === 1 &&
+    levelOneHeadingCount === 1 &&
+    levelTwoHeadingCount === 1 &&
+    claims.length > 0 &&
+    claims.every((block) => block.type === "relay.claim") &&
+    sourceBundles.length > 0 &&
+    sourceBundles.every((block) => block.type === "relay.source_bundle");
+
+  if (!structureValid) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.answered_structure",
+        "An answered relaymark.agent_answer.v1 paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
+      )
+    );
+  }
+
+  const evidenceCounts = new Map();
+  const evidenceBlocks = new Map();
+
+  for (const sourceBundle of sourceBundles.filter((block) => block.type === "relay.source_bundle")) {
+    visitBlocks([sourceBundle], (block) => {
+      if (block.type !== "relay.evidence_ref" || !nonEmptyString(block.props?.id)) return;
+      evidenceCounts.set(block.props.id, (evidenceCounts.get(block.props.id) || 0) + 1);
+      const blocksForID = evidenceBlocks.get(block.props.id) || [];
+      blocksForID.push(block);
+      evidenceBlocks.set(block.props.id, blocksForID);
+    });
+  }
+
+  for (const claim of claims.filter((block) => block.type === "relay.claim")) {
+    const refs = evidenceRefsFor(claim);
+    const distinctRefs = new Set(refs);
+
+    if (
+      !nonEmptyString(claim.props?.key) ||
+      claim.props?.status !== "supported" ||
+      !nonEmptyString(plainText(claim))
+    ) {
+      diagnostics.push(
+        error(
+          "relaymark.agent_answer.claim",
+          `Answered claim '${claim.id || "unknown"}' requires a non-empty key and text with supported status.`
+        )
+      );
+    }
+
+    if (
+      refs.length === 0 ||
+      distinctRefs.size !== refs.length ||
+      refs.some((reference) => !nonEmptyString(reference) || evidenceCounts.get(reference) !== 1)
+    ) {
+      diagnostics.push(
+        error(
+          "relaymark.agent_answer.claim_evidence",
+          `Answered claim '${claim.id || "unknown"}' must cite one or more unique concrete evidence refs that each resolve exactly once inside the paper's source bundles.`
+        )
+      );
+    }
+  }
+
+  if (validationContext?.surface === "scripture_ask") {
+    const hasInvalidScriptureEvidence = claims
+      .filter((block) => block.type === "relay.claim")
+      .some((claim) =>
+        evidenceRefsFor(claim).some((reference) => {
+          const matches = evidenceBlocks.get(reference) || [];
+          return matches.length !== 1 || matches[0].props?.source_type !== "scripture";
+        })
+      );
+
+    if (hasInvalidScriptureEvidence) {
+      diagnostics.push(
+        error(
+          "relaymark.agent_answer.scripture_evidence",
+          "A Scripture Ask host context requires every answered claim evidence ref to resolve to relay.evidence_ref source_type scripture."
+        )
+      );
+    }
+  }
+
+  const forbiddenTypes = new Set(["relay.agent_suggestion", "relay.action_row"]);
+  let containsForbiddenBlock = false;
+
+  visitBlocks(blocks, (block) => {
+    if (forbiddenTypes.has(block.type)) containsForbiddenBlock = true;
+  });
+
+  if (containsForbiddenBlock) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.read_only",
+        "An answered relaymark.agent_answer.v1 paper must not contain agent suggestions or action rows."
+      )
+    );
+  }
+
+  if (document.frontmatter?.refusal_reason !== undefined) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.refusal_reason",
+        "An answered relaymark.agent_answer.v1 paper must not contain refusal_reason."
+      )
+    );
+  }
+}
+
+function validateRefusedAgentPaper(document, diagnostics) {
+  const blocks = document.blocks || [];
+  let nestedBlockCount = 0;
+  let levelOneHeadingCount = 0;
+
+  visitBlocks(blocks, (block) => {
+    nestedBlockCount += 1;
+    if (headingLevel(block) === 1) levelOneHeadingCount += 1;
+  });
+
+  if (document.frontmatter?.refusal_reason !== "insufficient_evidence") {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.refusal_reason",
+        "A refused relaymark.agent_answer.v1 paper requires refusal_reason insufficient_evidence."
+      )
+    );
+  }
+
+  if (
+    blocks.length !== 2 ||
+    nestedBlockCount !== 2 ||
+    headingLevel(blocks[0]) !== 1 ||
+    levelOneHeadingCount !== 1 ||
+    plainText(blocks[0]) !== "Answer unavailable" ||
+    blocks[1]?.type !== "paragraph" ||
+    !nonEmptyString(plainText(blocks[1]))
+  ) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.refused_structure",
+        "A refused relaymark.agent_answer.v1 paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
+      )
+    );
+  }
+
+  const forbiddenTypes = new Set([
+    "relay.claim",
+    "relay.source_bundle",
+    "relay.evidence_ref",
+    "relay.agent_suggestion",
+    "relay.action_row"
+  ]);
+  let containsForbiddenBlock = false;
+
+  visitBlocks(blocks, (block) => {
+    if (forbiddenTypes.has(block.type)) containsForbiddenBlock = true;
+  });
+
+  if (containsForbiddenBlock || (document.resources || []).length > 0) {
+    diagnostics.push(
+      error(
+        "relaymark.agent_answer.refused_content",
+        "A refused relaymark.agent_answer.v1 paper must not contain claims, sources, resources, evidence, suggestions, or actions."
+      )
+    );
+  }
+}
+
+function headingLevel(block) {
+  return block?.type === "heading" && Number.isInteger(block.props?.level) ? block.props.level : null;
 }
 
 function validateComparison(block, diagnostics) {
@@ -752,7 +997,12 @@ function evidenceRefsFor(block) {
 }
 
 function nonEmptyString(value) {
-  return typeof value === "string" && value.trim().length > 0;
+  return (
+    typeof value === "string" &&
+    !/^[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]*$/u.test(
+      value
+    )
+  );
 }
 
 function sha256Digest(value) {

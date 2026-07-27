@@ -1,0 +1,29 @@
+{
+  "type": "relaymark.fixture_receipt",
+  "version": "0.5.0-draft",
+  "algorithm": "sha256",
+  "pairs": [
+    {
+      "id": "scripture-ask-answered",
+      "document": {
+        "path": "../examples/scripture-ask-answered.ast.json",
+        "sha256": "dd858681c1d97b8a4762ea143f4a8aafadaf0fc9d22b1cf3e05e323227e66520"
+      },
+      "manifest": {
+        "path": "../examples/scripture-ask-answered.manifest.json",
+        "sha256": "c146dbca4874c6e3ca7d6fd789a7040d704b5175c6b0eab5138287c24aefe942"
+      }
+    },
+    {
+      "id": "scripture-ask-refused",
+      "document": {
+        "path": "../examples/scripture-ask-refused.ast.json",
+        "sha256": "9dcebc05f01886a31dba217e418dc87875cb97d1ea30da1d87fe9fe3da130f91"
+      },
+      "manifest": {
+        "path": "../examples/scripture-ask-refused.manifest.json",
+        "sha256": "9e10b7d8baae7a10ee91dbd266a9783d9723313177516a88fe7c96a786ad638a"
+      }
+    }
+  ]
+}

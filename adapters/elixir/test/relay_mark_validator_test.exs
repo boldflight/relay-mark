@@ -7,7 +7,10 @@ defmodule RelayMarkValidatorTest do
     "mentor-meeting.ast.json",
     "agent-paper-review.ast.json",
     "product-research.ast.json",
-    "scripture-evidence.ast.json"
+    "scripture-evidence.ast.json",
+    "scripture-ask-answered.ast.json",
+    "scripture-ask-refused.ast.json",
+    "invalid-agent-answer-scripture-evidence.ast.json"
   ]
 
   test "accepts every valid canonical AST conformance fixture" do
@@ -25,6 +28,208 @@ defmodule RelayMarkValidatorTest do
 
     assert {:error, ^expected} = RelayMark.validate_document(document)
     assert Enum.all?(expected, &(Schema.validate_diagnostic_schema(&1) == :ok))
+  end
+
+  test "matches the reference runtime Agent Answer diagnostics exactly" do
+    for fixture_name <- [
+          "invalid-agent-answer-question-id",
+          "invalid-agent-answer-refusal"
+        ] do
+      document = decode_fixture("#{fixture_name}.ast.json")
+      expected = decode_fixture("#{fixture_name}.diagnostics.json")
+
+      assert {:error, ^expected} = RelayMark.validate_document(document), fixture_name
+      assert Enum.all?(expected, &(Schema.validate_diagnostic_schema(&1) == :ok))
+    end
+  end
+
+  test "ports answered and refused Agent Answer profile semantics" do
+    answered = decode_fixture("scripture-ask-answered.ast.json")
+    refused = decode_fixture("scripture-ask-refused.ast.json")
+
+    invalid_claim =
+      update_block(answered, 1, fn block ->
+        put_in(block, ["props", "status"], "disputed")
+      end)
+
+    assert diagnostic_codes(invalid_claim) == ["relaymark.agent_answer.claim"]
+
+    duplicate_claim_evidence =
+      update_block(answered, 1, fn block ->
+        update_in(block["evidence_refs"], &(&1 ++ [hd(&1)]))
+      end)
+
+    assert diagnostic_codes(duplicate_claim_evidence) == [
+             "relaymark.agent_answer.claim_evidence"
+           ]
+
+    invalid_answered_structure =
+      update_block(answered, 2, fn block ->
+        put_in(block, ["content", Access.at(0), "text"], " Evidence")
+      end)
+
+    assert diagnostic_codes(invalid_answered_structure) == [
+             "relaymark.agent_answer.answered_structure"
+           ]
+
+    second_answer_heading =
+      update_in(answered["blocks"], fn blocks ->
+        blocks ++
+          [
+            %{
+              "id" => "secondAnswerHeading",
+              "type" => "heading",
+              "props" => %{"level" => 1},
+              "content" => [%{"type" => "text", "text" => "Second answer"}]
+            }
+          ]
+      end)
+
+    assert diagnostic_codes(second_answer_heading) == [
+             "relaymark.agent_answer.answered_structure"
+           ]
+
+    nested_evidence_heading =
+      update_in(answered, ["blocks", Access.at(3), "content"], fn content ->
+        content ++
+          [
+            %{
+              "id" => "nestedEvidenceHeading",
+              "type" => "heading",
+              "props" => %{"level" => 2},
+              "content" => [%{"type" => "text", "text" => "Nested heading"}]
+            }
+          ]
+      end)
+
+    assert diagnostic_codes(nested_evidence_heading) == [
+             "relaymark.agent_answer.answered_structure"
+           ]
+
+    integral_heading_levels =
+      answered
+      |> update_block(0, &put_in(&1, ["props", "level"], 1.0))
+      |> update_block(2, &put_in(&1, ["props", "level"], 2.0))
+
+    assert :ok = RelayMark.validate_document(integral_heading_levels)
+
+    duplicated_concrete_evidence =
+      update_in(answered, ["blocks", Access.at(3), "content"], fn content ->
+        duplicate =
+          content
+          |> hd()
+          |> Map.put("id", "askEvidenceDuplicate")
+
+        content ++ [duplicate]
+      end)
+
+    assert diagnostic_codes(duplicated_concrete_evidence) == [
+             "relaymark.agent_answer.claim_evidence",
+             "relaymark.identity.duplicate_evidence"
+           ]
+
+    non_concrete_evidence_target =
+      put_in(
+        answered,
+        ["blocks", Access.at(1), "evidence_refs"],
+        [get_in(answered, ["blocks", Access.at(3), "props", "id"])]
+      )
+
+    assert diagnostic_codes(non_concrete_evidence_target) == [
+             "relaymark.agent_answer.claim_evidence"
+           ]
+
+    exact_question =
+      answered
+      |> put_in(["frontmatter", "question"], "  Why did Priscilla travel? 🌿\n")
+      |> put_in(
+        ["frontmatter", "question_id"],
+        "sha256:4028e93caf14fa131e71f9a4983efc2dcca8f1220d2e58e0deb386cb6e33ed23"
+      )
+
+    assert :ok = RelayMark.validate_document(exact_question)
+
+    unicode_whitespace_title = put_in(answered, ["frontmatter", "title"], "\u{0085}")
+    assert diagnostic_codes(unicode_whitespace_title) == ["relaymark.agent_answer.title"]
+
+    unicode_whitespace_claim =
+      put_in(answered, ["blocks", Access.at(1), "content", Access.at(0), "text"], "\u{0085}")
+
+    assert diagnostic_codes(unicode_whitespace_claim) == ["relaymark.agent_answer.claim"]
+
+    unicode_whitespace_explanation =
+      put_in(refused, ["blocks", Access.at(1), "content", Access.at(0), "text"], "\u{0085}")
+
+    assert diagnostic_codes(unicode_whitespace_explanation) == [
+             "relaymark.agent_answer.refused_structure"
+           ]
+
+    unicode_whitespace_evidence_reference =
+      put_in(answered, ["blocks", Access.at(1), "evidence_refs"], ["\u{0085}"])
+
+    assert diagnostic_codes(unicode_whitespace_evidence_reference) == [
+             "relaymark.policy.evidence_required",
+             "relaymark.evidence.invalid_reference",
+             "relaymark.agent_answer.claim_evidence"
+           ]
+
+    byte_order_mark_title = put_in(answered, ["frontmatter", "title"], "\u{FEFF}")
+    assert :ok = RelayMark.validate_document(byte_order_mark_title)
+
+    byte_order_mark_evidence_reference =
+      put_in(answered, ["blocks", Access.at(1), "evidence_refs"], ["\u{FEFF}"])
+
+    assert diagnostic_codes(byte_order_mark_evidence_reference) == [
+             "relaymark.evidence.unresolved_reference",
+             "relaymark.agent_answer.claim_evidence"
+           ]
+
+    answered_with_refusal_reason =
+      put_in(answered, ["frontmatter", "refusal_reason"], "insufficient_evidence")
+
+    assert diagnostic_codes(answered_with_refusal_reason) == [
+             "relaymark.agent_answer.refusal_reason"
+           ]
+
+    invalid_refusal =
+      refused
+      |> put_in(["frontmatter", "refusal_reason"], "provider_failure")
+      |> update_in(["blocks"], fn blocks ->
+        blocks ++
+          [
+            %{
+              "id" => "forbiddenRefusalSource",
+              "type" => "relay.source_bundle",
+              "props" => %{"id" => "forbidden-refusal-source"},
+              "content" => []
+            }
+          ]
+      end)
+
+    assert diagnostic_codes(invalid_refusal) == [
+             "relaymark.agent_answer.refusal_reason",
+             "relaymark.agent_answer.refused_structure",
+             "relaymark.agent_answer.refused_content"
+           ]
+
+    inexact_refusal_heading =
+      update_block(refused, 0, fn block ->
+        put_in(block, ["content", Access.at(0), "text"], "Answer unavailable ")
+      end)
+
+    assert diagnostic_codes(inexact_refusal_heading) == [
+             "relaymark.agent_answer.refused_structure"
+           ]
+
+    for {field, value, expected_code} <- [
+          {"title", "", "relaymark.agent_answer.title"},
+          {"scope", "team", "relaymark.agent_answer.scope"},
+          {"question", "", "relaymark.agent_answer.question"},
+          {"outcome", "partial", "relaymark.agent_answer.outcome"}
+        ] do
+      invalid_frontmatter = put_in(answered, ["frontmatter", field], value)
+      assert diagnostic_codes(invalid_frontmatter) == [expected_code], field
+    end
   end
 
   test "reports JSON Schema 2020-12 structural failures as portable diagnostics" do
@@ -213,6 +418,15 @@ defmodule RelayMarkValidatorTest do
 
   defp document(blocks) do
     %{"type" => "relaymark.document", "version" => 1, "blocks" => blocks}
+  end
+
+  defp diagnostic_codes(document) do
+    assert {:error, diagnostics} = RelayMark.validate_document(document)
+    Enum.map(diagnostics, & &1["code"])
+  end
+
+  defp update_block(document, index, update) do
+    update_in(document["blocks"], &List.update_at(&1, index, update))
   end
 
   defp decode_fixture(name) do

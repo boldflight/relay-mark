@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { basename, dirname, resolve } from "node:path";
+import { equalCanonicalJSON } from "./canonical-json.js";
 import { validateJSONSchema } from "./json-schema.js";
 import { compileRelayMark } from "./runtime.js";
 import { projectManifest } from "./projections.js";
+import { validateTransportedAgentAnswerPair } from "./transport.js";
 import { validateDocument } from "./validator.js";
 
 export function runConformanceSuite(path) {
@@ -12,8 +14,13 @@ export function runConformanceSuite(path) {
   const fixtures = [];
 
   for (const fixture of suite.fixtures || []) {
-    const actual = fixture.input_ast
-      ? compileCanonicalAST(resolve(suiteDir, fixture.input_ast))
+    const actual = fixture.input_manifest
+      ? compileTransportedPair(suiteDir, fixture)
+      : fixture.input_ast
+      ? compileCanonicalAST(
+          resolve(suiteDir, fixture.input_ast),
+          fixture.validation_context
+        )
       : compileRelayMark(readFileSync(resolve(suiteDir, fixture.source), "utf8"));
     const errors = [];
     let expectedDocument;
@@ -23,7 +30,7 @@ export function runConformanceSuite(path) {
     if (fixture.expected_ast) {
       expectedDocument = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_ast), "utf8"));
 
-      if (!deepEqual(actual.document, expectedDocument)) {
+      if (!equalCanonicalJSON(actual.document, expectedDocument)) {
         errors.push("compiled AST did not match expected_ast");
       }
     }
@@ -31,7 +38,7 @@ export function runConformanceSuite(path) {
     if (fixture.expected_manifest) {
       expectedManifest = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_manifest), "utf8"));
 
-      if (!deepEqual(actual.manifest, expectedManifest)) {
+      if (!equalCanonicalJSON(actual.manifest, expectedManifest)) {
         errors.push("projected manifest did not match expected_manifest");
       }
     }
@@ -39,7 +46,7 @@ export function runConformanceSuite(path) {
     if (fixture.expected_diagnostics) {
       expectedDiagnostics = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_diagnostics), "utf8"));
 
-      if (!deepEqual(actual.diagnostics, expectedDiagnostics)) {
+      if (!equalCanonicalJSON(actual.diagnostics, expectedDiagnostics)) {
         errors.push("compiler diagnostics did not match expected_diagnostics");
       }
     }
@@ -84,15 +91,23 @@ export function runConformanceSuite(path) {
   };
 }
 
-function compileCanonicalAST(path) {
+function compileCanonicalAST(path, validationContext = {}) {
   const document = JSON.parse(readFileSync(path, "utf8"));
-  const diagnostics = validateDocument(document);
+  const diagnostics = validateDocument(document, validationContext);
 
   return {
     document,
     diagnostics,
     manifest: projectManifest(document, diagnostics)
   };
+}
+
+function compileTransportedPair(suiteDir, fixture) {
+  return validateTransportedAgentAnswerPair(
+    readFileSync(resolve(suiteDir, fixture.input_ast)),
+    readFileSync(resolve(suiteDir, fixture.input_manifest)),
+    fixture.validation_context
+  );
 }
 
 function schemaTargets(outputType, actual, expectedDocument, expectedManifest) {
@@ -115,23 +130,4 @@ function schemaTargets(outputType, actual, expectedDocument, expectedManifest) {
 
 function compactTargets(targets) {
   return targets.filter(({ value }) => value !== undefined);
-}
-
-function deepEqual(left, right) {
-  return stableStringify(left) === stableStringify(right);
-}
-
-function stableStringify(value) {
-  if (Array.isArray(value)) {
-    return `[${value.map(stableStringify).join(",")}]`;
-  }
-
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value)
-      .filter(([, item]) => item !== undefined)
-      .sort(([a], [b]) => a.localeCompare(b));
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
-  }
-
-  return JSON.stringify(value);
 }

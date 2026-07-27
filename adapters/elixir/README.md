@@ -20,10 +20,27 @@ end
 document = RelayMark.validate_document!(document)
 ```
 
+Validate the exact transported Agent Answer document and manifest together:
+
+```elixir
+case RelayMark.validate_transported_agent_answer_pair(
+       document_json,
+       manifest_json,
+       %{"surface" => "scripture_ask"}
+     ) do
+  {:ok, pair} ->
+    persist(pair.document, pair.manifest, pair.document_digest, pair.manifest_digest)
+
+  {:error, diagnostics} ->
+    reject(diagnostics)
+end
+```
+
 Structural validation is compiled at build time from the repository's canonical
 JSON Schema 2020-12 document schema. Semantic validation uses the canonical
 directive registry and matches the reference runtime's evidence, lifecycle,
-comparison, and identity rules. Diagnostics conform to
+comparison, identity, Agent Answer, and canonical manifest-pair rules.
+Diagnostics conform to
 `relaymark-diagnostic.schema.json`.
 
 Consume the tagged adapter from the repository with a full checkout so its
@@ -32,7 +49,7 @@ compile-time canonical schema and directive registry remain available:
 ```elixir
 {:relay_mark_elixir,
  github: "boldflight/relay-mark",
- tag: "0.4.1",
+ tag: "0.5.0",
  subdir: "adapters/elixir"}
 ```
 

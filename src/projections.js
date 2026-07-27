@@ -36,7 +36,7 @@ export function projectManifest(document, diagnostics = []) {
           evidence_refs: evidenceRefsFor(block),
           args: {
             ...(block.props.args || {}),
-            title: toPlainText(block).trim()
+            title: trimRelayMarkWhitespace(toPlainText(block))
           }
         })
       );
@@ -60,7 +60,7 @@ export function projectManifest(document, diagnostics = []) {
           status: block.props.status || "unverified",
           confidence: block.props.confidence,
           evidence_refs: evidenceRefsFor(block),
-          text: toPlainText(block).trim()
+          text: trimRelayMarkWhitespace(toPlainText(block))
         })
       );
     }
@@ -76,7 +76,7 @@ export function projectManifest(document, diagnostics = []) {
           preferred: block.props.preferred,
           layout: block.props.layout || "table",
           evidence_refs: evidenceRefsFor(block),
-          summary: toPlainText(block).trim()
+          summary: trimRelayMarkWhitespace(toPlainText(block))
         })
       );
     }
@@ -123,7 +123,7 @@ export function projectManifest(document, diagnostics = []) {
           selector: block.props.selector,
           scope: block.props.scope,
           label: block.props.label,
-          excerpt: toPlainText(block).trim() || undefined,
+          excerpt: trimRelayMarkWhitespace(toPlainText(block)) || undefined,
           scripture_release: scriptureRelease
         })
       );
@@ -284,4 +284,11 @@ function evidenceRefsFor(block) {
   }
 
   return Array.isArray(block.props?.evidence) ? block.props.evidence : [];
+}
+
+function trimRelayMarkWhitespace(value) {
+  return value.replace(
+    /^[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+|[\u0009-\u000D\u0020\u0085\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+$/gu,
+    ""
+  );
 }

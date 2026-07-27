@@ -1,0 +1,7 @@
+[
+  {
+    "level": "error",
+    "code": "relaymark.agent_answer.scripture_evidence",
+    "message": "A Scripture Ask host context requires every answered claim evidence ref to resolve to relay.evidence_ref source_type scripture."
+  }
+]

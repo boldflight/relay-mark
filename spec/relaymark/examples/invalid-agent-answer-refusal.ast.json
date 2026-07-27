@@ -1,0 +1,49 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "frontmatter": {
+    "title": "Answer unavailable",
+    "scope": "private",
+    "profile": "relaymark.agent_answer.v1",
+    "outcome": "refused",
+    "question_id": "sha256:0159cf32c01a0e36895637bdd3242cbcfb8880556bd7f163e35f39554cc8ba25",
+    "question": "Can Relay answer this unsupported question?",
+    "refusal_reason": "provider_failure"
+  },
+  "blocks": [
+    {
+      "id": "invalidRefusalHeading",
+      "type": "heading",
+      "props": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Answer unavailable"
+        }
+      ]
+    },
+    {
+      "id": "invalidRefusalExplanation",
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "This explanation is non-empty so the fixture isolates the refusal boundary."
+        }
+      ]
+    },
+    {
+      "id": "invalidRefusalSourceBundle",
+      "type": "relay.source_bundle",
+      "props": {
+        "id": "source-invalid-refusal",
+        "title": "Forbidden refusal source",
+        "revision": 1,
+        "scope": "private"
+      },
+      "content": []
+    }
+  ]
+}

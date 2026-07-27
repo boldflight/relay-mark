@@ -1,6 +1,6 @@
 {
   "type": "relaymark.conformance_suite",
-  "version": "0.4.0-draft",
+  "version": "0.5.0-draft",
   "features": [
     "frontmatter",
     "commonmark.heading",
@@ -79,6 +79,9 @@
       "input_ast": "../examples/scripture-ask-answered.ast.json",
       "expected_ast": "../examples/scripture-ask-answered.ast.json",
       "expected_manifest": "../examples/scripture-ask-answered.manifest.json",
+      "validation_context": {
+        "surface": "scripture_ask"
+      },
       "schemas": [
         "../schemas/relaymark-document.schema.json",
         "../schemas/relaymark-manifest.schema.json"
@@ -89,9 +92,56 @@
       "input_ast": "../examples/scripture-ask-refused.ast.json",
       "expected_ast": "../examples/scripture-ask-refused.ast.json",
       "expected_manifest": "../examples/scripture-ask-refused.manifest.json",
+      "validation_context": {
+        "surface": "scripture_ask"
+      },
       "schemas": [
         "../schemas/relaymark-document.schema.json",
         "../schemas/relaymark-manifest.schema.json"
+      ]
+    },
+    {
+      "id": "invalid-agent-answer-scripture-evidence",
+      "input_ast": "../examples/invalid-agent-answer-scripture-evidence.ast.json",
+      "expected_ast": "../examples/invalid-agent-answer-scripture-evidence.ast.json",
+      "expected_diagnostics": "../examples/invalid-agent-answer-scripture-evidence.diagnostics.json",
+      "validation_context": {
+        "surface": "scripture_ask"
+      },
+      "schemas": [
+        "../schemas/relaymark-document.schema.json"
+      ]
+    },
+    {
+      "id": "invalid-agent-answer-manifest-action",
+      "input_ast": "../examples/scripture-ask-refused.ast.json",
+      "input_manifest": "../examples/invalid-agent-answer-manifest-action.manifest.json",
+      "expected_ast": "../examples/scripture-ask-refused.ast.json",
+      "expected_diagnostics": "../examples/invalid-agent-answer-manifest-action.diagnostics.json",
+      "validation_context": {
+        "surface": "scripture_ask"
+      },
+      "schemas": [
+        "../schemas/relaymark-document.schema.json",
+        "../schemas/relaymark-manifest.schema.json"
+      ]
+    },
+    {
+      "id": "invalid-agent-answer-question-id",
+      "input_ast": "../examples/invalid-agent-answer-question-id.ast.json",
+      "expected_ast": "../examples/invalid-agent-answer-question-id.ast.json",
+      "expected_diagnostics": "../examples/invalid-agent-answer-question-id.diagnostics.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json"
+      ]
+    },
+    {
+      "id": "invalid-agent-answer-refusal",
+      "input_ast": "../examples/invalid-agent-answer-refusal.ast.json",
+      "expected_ast": "../examples/invalid-agent-answer-refusal.ast.json",
+      "expected_diagnostics": "../examples/invalid-agent-answer-refusal.diagnostics.json",
+      "schemas": [
+        "../schemas/relaymark-document.schema.json"
       ]
     }
   ]

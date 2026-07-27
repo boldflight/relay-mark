@@ -1,0 +1,18 @@
+{
+  "type": "relaymark.manifest",
+  "version": 1,
+  "actions": [
+    {
+      "block_id": "forgedAction",
+      "action": "task_create",
+      "review": "draft"
+    }
+  ],
+  "mentions": [],
+  "references": [],
+  "forms": [],
+  "sources": [],
+  "claims": [],
+  "comparisons": [],
+  "diagnostics": []
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "level": "error",
+    "code": "relaymark.agent_answer.question_id",
+    "message": "relaymark.agent_answer.v1 question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.agent_answer.answered_structure",
+    "message": "An answered relaymark.agent_answer.v1 paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.agent_answer.claim",
+    "message": "Answered claim 'invalidAnswerClaim' requires a non-empty key and text with supported status."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.agent_answer.claim_evidence",
+    "message": "Answered claim 'invalidAnswerClaim' must cite one or more unique concrete evidence refs that each resolve exactly once inside the paper's source bundles."
+  },
+  {
+    "level": "error",
+    "code": "relaymark.agent_answer.read_only",
+    "message": "An answered relaymark.agent_answer.v1 paper must not contain agent suggestions or action rows."
+  }
+]

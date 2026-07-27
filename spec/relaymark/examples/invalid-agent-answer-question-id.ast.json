@@ -1,0 +1,104 @@
+{
+  "type": "relaymark.document",
+  "version": 1,
+  "frontmatter": {
+    "title": "Invalid answered paper",
+    "scope": "private",
+    "profile": "relaymark.agent_answer.v1",
+    "outcome": "answered",
+    "question_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "question": "What is the invalid fixture question?"
+  },
+  "blocks": [
+    {
+      "id": "invalidAnswerHeading",
+      "type": "heading",
+      "props": {
+        "level": 1
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Invalid answered paper"
+        }
+      ]
+    },
+    {
+      "id": "invalidAnswerClaim",
+      "type": "relay.claim",
+      "props": {
+        "key": "",
+        "status": "disputed"
+      },
+      "evidence_refs": [
+        "evidence-invalid-answer",
+        "evidence-invalid-answer"
+      ],
+      "content": [
+        {
+          "type": "text",
+          "text": ""
+        }
+      ]
+    },
+    {
+      "id": "invalidAnswerEvidenceHeading",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Evidence"
+        }
+      ]
+    },
+    {
+      "id": "invalidAnswerSourceBundle",
+      "type": "relay.source_bundle",
+      "props": {
+        "id": "source-invalid-answer",
+        "title": "Fixture evidence",
+        "revision": 1,
+        "scope": "private"
+      },
+      "content": [
+        {
+          "id": "invalidAnswerEvidence",
+          "type": "relay.evidence_ref",
+          "props": {
+            "id": "evidence-invalid-answer",
+            "source": "note:invalid-answer-fixture",
+            "source_type": "note",
+            "source_revision": "1",
+            "selector": {},
+            "label": "Fixture evidence",
+            "scope": "private"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Portable fixture evidence."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "invalidAnswerAction",
+      "type": "relay.action_row",
+      "props": {
+        "action": "fixture.noop",
+        "visibility": "private",
+        "review": "draft"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Forbidden action."
+        }
+      ]
+    }
+  ]
+}
