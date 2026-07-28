@@ -2,11 +2,11 @@ defmodule RelayMark.Schema do
   @moduledoc false
 
   @document_schema_path Path.expand(
-                          "../../../../spec/relaymark/schemas/relaymark-document.schema.json",
+                          "../../priv/relaymark/schemas/relaymark-document.schema.json",
                           __DIR__
                         )
   @diagnostic_schema_path Path.expand(
-                            "../../../../spec/relaymark/schemas/relaymark-diagnostic.schema.json",
+                            "../../priv/relaymark/schemas/relaymark-diagnostic.schema.json",
                             __DIR__
                           )
 

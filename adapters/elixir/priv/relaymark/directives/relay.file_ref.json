@@ -1,0 +1,48 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "FileRef",
+  "ast_type": "relay.file_ref",
+  "version": 1,
+  "category": "source",
+  "description": "A reference to a file source that grounds nearby content.",
+  "attributes": {
+    "id": {
+      "type": "string",
+      "description": "Host file or media resource id."
+    },
+    "uri": {
+      "type": "string",
+      "description": "File URI when an id is not yet resolved."
+    },
+    "label": {
+      "type": "string",
+      "description": "Human-readable source label."
+    },
+    "scope": {
+      "type": "enum",
+      "values": ["private", "org", "unlisted", "public"],
+      "default": "private"
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text"],
+    "min": 0
+  },
+  "validation": [
+    "id or uri should be present",
+    "scope must be allowed by the current document and user scope"
+  ],
+  "projections": {
+    "relay_kit": "SourceRef",
+    "html": "source-ref",
+    "plain_text": "file source label",
+    "manifest": ["sources"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true,
+    "visibility_attribute": "scope"
+  }
+}

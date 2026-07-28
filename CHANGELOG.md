@@ -1,5 +1,15 @@
 # RelayMark release notes
 
+## 0.5.1
+
+- Publishes the generic Elixir adapter as the `relay_mark_elixir` Hex package.
+- Bundles the canonical document and diagnostic schemas plus directive registry
+  required to compile and validate documents without a repository checkout.
+- Verifies packaged schema and directive bytes against the canonical
+  `spec/relaymark/` sources before release.
+- Adds Hex package metadata, generated documentation, and package-consumer
+  verification while leaving the portable `0.5.0-draft` contract unchanged.
+
 ## 0.5.0
 
 - Adds the normative `relaymark.agent_answer.v1` profile for bounded answered

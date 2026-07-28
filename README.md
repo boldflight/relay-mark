@@ -3,10 +3,12 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-RelayMark `0.5.0` implements the portable `0.5.0-draft` contract line in the
-reference runtime and generic adapters. Tagged releases are the distribution
-boundary for Swift and Elixir consumers; package-manifest versions or an
-untagged branch do not establish publication.
+RelayMark `0.5.1` implements the portable `0.5.0-draft` contract line in the
+reference runtime and generic adapters. Semantic version tags are the
+distribution boundary for Swift consumers; the matching
+`relay_mark_elixir` Hex release is the distribution boundary for Elixir
+consumers. Package-manifest versions or an untagged branch do not establish
+publication.
 
 This repository owns the portable RelayMark contract:
 
@@ -81,6 +83,19 @@ OS patch release, so both package manifests use the supported string form for
 their `26.6` deployment floors. `swift package dump-package` must preserve
 `26.6`; local verification uses Xcode 27 beta, while Xcode 26.6/Swift 6.3
 remains the production CI compatibility gate.
+
+## Elixir package distribution
+
+`RelayMark` is distributed on Hex as `relay_mark_elixir`. Applications should
+use a compatible version requirement and commit `mix.lock`:
+
+```elixir
+{:relay_mark_elixir, "~> 0.5.1"}
+```
+
+The Hex package is self-contained. It bundles the exact JSON Schemas and
+directive registry required at compile time, while repository tests enforce
+byte-for-byte parity with the canonical files under `spec/relaymark/`.
 
 The reference runtime intentionally starts small. Its job is to make the draft
 spec executable before richer client/editor adapters exist.

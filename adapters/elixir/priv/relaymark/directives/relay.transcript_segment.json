@@ -1,0 +1,57 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "TranscriptRange",
+  "ast_type": "relay.transcript_segment",
+  "version": 1,
+  "category": "transcript",
+  "description": "A range or segment from a transcript source.",
+  "attributes": {
+    "source": {
+      "type": "string",
+      "description": "Transcript resource id or URI."
+    },
+    "speaker": {
+      "type": "string",
+      "description": "Speaker label when known."
+    },
+    "speaker_entity": {
+      "type": "string",
+      "description": "Speaker entity reference when resolved."
+    },
+    "start": {
+      "type": "string",
+      "required": true,
+      "description": "Start timestamp in HH:MM:SS, MM:SS, or milliseconds string form."
+    },
+    "end": {
+      "type": "string",
+      "required": true,
+      "description": "End timestamp in HH:MM:SS, MM:SS, or milliseconds string form."
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Transcript confidence from 0.0 to 1.0 when applicable."
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text", "relay.entity_ref"],
+    "min": 0
+  },
+  "validation": [
+    "start must be less than or equal to end when both timestamps can be parsed",
+    "source should resolve to a transcript resource when present",
+    "speaker_entity should resolve to an entity ref when present"
+  ],
+  "projections": {
+    "relay_kit": "TranscriptSegment",
+    "html": "transcript-segment",
+    "plain_text": "timestamp and transcript text",
+    "manifest": ["sources"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true
+  }
+}
