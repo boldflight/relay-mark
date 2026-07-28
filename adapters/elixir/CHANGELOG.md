@@ -1,5 +1,12 @@
 # RelayMark release notes
 
+## 0.5.2
+
+- Bundles the canonical projection-manifest schema alongside the document and
+  diagnostic schemas.
+- Adds `RelayMark.validate_manifest/1` so host applications can validate
+  manifests without reaching into package filesystem internals.
+
 ## 0.5.1
 
 - Publishes the generic Elixir adapter as the `relay_mark_elixir` Hex package.

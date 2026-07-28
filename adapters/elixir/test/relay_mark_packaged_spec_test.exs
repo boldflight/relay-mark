@@ -6,6 +6,7 @@ defmodule RelayMark.PackagedSpecTest do
   @schema_files ~w(
     schemas/relaymark-diagnostic.schema.json
     schemas/relaymark-document.schema.json
+    schemas/relaymark-manifest.schema.json
   )
 
   test "Hex package inputs exactly match the canonical RelayMark spec" do

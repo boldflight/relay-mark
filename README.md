@@ -3,7 +3,7 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-RelayMark `0.5.1` implements the portable `0.5.0-draft` contract line in the
+RelayMark `0.5.2` implements the portable `0.5.0-draft` contract line in the
 reference runtime and generic adapters. Semantic version tags are the
 distribution boundary for Swift consumers; the matching
 `relay_mark_elixir` Hex release is the distribution boundary for Elixir
@@ -90,7 +90,7 @@ remains the production CI compatibility gate.
 use a compatible version requirement and commit `mix.lock`:
 
 ```elixir
-{:relay_mark_elixir, "~> 0.5.1"}
+{:relay_mark_elixir, "~> 0.5.2"}
 ```
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and

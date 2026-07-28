@@ -44,6 +44,20 @@ defmodule RelayMark do
   end
 
   @doc """
+  Validates a canonical, JSON-keyed RelayMark projection manifest map.
+
+  Structural validation is compiled from the canonical JSON Schema 2020-12
+  manifest and diagnostic schemas bundled in the package.
+  """
+  @spec validate_manifest(term()) :: :ok | {:error, [RelayMark.Diagnostic.t()]}
+  def validate_manifest(manifest) do
+    case Schema.validate_manifest_schema(manifest) do
+      :ok -> :ok
+      {:error, error} -> {:error, [Schema.diagnostic(error, :manifest)]}
+    end
+  end
+
+  @doc """
   Validates one exact transported Agent Answer document/manifest JSON pair.
 
   Success returns decoded value models plus SHA-256 digests of the exact input
