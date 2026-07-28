@@ -9,9 +9,14 @@ defmodule RelayMark.Schema do
                             "../../priv/relaymark/schemas/relaymark-diagnostic.schema.json",
                             __DIR__
                           )
+  @manifest_schema_path Path.expand(
+                          "../../priv/relaymark/schemas/relaymark-manifest.schema.json",
+                          __DIR__
+                        )
 
   @external_resource @document_schema_path
   @external_resource @diagnostic_schema_path
+  @external_resource @manifest_schema_path
 
   @document_schema @document_schema_path
                    |> File.read!()
@@ -23,14 +28,30 @@ defmodule RelayMark.Schema do
                      |> Jason.decode!()
                      |> JSV.build!(warnings: :silent)
 
+  @manifest_schema @manifest_schema_path
+                   |> File.read!()
+                   |> Jason.decode!()
+                   |> put_in(
+                     ["properties", "diagnostics", "items"],
+                     @diagnostic_schema_path |> File.read!() |> Jason.decode!()
+                   )
+                   |> JSV.build!(warnings: :silent)
+
   @spec validate_document_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
   def validate_document_schema(document), do: validate(@document_schema, document)
 
   @spec validate_diagnostic_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
   def validate_diagnostic_schema(diagnostic), do: validate(@diagnostic_schema, diagnostic)
 
-  @spec diagnostic(JSV.ValidationError.t()) :: RelayMark.Diagnostic.t()
-  def diagnostic(%JSV.ValidationError{} = error) do
+  @spec validate_manifest_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
+  def validate_manifest_schema(manifest), do: validate(@manifest_schema, manifest)
+
+  @spec diagnostic(JSV.ValidationError.t(), :document | :manifest) ::
+          RelayMark.Diagnostic.t()
+  def diagnostic(error, subject \\ :document)
+
+  def diagnostic(%JSV.ValidationError{} = error, subject)
+      when subject in [:document, :manifest] do
     normalized = JSV.normalize_error(error, keys: :strings, sort: :asc)
     units = error_units(normalized)
 
@@ -45,18 +66,13 @@ defmodule RelayMark.Schema do
       [path: normalize_instance_location(unit["instanceLocation"])]
       |> maybe_put_meta(diagnostic_meta(units, unit))
 
-    RelayMark.Diagnostic.error(
-      "relaymark.schema.invalid",
-      "Document does not conform to the RelayMark document schema.",
-      options
-    )
+    {code, message} = diagnostic_identity(subject)
+    RelayMark.Diagnostic.error(code, message, options)
   end
 
-  def diagnostic(_error) do
-    RelayMark.Diagnostic.error(
-      "relaymark.schema.invalid",
-      "Document does not conform to the RelayMark document schema."
-    )
+  def diagnostic(_error, subject) when subject in [:document, :manifest] do
+    {code, message} = diagnostic_identity(subject)
+    RelayMark.Diagnostic.error(code, message)
   end
 
   defp validate(schema, value) do
@@ -83,6 +99,15 @@ defmodule RelayMark.Schema do
   defp normalize_instance_location("#"), do: ""
   defp normalize_instance_location("#" <> pointer), do: pointer
   defp normalize_instance_location(pointer), do: pointer
+
+  defp diagnostic_identity(:document),
+    do:
+      {"relaymark.schema.invalid", "Document does not conform to the RelayMark document schema."}
+
+  defp diagnostic_identity(:manifest),
+    do:
+      {"relaymark.manifest.schema.invalid",
+       "Manifest does not conform to the RelayMark manifest schema."}
 
   defp diagnostic_meta(units, unit) do
     reasons =

@@ -55,6 +55,22 @@ defmodule RelayMarkTest do
     assert manifest.diagnostics == []
   end
 
+  test "validates RelayMark manifest structure through the package API" do
+    manifest =
+      "../../../spec/relaymark/examples/mentor-meeting.manifest.json"
+      |> fixture()
+      |> Jason.decode!()
+
+    assert :ok = RelayMark.validate_manifest(manifest)
+
+    invalid_manifest = put_in(manifest, ["actions", Access.at(0), "review"], "published")
+
+    assert {:error, [diagnostic]} = RelayMark.validate_manifest(invalid_manifest)
+    assert diagnostic["code"] == "relaymark.manifest.schema.invalid"
+    assert diagnostic["level"] == "error"
+    assert diagnostic["path"] == "/actions/0/review"
+  end
+
   test "decodes stable evidence and lifecycle-aware action proposals" do
     assert {:ok, document} =
              "../../../spec/relaymark/examples/agent-paper-review.ast.json"
