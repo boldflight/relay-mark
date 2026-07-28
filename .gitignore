@@ -7,3 +7,4 @@ deps/
 adapters/swift/.build/
 adapters/elixir/_build/
 adapters/elixir/deps/
+adapters/elixir/doc/

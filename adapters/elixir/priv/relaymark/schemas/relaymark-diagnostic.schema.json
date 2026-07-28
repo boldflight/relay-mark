@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://relaynotes.com/spec/relaymark/schemas/relaymark-diagnostic.schema.json",
+  "title": "RelayMark Diagnostic",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["level", "code", "message"],
+  "properties": {
+    "level": {
+      "type": "string",
+      "enum": ["info", "warning", "error", "critical"]
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^relaymark\\.[a-z0-9_.-]+$"
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_column": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "suggestion": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string",
+      "description": "JSON Pointer into the compiled AST when available."
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

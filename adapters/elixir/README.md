@@ -36,28 +36,24 @@ case RelayMark.validate_transported_agent_answer_pair(
 end
 ```
 
-Structural validation is compiled at build time from the repository's canonical
-JSON Schema 2020-12 document schema. Semantic validation uses the canonical
-directive registry and matches the reference runtime's evidence, lifecycle,
-comparison, identity, Agent Answer, and canonical manifest-pair rules.
-Diagnostics conform to
-`relaymark-diagnostic.schema.json`.
+Structural validation is compiled at build time from the package's bundled copy
+of the canonical JSON Schema 2020-12 document schema. Semantic validation uses
+the bundled canonical directive registry and matches the reference runtime's
+evidence, lifecycle, comparison, identity, Agent Answer, and canonical
+manifest-pair rules. Release tests require those bundled files to remain
+byte-for-byte identical to the repository source of truth. Diagnostics conform
+to `relaymark-diagnostic.schema.json`.
 
-Consume the tagged adapter from the repository with a full checkout so its
-compile-time canonical schema and directive registry remain available:
+Consume the released adapter from Hex:
 
 ```elixir
-{:relay_mark_elixir,
- github: "boldflight/relay-mark",
- tag: "0.5.0",
- subdir: "adapters/elixir"}
+{:relay_mark_elixir, "~> 0.5.1"}
 ```
-
-Do not use Mix's `sparse` Git option for this adapter.
 
 ```sh
 cd adapters/elixir
 mix test
+mix hex.build --unpack
 ```
 
 This package is intentionally product-neutral. It does not execute Relay actions

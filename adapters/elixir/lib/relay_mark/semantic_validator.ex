@@ -13,7 +13,7 @@ defmodule RelayMark.SemanticValidator do
                              "code_span"
                            ])
 
-  @directive_paths Path.expand("../../../../spec/relaymark/directives/*.json", __DIR__)
+  @directive_paths Path.expand("../../priv/relaymark/directives/*.json", __DIR__)
                    |> Path.wildcard()
                    |> Enum.sort()
 
