@@ -82,16 +82,17 @@ Applications should allow the compatible line and commit the exact resolution:
 ```swift
 .package(
     url: "https://github.com/boldflight/relay-mark.git",
-    .upToNextMajor(from: "0.5.3")
+    "0.5.3"..<"1.0.0"
 )
 ```
 
 `Package.resolved` makes local, CI, and Xcode Cloud builds reproducible.
-Updating packages intentionally advances it to the newest compatible tag. The
-repository root is the only Swift package manifest and remains the focused
-adapter-development entry point. It requires Swift tools 6.3 for the Xcode
-26.5 production baseline and is also verified using the current Swift 6.4 beta
-toolchain.
+Updating packages intentionally advances it to the newest compatible tag.
+The explicit half-open range makes RelayMark's promised 0.x compatibility line
+visible at the declaration site. The repository root is the only Swift package
+manifest and remains the focused adapter-development entry point. It requires
+Swift tools 6.3 for the Xcode 26.5 production baseline and is also verified
+using the current Swift 6.4 beta toolchain.
 
 SwiftPM does not provide named `PackageDescription` enum cases for every Apple
 OS patch release, so both package manifests use the supported string form for

@@ -27,8 +27,9 @@ RelayMark preserves valid document meaning and public adapter source
 compatibility. Additive contract features and deprecations may ship in 0.x;
 breaking changes are reserved for 1.0.
 
-Swift consumers should use an up-to-next-major requirement and commit
-`Package.resolved`. Elixir consumers should use an explicit compatible
+Swift consumers should use an explicit `"0.5.3"..<"1.0.0"` range and commit
+`Package.resolved` so the promised compatibility line is visible at the
+declaration site. Elixir consumers should use an explicit compatible
 `>= 0.5.3 and < 1.0.0` range and commit `mix.lock`. Lockfiles record the exact
 reproducible build; policy files must not duplicate those resolved versions or
 revisions.
