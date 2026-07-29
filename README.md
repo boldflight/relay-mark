@@ -3,12 +3,13 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-RelayMark `0.5.3` implements the portable `0.5.0-draft` contract line in the
-reference runtime and generic adapters. Semantic version tags are the
-distribution boundary for Swift consumers; the matching
-`relay_mark_elixir` Hex release is the distribution boundary for Elixir
-consumers. Package-manifest versions or an untagged branch do not establish
-publication.
+The reference runtime and generic adapters implement the portable
+`0.5.0-draft` contract line. Strict semantic-version repository tags are the
+distribution boundary for Swift consumers; independently versioned
+`elixir-X.Y.Z` tags and `relay_mark_elixir` Hex releases are the distribution
+boundary for Elixir consumers. The two distribution versions may coincide,
+but they are not a lockstep release number. An untagged branch does not
+establish publication.
 
 This repository owns the portable RelayMark contract:
 
@@ -72,9 +73,23 @@ if (result.diagnostics.length > 0) reject(result.diagnostics);
 
 `RelayMarkSwift` is distributed from the repository root at
 `https://github.com/boldflight/relay-mark.git`. Published releases use semantic
-version tags. Applications should use a version requirement and commit their
-`Package.resolved`; the nested package remains available for focused adapter
-development. The Swift package manifest requires Swift tools 6.3 for the Xcode
+version tags. From the current 0.5 baseline through the rest of the pre-1.0
+line, public adapter APIs and valid portable document meaning remain
+compatible; breaking changes are reserved for 1.0.
+
+Applications should allow the compatible line and commit the exact resolution:
+
+```swift
+.package(
+    url: "https://github.com/boldflight/relay-mark.git",
+    .upToNextMajor(from: "0.5.3")
+)
+```
+
+`Package.resolved` makes local, CI, and Xcode Cloud builds reproducible.
+Updating packages intentionally advances it to the newest compatible tag. The
+repository root is the only Swift package manifest and remains the focused
+adapter-development entry point. It requires Swift tools 6.3 for the Xcode
 26.5 production baseline and is also verified using the current Swift 6.4 beta
 toolchain.
 
@@ -95,12 +110,18 @@ checks are current.
 use a compatible version requirement and commit `mix.lock`:
 
 ```elixir
-{:relay_mark_elixir, "~> 0.5.3"}
+{:relay_mark_elixir, ">= 0.5.3 and < 1.0.0"}
 ```
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and
 directive registry required at compile time, while repository tests enforce
 byte-for-byte parity with the canonical files under `spec/relaymark/`.
+
+Hex adapter releases use their own version and annotated `elixir-X.Y.Z` source
+tag. They do not wait for, or force, a repository/Swift version bump. Both
+release streams declare the portable conformance-suite version they implement;
+that contract version—not equal distribution numbers—is the cross-runtime
+compatibility key.
 
 The reference runtime intentionally starts small. Its job is to make the draft
 spec executable before richer client/editor adapters exist.

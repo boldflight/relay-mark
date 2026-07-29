@@ -29,10 +29,10 @@ let answer = try transport.requireProjection()
 
 ```sh
 swift test
-
-# The nested adapter manifest remains available for focused adapter development.
-swift test --package-path adapters/swift
 ```
+
+Run that command from the repository root. The root manifest is both the
+published Swift package and the focused adapter-development entry point.
 
 This package is intentionally product-neutral. It does not execute Relay actions
 or know about app UI, persistence, routes, local caches, or action queues.

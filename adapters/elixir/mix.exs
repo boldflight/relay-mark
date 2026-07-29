@@ -54,7 +54,7 @@ defmodule RelayMarkElixir.MixProject do
     [
       main: "readme",
       extras: ["README.md", "CHANGELOG.md"],
-      source_ref: @version
+      source_ref: "elixir-#{@version}"
     ]
   end
 end

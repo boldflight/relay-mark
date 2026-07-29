@@ -1,11 +1,22 @@
-# RelayMark release notes
+# RelayMark Git and Swift release notes
+
+## Unreleased
+
+- Makes the portable conformance-suite version the cross-runtime compatibility
+  identity while allowing Git/Swift and Hex adapter releases to version and
+  ship independently.
+- Removes the private npm version and redundant nested Swift manifest so
+  distribution versions have one owner per ecosystem.
+- Adds a shared contract-version check and cross-runtime CI for the reference
+  runtime, Swift adapter, and Elixir adapter.
 
 ## 0.5.3
 
 - Lowers both Swift package manifests to iOS, macOS, and visionOS 26.5 so
   Xcode 26.5/Xcode Cloud consumers can import `RelayMarkSwift`.
 - Leaves the portable RelayMark contract, schemas, fixtures, and Elixir
-  implementation unchanged while publishing a matching adapter version.
+  implementation unchanged. The Git/Swift and Hex versions happened to
+  coincide for this release; that is not a lockstep versioning requirement.
 
 ## 0.5.2
 

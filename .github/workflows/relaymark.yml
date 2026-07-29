@@ -1,0 +1,82 @@
+name: RelayMark Cross-Runtime
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relaymark-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reference-runtime:
+    name: Portable contract and JavaScript
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Configure Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Verify portable contract
+        run: |
+          npm run check:contract
+          npm test
+          npm run conformance
+
+  swift-adapter:
+    name: Swift 6.3 adapter
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Report toolchain
+        run: |
+          xcodebuild -version
+          xcrun swift --version
+
+      - name: Verify Swift adapter against shared fixtures
+        run: xcrun swift test
+
+  elixir-adapter:
+    name: Elixir adapter
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      MIX_ENV: test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Configure Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.18"
+
+      - name: Restore exact dependencies
+        working-directory: adapters/elixir
+        run: mix deps.get --check-locked
+
+      - name: Verify Elixir adapter against shared fixtures
+        working-directory: adapters/elixir
+        run: |
+          mix test
+          mix hex.build

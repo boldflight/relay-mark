@@ -19,3 +19,8 @@ They must not:
 - Couple to one iOS/macOS app's local cache, action queue, or screen layout.
 
 Client repositories should adapt these generic packages into product behavior.
+
+Adapters version and publish independently for their package ecosystem. Their
+shared compatibility identity is the portable version in
+`spec/relaymark/conformance/suite.json`, not equality between a Git/Swift tag
+and a Hex package version.

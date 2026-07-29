@@ -391,6 +391,13 @@ RelayMark uses semantic-ish spec versions:
 Every AST document MUST include `version`. Draft AST version `1` maps to spec
 `0.x` until the first stable release.
 
+The version in `conformance/suite.json` is the portable cross-runtime
+compatibility identity. Repository/Swift tags, the private reference-runtime
+package metadata, and independently published adapter versions are
+distribution identifiers; they are not required to equal the conformance
+version or one another. Every runtime and adapter release MUST declare and pass
+the conformance version it implements.
+
 ## Conformance
 
 `conformance/suite.json` lists fixture inputs and expected outputs. A runtime is
