@@ -2,9 +2,9 @@
 
 Generic Swift value models for RelayMark AST and manifest JSON.
 
-The package requires Swift tools 6.3 to match production Xcode 26.6 and is
+The package requires Swift tools 6.3 to match production Xcode 26.5 and is
 continuously verified with Swift 6.4. It supports macOS, iOS,
-and visionOS 26.6 or newer. Manifest models include generic inline-reference,
+and visionOS 26.5 or newer. Manifest models include generic inline-reference,
 versioned-evidence, action-proposal lifecycle, research-claim, and
 structured-comparison projections. The adapter validates and projects the
 portable `relaymark.agent_answer.v1` profile, applies Scripture evidence rules

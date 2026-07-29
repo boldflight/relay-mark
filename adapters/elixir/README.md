@@ -47,7 +47,7 @@ to `relaymark-diagnostic.schema.json`.
 Consume the released adapter from Hex:
 
 ```elixir
-{:relay_mark_elixir, "~> 0.5.2"}
+{:relay_mark_elixir, "~> 0.5.3"}
 ```
 
 ```sh

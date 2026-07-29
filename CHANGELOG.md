@@ -1,5 +1,12 @@
 # RelayMark release notes
 
+## 0.5.3
+
+- Lowers both Swift package manifests to iOS, macOS, and visionOS 26.5 so
+  Xcode 26.5/Xcode Cloud consumers can import `RelayMarkSwift`.
+- Leaves the portable RelayMark contract, schemas, fixtures, and Elixir
+  implementation unchanged while publishing a matching adapter version.
+
 ## 0.5.2
 
 - Bundles the canonical projection-manifest schema alongside the document and

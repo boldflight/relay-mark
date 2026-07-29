@@ -1,5 +1,10 @@
 # RelayMark release notes
 
+## 0.5.3
+
+- Publishes the unchanged portable RelayMark 0.5 contract alongside the Swift
+  package's Apple OS 26.5 compatibility release.
+
 ## 0.5.2
 
 - Bundles the canonical projection-manifest schema alongside the document and

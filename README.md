@@ -3,7 +3,7 @@
 RelayMark is a Markdown-compatible document format for human prose plus
 validated declarative blocks.
 
-RelayMark `0.5.2` implements the portable `0.5.0-draft` contract line in the
+RelayMark `0.5.3` implements the portable `0.5.0-draft` contract line in the
 reference runtime and generic adapters. Semantic version tags are the
 distribution boundary for Swift consumers; the matching
 `relay_mark_elixir` Hex release is the distribution boundary for Elixir
@@ -75,14 +75,19 @@ if (result.diagnostics.length > 0) reject(result.diagnostics);
 version tags. Applications should use a version requirement and commit their
 `Package.resolved`; the nested package remains available for focused adapter
 development. The Swift package manifest requires Swift tools 6.3 for the Xcode
-26.6 production baseline and is also verified using the current Swift 6.4 beta
+26.5 production baseline and is also verified using the current Swift 6.4 beta
 toolchain.
 
 SwiftPM does not provide named `PackageDescription` enum cases for every Apple
 OS patch release, so both package manifests use the supported string form for
-their `26.6` deployment floors. `swift package dump-package` must preserve
-`26.6`; local verification uses Xcode 27 beta, while Xcode 26.6/Swift 6.3
+their `26.5` deployment floors. `swift package dump-package` must preserve
+`26.5`; local verification uses Xcode 27 beta, while Xcode 26.5/Swift 6.3
 remains the production CI compatibility gate.
+
+Routine releases are made directly from `main`. Branches and pull requests are
+optional, not release prerequisites. Any verified `main` commit may receive an
+annotated semantic-version tag after release metadata and the relevant local
+checks are current.
 
 ## Elixir package distribution
 
@@ -90,7 +95,7 @@ remains the production CI compatibility gate.
 use a compatible version requirement and commit `mix.lock`:
 
 ```elixir
-{:relay_mark_elixir, "~> 0.5.2"}
+{:relay_mark_elixir, "~> 0.5.3"}
 ```
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and
