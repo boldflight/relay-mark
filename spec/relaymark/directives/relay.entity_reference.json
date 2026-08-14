@@ -1,0 +1,47 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "EntityRef",
+  "ast_type": "relay.entity_reference",
+  "version": 1,
+  "category": "relay_kit",
+  "description": "A renderer-neutral reference to any host-resolved entity.",
+  "capability": "entity.reference",
+  "fallback": "plain_text",
+  "attributes": {
+    "id": {
+      "type": "string",
+      "required": true,
+      "description": "Stable host entity reference. It identifies an entity but grants no access to it."
+    },
+    "label": {
+      "type": "string",
+      "description": "Optional authored fallback label. Hosts may replace it with an authorized resolved label."
+    },
+    "projection": {
+      "type": "enum",
+      "values": ["link", "chip", "card"],
+      "default": "link"
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text"],
+    "min": 0
+  },
+  "validation": [
+    "id must be resolved and authorized by the host before interactive rendering",
+    "RelayMark carries no entity fields, access claims, or authorization credentials",
+    "an unresolved or unsupported reference renders its authored label or stable inert fallback"
+  ],
+  "projections": {
+    "relay_kit": "EntityReference",
+    "html": "entity-reference",
+    "plain_text": "authorized label or authored fallback label",
+    "manifest": ["references"]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true
+  }
+}

@@ -1,0 +1,20 @@
+---
+profile: relaymark.agent_paper.v1
+title: "Prepare coaching review"
+---
+
+# Prepare coaching review
+
+@EntityRef(id: "entity:task-prepare-review", label: "Prepare coaching review", projection: "link") {
+  Current task
+}
+
+@PropertySheet(binding: "paper.task.properties", fields: ["status", "due_at", "assignee"], presentation: "stack", title: "Task") {
+  Structured task state is supplied by the host.
+}
+
+Write the useful narrative here without copying the task status into prose.
+
+@ActionRow(action: "relay.task.complete", args: {}, review: "draft", target: "entity:task-prepare-review", visibility: "private") {
+  Complete task
+}

@@ -8,6 +8,21 @@ defmodule RelayMark do
 
   alias RelayMark.{AgentAnswer, Document, Manifest, Schema, SemanticValidator, ValidationError}
 
+  @spec decode_layer_composition(binary()) :: {:ok, RelayMark.Composition.t()} | {:error, term()}
+  def decode_layer_composition(json) when is_binary(json) do
+    with {:ok, map} <- RelayMark.JSON.decode(json) do
+      {:ok, RelayMark.Composition.from_map(map)}
+    end
+  end
+
+  @spec validate_layer_composition(term()) :: :ok | {:error, [RelayMark.Diagnostic.t()]}
+  def validate_layer_composition(composition) do
+    case Schema.validate_layer_composition_schema(composition) do
+      :ok -> :ok
+      {:error, error} -> {:error, [Schema.diagnostic(error)]}
+    end
+  end
+
   @spec decode_document(binary()) :: {:ok, Document.t()} | {:error, term()}
   def decode_document(json) when is_binary(json) do
     with {:ok, map} <- RelayMark.JSON.decode(json) do

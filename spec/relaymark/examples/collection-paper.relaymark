@@ -1,0 +1,16 @@
+---
+profile: relaymark.agent_paper.v1
+title: "Tuesday coaching cohort"
+---
+
+# Tuesday coaching cohort
+
+@PropertySheet(binding: "paper.collection.properties", fields: ["name", "kind", "member_count"], presentation: "compact", title: "Collection") {
+  Collection identity
+}
+
+This cohort meets every Tuesday for a focused review and shared practice.
+
+@DataView(columns: ["name", "stage", "next_commitment"], group: "stage", limit: 50, projection: "list", sort: ["name"], source: "paper.collection.members", title: "Members") {
+  Authorized members
+}

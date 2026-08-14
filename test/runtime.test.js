@@ -1,13 +1,16 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import {
   compileRelayMark,
+  composeLayerContributions,
   isBlockNode,
   isInlineNode,
+  negotiateRendererCapabilities,
   projectManifest,
+  serializeRelayMark,
   sha256Digest,
   validateTransportedAgentAnswerPair
 } from "../src/index.js";
@@ -16,6 +19,86 @@ import { validateJSONSchema } from "../src/json-schema.js";
 import { validateDocument } from "../src/validator.js";
 
 describe("RelayMark reference runtime", () => {
+  it("validates the versioned suite and every directive registry entry", () => {
+    const suiteSchemaPath = resolve("spec/relaymark/schemas/relaymark-conformance-suite.schema.json");
+    const directiveSchemaPath = resolve("spec/relaymark/schemas/relaymark-directive.schema.json");
+    const suiteSchema = JSON.parse(readFileSync(suiteSchemaPath, "utf8"));
+    const directiveSchema = JSON.parse(readFileSync(directiveSchemaPath, "utf8"));
+    const suite = JSON.parse(readFileSync(resolve("spec/relaymark/conformance/suite.json"), "utf8"));
+
+    assert.deepEqual(validateJSONSchema(suite, suiteSchema, suiteSchemaPath), []);
+
+    for (const name of readdirSync(resolve("spec/relaymark/directives")).filter((item) => item.endsWith(".json"))) {
+      const directive = JSON.parse(readFileSync(resolve("spec/relaymark/directives", name), "utf8"));
+      assert.deepEqual(validateJSONSchema(directive, directiveSchema, directiveSchemaPath), [], name);
+    }
+  });
+
+  it("round-trips canonical Agent Paper source without serializing bound values", () => {
+    for (const name of ["task-paper", "person-paper", "collection-paper", "adaptive-layout"]) {
+      const source = readFileSync(resolve(`spec/relaymark/examples/${name}.relaymark`), "utf8");
+      const compiled = compileRelayMark(source);
+
+      assert.deepEqual(compiled.diagnostics, []);
+      assert.equal(serializeRelayMark(compiled.document), source);
+      assert.equal(JSON.stringify(compiled.document).includes("jordan@example.com"), false);
+    }
+  });
+
+  it("negotiates visible deterministic fallbacks for unsupported renderer capabilities", () => {
+    const source = readFileSync(resolve("spec/relaymark/examples/person-paper.relaymark"), "utf8");
+    const { document } = compileRelayMark(source);
+    const unsupported = negotiateRendererCapabilities(document, []);
+    const supported = negotiateRendererCapabilities(document, ["binding.property_sheet"]);
+
+    assert.deepEqual(unsupported.map(({ disposition }) => disposition), ["summary", "summary", "summary"]);
+    assert.equal(supported[0].disposition, "render");
+    assert.equal(supported[1].disposition, "summary");
+  });
+
+  it("rejects invalid bindings, inline private values, and malformed action ids", () => {
+    const document = JSON.parse(readFileSync(resolve("spec/relaymark/examples/person-paper.ast.json"), "utf8"));
+    document.blocks[1].props.binding = "https://private.example/query";
+    document.blocks[1].props.values = { emails: ["private@example.com"] };
+    document.blocks.push({
+      id: "badAction",
+      type: "relay.action_row",
+      props: { action: "javascript:alert(1)", review: "draft" },
+      content: [{ type: "text", text: "Bad action" }]
+    });
+
+    assert.deepEqual(validateDocument(document).map(({ code }) => code), [
+      "relaymark.attribute.unknown",
+      "relaymark.binding.invalid",
+      "relaymark.action.id"
+    ]);
+  });
+
+  it("composes authorized layers without exposing an undisclosed anchor", () => {
+    const input = JSON.parse(readFileSync(resolve("spec/relaymark/examples/layered-meeting.composition.json"), "utf8"));
+    const expected = JSON.parse(readFileSync(resolve("spec/relaymark/examples/layered-meeting.composed.json"), "utf8"));
+    const result = composeLayerContributions(input.layers);
+
+    assert.deepEqual(result, expected);
+    assert.equal(JSON.stringify(result).includes("hidden"), false);
+    assert.deepEqual(result.items.map(({ block }) => block.id), [
+      "meeting_heading",
+      "generated_summary",
+      "generated_followup",
+      "meeting_notes"
+    ]);
+  });
+
+  it("removing a bound block changes composition without expressing a domain deletion", () => {
+    const document = JSON.parse(readFileSync(resolve("spec/relaymark/examples/person-paper.ast.json"), "utf8"));
+    document.blocks = document.blocks.filter(({ type }) => type !== "relay.property_sheet");
+    const manifest = projectManifest(document);
+
+    assert.equal(manifest.property_sheets, undefined);
+    assert.deepEqual(manifest.actions, []);
+    assert.equal(JSON.stringify(manifest).includes("delete"), false);
+  });
+
   it("compiles the mentor meeting fixture to the expected AST", () => {
     const source = readFileSync(resolve("spec/relaymark/examples/mentor-meeting.relaymark"), "utf8");
     const expected = JSON.parse(readFileSync(resolve("spec/relaymark/examples/mentor-meeting.ast.json"), "utf8"));
@@ -559,7 +642,7 @@ describe("RelayMark reference runtime", () => {
     const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
 
     assert.equal(receipt.type, "relaymark.fixture_receipt");
-    assert.equal(receipt.version, "0.5.0-draft");
+    assert.equal(receipt.version, "0.6.0-draft");
     assert.equal(receipt.algorithm, "sha256");
 
     for (const pair of receipt.pairs) {

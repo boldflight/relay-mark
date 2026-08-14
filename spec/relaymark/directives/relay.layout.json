@@ -1,0 +1,46 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "Layout",
+  "ast_type": "relay.layout",
+  "version": 1,
+  "category": "relay_kit",
+  "description": "A renderer-neutral grouping hint with a deterministic single-column fallback.",
+  "capability": "layout.adaptive_columns",
+  "fallback": "children",
+  "attributes": {
+    "mode": {
+      "type": "enum",
+      "values": ["one_column", "adaptive_columns"],
+      "default": "one_column"
+    },
+    "columns": {
+      "type": "integer",
+      "description": "Preferred maximum columns for adaptive layout. Renderers may use fewer."
+    },
+    "label": {
+      "type": "string",
+      "description": "Optional accessible group label."
+    }
+  },
+  "children": {
+    "mode": "block",
+    "allowed_types": ["paragraph", "heading", "relay.entity_reference", "relay.property_sheet", "relay.data_view", "relay.action_row"],
+    "min": 1
+  },
+  "validation": [
+    "adaptive_columns requires a positive columns value when present",
+    "unsupported layout capability renders children in source order as one column",
+    "layout never changes data semantics, authorization, or action behavior"
+  ],
+  "projections": {
+    "relay_kit": "LayoutGroup",
+    "html": "semantic-layout-group",
+    "plain_text": "children in source order",
+    "manifest": []
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true
+  }
+}

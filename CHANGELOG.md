@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Advances the portable contract to `0.6.0-draft` with additive Agent Paper
+  entity-reference, property-sheet, bound-data-view, and layout directives.
+- Adds registry-owned renderer capability negotiation with deterministic
+  fallbacks and canonical source serialization for the supported authoring
+  subset.
+- Adds portable semantic layer roles, anchors, placement, and missing-anchor
+  fallbacks over already-authorized contributions, without ACLs or private
+  resolved values.
+- Adds shared Task, Person, Collection, and layered Meeting conformance
+  fixtures plus matching generic Swift and Elixir value models.
+
 - Makes the portable conformance-suite version the cross-runtime compatibility
   identity while allowing Git/Swift and Hex adapter releases to version and
   ship independently.

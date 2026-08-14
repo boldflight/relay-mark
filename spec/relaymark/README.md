@@ -1,14 +1,17 @@
 # RelayMark Specification
 
-RelayMark is Relay's Markdown-compatible document format for human prose plus
-validated, declarative Relay Kit blocks.
+RelayMark is a Markdown-compatible, safe portable composition language for
+human prose plus validated declarative blocks. Relay uses it as the authored
+content and composition grammar inside malleable Agent Papers while preserving
+a generic package boundary: the spec does not know Relay database schemas,
+routes, principals, grants, private resolved values, or renderer code.
 
 This directory is the portable spec package. It is designed to move into a
 standalone repository later without depending on the Phoenix application.
 
 ## Status
 
-- Spec version: `0.5.0-draft`
+- Spec version: `0.6.0-draft`
 - Stability: draft
 - Compatibility target: CommonMark prose plus RelayMark directives
 - Canonical interchange model: RelayMark AST JSON
@@ -354,6 +357,48 @@ Each directive in `directives/` defines:
 Agents MUST only create directives from this registry unless the host provides a
 separate trusted extension registry.
 
+### Agent Paper composition profile
+
+The `0.6.0-draft` additive profile defines:
+
+- `relay.entity_reference`: a host entity identity plus authored fallback
+  label and renderer-neutral link/chip/card intent;
+- `relay.property_sheet`: an approved host schema binding plus ordered field
+  keys, with no resolved values;
+- `relay.data_view`: an approved host read-model binding plus declarative
+  projection, columns, filter, sort, group, and bounded limit;
+- `relay.layout`: one-column or adaptive-column grouping with source-ordered
+  children as the mandatory unsupported-capability fallback;
+- the existing `relay.action_row`: a registered action reference that remains
+  inert until a host review/execution flow acts on it.
+
+Binding addresses MUST use dotted host-owned identifiers. They MUST NOT be
+URLs, SQL, executable predicates, credentials, authorization claims, or copies
+of resolved private values. A host MUST validate each binding, field, filter,
+sort, grouping, action, and subject against the current authorized projection.
+Removing a binding block changes document composition only and MUST NOT be
+interpreted as deleting bound domain data.
+
+Capabilities and fallbacks belong to directive registry entries, not authored
+attributes. A renderer reports supported capability IDs. For every unsupported
+block it MUST apply the registered `children`, `plain_text`, `summary`, or
+`omit` disposition explicitly; it MUST NOT silently claim support or execute
+side effects.
+
+### Portable layer composition
+
+`schemas/relaymark-layer-composition.schema.json` defines semantic layer roles
+and deterministic linear placement over contributions the host has already
+authorized. Roles are `authored`, `source`, `generated`, `discussion`, and
+`ink`. They describe provenance and composition, not storage or access.
+
+Items may target a stable block anchor `before` or `after`, or an approved
+slot. Missing-anchor state is `absent`, `stale`, or `undisclosed`; fallback is
+one of `append_to_layer`, `omit`, or `unresolved`. An undisclosed target MUST
+not appear in diagnostics. The composer authorizes nothing, never creates a
+z-stack, and never serializes the composed result back as authored source.
+Source mode edits one selected textual layer.
+
 ## Validation Levels
 
 1. `syntax`: source parses and directives are balanced.
@@ -372,8 +417,8 @@ Conforming runtimes SHOULD support at least these projections:
 - `html`: safe read-only HTML.
 - `plain_text`: text for search, embeddings, notifications, and summaries.
 - `relay_kit`: semantic render spec for Relay clients.
-- `manifest`: action, mention, inline reference, form, source, claim, and
-  comparison projection data.
+- `manifest`: action, mention, inline reference, form, source, claim,
+  comparison, binding, layout, and renderer-capability projection data.
 
 Runtimes MAY add `markdown`, `xml`, `epub`, `mcp`, or client-specific render
 targets as long as they do not change the AST contract.

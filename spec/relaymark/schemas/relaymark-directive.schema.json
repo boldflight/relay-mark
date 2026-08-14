@@ -39,6 +39,14 @@
       "type": "string",
       "minLength": 1
     },
+    "capability": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "fallback": {
+      "type": "string",
+      "enum": ["children", "plain_text", "summary", "omit"]
+    },
     "attributes": {
       "type": "object",
       "additionalProperties": {

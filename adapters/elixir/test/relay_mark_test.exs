@@ -1,6 +1,48 @@
 defmodule RelayMarkTest do
   use ExUnit.Case, async: true
 
+  test "decodes and projects the portable Person Paper composition contract" do
+    ast = fixture("../../../spec/relaymark/examples/person-paper.ast.json")
+    manifest_json = fixture("../../../spec/relaymark/examples/person-paper.manifest.json")
+
+    assert {:ok, document} = RelayMark.decode_document(ast)
+    assert Enum.map(document.blocks, & &1.type) == [
+             "heading",
+             "relay.property_sheet",
+             "paragraph",
+             "relay.data_view",
+             "relay.data_view"
+           ]
+
+    assert {:ok, manifest} = RelayMark.decode_manifest(manifest_json)
+    assert [sheet] = manifest.property_sheets
+    assert sheet.binding == "paper.person.properties"
+    assert sheet.fields == ["full_name", "emails", "phones", "company"]
+    assert Enum.map(manifest.data_views, & &1.source) == [
+             "paper.related_commitments",
+             "paper.journey_summary"
+           ]
+
+    assert ast |> Jason.decode!() |> RelayMark.ManifestProjection.project() ==
+             Jason.decode!(manifest_json)
+  end
+
+  test "decodes and validates portable semantic layer contribution metadata" do
+    json = fixture("../../../spec/relaymark/examples/layered-meeting.composition.json")
+    map = Jason.decode!(json)
+
+    assert :ok = RelayMark.validate_layer_composition(map)
+    assert {:ok, composition} = RelayMark.decode_layer_composition(json)
+    assert Enum.map(composition.layers, & &1.role) == ["authored", "generated", "source", "discussion"]
+    generated = Enum.at(composition.layers, 1)
+    assert Enum.at(generated.items, 0).placement.anchor.block_id == "meeting_heading"
+    assert Enum.at(generated.items, 1).placement.anchor_state == "stale"
+    assert Enum.at(generated.items, 1).placement.fallback == "append_to_layer"
+    discussion = Enum.at(composition.layers, 3)
+    assert hd(discussion.items).placement.anchor_state == "undisclosed"
+    assert is_nil(hd(discussion.items).placement.anchor)
+  end
+
   test "decodes an inline entity reference with an id as inline content" do
     json =
       ~S({"type":"relaymark.document","version":1,"blocks":[{"id":"b1","type":"paragraph","content":[{"type":"relay.entity_ref","id":"product-1","label":"Mac mini"}]}]})

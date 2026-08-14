@@ -3,6 +3,12 @@ defmodule RelayMark.ManifestProjection do
 
   @commonmark_inline_types ~w(text hard_break soft_break link emphasis strong code_span)
   @block_reference_types ~w(relay.evidence_ref relay.file_ref relay.note_ref relay.url_ref)
+  @composition_capabilities %{
+    "relay.entity_reference" => {"entity.reference", "plain_text"},
+    "relay.property_sheet" => {"binding.property_sheet", "summary"},
+    "relay.data_view" => {"binding.data_view", "summary"},
+    "relay.layout" => {"layout.adaptive_columns", "children"}
+  }
 
   @spec project(map(), [map()]) :: map()
   def project(document, diagnostics \\ []) when is_map(document) and is_list(diagnostics) do
@@ -36,11 +42,92 @@ defmodule RelayMark.ManifestProjection do
 
   defp project_blocks(blocks, manifest, resources_by_id) do
     Enum.reduce(blocks, manifest, fn block, acc ->
+      acc = project_capability(block, acc)
       acc = project_block(block, acc, resources_by_id)
       acc = collect_inline_references(block, acc)
       child_blocks = Enum.filter(block["content"] || [], &block_node?/1)
       project_blocks(child_blocks, acc, resources_by_id)
     end)
+  end
+
+  defp project_capability(%{"type" => type, "id" => block_id}, manifest) do
+    case @composition_capabilities[type] do
+      {capability, fallback} ->
+        append_optional(manifest, "capabilities", %{
+          "block_id" => block_id,
+          "id" => capability,
+          "fallback" => fallback
+        })
+
+      nil ->
+        manifest
+    end
+  end
+
+  defp project_block(%{"type" => "relay.entity_reference"} = block, manifest, _resources) do
+    props = block["props"] || %{}
+
+    append_optional(
+      manifest,
+      "entity_references",
+      compact(%{
+        "block_id" => block["id"],
+        "id" => props["id"],
+        "label" => props["label"] || empty_to_nil(trim_relaymark_whitespace(plain_text(block))),
+        "projection" => props["projection"] || "link"
+      })
+    )
+  end
+
+  defp project_block(%{"type" => "relay.property_sheet"} = block, manifest, _resources) do
+    props = block["props"] || %{}
+
+    append_optional(
+      manifest,
+      "property_sheets",
+      compact(%{
+        "block_id" => block["id"],
+        "binding" => props["binding"],
+        "fields" => props["fields"] || [],
+        "title" => props["title"],
+        "presentation" => props["presentation"] || "stack"
+      })
+    )
+  end
+
+  defp project_block(%{"type" => "relay.data_view"} = block, manifest, _resources) do
+    props = block["props"] || %{}
+
+    append_optional(
+      manifest,
+      "data_views",
+      compact(%{
+        "block_id" => block["id"],
+        "source" => props["source"],
+        "projection" => props["projection"],
+        "columns" => props["columns"] || [],
+        "filter" => props["filter"],
+        "sort" => props["sort"] || [],
+        "group" => props["group"],
+        "limit" => props["limit"],
+        "title" => props["title"]
+      })
+    )
+  end
+
+  defp project_block(%{"type" => "relay.layout"} = block, manifest, _resources) do
+    props = block["props"] || %{}
+
+    append_optional(
+      manifest,
+      "layouts",
+      compact(%{
+        "block_id" => block["id"],
+        "mode" => props["mode"] || "one_column",
+        "columns" => props["columns"],
+        "label" => props["label"]
+      })
+    )
   end
 
   defp project_block(%{"type" => "relay.action_row"} = block, manifest, _resources_by_id) do
@@ -381,6 +468,10 @@ defmodule RelayMark.ManifestProjection do
 
   defp compact(map), do: Map.reject(map, fn {_key, value} -> is_nil(value) end)
   defp append(manifest, key, value), do: Map.update!(manifest, key, &(&1 ++ [value]))
+
+  defp append_optional(manifest, key, value),
+    do: Map.update(manifest, key, [value], &(&1 ++ [value]))
+
   defp empty_to_nil(""), do: nil
   defp empty_to_nil(value), do: value
 end

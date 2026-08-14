@@ -1,4 +1,5 @@
 import { isBlockNode, isInlineNode } from "./node-kind.js";
+import { directiveForType } from "./registry.js";
 
 export function projectManifest(document, diagnostics = []) {
   const resourcesByID = new Map(
@@ -14,10 +15,75 @@ export function projectManifest(document, diagnostics = []) {
     sources: [],
     claims: [],
     comparisons: [],
+    entity_references: [],
+    property_sheets: [],
+    data_views: [],
+    layouts: [],
+    capabilities: [],
     diagnostics
   };
 
   visitBlocks(document.blocks || [], (block) => {
+    const directive = directiveForType(block.type);
+
+    if (directive?.capability) {
+      manifest.capabilities.push({
+        block_id: block.id,
+        id: directive.capability,
+        fallback: directive.fallback || "plain_text"
+      });
+    }
+
+    if (block.type === "relay.entity_reference") {
+      manifest.entity_references.push(
+        compactObject({
+          block_id: block.id,
+          id: block.props.id,
+          label: block.props.label || trimRelayMarkWhitespace(toPlainText(block)) || undefined,
+          projection: block.props.projection || "link"
+        })
+      );
+    }
+
+    if (block.type === "relay.property_sheet") {
+      manifest.property_sheets.push(
+        compactObject({
+          block_id: block.id,
+          binding: block.props.binding,
+          fields: block.props.fields || [],
+          title: block.props.title,
+          presentation: block.props.presentation || "stack"
+        })
+      );
+    }
+
+    if (block.type === "relay.data_view") {
+      manifest.data_views.push(
+        compactObject({
+          block_id: block.id,
+          source: block.props.source,
+          projection: block.props.projection,
+          columns: block.props.columns || [],
+          filter: block.props.filter,
+          sort: block.props.sort || [],
+          group: block.props.group,
+          limit: block.props.limit,
+          title: block.props.title
+        })
+      );
+    }
+
+    if (block.type === "relay.layout") {
+      manifest.layouts.push(
+        compactObject({
+          block_id: block.id,
+          mode: block.props.mode || "one_column",
+          columns: block.props.columns,
+          label: block.props.label
+        })
+      );
+    }
+
     if (block.type === "relay.action_row") {
       manifest.actions.push(
         compactObject({
@@ -173,6 +239,12 @@ export function projectManifest(document, diagnostics = []) {
 
   manifest.mentions = uniqueBy(JSON.stringify, manifest.mentions);
   manifest.references = uniqueBy(JSON.stringify, manifest.references);
+  manifest.capabilities = uniqueBy(JSON.stringify, manifest.capabilities);
+
+  for (const key of ["entity_references", "property_sheets", "data_views", "layouts", "capabilities"]) {
+    if (manifest[key].length === 0) delete manifest[key];
+  }
+
   return manifest;
 }
 

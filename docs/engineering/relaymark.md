@@ -1,5 +1,14 @@
 # RelayMark
 
+> **Historical design record.** This document captures the initial standalone
+> RelayMark proposal and several open questions that have since been decided.
+> Current normative direction lives in the
+> [RelayMark specification](../../spec/relaymark/README.md) and
+> [ADR 0001](../adr/0001-safe-agent-paper-composition-profile.md): RelayMark is
+> the safe portable composition language for malleable Agent Papers, host
+> bindings never contain resolved private values, and paper layers compose
+> already-authorized contributions linearly.
+
 RelayMark is Relay's Markdown-compatible authoring format for notes,
 transcripts, forms, long reading, and agent-generated document structure.
 

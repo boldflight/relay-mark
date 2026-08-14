@@ -1,6 +1,6 @@
 {
   "type": "relaymark.conformance_suite",
-  "version": "0.5.0-draft",
+  "version": "0.6.0-draft",
   "features": [
     "frontmatter",
     "commonmark.heading",
@@ -26,8 +26,56 @@
     "projection.manifest.comparisons",
     "profile.scripture_evidence.v1",
     "profile.agent_answer.v1"
+    ,"profile.agent_paper.v1"
+    ,"directive.relay.entity_reference"
+    ,"directive.relay.property_sheet"
+    ,"directive.relay.data_view"
+    ,"directive.relay.layout"
+    ,"renderer.capability_negotiation"
+    ,"composition.semantic_layers.v1"
   ],
   "fixtures": [
+    {
+      "id": "task-paper",
+      "source": "../examples/task-paper.relaymark",
+      "expected_ast": "../examples/task-paper.ast.json",
+      "expected_manifest": "../examples/task-paper.manifest.json",
+      "schemas": ["../schemas/relaymark-document.schema.json", "../schemas/relaymark-manifest.schema.json"]
+    },
+    {
+      "id": "adaptive-layout",
+      "source": "../examples/adaptive-layout.relaymark",
+      "expected_ast": "../examples/adaptive-layout.ast.json",
+      "expected_manifest": "../examples/adaptive-layout.manifest.json",
+      "schemas": ["../schemas/relaymark-document.schema.json", "../schemas/relaymark-manifest.schema.json"]
+    },
+    {
+      "id": "person-paper",
+      "source": "../examples/person-paper.relaymark",
+      "expected_ast": "../examples/person-paper.ast.json",
+      "expected_manifest": "../examples/person-paper.manifest.json",
+      "schemas": ["../schemas/relaymark-document.schema.json", "../schemas/relaymark-manifest.schema.json"]
+    },
+    {
+      "id": "collection-paper",
+      "source": "../examples/collection-paper.relaymark",
+      "expected_ast": "../examples/collection-paper.ast.json",
+      "expected_manifest": "../examples/collection-paper.manifest.json",
+      "schemas": ["../schemas/relaymark-document.schema.json", "../schemas/relaymark-manifest.schema.json"]
+    },
+    {
+      "id": "layered-meeting",
+      "input_composition": "../examples/layered-meeting.composition.json",
+      "expected_composition": "../examples/layered-meeting.composed.json",
+      "schemas": ["../schemas/relaymark-layer-composition.schema.json"]
+    },
+    {
+      "id": "invalid-agent-paper",
+      "input_ast": "../examples/invalid-agent-paper.ast.json",
+      "expected_ast": "../examples/invalid-agent-paper.ast.json",
+      "expected_diagnostics": "../examples/invalid-agent-paper.diagnostics.json",
+      "schemas": ["../schemas/relaymark-document.schema.json"]
+    },
     {
       "id": "mentor-meeting",
       "source": "../examples/mentor-meeting.relaymark",

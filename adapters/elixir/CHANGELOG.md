@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Implements portable `0.6.0-draft` Agent Paper binding-manifest and semantic
+  layer-composition values, validation, and shared fixture coverage.
+
 - Documents independent `elixir-X.Y.Z` source tags and compatible pre-1.0
   consumer ranges. The Hex version no longer needs to match a Git/Swift release
   number; portable compatibility is identified by the conformance-suite

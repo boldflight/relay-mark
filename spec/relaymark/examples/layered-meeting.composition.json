@@ -1,0 +1,40 @@
+{
+  "type": "relaymark.layer_composition",
+  "version": 1,
+  "layers": [
+    {
+      "id": "authored",
+      "role": "authored",
+      "rank": 0,
+      "items": [
+        {"id": "notes_heading", "rank": 0, "block": {"id": "meeting_heading", "type": "heading", "props": {"level": 1}, "content": [{"type": "text", "text": "Coaching session"}]}},
+        {"id": "notes_body", "rank": 1, "block": {"id": "meeting_notes", "type": "paragraph", "content": [{"type": "text", "text": "Human-authored notes."}]}}
+      ]
+    },
+    {
+      "id": "generated",
+      "role": "generated",
+      "rank": 1,
+      "items": [
+        {"id": "summary", "rank": 0, "block": {"id": "generated_summary", "type": "paragraph", "content": [{"type": "text", "text": "Accepted generated summary."}]}, "placement": {"kind": "after", "anchor": {"block_id": "meeting_heading"}, "anchor_state": "present", "fallback": "unresolved"}},
+        {"id": "stale_followup", "rank": 1, "block": {"id": "generated_followup", "type": "paragraph", "content": [{"type": "text", "text": "Generated follow-up."}]}, "placement": {"kind": "after", "anchor": {"block_id": "old_notes"}, "anchor_state": "stale", "fallback": "append_to_layer"}}
+      ]
+    },
+    {
+      "id": "source",
+      "role": "source",
+      "rank": 2,
+      "items": [
+        {"id": "absent_transcript", "block": {"id": "transcript_excerpt", "type": "paragraph", "content": [{"type": "text", "text": "Transcript excerpt."}]}, "placement": {"kind": "before", "anchor": {"block_id": "missing_section"}, "anchor_state": "absent", "fallback": "omit"}}
+      ]
+    },
+    {
+      "id": "discussion",
+      "role": "discussion",
+      "rank": 3,
+      "items": [
+        {"id": "private_comment", "block": {"id": "discussion_comment", "type": "paragraph", "content": [{"type": "text", "text": "Internal coach comment."}]}, "placement": {"kind": "after", "anchor_state": "undisclosed", "fallback": "omit"}}
+      ]
+    }
+  ]
+}

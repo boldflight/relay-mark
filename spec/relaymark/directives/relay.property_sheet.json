@@ -1,0 +1,54 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "PropertySheet",
+  "ast_type": "relay.property_sheet",
+  "version": 1,
+  "category": "relay_kit",
+  "description": "A schema-bound property group whose values and edit policy are supplied by the host.",
+  "capability": "binding.property_sheet",
+  "fallback": "summary",
+  "attributes": {
+    "binding": {
+      "type": "string",
+      "required": true,
+      "description": "Approved host binding address. This is a schema/read-model address, never a resolved value."
+    },
+    "fields": {
+      "type": "array",
+      "items": "string",
+      "required": true,
+      "description": "Ordered host field keys to request from the binding."
+    },
+    "title": {
+      "type": "string",
+      "description": "Optional authored group title."
+    },
+    "presentation": {
+      "type": "enum",
+      "values": ["stack", "inline", "compact"],
+      "default": "stack"
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text"],
+    "min": 0
+  },
+  "validation": [
+    "binding must be allowlisted and resolved by the host",
+    "fields must contain only keys exposed by the host schema projection",
+    "values, editability, visibility, validation, and mutation action ids never appear in RelayMark source",
+    "removing this block changes composition only and cannot delete bound domain data"
+  ],
+  "projections": {
+    "relay_kit": "PropertySheet",
+    "html": "property-sheet",
+    "plain_text": "title and field labels supplied by the host",
+    "manifest": []
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true
+  }
+}

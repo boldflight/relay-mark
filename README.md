@@ -1,10 +1,18 @@
 # RelayMark
 
-RelayMark is a Markdown-compatible document format for human prose plus
-validated declarative blocks.
+RelayMark is the safe, portable composition language for malleable Agent
+Papers: human-readable Markdown prose plus validated declarative blocks that
+deterministic renderers can understand across web and native clients.
+
+RelayMark describes authored content, host binding addresses, renderer-neutral
+presentation intent, registered action references, and portable composition
+metadata. It is not Relay's database, authorization layer, renderer toolkit,
+or an unrestricted application language. Relay domain hosts resolve authorized
+data and execute reviewed actions; Relay Kit and other renderers consume the
+validated AST without gaining authority.
 
 The reference runtime and generic adapters implement the portable
-`0.5.0-draft` contract line. Strict semantic-version repository tags are the
+`0.6.0-draft` contract line. Strict semantic-version repository tags are the
 distribution boundary for Swift consumers; independently versioned
 `elixir-X.Y.Z` tags and `relay_mark_elixir` Hex releases are the distribution
 boundary for Elixir consumers. The two distribution versions may coincide,
@@ -16,6 +24,7 @@ This repository owns the portable RelayMark contract:
 - `spec/relaymark/` - normative draft spec, JSON Schemas, directive registry,
   examples, and conformance fixtures.
 - `src/` - dependency-free reference runtime for parsing, validation, compiling,
+  deterministic serialization, capability negotiation, layer composition,
   projections, and conformance.
 - `bin/relaymark.mjs` - small CLI wrapper.
 - `adapters/swift/` - generic Swift value models and Agent Answer validation,
@@ -34,6 +43,8 @@ Keep these in this repo:
 - JSON Schema and fixture definitions.
 - Generic TypeScript/JavaScript APIs.
 - Generic Swift and Elixir value models and portable validation helpers.
+- Portable semantic layer roles, stable block anchors, deterministic placement,
+  and safe missing-anchor fallbacks over already-authorized contributions.
 - A future generic Tiptap/ProseMirror adapter if it only maps RelayMark AST to
   editor nodes and back.
 
@@ -44,6 +55,32 @@ Keep these in client repos:
 - Swift app UI, local cache, action queues, and product-specific screens.
 - Any adapter code that depends on a specific app's entities, routes,
   permissions, or theme.
+- Host binding resolution, field values, read-model records, layer grants,
+  audience profiles, retention, revocation, search filtering, and sync.
+
+## Agent Paper composition profile
+
+The additive `0.6.0-draft` profile introduces four orthogonal directives:
+
+- `@EntityRef` references any host entity without copying its fields.
+- `@PropertySheet` names an approved schema binding and ordered field keys.
+- `@DataView` names an approved read model plus declarative projection intent.
+- `@Layout` provides an adaptive grouping hint whose fallback is source-ordered
+  one-column content.
+
+`@ActionRow` remains the only portable action-reference primitive. Writing or
+rendering it never executes the action. Registry-owned capability IDs and
+fallbacks make unsupported blocks visible and deterministic rather than
+silently dropping content.
+
+Paper-layer composition is deliberately separate from authored source. A host
+authorizes contributions first, then may pass only those contributions through
+the portable role/anchor/placement model. Source mode edits one selected
+textual layer; the composed result is never serialized as a replacement source
+document. RelayMark carries no layer grants or private resolved values.
+
+See [ADR 0001](docs/adr/0001-safe-agent-paper-composition-profile.md) for the
+authority and fallback decisions.
 
 ## Commands
 
