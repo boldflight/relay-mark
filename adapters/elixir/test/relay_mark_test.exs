@@ -6,6 +6,7 @@ defmodule RelayMarkTest do
     manifest_json = fixture("../../../spec/relaymark/examples/person-paper.manifest.json")
 
     assert {:ok, document} = RelayMark.decode_document(ast)
+
     assert Enum.map(document.blocks, & &1.type) == [
              "heading",
              "relay.property_sheet",
@@ -18,6 +19,7 @@ defmodule RelayMarkTest do
     assert [sheet] = manifest.property_sheets
     assert sheet.binding == "paper.person.properties"
     assert sheet.fields == ["full_name", "emails", "phones", "company"]
+
     assert Enum.map(manifest.data_views, & &1.source) == [
              "paper.related_commitments",
              "paper.journey_summary"
@@ -33,7 +35,14 @@ defmodule RelayMarkTest do
 
     assert :ok = RelayMark.validate_layer_composition(map)
     assert {:ok, composition} = RelayMark.decode_layer_composition(json)
-    assert Enum.map(composition.layers, & &1.role) == ["authored", "generated", "source", "discussion"]
+
+    assert Enum.map(composition.layers, & &1.role) == [
+             "authored",
+             "generated",
+             "source",
+             "discussion"
+           ]
+
     generated = Enum.at(composition.layers, 1)
     assert Enum.at(generated.items, 0).placement.anchor.block_id == "meeting_heading"
     assert Enum.at(generated.items, 1).placement.anchor_state == "stale"

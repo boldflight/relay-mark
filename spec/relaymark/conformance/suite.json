@@ -25,14 +25,14 @@
     "projection.manifest.claims",
     "projection.manifest.comparisons",
     "profile.scripture_evidence.v1",
-    "profile.agent_answer.v1"
-    ,"profile.agent_paper.v1"
-    ,"directive.relay.entity_reference"
-    ,"directive.relay.property_sheet"
-    ,"directive.relay.data_view"
-    ,"directive.relay.layout"
-    ,"renderer.capability_negotiation"
-    ,"composition.semantic_layers.v1"
+    "profile.agent_answer.v1",
+    "profile.agent_paper.v1",
+    "directive.relay.entity_reference",
+    "directive.relay.property_sheet",
+    "directive.relay.data_view",
+    "directive.relay.layout",
+    "renderer.capability_negotiation",
+    "composition.semantic_layers.v1"
   ],
   "fixtures": [
     {
