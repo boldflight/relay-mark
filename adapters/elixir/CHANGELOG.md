@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.6.0
+
+- Implements the portable `0.6.0-draft` contract while preserving valid
+  pre-1.0 document meaning and public Elixir adapter source compatibility.
 - Implements portable `0.6.0-draft` Agent Paper binding-manifest and semantic
   layer-composition values, validation, and shared fixture coverage.
 

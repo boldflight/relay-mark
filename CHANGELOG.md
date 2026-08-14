@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.6.0
+
+- Implements the portable `0.6.0-draft` contract while preserving valid
+  pre-1.0 document meaning and public Swift adapter source compatibility.
 - Advances the portable contract to `0.6.0-draft` with additive Agent Paper
   entity-reference, property-sheet, bound-data-view, and layout directives.
 - Adds registry-owned renderer capability negotiation with deterministic
