@@ -1,5 +1,12 @@
 # RelayMark repository guidance
 
+## Git worktree layout
+
+- Keep the primary checkout at `<parent>/relay-mark` on `main` for routine work and releases.
+- Put substantial or isolated branch work in `<parent>/relay-mark-worktrees/<branch-purpose>`; keep the directory purpose aligned with its branch and remove the worktree after verified integration.
+- Never create persistent worktrees inside this repository or under hidden, generated, cache, or tool-owned directories such as `.firecrawl`, `.codex`, `.claude`, `.worktrees`, build output, or `/tmp`.
+- Use registered `git worktree` commands and absolute paths. Commit coherent checkpoints before interruption risks and push branches that must survive local disk loss.
+
 RelayMark is maintained directly on `main` while the team has one maintainer.
 Branches and pull requests are optional tools for work that needs isolation or
 outside review; do not create them solely to manufacture a release merge.
