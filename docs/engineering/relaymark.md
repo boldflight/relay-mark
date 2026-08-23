@@ -219,6 +219,12 @@ explicit schema, validation rules, renderer mapping, and privacy behavior.
 belongs in the reading flow. Anchored suggestions that should behave like
 comments can use the same schema as sidecar annotations instead.
 
+Relay Elixir wraps accepted Agent Paper appends as
+`@AgentSuggestion(review: "accepted", kind: "note")` so model output is not
+labeled human-authored. The suggestion stays a reviewed RelayMark block in the
+authored body; moving it into ordinary human prose is a later explicit adopt
+action, not the accept receipt.
+
 ### Sandboxed Widget Blocks
 
 Use sandboxed widgets only when Relay Kit declarations are not enough:
