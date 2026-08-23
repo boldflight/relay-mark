@@ -111,7 +111,7 @@ checks are current.
 use a compatible version requirement and commit `mix.lock`:
 
 ```elixir
-{:relay_mark_elixir, ">= 0.5.3 and < 1.0.0"}
+{:relay_mark_elixir, ">= 0.5.3"}
 ```
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and

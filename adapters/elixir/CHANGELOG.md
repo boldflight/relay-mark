@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Updates JSV to 0.22 and removes the arbitrary major-version ceiling. The
+  adapter lockfile records the tested release while deliberate updates may
+  select any newer stable JSV version.
 - Documents independent `elixir-X.Y.Z` source tags and compatible pre-1.0
   consumer ranges. The Hex version no longer needs to match a Git/Swift release
   number; portable compatibility is identified by the conformance-suite

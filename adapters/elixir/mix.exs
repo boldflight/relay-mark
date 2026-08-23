@@ -1,7 +1,7 @@
 defmodule RelayMarkElixir.MixProject do
   use Mix.Project
 
-  @version "0.5.3"
+  @version "0.5.4"
   @source_url "https://github.com/boldflight/relay-mark"
 
   def project do
@@ -27,7 +27,7 @@ defmodule RelayMarkElixir.MixProject do
 
   defp deps do
     [
-      {:jsv, "~> 0.21.2"},
+      {:jsv, ">= 0.22.0"},
       {:jason, "~> 1.4"},
       {:ex_doc, "~> 0.40.3", only: :dev, runtime: false}
     ]
