@@ -25,7 +25,7 @@ defmodule RelayMarkTest do
              "paper.journey_summary"
            ]
 
-    assert ast |> Jason.decode!() |> RelayMark.ManifestProjection.project() ==
+    assert ast |> Jason.decode!() |> RelayMark.project_manifest() ==
              Jason.decode!(manifest_json)
   end
 

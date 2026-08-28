@@ -34,8 +34,10 @@ RelayMark preserves valid document meaning and public adapter source
 compatibility. Additive contract features and deprecations may ship in 0.x;
 breaking changes are reserved for 1.0.
 
-Consumers should declare the minimum RelayMark version they require without a
-speculative major-version ceiling and commit their ecosystem lockfile. Allow
-deliberate updates to select stable major releases; the lockfile and consumer
-verification record the exact reproducible graph and catch actual
-incompatibility. Policy files must not duplicate resolved versions or revisions.
+Active first-party Relay consumers follow this repository's `main` branch
+during fast-moving pre-1.0 development and must not commit a first-party lock
+snapshot that silently holds them behind it. Tags and ecosystem lockfiles remain
+appropriate for external or intentionally stabilized consumers. Introduce a
+minimum version, exact revision, or narrower range only for a demonstrated
+incompatibility or release boundary; policy files must not duplicate resolved
+versions or revisions.

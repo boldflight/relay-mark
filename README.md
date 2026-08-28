@@ -115,21 +115,23 @@ version tags. From the current 0.5 baseline through the rest of the pre-1.0
 line, public adapter APIs and valid portable document meaning remain
 compatible; breaking changes are reserved for 1.0.
 
-Applications should allow the compatible line and commit the exact resolution:
+Active first-party Relay applications follow `main` during fast-moving pre-1.0
+development and do not commit a first-party resolution snapshot:
 
 ```swift
 .package(
     url: "https://github.com/boldflight/relay-mark.git",
-    "0.5.3"..<"1.0.0"
+    branch: "main"
 )
 ```
 
-`Package.resolved` makes local, CI, and Xcode Cloud builds reproducible.
-Updating packages intentionally advances it to the newest compatible tag.
-The explicit half-open range makes RelayMark's promised 0.x compatibility line
-visible at the declaration site. The repository root is the only Swift package
-manifest and remains the focused adapter-development entry point. It requires
-Swift tools 6.3 for the Xcode 26.5 production baseline and is also verified
+This lets Relay repositories converge without coordinated manifest edits for
+every compatible change. Published semantic-version tags remain the stable
+distribution boundary for external or intentionally frozen consumers, which
+may use a compatible range and commit `Package.resolved`. The repository root
+is the only Swift package manifest and remains the focused adapter-development
+entry point. It requires Swift tools 6.3 for the Xcode 26.5 production baseline
+and is also verified
 using the current Swift 6.4 beta toolchain.
 
 SwiftPM does not provide named `PackageDescription` enum cases for every Apple
@@ -145,12 +147,19 @@ checks are current.
 
 ## Elixir package distribution
 
-`RelayMark` is distributed on Hex as `relay_mark_elixir`. Applications should
-use a compatible version requirement and commit `mix.lock`:
+`RelayMark` is also distributed on Hex as `relay_mark_elixir`, but active
+first-party Relay applications follow the Elixir adapter on `main` during
+pre-1.0 development:
 
 ```elixir
-{:relay_mark_elixir, ">= 0.5.3"}
+{:relay_mark_elixir,
+ git: "https://github.com/boldflight/relay-mark.git",
+ branch: "main",
+ sparse: "adapters/elixir"}
 ```
+
+Hex remains the stable distribution path for external or intentionally frozen
+consumers.
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and
 directive registry required at compile time, while repository tests enforce

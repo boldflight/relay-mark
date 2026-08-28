@@ -6,7 +6,15 @@ defmodule RelayMark do
   persistence, authorization, and action execution belong in client projects.
   """
 
-  alias RelayMark.{AgentAnswer, Document, Manifest, Schema, SemanticValidator, ValidationError}
+  alias RelayMark.{
+    AgentAnswer,
+    Document,
+    Manifest,
+    ManifestProjection,
+    Schema,
+    SemanticValidator,
+    ValidationError
+  }
 
   @spec decode_layer_composition(binary()) :: {:ok, RelayMark.Composition.t()} | {:error, term()}
   def decode_layer_composition(json) when is_binary(json) do
@@ -70,6 +78,17 @@ defmodule RelayMark do
       :ok -> :ok
       {:error, error} -> {:error, [Schema.diagnostic(error, :manifest)]}
     end
+  end
+
+  @doc """
+  Projects a canonical RelayMark document map into its portable manifest.
+
+  Hosts should use this function instead of maintaining a parallel manifest
+  projector so newly added portable directives remain consistent everywhere.
+  """
+  @spec project_manifest(map(), [map()]) :: map()
+  def project_manifest(document, diagnostics \\ []) do
+    ManifestProjection.project(document, diagnostics)
   end
 
   @doc """
