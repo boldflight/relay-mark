@@ -6,6 +6,7 @@ import { compileRelayMark } from "./runtime.js";
 import { projectManifest } from "./projections.js";
 import { validateTransportedAgentAnswerPair } from "./transport.js";
 import { validateDocument } from "./validator.js";
+import { composeLayerContributions } from "./composition.js";
 
 export function runConformanceSuite(path) {
   const suitePath = resolve(path);
@@ -14,7 +15,9 @@ export function runConformanceSuite(path) {
   const fixtures = [];
 
   for (const fixture of suite.fixtures || []) {
-    const actual = fixture.input_manifest
+    const actual = fixture.input_composition
+      ? compileComposition(resolve(suiteDir, fixture.input_composition))
+      : fixture.input_manifest
       ? compileTransportedPair(suiteDir, fixture)
       : fixture.input_ast
       ? compileCanonicalAST(
@@ -26,6 +29,16 @@ export function runConformanceSuite(path) {
     let expectedDocument;
     let expectedManifest;
     let expectedDiagnostics;
+
+    if (fixture.expected_composition) {
+      const expectedComposition = JSON.parse(
+        readFileSync(resolve(suiteDir, fixture.expected_composition), "utf8")
+      );
+
+      if (!equalCanonicalJSON(actual.composition, expectedComposition)) {
+        errors.push("composed layers did not match expected_composition");
+      }
+    }
 
     if (fixture.expected_ast) {
       expectedDocument = JSON.parse(readFileSync(resolve(suiteDir, fixture.expected_ast), "utf8"));
@@ -102,6 +115,17 @@ function compileCanonicalAST(path, validationContext = {}) {
   };
 }
 
+function compileComposition(path) {
+  const layerComposition = JSON.parse(readFileSync(path, "utf8"));
+  const composition = composeLayerContributions(layerComposition.layers);
+
+  return {
+    layerComposition,
+    composition,
+    diagnostics: composition.diagnostics
+  };
+}
+
 function compileTransportedPair(suiteDir, fixture) {
   return validateTransportedAgentAnswerPair(
     readFileSync(resolve(suiteDir, fixture.input_ast)),
@@ -122,6 +146,12 @@ function schemaTargets(outputType, actual, expectedDocument, expectedManifest) {
     return compactTargets([
       { label: "projected manifest", value: actual.manifest },
       { label: "expected manifest", value: expectedManifest }
+    ]);
+  }
+
+  if (outputType === "relaymark.layer_composition") {
+    return compactTargets([
+      { label: "layer composition", value: actual.layerComposition }
     ]);
   }
 

@@ -2942,6 +2942,11 @@ private extension RelayMarkManifest {
         self.sources = sources
         self.claims = claims
         self.comparisons = comparisons
+        self.entityReferences = []
+        self.propertySheets = []
+        self.dataViews = []
+        self.layouts = []
+        self.capabilities = []
         self.diagnostics = diagnostics
     }
 }

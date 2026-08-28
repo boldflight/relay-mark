@@ -30,7 +30,7 @@
     "fixture": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "expected_ast"],
+      "required": ["id"],
       "properties": {
         "id": {
           "type": "string",
@@ -45,6 +45,9 @@
         "input_manifest": {
           "type": "string"
         },
+        "input_composition": {
+          "type": "string"
+        },
         "expected_ast": {
           "type": "string"
         },
@@ -52,6 +55,9 @@
           "type": "string"
         },
         "expected_diagnostics": {
+          "type": "string"
+        },
+        "expected_composition": {
           "type": "string"
         },
         "schemas": {
@@ -78,13 +84,29 @@
           "not": {
             "anyOf": [
               {"required": ["input_ast"]},
-              {"required": ["input_manifest"]}
+              {"required": ["input_manifest"]},
+              {"required": ["input_composition"]}
             ]
           }
         },
         {
           "required": ["input_ast"],
-          "not": {"required": ["source"]}
+          "not": {
+            "anyOf": [
+              {"required": ["source"]},
+              {"required": ["input_composition"]}
+            ]
+          }
+        },
+        {
+          "required": ["input_composition", "expected_composition"],
+          "not": {
+            "anyOf": [
+              {"required": ["source"]},
+              {"required": ["input_ast"]},
+              {"required": ["input_manifest"]}
+            ]
+          }
         }
       ]
     }

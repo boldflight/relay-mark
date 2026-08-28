@@ -4,6 +4,31 @@ import Testing
 
 struct RelayMarkSwiftTests {
     @Test
+    func decodesAgentPaperCompositionBindingsAndCapabilities() throws {
+        let document = try RelayMarkDocument.decodeJSON(fixtureData("person-paper.ast.json"))
+        let manifest = try RelayMarkManifest.decodeJSON(fixtureData("person-paper.manifest.json"))
+
+        #expect(document.blocks.map(\.type) == ["heading", "relay.property_sheet", "paragraph", "relay.data_view", "relay.data_view"])
+        #expect(manifest.propertySheets.first?.binding == "paper.person.properties")
+        #expect(manifest.propertySheets.first?.fields == ["full_name", "emails", "phones", "company"])
+        #expect(manifest.dataViews.map(\.source) == ["paper.related_commitments", "paper.journey_summary"])
+        #expect(manifest.capabilities.map(\.id) == [.propertySheet, .dataView, .dataView])
+    }
+
+    @Test
+    func decodesPortableLayerRolesAnchorsAndFallbacksWithoutAccessRules() throws {
+        let composition = try RelayMarkLayerComposition.decodeJSON(fixtureData("layered-meeting.composition.json"))
+
+        #expect(composition.type == "relaymark.layer_composition")
+        #expect(composition.layers.map(\.role) == [.authored, .generated, .source, .discussion])
+        #expect(composition.layers[1].items[0].placement?.anchor?.blockID == "meeting_heading")
+        #expect(composition.layers[1].items[1].placement?.anchorState == .stale)
+        #expect(composition.layers[1].items[1].placement?.fallback == .appendToLayer)
+        #expect(composition.layers[3].items[0].placement?.anchor == nil)
+        #expect(composition.layers[3].items[0].placement?.anchorState == .undisclosed)
+    }
+
+    @Test
     func decodesInlineEntityReferenceWithIDAsInlineContent() throws {
         let data = Data(
             #"{"type":"relaymark.document","version":1,"blocks":[{"id":"b1","type":"paragraph","content":[{"type":"relay.entity_ref","id":"product-1","label":"Mac mini"}]}]}"#.utf8

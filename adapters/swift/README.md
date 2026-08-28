@@ -14,6 +14,12 @@ The shared receipt binds the exact canonical answered and refused fixture
 bytes. Host apps remain responsible for rendering, authorization, review
 persistence, execution, and undo.
 
+The `0.6.0-draft` value models also decode Agent Paper property-sheet and data-
+view binding manifests, open renderer capability IDs, and portable semantic
+layer roles/anchors/fallbacks. These are data-only values. `RelayMarkSwift`
+does not depend on Relay Kit; a UI renderer may depend on both RelayMarkSwift
+and Relay Kit without creating a reverse dependency.
+
 For durable action rows, `proposalID` is the generator/client identity and
 `proposalRecordID` is the distinct host record address passed to an authorized
 review or undo API. Neither field is an authorization credential.

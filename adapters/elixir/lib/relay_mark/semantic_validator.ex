@@ -167,6 +167,21 @@ defmodule RelayMark.SemanticValidator do
             end
           end)
 
+        declared_attributes = MapSet.new(directive["attributes"], &elem(&1, 0))
+
+        diagnostics =
+          Enum.reduce(Map.keys(props), diagnostics, fn name, acc ->
+            if MapSet.member?(declared_attributes, name) do
+              acc
+            else
+              append_error(
+                acc,
+                "relaymark.attribute.unknown",
+                "#{block["type"]}.#{name} is not declared by the directive contract."
+              )
+            end
+          end)
+
         diagnostics =
           if directive["policy"]["requires_review"] == true and
                not Map.has_key?(props, "review") do
@@ -222,6 +237,18 @@ defmodule RelayMark.SemanticValidator do
             "relay.comparison" ->
               validate_comparison(block, diagnostics)
 
+            "relay.entity_reference" ->
+              validate_entity_reference(block, diagnostics)
+
+            "relay.property_sheet" ->
+              validate_property_sheet(block, diagnostics)
+
+            "relay.data_view" ->
+              validate_data_view(block, diagnostics)
+
+            "relay.layout" ->
+              validate_layout(block, diagnostics)
+
             _other ->
               diagnostics
           end
@@ -232,6 +259,18 @@ defmodule RelayMark.SemanticValidator do
 
   defp validate_action_proposal(block, diagnostics) do
     props = block["props"] || %{}
+
+    diagnostics =
+      if non_empty_string?(props["action"]) and
+           Regex.match?(~r/^[a-z][a-z0-9_.-]*$/u, props["action"]) do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.action.id",
+          "relay.action_row.action must be a stable registered action id."
+        )
+      end
 
     lifecycle_fields = [
       "proposal_record_id",
@@ -264,6 +303,102 @@ defmodule RelayMark.SemanticValidator do
         |> validate_lifecycle_state(props)
     end
   end
+
+  defp validate_entity_reference(block, diagnostics) do
+    if non_empty_string?(get_in(block, ["props", "id"])) do
+      diagnostics
+    else
+      append_error(
+        diagnostics,
+        "relaymark.entity_reference.id",
+        "relay.entity_reference.id must be a non-empty host reference."
+      )
+    end
+  end
+
+  defp validate_property_sheet(block, diagnostics) do
+    diagnostics
+    |> validate_binding_address(
+      get_in(block, ["props", "binding"]),
+      "relay.property_sheet.binding"
+    )
+    |> validate_distinct_keys(get_in(block, ["props", "fields"]), "relay.property_sheet.fields")
+  end
+
+  defp validate_data_view(block, diagnostics) do
+    props = block["props"] || %{}
+    diagnostics = validate_binding_address(diagnostics, props["source"], "relay.data_view.source")
+
+    diagnostics =
+      Enum.reduce([{"columns", props["columns"]}, {"sort", props["sort"]}], diagnostics, fn
+        {_field, nil}, acc -> acc
+        {field, value}, acc -> validate_distinct_keys(acc, value, "relay.data_view.#{field}")
+      end)
+
+    diagnostics =
+      if is_nil(props["group"]) or binding_segment?(props["group"]) do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.data_view.group",
+          "relay.data_view.group must be a host field key."
+        )
+      end
+
+    if is_nil(props["limit"]) or (is_integer(props["limit"]) and props["limit"] in 1..1000) do
+      diagnostics
+    else
+      append_error(
+        diagnostics,
+        "relaymark.data_view.limit",
+        "relay.data_view.limit must be an integer from 1 through 1000."
+      )
+    end
+  end
+
+  defp validate_layout(block, diagnostics) do
+    columns = get_in(block, ["props", "columns"])
+
+    if is_nil(columns) or (is_integer(columns) and columns in 1..4) do
+      diagnostics
+    else
+      append_error(
+        diagnostics,
+        "relaymark.layout.columns",
+        "relay.layout.columns must be an integer from 1 through 4."
+      )
+    end
+  end
+
+  defp validate_binding_address(diagnostics, value, label) do
+    if non_empty_string?(value) and
+         Regex.match?(~r/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/u, value) do
+      diagnostics
+    else
+      append_error(
+        diagnostics,
+        "relaymark.binding.invalid",
+        "#{label} must be a dotted host binding address."
+      )
+    end
+  end
+
+  defp validate_distinct_keys(diagnostics, value, label) do
+    if is_list(value) and value != [] and Enum.all?(value, &binding_segment?/1) and
+         Enum.uniq(value) == value do
+      diagnostics
+    else
+      append_error(
+        diagnostics,
+        "relaymark.binding.keys",
+        "#{label} must contain distinct, non-empty host field keys."
+      )
+    end
+  end
+
+  defp binding_segment?(value),
+    do: non_empty_string?(value) and Regex.match?(~r/^-?[a-z][a-z0-9_]*$/u, value)
 
   defp validate_proposal_record(diagnostics, props) do
     cond do

@@ -13,10 +13,15 @@ defmodule RelayMark.Schema do
                           "../../priv/relaymark/schemas/relaymark-manifest.schema.json",
                           __DIR__
                         )
+  @layer_composition_schema_path Path.expand(
+                                   "../../priv/relaymark/schemas/relaymark-layer-composition.schema.json",
+                                   __DIR__
+                                 )
 
   @external_resource @document_schema_path
   @external_resource @diagnostic_schema_path
   @external_resource @manifest_schema_path
+  @external_resource @layer_composition_schema_path
 
   @document_schema @document_schema_path
                    |> File.read!()
@@ -37,6 +42,11 @@ defmodule RelayMark.Schema do
                    )
                    |> JSV.build!(warnings: :silent)
 
+  @layer_composition_schema @layer_composition_schema_path
+                            |> File.read!()
+                            |> Jason.decode!()
+                            |> JSV.build!(warnings: :silent)
+
   @spec validate_document_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
   def validate_document_schema(document), do: validate(@document_schema, document)
 
@@ -45,6 +55,10 @@ defmodule RelayMark.Schema do
 
   @spec validate_manifest_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
   def validate_manifest_schema(manifest), do: validate(@manifest_schema, manifest)
+
+  @spec validate_layer_composition_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
+  def validate_layer_composition_schema(composition),
+    do: validate(@layer_composition_schema, composition)
 
   @spec diagnostic(JSV.ValidationError.t(), :document | :manifest) ::
           RelayMark.Diagnostic.t()

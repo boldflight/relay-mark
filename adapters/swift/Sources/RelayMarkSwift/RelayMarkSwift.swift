@@ -237,6 +237,90 @@ public struct RelayMarkAnchor: Codable, Equatable, Sendable {
     }
 }
 
+public struct RelayMarkCapability: RawRepresentable, Codable, Equatable, Hashable, Sendable {
+    public let rawValue: String
+
+    public init(rawValue: String) { self.rawValue = rawValue }
+
+    public static let entityReference = Self(rawValue: "entity.reference")
+    public static let propertySheet = Self(rawValue: "binding.property_sheet")
+    public static let dataView = Self(rawValue: "binding.data_view")
+    public static let adaptiveColumns = Self(rawValue: "layout.adaptive_columns")
+}
+
+public enum RelayMarkLayerRole: String, Codable, Equatable, Sendable {
+    case authored
+    case source
+    case generated
+    case discussion
+    case ink
+}
+
+public enum RelayMarkPlacementKind: String, Codable, Equatable, Sendable {
+    case before
+    case after
+    case slot
+}
+
+public enum RelayMarkAnchorState: String, Codable, Equatable, Sendable {
+    case present
+    case absent
+    case stale
+    case undisclosed
+}
+
+public enum RelayMarkAnchorFallback: String, Codable, Equatable, Sendable {
+    case appendToLayer = "append_to_layer"
+    case omit
+    case unresolved
+}
+
+public struct RelayMarkCompositionAnchor: Codable, Equatable, Sendable {
+    public let blockID: String
+
+    enum CodingKeys: String, CodingKey { case blockID = "block_id" }
+}
+
+public struct RelayMarkLayerPlacement: Codable, Equatable, Sendable {
+    public let kind: RelayMarkPlacementKind
+    public let anchor: RelayMarkCompositionAnchor?
+    public let slot: String?
+    public let anchorState: RelayMarkAnchorState?
+    public let fallback: RelayMarkAnchorFallback?
+
+    enum CodingKeys: String, CodingKey {
+        case kind
+        case anchor
+        case slot
+        case anchorState = "anchor_state"
+        case fallback
+    }
+}
+
+public struct RelayMarkLayerItem: Codable, Equatable, Sendable {
+    public let id: String
+    public let rank: Int?
+    public let block: RelayMarkBlock
+    public let placement: RelayMarkLayerPlacement?
+}
+
+public struct RelayMarkLayerContribution: Codable, Equatable, Sendable {
+    public let id: String
+    public let role: RelayMarkLayerRole
+    public let rank: Int?
+    public let items: [RelayMarkLayerItem]
+}
+
+public struct RelayMarkLayerComposition: Codable, Equatable, Sendable {
+    public let type: String
+    public let version: Int
+    public let layers: [RelayMarkLayerContribution]
+
+    public static func decodeJSON(_ data: Data) throws -> Self {
+        try RelayMarkDecoder.decode(Self.self, from: data)
+    }
+}
+
 public struct RelayMarkResource: Codable, Equatable, Sendable {
     public let id: String
     public let type: String
@@ -478,7 +562,20 @@ public struct RelayMarkManifest: Codable, Equatable, Sendable {
     public let sources: [RelayMarkSource]
     public let claims: [RelayMarkClaim]
     public let comparisons: [RelayMarkComparison]
+    public let entityReferences: [RelayMarkEntityReference]
+    public let propertySheets: [RelayMarkPropertySheet]
+    public let dataViews: [RelayMarkDataView]
+    public let layouts: [RelayMarkLayout]
+    public let capabilities: [RelayMarkCapabilityRequirement]
     public let diagnostics: [RelayMarkDiagnostic]
+
+    enum CodingKeys: String, CodingKey {
+        case type, version, actions, mentions, references, forms, sources, claims, comparisons
+        case entityReferences = "entity_references"
+        case propertySheets = "property_sheets"
+        case dataViews = "data_views"
+        case layouts, capabilities, diagnostics
+    }
 
     public static func decodeJSON(_ data: Data) throws -> RelayMarkManifest {
         try RelayMarkDecoder.decode(RelayMarkManifest.self, from: data)
@@ -495,8 +592,77 @@ public struct RelayMarkManifest: Codable, Equatable, Sendable {
         sources = try container.decodeIfPresent([RelayMarkSource].self, forKey: .sources) ?? []
         claims = try container.decodeIfPresent([RelayMarkClaim].self, forKey: .claims) ?? []
         comparisons = try container.decodeIfPresent([RelayMarkComparison].self, forKey: .comparisons) ?? []
+        entityReferences = try container.decodeIfPresent([RelayMarkEntityReference].self, forKey: .entityReferences) ?? []
+        propertySheets = try container.decodeIfPresent([RelayMarkPropertySheet].self, forKey: .propertySheets) ?? []
+        dataViews = try container.decodeIfPresent([RelayMarkDataView].self, forKey: .dataViews) ?? []
+        layouts = try container.decodeIfPresent([RelayMarkLayout].self, forKey: .layouts) ?? []
+        capabilities = try container.decodeIfPresent([RelayMarkCapabilityRequirement].self, forKey: .capabilities) ?? []
         diagnostics = try container.decodeIfPresent([RelayMarkDiagnostic].self, forKey: .diagnostics) ?? []
     }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(type, forKey: .type)
+        try container.encode(version, forKey: .version)
+        try container.encode(actions, forKey: .actions)
+        try container.encode(mentions, forKey: .mentions)
+        try container.encode(references, forKey: .references)
+        try container.encode(forms, forKey: .forms)
+        try container.encode(sources, forKey: .sources)
+        try container.encode(claims, forKey: .claims)
+        try container.encode(comparisons, forKey: .comparisons)
+        if !entityReferences.isEmpty { try container.encode(entityReferences, forKey: .entityReferences) }
+        if !propertySheets.isEmpty { try container.encode(propertySheets, forKey: .propertySheets) }
+        if !dataViews.isEmpty { try container.encode(dataViews, forKey: .dataViews) }
+        if !layouts.isEmpty { try container.encode(layouts, forKey: .layouts) }
+        if !capabilities.isEmpty { try container.encode(capabilities, forKey: .capabilities) }
+        try container.encode(diagnostics, forKey: .diagnostics)
+    }
+}
+
+public struct RelayMarkEntityReference: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let id: String
+    public let label: String?
+    public let projection: String
+    enum CodingKeys: String, CodingKey { case blockID = "block_id"; case id, label, projection }
+}
+
+public struct RelayMarkPropertySheet: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let binding: String
+    public let fields: [String]
+    public let title: String?
+    public let presentation: String
+    enum CodingKeys: String, CodingKey { case blockID = "block_id"; case binding, fields, title, presentation }
+}
+
+public struct RelayMarkDataView: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let source: String
+    public let projection: String
+    public let columns: [String]
+    public let filter: [String: RelayMarkValue]?
+    public let sort: [String]
+    public let group: String?
+    public let limit: Int?
+    public let title: String?
+    enum CodingKeys: String, CodingKey { case blockID = "block_id"; case source, projection, columns, filter, sort, group, limit, title }
+}
+
+public struct RelayMarkLayout: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let mode: String
+    public let columns: Int?
+    public let label: String?
+    enum CodingKeys: String, CodingKey { case blockID = "block_id"; case mode, columns, label }
+}
+
+public struct RelayMarkCapabilityRequirement: Codable, Equatable, Sendable {
+    public let blockID: String
+    public let id: RelayMarkCapability
+    public let fallback: String
+    enum CodingKeys: String, CodingKey { case blockID = "block_id"; case id, fallback }
 }
 
 public struct RelayMarkAction: Codable, Equatable, Sendable {

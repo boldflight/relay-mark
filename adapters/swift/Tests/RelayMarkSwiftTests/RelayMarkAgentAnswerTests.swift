@@ -14,7 +14,7 @@ struct RelayMarkAgentAnswerTests {
         )
 
         #expect(receipt.type == "relaymark.fixture_receipt")
-        #expect(receipt.version == "0.5.0-draft")
+        #expect(receipt.version == "0.6.0-draft")
         #expect(receipt.algorithm == "sha256")
         #expect(receipt.pairs.map(\.id) == [
             "scripture-ask-answered",

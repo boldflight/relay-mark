@@ -9,6 +9,12 @@ For durable action rows, `proposal_id` is the generator/client identity and
 `proposal_record_id` is the distinct host record address; neither grants
 authorization by itself.
 
+The `0.6.0-draft` adapter also decodes Agent Paper property/data bindings and
+portable semantic layer contribution metadata. Bindings contain approved host
+addresses and field keys, never resolved private values. Layer values describe
+already-authorized roles, anchors, placement, and fallback; Relay applications
+remain responsible for grants, view profiles, revocation, retention, and sync.
+
 Validate canonical JSON-keyed AST maps before a host persists or projects them:
 
 ```elixir

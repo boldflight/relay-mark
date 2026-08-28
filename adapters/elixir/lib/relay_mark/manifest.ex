@@ -10,6 +10,11 @@ defmodule RelayMark.Manifest do
             sources: [],
             claims: [],
             comparisons: [],
+            entity_references: [],
+            property_sheets: [],
+            data_views: [],
+            layouts: [],
+            capabilities: [],
             diagnostics: []
 
   @type t :: %__MODULE__{
@@ -22,6 +27,11 @@ defmodule RelayMark.Manifest do
           sources: [RelayMark.Manifest.Source.t()],
           claims: [RelayMark.Manifest.Claim.t()],
           comparisons: [RelayMark.Manifest.Comparison.t()],
+          entity_references: [RelayMark.Manifest.EntityReference.t()],
+          property_sheets: [RelayMark.Manifest.PropertySheet.t()],
+          data_views: [RelayMark.Manifest.DataView.t()],
+          layouts: [RelayMark.Manifest.Layout.t()],
+          capabilities: [RelayMark.Manifest.Capability.t()],
           diagnostics: [map()]
         }
 
@@ -39,9 +49,134 @@ defmodule RelayMark.Manifest do
       claims: Enum.map(Map.get(map, "claims", []), &RelayMark.Manifest.Claim.from_map/1),
       comparisons:
         Enum.map(Map.get(map, "comparisons", []), &RelayMark.Manifest.Comparison.from_map/1),
+      entity_references:
+        Enum.map(
+          Map.get(map, "entity_references", []),
+          &RelayMark.Manifest.EntityReference.from_map/1
+        ),
+      property_sheets:
+        Enum.map(
+          Map.get(map, "property_sheets", []),
+          &RelayMark.Manifest.PropertySheet.from_map/1
+        ),
+      data_views:
+        Enum.map(Map.get(map, "data_views", []), &RelayMark.Manifest.DataView.from_map/1),
+      layouts: Enum.map(Map.get(map, "layouts", []), &RelayMark.Manifest.Layout.from_map/1),
+      capabilities:
+        Enum.map(Map.get(map, "capabilities", []), &RelayMark.Manifest.Capability.from_map/1),
       diagnostics: Map.get(map, "diagnostics", [])
     }
   end
+end
+
+defmodule RelayMark.Manifest.EntityReference do
+  @moduledoc "Portable entity-reference projection without resolved entity fields."
+  defstruct [:block_id, :id, :label, :projection]
+
+  @type t :: %__MODULE__{
+          block_id: String.t(),
+          id: String.t(),
+          label: String.t() | nil,
+          projection: String.t()
+        }
+  def from_map(map),
+    do:
+      struct!(__MODULE__,
+        block_id: map["block_id"],
+        id: map["id"],
+        label: map["label"],
+        projection: map["projection"]
+      )
+end
+
+defmodule RelayMark.Manifest.PropertySheet do
+  @moduledoc "Portable schema-binding projection. Values remain host-owned."
+  defstruct [:block_id, :binding, :title, :presentation, fields: []]
+
+  @type t :: %__MODULE__{
+          block_id: String.t(),
+          binding: String.t(),
+          title: String.t() | nil,
+          presentation: String.t(),
+          fields: [String.t()]
+        }
+  def from_map(map),
+    do:
+      struct!(__MODULE__,
+        block_id: map["block_id"],
+        binding: map["binding"],
+        title: map["title"],
+        presentation: map["presentation"],
+        fields: map["fields"] || []
+      )
+end
+
+defmodule RelayMark.Manifest.DataView do
+  @moduledoc "Portable host-read-model binding projection."
+  defstruct [
+    :block_id,
+    :source,
+    :projection,
+    :filter,
+    :group,
+    :limit,
+    :title,
+    columns: [],
+    sort: []
+  ]
+
+  @type t :: %__MODULE__{
+          block_id: String.t(),
+          source: String.t(),
+          projection: String.t(),
+          filter: map() | nil,
+          group: String.t() | nil,
+          limit: pos_integer() | nil,
+          title: String.t() | nil,
+          columns: [String.t()],
+          sort: [String.t()]
+        }
+  def from_map(map),
+    do:
+      struct!(__MODULE__,
+        block_id: map["block_id"],
+        source: map["source"],
+        projection: map["projection"],
+        filter: map["filter"],
+        group: map["group"],
+        limit: map["limit"],
+        title: map["title"],
+        columns: map["columns"] || [],
+        sort: map["sort"] || []
+      )
+end
+
+defmodule RelayMark.Manifest.Layout do
+  @moduledoc "Portable layout-hint projection."
+  defstruct [:block_id, :mode, :columns, :label]
+
+  @type t :: %__MODULE__{
+          block_id: String.t(),
+          mode: String.t(),
+          columns: pos_integer() | nil,
+          label: String.t() | nil
+        }
+  def from_map(map),
+    do:
+      struct!(__MODULE__,
+        block_id: map["block_id"],
+        mode: map["mode"],
+        columns: map["columns"],
+        label: map["label"]
+      )
+end
+
+defmodule RelayMark.Manifest.Capability do
+  @moduledoc "Registry-owned renderer capability requirement and fallback."
+  defstruct [:block_id, :id, :fallback]
+  @type t :: %__MODULE__{block_id: String.t(), id: String.t(), fallback: String.t()}
+  def from_map(map),
+    do: struct!(__MODULE__, block_id: map["block_id"], id: map["id"], fallback: map["fallback"])
 end
 
 defmodule RelayMark.Manifest.Reference do

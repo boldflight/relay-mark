@@ -1,6 +1,6 @@
 {
   "type": "relaymark.fixture_receipt",
-  "version": "0.5.0-draft",
+  "version": "0.6.0-draft",
   "algorithm": "sha256",
   "pairs": [
     {

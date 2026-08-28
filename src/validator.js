@@ -80,6 +80,14 @@ function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResour
     }
   }
 
+  for (const name of Object.keys(block.props || {})) {
+    if (!Object.hasOwn(directive.attributes || {}, name)) {
+      diagnostics.push(
+        error("relaymark.attribute.unknown", `${block.type}.${name} is not declared by the directive contract.`)
+      );
+    }
+  }
+
   if (directive.policy?.requires_review && block.props?.review === undefined) {
     diagnostics.push(error("relaymark.policy.review_required", `${block.type} requires a review state.`));
   }
@@ -115,10 +123,104 @@ function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResour
   if (block.type === "relay.comparison") {
     validateComparison(block, diagnostics);
   }
+
+  if (block.type === "relay.entity_reference") {
+    validateEntityReference(block, diagnostics);
+  }
+
+  if (block.type === "relay.property_sheet") {
+    validatePropertySheet(block, diagnostics);
+  }
+
+  if (block.type === "relay.data_view") {
+    validateDataView(block, diagnostics);
+  }
+
+  if (block.type === "relay.layout") {
+    validateLayout(block, diagnostics);
+  }
+}
+
+function validateEntityReference(block, diagnostics) {
+  if (!nonEmptyString(block.props?.id)) {
+    diagnostics.push(
+      error("relaymark.entity_reference.id", "relay.entity_reference.id must be a non-empty host reference.")
+    );
+  }
+}
+
+function validatePropertySheet(block, diagnostics) {
+  validateBindingAddress(block.props?.binding, "relay.property_sheet.binding", diagnostics);
+  validateDistinctKeys(block.props?.fields, "relay.property_sheet.fields", diagnostics);
+}
+
+function validateDataView(block, diagnostics) {
+  validateBindingAddress(block.props?.source, "relay.data_view.source", diagnostics);
+
+  for (const [field, value] of [
+    ["columns", block.props?.columns],
+    ["sort", block.props?.sort]
+  ]) {
+    if (value !== undefined) validateDistinctKeys(value, `relay.data_view.${field}`, diagnostics);
+  }
+
+  if (block.props?.group !== undefined && !bindingSegment(block.props.group)) {
+    diagnostics.push(
+      error("relaymark.data_view.group", "relay.data_view.group must be a host field key.")
+    );
+  }
+
+  const limit = block.props?.limit;
+  if (limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 1000)) {
+    diagnostics.push(
+      error("relaymark.data_view.limit", "relay.data_view.limit must be an integer from 1 through 1000.")
+    );
+  }
+}
+
+function validateLayout(block, diagnostics) {
+  const columns = block.props?.columns;
+
+  if (columns !== undefined && (!Number.isInteger(columns) || columns < 1 || columns > 4)) {
+    diagnostics.push(
+      error("relaymark.layout.columns", "relay.layout.columns must be an integer from 1 through 4.")
+    );
+  }
+}
+
+function validateBindingAddress(value, label, diagnostics) {
+  if (!nonEmptyString(value) || !/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/u.test(value)) {
+    diagnostics.push(
+      error("relaymark.binding.invalid", `${label} must be a dotted host binding address.`)
+    );
+  }
+}
+
+function validateDistinctKeys(value, label, diagnostics) {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.some((item) => !bindingSegment(item)) ||
+    new Set(value).size !== value.length
+  ) {
+    diagnostics.push(
+      error("relaymark.binding.keys", `${label} must contain distinct, non-empty host field keys.`)
+    );
+  }
+}
+
+function bindingSegment(value) {
+  return nonEmptyString(value) && /^-?[a-z][a-z0-9_]*$/u.test(value);
 }
 
 function validateActionProposal(block, diagnostics) {
   const props = block.props || {};
+
+  if (!nonEmptyString(props.action) || !/^[a-z][a-z0-9_.-]*$/u.test(props.action)) {
+    diagnostics.push(
+      error("relaymark.action.id", "relay.action_row.action must be a stable registered action id.")
+    );
+  }
   const lifecycleFields = ["proposal_record_id", "proposal_revision", "decision_id", "execution_id", "undo_id"];
   const lifecycleAware =
     props.review === "undone" ||

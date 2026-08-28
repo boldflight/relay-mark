@@ -1,0 +1,20 @@
+---
+profile: relaymark.agent_paper.v1
+title: "Jordan Lee"
+---
+
+# Jordan Lee
+
+@PropertySheet(binding: "paper.person.properties", fields: ["full_name", "emails", "phones", "company"], presentation: "stack", title: "Contact") {
+  Contact values remain in the authorized host projection.
+}
+
+Jordan is preparing for a leadership transition and wants a concrete practice rhythm.
+
+@DataView(columns: ["name", "status", "due_at"], limit: 20, projection: "table", sort: ["due_at"], source: "paper.related_commitments", title: "Commitments") {
+  Related commitments
+}
+
+@DataView(columns: ["stage", "count"], filter: {"window": "90d"}, projection: "chart", sort: ["stage"], source: "paper.journey_summary", title: "Journey pattern") {
+  Journey pattern
+}

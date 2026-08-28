@@ -1,0 +1,9 @@
+@Layout(columns: 2, label: "Person overview", mode: "adaptive_columns") {
+  @EntityRef(id: "entity:person-jordan", label: "Jordan Lee", projection: "card") {
+    Jordan Lee
+  }
+
+  @DataView(columns: ["name", "status"], projection: "table", sort: ["name"], source: "paper.related_commitments", title: "Commitments") {
+    Related commitments
+  }
+}

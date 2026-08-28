@@ -1,0 +1,70 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "DataView",
+  "ast_type": "relay.data_view",
+  "version": 1,
+  "category": "relay_kit",
+  "description": "A bound view over an approved host read model without embedding its records in source.",
+  "capability": "binding.data_view",
+  "fallback": "summary",
+  "attributes": {
+    "source": {
+      "type": "string",
+      "required": true,
+      "description": "Approved host read-model address, not a URL, query, or executable data source."
+    },
+    "projection": {
+      "type": "enum",
+      "required": true,
+      "values": ["list", "table", "feed", "calendar", "kanban", "chart"]
+    },
+    "columns": {
+      "type": "array",
+      "items": "string",
+      "description": "Ordered projected field keys."
+    },
+    "filter": {
+      "type": "object",
+      "description": "Declarative host-validated filter values; never SQL or executable predicates."
+    },
+    "sort": {
+      "type": "array",
+      "items": "string",
+      "description": "Ordered host-validated sort keys, optionally prefixed with a minus for descending order."
+    },
+    "group": {
+      "type": "string",
+      "description": "Optional host field key used for grouping."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Requested result limit. Hosts enforce their own stricter bound."
+    },
+    "title": {
+      "type": "string",
+      "description": "Optional authored view title."
+    }
+  },
+  "children": {
+    "mode": "mixed",
+    "allowed_types": ["paragraph", "text"],
+    "min": 0
+  },
+  "validation": [
+    "source, columns, filters, sort, grouping, and projection must be allowlisted by the host",
+    "source must not contain SQL, a network URL, credentials, or authorization claims",
+    "records remain outside RelayMark and outside collaborative text storage",
+    "rendering is side-effect free"
+  ],
+  "projections": {
+    "relay_kit": "DataView",
+    "html": "bound-data-view",
+    "plain_text": "title and host-provided summary",
+    "manifest": []
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true
+  }
+}
