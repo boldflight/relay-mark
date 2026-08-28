@@ -29,15 +29,16 @@ release must state which portable conformance version it implements. A Git tag
 does not publish Hex; prepare and tag the Elixir adapter, then let the release
 operator run `mix hex.publish` with their own Hex credentials.
 
-From the current 0.5 contract baseline through the rest of the pre-1.0 line,
-RelayMark preserves valid document meaning and public adapter source
-compatibility. Additive contract features and deprecations may ship in 0.x;
-breaking changes are reserved for 1.0.
+Through the rest of the pre-1.0 line, RelayMark preserves valid document meaning
+and public adapter source compatibility. Keep compatible distribution releases
+on `0.6.x` and advance only the patch component; reserve the next minor or major
+version for the deliberate 1.0 boundary rather than consuming minor numbers for
+ordinary additive work. Breaking changes are reserved for 1.0.
 
-Active first-party Relay consumers follow this repository's `main` branch
-during fast-moving pre-1.0 development and must not commit a first-party lock
-snapshot that silently holds them behind it. Tags and ecosystem lockfiles remain
-appropriate for external or intentionally stabilized consumers. Introduce a
-minimum version, exact revision, or narrower range only for a demonstrated
-incompatibility or release boundary; policy files must not duplicate resolved
-versions or revisions.
+Active first-party Relay Elixir consumers use the latest published Hex package
+through an open lower-bound requirement and commit the resolved version in
+their lockfile. Do not depend on the private Git repository from a production
+Docker build. Swift consumers may continue to follow `main` where their build
+service has repository access. Introduce an exact revision or narrower range
+only for a demonstrated incompatibility or release boundary; policy files must
+not duplicate resolved versions or revisions.

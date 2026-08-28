@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.6.1
+
+- Exposes `RelayMark.project_manifest/2` as the canonical public manifest
+  projection API so Relay hosts do not maintain drifting local projectors.
+- Keeps active first-party Relay Elixir consumers on the latest published Hex
+  release. Until the deliberate 1.0 boundary, compatible releases advance only
+  the patch component on the `0.6.x` line.
+- Implements the portable `0.6.0-draft` conformance contract.
+
 ## 0.6.0
 
 - Updates JSV to 0.22 and removes the arbitrary major-version ceiling. The

@@ -111,12 +111,12 @@ if (result.diagnostics.length > 0) reject(result.diagnostics);
 
 `RelayMarkSwift` is distributed from the repository root at
 `https://github.com/boldflight/relay-mark.git`. Published releases use semantic
-version tags. From the current 0.5 baseline through the rest of the pre-1.0
-line, public adapter APIs and valid portable document meaning remain
-compatible; breaking changes are reserved for 1.0.
+version tags. Through the `0.6.x` pre-1.0 line, public adapter APIs and valid
+portable document meaning remain compatible; breaking changes are reserved for
+1.0.
 
-Active first-party Relay applications follow `main` during fast-moving pre-1.0
-development and do not commit a first-party resolution snapshot:
+Active first-party Swift applications may follow `main` during pre-1.0
+development when their build service has repository access:
 
 ```swift
 .package(
@@ -147,19 +147,17 @@ checks are current.
 
 ## Elixir package distribution
 
-`RelayMark` is also distributed on Hex as `relay_mark_elixir`, but active
-first-party Relay applications follow the Elixir adapter on `main` during
-pre-1.0 development:
+`RelayMark` is distributed on Hex as `relay_mark_elixir`. Active first-party
+Relay Elixir applications consume the latest published Hex release:
 
 ```elixir
-{:relay_mark_elixir,
- git: "https://github.com/boldflight/relay-mark.git",
- branch: "main",
- sparse: "adapters/elixir"}
+{:relay_mark_elixir, ">= 0.6.1"}
 ```
 
-Hex remains the stable distribution path for external or intentionally frozen
-consumers.
+The application lockfile records the exact tested release. An intentional
+`mix deps.update relay_mark_elixir` selects the newest stable package without
+requiring a manifest edit. Production Docker builds must not depend on access
+to this private Git repository.
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and
 directive registry required at compile time, while repository tests enforce
@@ -170,6 +168,10 @@ tag. They do not wait for, or force, a repository/Swift version bump. Both
 release streams declare the portable conformance-suite version they implement;
 that contract version—not equal distribution numbers—is the cross-runtime
 compatibility key.
+
+Until the deliberate 1.0 boundary, compatible repository, Swift, and Hex
+distribution releases remain on `0.6.x` and advance only the patch component.
+Ordinary additive work does not consume another minor version.
 
 The reference runtime intentionally starts small. Its job is to make the draft
 spec executable before richer client/editor adapters exist.

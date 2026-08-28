@@ -53,13 +53,15 @@ to `relaymark-diagnostic.schema.json`.
 Consume the released adapter from Hex:
 
 ```elixir
-{:relay_mark_elixir, ">= 0.5.3"}
+{:relay_mark_elixir, ">= 0.6.1"}
 ```
 
 The exact selected release belongs in the application's committed `mix.lock`.
-The lower-bound range allows an intentional `mix deps.update
-relay_mark_elixir` to select the newest stable adapter release, including a new
-major. The committed lockfile keeps ordinary builds on the exact tested graph.
+The lower-bound range lets an intentional `mix deps.update relay_mark_elixir`
+select the newest stable adapter release without pinning a single version in
+the manifest. Until the deliberate 1.0 boundary, compatible adapter releases
+stay on the `0.6.x` line and advance only the patch component. The committed
+lockfile keeps ordinary builds on the exact tested graph.
 
 ```sh
 cd adapters/elixir
