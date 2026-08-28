@@ -27,7 +27,8 @@ This repository owns the portable RelayMark contract:
   deterministic serialization, capability negotiation, layer composition,
   projections, and conformance.
 - `bin/relaymark.mjs` - small CLI wrapper.
-- `adapters/swift/` - generic Swift value models and Agent Answer validation,
+- `adapters/swift/` - generic Swift value models, Agent Answer validation, and
+  the native attributed-text bridge for Markdown-compatible RelayMark prose,
   exposed as the root Swift package product `RelayMarkSwift`.
 - `adapters/elixir/` - generic Elixir value models, document validation, and
   Agent Answer transported-pair validation.

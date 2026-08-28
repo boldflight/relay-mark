@@ -2,6 +2,13 @@
 
 Generic Swift value models for RelayMark AST and manifest JSON.
 
+The adapter also provides `RelayMarkAttributedTextCodec`, a product-neutral
+authoring bridge between Markdown-compatible RelayMark prose source and
+Foundation `AttributedString`. It round-trips headings, lists, emphasis, code,
+links, and canonical `relay:` entity references. The canonical interchange is
+still `RelayMarkDocument`; host apps resolve entity identities and choose their
+native editor and chip presentation.
+
 The package requires Swift tools 6.3 to match production Xcode 26.5 and is
 continuously verified with Swift 6.4. It supports macOS, iOS,
 and visionOS 26.5 or newer. Manifest models include generic inline-reference,
