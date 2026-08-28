@@ -2,12 +2,11 @@
 
 ## Unreleased
 
+## 0.6.0
+
 - Updates JSV to 0.22 and removes the arbitrary major-version ceiling. The
   adapter lockfile records the tested release while deliberate updates may
   select any newer stable JSV version.
-
-## 0.6.0
-
 - Implements the portable `0.6.0-draft` contract while preserving valid
   pre-1.0 document meaning and public Elixir adapter source compatibility.
 - Implements portable `0.6.0-draft` Agent Paper binding-manifest and semantic

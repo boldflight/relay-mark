@@ -2,12 +2,11 @@
 
 ## Unreleased
 
+## 0.6.0
+
 - Adds a generic Swift `AttributedString` authoring bridge for readable
   RelayMark prose and canonical `relay:` entity links without moving host UI,
   entity resolution, or authorization into the portable adapter.
-
-## 0.6.0
-
 - Implements the portable `0.6.0-draft` contract while preserving valid
   pre-1.0 document meaning and public Swift adapter source compatibility.
 - Advances the portable contract to `0.6.0-draft` with additive Agent Paper
