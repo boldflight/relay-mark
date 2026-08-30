@@ -1,13 +1,18 @@
 # RelayMark
 
-RelayMark is the safe, portable composition language for malleable Agent
-Papers: human-readable Markdown prose plus validated declarative blocks that
-deterministic renderers can understand across web and native clients.
+RelayMark is the safe, portable document and composition language of Agent
+Paper: human-readable Markdown prose plus validated declarative blocks that
+deterministic editors and renderers can understand across web and native
+clients. On the web, TipTap edits this document; native clients use an
+equivalent native RelayMark editor.
 
 RelayMark describes authored content, host binding addresses, renderer-neutral
 presentation intent, registered action references, and portable composition
 metadata. It is not Relay's database, authorization layer, renderer toolkit,
-or an unrestricted application language. Relay domain hosts resolve authorized
+or an unrestricted application language. It does not describe entity headers,
+navigation, modal or sheet containers, publish/info controls, footers,
+previews, or collection engines; those belong to the paper or entity host.
+Relay domain hosts resolve authorized
 data and execute reviewed actions; Relay Kit and other renderers consume the
 validated AST without gaining authority.
 

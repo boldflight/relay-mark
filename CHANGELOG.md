@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Clarifies the cross-platform boundary: Agent Paper is the editable RelayMark
+  document surface, while entity/page chrome and collection engines belong to
+  hosts.
+- Defines transient decision and confirmation controls as non-authored runtime
+  UI until a portable directive is standardized.
+
 ## 0.6.0
 
 - Adds a generic Swift `AttributedString` authoring bridge for readable

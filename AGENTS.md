@@ -1,5 +1,15 @@
 # RelayMark repository guidance
 
+## Agent Paper boundary
+
+Agent Paper is the editable RelayMark document surface. On the web, TipTap is
+its editor; native clients use an equivalent native RelayMark editor. Its
+content may include authored prose, semantic entity references, governed
+document layers, inline AI suggestions, action reviews, and activity states.
+Entity headers, publish/info controls, navigation, modal or sheet containers,
+footers, previews, and collection engines belong to a paper or entity host.
+They are not Agent Paper and must not enter the portable RelayMark grammar.
+
 ## Git worktree layout
 
 - Keep the primary checkout at `<parent>/relay-mark` on `main` for routine work and releases.

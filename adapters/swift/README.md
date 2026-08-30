@@ -2,6 +2,10 @@
 
 Generic Swift value models for RelayMark AST and manifest JSON.
 
+This adapter maps the Agent Paper RelayMark document to portable Swift values.
+Native app screens and their headers, navigation, sheets, footers, previews,
+and collection engines remain host UI outside Agent Paper.
+
 The adapter also provides `RelayMarkAttributedTextCodec`, a product-neutral
 authoring bridge between Markdown-compatible RelayMark prose source and
 Foundation `AttributedString`. It round-trips headings, lists, emphasis, code,

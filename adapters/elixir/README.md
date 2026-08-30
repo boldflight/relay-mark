@@ -3,6 +3,10 @@
 Generic Elixir value models and document validation for RelayMark AST and
 manifest JSON.
 
+This adapter validates and maps the Agent Paper RelayMark document. LiveView
+routes, headers, navigation, modals, footers, previews, and collection engines
+remain host UI outside Agent Paper.
+
 The adapter preserves generic evidence selectors and action-proposal lifecycle
 identifiers without executing actions or resolving host authorization.
 For durable action rows, `proposal_id` is the generator/client identity and

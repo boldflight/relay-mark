@@ -3,6 +3,10 @@
 Adapters in this directory are reusable language or platform bridges for the
 portable RelayMark contract.
 
+They map the Agent Paper document to runtime values and editors. They do not
+own entity headers, navigation, modal or sheet containers, footers, previews,
+collection engines, or other host UI.
+
 They may:
 
 - Decode and encode RelayMark AST JSON.

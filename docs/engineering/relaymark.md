@@ -5,17 +5,20 @@
 > Current normative direction lives in the
 > [RelayMark specification](../../spec/relaymark/README.md) and
 > [ADR 0001](../adr/0001-safe-agent-paper-composition-profile.md): RelayMark is
-> the safe portable composition language for malleable Agent Papers, host
+> the safe portable document and composition language of Agent Paper, host
 > bindings never contain resolved private values, and paper layers compose
 > already-authorized contributions linearly.
 
 RelayMark is Relay's Markdown-compatible authoring format for notes,
 transcripts, forms, long reading, and agent-generated document structure.
 
-It sits below Agent Paper. Agent Paper is the product interaction model: the
-note is a command surface. RelayMark is the portable document grammar that lets
+It is the portable document grammar of Agent Paper. On the web, TipTap edits
+it; native clients use an equivalent native RelayMark editor. The document is a
+command surface. RelayMark lets
 humans, agents, LiveView, Swift, MCP, email, and future standalone tools share
-the same typed content model.
+the same typed content model. Surrounding entity headers, routes, navigation,
+modals, footers, previews, and collection engines belong to hosts rather than
+Agent Paper or RelayMark.
 
 ## Recommendation
 
@@ -79,7 +82,8 @@ ingredient, not as the canonical project boundary.
 - RelayMark is not MDX and must not host arbitrary JSX.
 - RelayMark is not a general web component runtime.
 - RelayMark is not a chat protocol.
-- RelayMark is not the whole Agent Paper product surface.
+- RelayMark is not host chrome, navigation, entity identity, a preview, or a
+  collection engine.
 - RelayMark is not a replacement for HTML, EPUB, XML, or A2UI-style UI payloads;
   it is the canonical authoring and document interchange layer from which those
   projections can be produced.
@@ -88,8 +92,8 @@ ingredient, not as the canonical project boundary.
 
 | Concept | Role |
 | --- | --- |
-| Agent Paper | Product interaction model for notes, capture, and inline reviewed action |
-| RelayMark | Markdown-compatible source format and canonical document AST |
+| Agent Paper | Editable RelayMark document surface for notes, capture, activity, and inline reviewed action |
+| RelayMark | Markdown-compatible source format and canonical document AST of Agent Paper |
 | Relay Kit | Renderer catalog for semantic blocks such as Action Row and Source Bundle |
 | A2UI-style payloads | Declarative UI messages for agent-generated surfaces outside documents |
 | Markdoc | Inspiration for declarative Markdown, validation, transforms, and renderers |

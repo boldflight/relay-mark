@@ -3,11 +3,17 @@
 - Status: accepted for portable contract `0.6.0-draft`
 - Date: 2026-08-14
 
+> **Terminology alignment — 2026-08-30:** Agent Paper is the editable
+> RelayMark document surface. “Paper surface” below means that document/editor,
+> not the surrounding entity header, navigation, route, modal, footer, preview,
+> or collection host.
+
 ## Context
 
-Relay presents typed relational work through malleable Agent Papers. A Person,
-Task, Collection, or Meeting keeps its domain meaning while sharing one paper
-surface. RelayMark must let humans and agents compose that surface without
+Relay presents typed relational work through editable Agent Paper documents. A
+Person, Task, Collection, or Meeting keeps its domain meaning while its host
+may provide a shared document surface. RelayMark must let humans and agents
+compose that document without
 becoming a database, authorization system, renderer-specific UI language, or
 general-purpose programming runtime.
 

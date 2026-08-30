@@ -2,9 +2,15 @@
 
 RelayMark is a Markdown-compatible, safe portable composition language for
 human prose plus validated declarative blocks. Relay uses it as the authored
-content and composition grammar inside malleable Agent Papers while preserving
+document and composition grammar of Agent Paper while preserving
 a generic package boundary: the spec does not know Relay database schemas,
 routes, principals, grants, private resolved values, or renderer code.
+
+Normatively, Agent Paper is the editable RelayMark document surface. TipTap is
+the web editor adapter; native clients use equivalent native RelayMark editors.
+Entity headers, navigation, modal or sheet containers, publish/info controls,
+footers, previews, and collection engines are host concerns outside this
+specification.
 
 This directory is the portable spec package. It is designed to move into a
 standalone repository later without depending on the Phoenix application.
@@ -358,6 +364,12 @@ Agents MUST only create directives from this registry unless the host provides a
 separate trusted extension registry.
 
 ### Agent Paper composition profile
+
+Application runtimes may add transient editor controls such as decision or
+confirmation chips while a document is open. Those controls serialize to
+nothing unless a later RelayMark version standardizes a portable decision
+directive. They must never persist handler names, proposal IDs, OAuth state, or
+other application internals as authored content.
 
 The `0.6.0-draft` additive profile defines:
 
