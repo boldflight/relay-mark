@@ -50,6 +50,11 @@ public final class RelayMarkCollaborationDocument {
         try bytes("state", input: vector.map { Array($0) } ?? NSNull())
     }
 
+    /// Combines one logical local edit into a single durable update without losing deletions.
+    public func mergeUpdates(_ updates: [Data]) throws -> Data {
+        try bytes("mergeUpdates", input: updates.map { Array($0) })
+    }
+
     /// Lossless XML tree JSON; unknown nodes and marks remain represented for read-only fallback.
     public func snapshot() throws -> Data { try call("snapshot") }
 

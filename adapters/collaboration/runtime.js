@@ -186,6 +186,7 @@ export function call(command, input) {
     }))
     case 'apply': Y.applyUpdate(doc, Uint8Array.from(input), 'relay.remote'); return null
     case 'state': return Array.from(Y.encodeStateAsUpdate(doc, input === null ? undefined : Uint8Array.from(input)))
+    case 'mergeUpdates': return Array.from(Y.mergeUpdates(input.map(value => Uint8Array.from(value))))
     case 'vector': return Array.from(Y.encodeStateVector(doc))
     case 'snapshot': return snapshot(root)
     case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates

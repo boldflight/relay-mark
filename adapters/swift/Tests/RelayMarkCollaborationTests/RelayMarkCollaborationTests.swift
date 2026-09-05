@@ -8,6 +8,29 @@ struct RelayMarkCollaborationTests {
         _ = try doc.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"paragraph","attributes":{},"children":[{"kind":"text","delta":[{"insert":"Hello 🌍","attributes":{"bold":{},"link":{"href":"relay:entity/123"}}}]}]}]}"#.utf8))
     }
 
+    @Test func mergedLogicalTransactionPreservesDeletionAndFormatting() throws {
+        let local = try RelayMarkCollaborationDocument(), remote = try RelayMarkCollaborationDocument()
+        try seed(local)
+        try remote.applyUpdate(local.encodeUpdate())
+        var updates = try local.deleteText(at: 0, length: 5, path: [0, 0])
+        updates += try local.insertText("Goodbye", at: 0, path: [0, 0])
+        updates += try local.edit(Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":7,"attributes":{"italic":{}}}"#.utf8))
+        let merged = try local.mergeUpdates(updates)
+        try remote.applyUpdate(merged)
+        try remote.applyUpdate(merged)
+        #expect(try remote.snapshot() == local.snapshot())
+        let changes = RelayMarkLocalTransaction.TextChange.between("Remote Hello 🌍", "Remote Goodbye 🌍")
+        #expect(changes.count == 1)
+        #expect(changes[0].kind == .replace)
+        #expect(changes[0].before == "Hello")
+        #expect(changes[0].after == "Goodbye")
+        #expect(changes[0].contextBefore == "Remote ")
+        #expect(RelayMarkLocalTransaction.TextChange.between("unchanged", "unchanged").isEmpty)
+        let deletion = RelayMarkLocalTransaction.TextChange.between("A 🌍 B", "A  B")
+        #expect(deletion[0].kind == .delete)
+        #expect(deletion[0].before == "🌍")
+    }
+
     @Test func concurrentOfflineRestartAndSelectiveUndo() throws {
         let alice = try RelayMarkCollaborationDocument()
         try seed(alice)
