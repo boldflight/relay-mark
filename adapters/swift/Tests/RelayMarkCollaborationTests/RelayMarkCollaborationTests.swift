@@ -89,4 +89,16 @@ struct RelayMarkCollaborationTests {
         #expect(diff.text == "👨‍👩‍👧‍👦")
     }
 
+    @Test func groupedTextAndFormattingUndoTogether() throws {
+        let doc = try RelayMarkCollaborationDocument()
+        try seed(doc)
+        let before = try doc.snapshot()
+        try doc.withUndoGroup {
+            _ = try doc.insertText("new ", at: 0, path: [0, 0])
+            _ = try doc.edit(Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":4,"attributes":{"italic":{}}}"#.utf8))
+        }
+        _ = try doc.undo()
+        #expect(try doc.snapshot() == before)
+    }
+
 }

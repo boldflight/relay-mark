@@ -70,6 +70,13 @@ public final class RelayMarkCollaborationDocument {
         try updates("replaceProse", input: ["start": start, "end": end, "text": text])
     }
 
+    /// Groups one native input transaction, including its formatting, into one selective undo step.
+    public func withUndoGroup<T>(_ body: () throws -> T) throws -> T {
+        _ = try call("beginUndoGroup")
+        defer { _ = try? call("endUndoGroup") }
+        return try body()
+    }
+
     public func undo() throws -> [Data] { try updates("undo") }
     public func redo() throws -> [Data] { try updates("redo") }
 

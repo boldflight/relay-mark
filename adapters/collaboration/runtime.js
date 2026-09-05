@@ -130,6 +130,8 @@ export function call(command, input) {
     case 'snapshot': return snapshot(root)
     case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates
     case 'edit': localUpdates = []; edit(input); return localUpdates
+    case 'beginUndoGroup': undo.stopCapturing(); undo.captureTimeout = Number.MAX_SAFE_INTEGER; return null
+    case 'endUndoGroup': undo.stopCapturing(); undo.captureTimeout = 0; return null
     case 'undo': localUpdates = []; undo.undo(); return localUpdates
     case 'redo': localUpdates = []; undo.redo(); return localUpdates
     case 'anchor': {
