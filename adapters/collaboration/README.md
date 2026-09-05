@@ -20,7 +20,7 @@ A future upstream contribution should add Yrs XML fragment/element/text operatio
 * `edit`, `undo`, and `redo` return the local incremental binary updates. The host must persist them before claiming local save or sending them. Remote/restored updates do not enter local selective undo. A process restart restores text from a checkpoint and updates; the undo stack itself is intentionally session-only.
 * Relative anchor resolution returns nil when its type cannot be found. Awareness transport and cursor identity are host responsibilities.
 
-The JavaScriptCore host supplies cryptographic random bytes and UTF-8 encoding through Swift. Browser timer APIs are inert because the replica is synchronous and has no awareness/network/timer-dependent lifecycle. Do not add timer-dependent providers to this bundle. Large-document input latency and IME/selection UI behavior still require application-level measurement.
+The JavaScriptCore host supplies cryptographic random bytes and UTF-8 encoding through Swift. The app drives the standard y-protocols awareness timer every three seconds while connected; the library itself owns local renewal and peer expiry. Awareness bytes never enter the durable text journal. There are no network providers in the bundle. Large-document input latency and IME/selection UI behavior still require application-level measurement.
 
 ## Verification
 
@@ -35,3 +35,9 @@ node scripts/collaboration-interop.mjs /private/tmp/relay-native-interop.json
 The fixture tests Node-created XML and formatting/reference marks, independent native/browser edits, duplicate updates, restart from binary state, local selective undo preserving a remote edit, relative anchors, Unicode, deletion-only diff, and invalid range rejection. `scripts/collaboration-interop.mjs --generate` regenerates the deterministic browser fixture; fixture regeneration is deliberate, not a step in ordinary verification.
 
 Generic iOS and visionOS compiler builds of `RelayMarkCollaboration` passed using Xcode 27 beta with signing disabled. This is a replica proof; it does not establish integrated native input composition, server durability, permissions, persistence policy, or a complete offline client.
+
+## Native structured prose and presence
+
+The editable projection supports paragraph, heading, codeBlock, blockquote, bulletList, orderedList and listItem, including nested container paths. It carries Foundation presentation intents, preserves unmodified XML identities, inserts a sibling list item for Enter in a simple item, and retains literal newlines inside code. Unsupported embedded blocks or marks remain preserved and read-only. Cross-block replacement removes only affected leaf blocks and empty ancestors; it does not rebuild the fragment. The native editor groups text and formatting into one local undo step.
+
+Standard `y-protocols` 1.0.7 awareness uses `user: {name, color}` and y-prosemirror-compatible relative `cursor: {anchor, head}` values. The host publishes throttled selection changes, invokes library renewal/expiry, and removes peers by server channel origin. The fixture proves browser-to-native and native-to-browser cursor decoding and that awareness does not change durable document bytes. Relay Swift now supplies a host presence list and narrow AppKit/UIKit TextKit adapters that draw remote carets and ranges using native layout geometry. Its marked-text probe buffers intermediate composition and rebases committed input through these anchors.

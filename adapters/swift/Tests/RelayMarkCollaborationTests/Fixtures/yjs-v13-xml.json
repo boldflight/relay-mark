@@ -1,4 +1,5 @@
 {
+  "browserAwareness": "AWQB4gF7InVzZXIiOnsibmFtZSI6IkJyb3dzZXIiLCJjb2xvciI6IiMyNTYzZWIifSwiY3Vyc29yIjp7ImFuY2hvciI6eyJ0eXBlIjp7ImNsaWVudCI6MTAwLCJjbG9jayI6MX0sIml0ZW0iOnsiY2xpZW50IjoxMDAsImNsb2NrIjoxMH0sImFzc29jIjowfSwiaGVhZCI6eyJ0eXBlIjp7ImNsaWVudCI6MTAwLCJjbG9jayI6MX0sIml0ZW0iOnsiY2xpZW50IjoxMDAsImNsb2NrIjoxMH0sImFzc29jIjowfX19",
   "schema": "relaymark-prosemirror-v1",
   "root": "default",
   "yjs": "13.6.32",

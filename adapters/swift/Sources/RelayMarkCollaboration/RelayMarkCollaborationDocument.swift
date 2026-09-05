@@ -29,8 +29,10 @@ public final class RelayMarkCollaborationDocument {
         globalThis.TextDecoder = class { decode(a) { return relayUTF8Decode(Array.from(a || [])); } };
         globalThis.setTimeout = () => 0;
         globalThis.clearTimeout = () => {};
-        globalThis.setInterval = () => 0;
-        globalThis.clearInterval = () => {};
+        globalThis.relayIntervals = new Map();
+        globalThis.setInterval = fn => { const id = relayIntervals.size + 1; relayIntervals.set(id, fn); return id; };
+        globalThis.clearInterval = id => relayIntervals.delete(id);
+        globalThis.relayRunIntervals = () => { for (const fn of relayIntervals.values()) fn(); };
         """)
         context.evaluateScript(try String(contentsOf: url, encoding: .utf8))
         try checkException()
@@ -92,6 +94,47 @@ public final class RelayMarkCollaborationDocument {
 
     public func resolve(anchor: Data) throws -> Position? {
         try JSONDecoder().decode(Position?.self, from: call("resolve", input: Array(anchor)))
+    }
+
+    /// Standard y-protocols awareness; ephemeral data must never enter the durable update journal.
+    public func setPresence(name: String?, color: String = "#666666", anchor: Data? = nil, head: Data? = nil) throws -> [Data] {
+        guard let name else { return try updates("presenceSet") }
+        var input: [String: Any] = ["name": String(name.prefix(100)), "color": color]
+        if let anchor, let head { input["anchor"] = Array(anchor); input["head"] = Array(head) }
+        return try updates("presenceSet", input: input)
+    }
+
+    public func applyPresence(_ update: Data, origin: String = "remote") throws {
+        _ = try call("presenceApply", input: ["data": Array(update), "origin": origin])
+    }
+
+    public func removePresence(origin: String) throws { _ = try call("presenceRemoveOrigin", input: origin) }
+
+    /// The connected host calls every three seconds; y-protocols owns renewal and expiry policy.
+    public func advancePresenceClock() throws -> [Data] { try updates("presenceTick") }
+
+    public func clearRemotePresence() throws { _ = try call("presenceClearRemote") }
+
+    public struct Collaborator: Identifiable, Equatable, Sendable {
+        public let id: UInt64
+        public let name: String
+        public let color: String
+        public let anchor: Data?
+        public let head: Data?
+    }
+
+    public func collaborators() throws -> [Collaborator] {
+        struct State: Decodable {
+            let id: UInt64
+            let name: String
+            let color: String
+            let anchor: [UInt8]?
+            let head: [UInt8]?
+        }
+        return try JSONDecoder().decode([State].self, from: call("presenceStates")).map {
+            Collaborator(id: $0.id, name: $0.name, color: $0.color,
+                         anchor: $0.anchor.map { Data($0) }, head: $0.head.map { Data($0) })
+        }
     }
 
     private func bytes(_ command: String, input: Any = NSNull()) throws -> Data {

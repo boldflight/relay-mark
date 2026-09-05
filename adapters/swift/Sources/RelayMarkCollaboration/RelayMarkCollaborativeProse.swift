@@ -6,61 +6,100 @@ public struct RelayMarkCollaborativeProse {
     public let isEditable: Bool
     public let blockRanges: [NSRange]
 
+    public let blockPaths: [[Int]]
+    private let anchorPaths: [[Int]]
+
     public init(snapshot: Data) throws {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
         var value = AttributedString()
         var ranges: [NSRange] = []
+        var paths: [[Int]] = []
+        var anchors: [[Int]] = []
         var supported = true
-        let blocks = root?["children"] as? [[String: Any]] ?? []
-        for (index, block) in blocks.enumerated() {
-            if index > 0 { value.append(AttributedString("\n")) }
-            let start = String(value.characters).utf16.count
-            let children = block["children"] as? [[String: Any]] ?? []
-            if block["name"] as? String != "paragraph" || !(block["attributes"] as? [String: Any] ?? [:]).isEmpty || children.count > 1 {
-                supported = false
-            }
-            func append(_ node: [String: Any]) {
-                if let delta = node["delta"] as? [[String: Any]] {
-                    for run in delta {
-                        guard let insert = run["insert"] as? String else { supported = false; continue }
-                        let attributes = run["attributes"] as? [String: Any] ?? [:]
-                        if !Set(attributes.keys).isSubset(of: ["bold", "italic", "strike", "code", "link"]) { supported = false }
-                        var part = AttributedString(insert)
-                        var intent: InlinePresentationIntent = []
-                        if attributes["bold"] != nil { intent.insert(.stronglyEmphasized) }
-                        if attributes["italic"] != nil { intent.insert(.emphasized) }
-                        if attributes["strike"] != nil { intent.insert(.strikethrough) }
-                        if attributes["code"] != nil { intent.insert(.code) }
-                        part.inlinePresentationIntent = intent
-                        if let link = attributes["link"] as? [String: Any], let href = link["href"] as? String {
-                            part.link = URL(string: href)
-                        }
-                        value.append(part)
+        var identity = 0
+
+        func appendText(_ node: [String: Any]) {
+            if let delta = node["delta"] as? [[String: Any]] {
+                for run in delta {
+                    guard let insert = run["insert"] as? String else { supported = false; continue }
+                    let attributes = run["attributes"] as? [String: Any] ?? [:]
+                    if !Set(attributes.keys).isSubset(of: ["bold", "italic", "strike", "code", "link"]) { supported = false }
+                    var part = AttributedString(insert)
+                    var intent: InlinePresentationIntent = []
+                    if attributes["bold"] != nil { intent.insert(.stronglyEmphasized) }
+                    if attributes["italic"] != nil { intent.insert(.emphasized) }
+                    if attributes["strike"] != nil { intent.insert(.strikethrough) }
+                    if attributes["code"] != nil { intent.insert(.code) }
+                    part.inlinePresentationIntent = intent
+                    if let link = attributes["link"] as? [String: Any], let href = link["href"] as? String {
+                        part.link = URL(string: href)
                     }
+                    value.append(part)
+                }
+            } else {
+                supported = false
+                for child in node["children"] as? [[String: Any]] ?? [] { appendText(child) }
+            }
+        }
+
+        func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil, ordinal: Int = 1) {
+            for (index, block) in nodes.enumerated() {
+                let blockPath = path + [index]
+                let name = block["name"] as? String ?? ""
+                let attributes = block["attributes"] as? [String: Any] ?? [:]
+                let children = block["children"] as? [[String: Any]] ?? []
+                identity += 1
+                let kind: PresentationIntent.Kind
+                switch name {
+                case "paragraph": kind = .paragraph
+                case "heading": kind = .header(level: attributes["level"] as? Int ?? 1)
+                case "codeBlock": kind = .codeBlock(languageHint: attributes["language"] as? String)
+                case "blockquote": kind = .blockQuote
+                case "bulletList": kind = .unorderedList
+                case "orderedList": kind = .orderedList
+                case "listItem": kind = .listItem(ordinal: ordinal + index)
+                default: supported = false; kind = .paragraph
+                }
+                let allowed: Set<String> = name == "heading" ? ["level"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
+                if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
+                let intent = PresentationIntent(kind, identity: identity, parent: parent)
+                if ["blockquote", "bulletList", "orderedList", "listItem"].contains(name) {
+                    walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1)
                 } else {
-                    supported = false
-                    for child in node["children"] as? [[String: Any]] ?? [] { append(child) }
+                    if !ranges.isEmpty { value.append(AttributedString("\n")) }
+                    let start = String(value.characters).utf16.count
+                    let attributedStart = value.endIndex
+                    if children.count > 1 { supported = false }
+                    children.forEach(appendText)
+                    value[attributedStart..<value.endIndex].presentationIntent = intent
+                    ranges.append(NSRange(location: start, length: String(value.characters).utf16.count - start))
+                    paths.append(blockPath)
+                    anchors.append(children.isEmpty ? blockPath : blockPath + [0])
                 }
             }
-            children.forEach(append)
-            ranges.append(NSRange(location: start, length: String(value.characters).utf16.count - start))
         }
+        walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value
         blockRanges = ranges
-        isEditable = supported && !blocks.isEmpty
+        blockPaths = paths
+        anchorPaths = anchors
+        isEditable = supported && !ranges.isEmpty
     }
 
     public func position(atUTF16 offset: Int) -> (path: [Int], index: Int)? {
         for (block, range) in blockRanges.enumerated() where offset >= range.location && offset <= NSMaxRange(range) {
-            return ([block, 0], offset - range.location)
+            return (anchorPaths[block], offset - range.location)
         }
         return nil
     }
 
     public func offset(for position: RelayMarkCollaborationDocument.Position) -> Int? {
-        guard position.path.count == 2, position.path[1] == 0,
-              blockRanges.indices.contains(position.path[0]) else { return nil }
-        let range = blockRanges[position.path[0]]
+        let block = anchorPaths.firstIndex(of: position.path)
+            ?? blockPaths.firstIndex(of: position.path)
+            ?? blockPaths.firstIndex(of: Array(position.path.dropLast()))
+        guard let block else { return nil }
+        let range = blockRanges[block]
+        if position.path == blockPaths[block] { return range.location + (position.index == 0 ? 0 : range.length) }
         guard position.index <= range.length else { return nil }
         return range.location + position.index
     }

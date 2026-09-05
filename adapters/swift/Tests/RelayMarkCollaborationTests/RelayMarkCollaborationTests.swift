@@ -60,7 +60,9 @@ struct RelayMarkCollaborationTests {
         #expect(json.contains("Hello 🌍 browser"))
         #expect(json.contains("relay:entity/123"))
         if let path = ProcessInfo.processInfo.environment["RELAY_COLLABORATION_INTEROP_OUTPUT"] {
-            let output = ["update": try doc.encodeUpdate().base64EncodedString()]
+            let anchor = try doc.anchor(path: [0, 0], index: 6)
+            let awareness = try doc.setPresence(name: "Native", anchor: anchor, head: anchor)
+            let output = ["update": try doc.encodeUpdate().base64EncodedString(), "awareness": awareness[0].base64EncodedString()]
             try JSONSerialization.data(withJSONObject: output, options: [.sortedKeys]).write(to: URL(fileURLWithPath: path))
         }
     }
@@ -99,6 +101,48 @@ struct RelayMarkCollaborationTests {
         }
         _ = try doc.undo()
         #expect(try doc.snapshot() == before)
+    }
+
+    @Test func standardAwarenessRoundTripRemovalAndNoDurableMutation() throws {
+        let fixture = try JSONSerialization.jsonObject(with: Data(contentsOf:
+            Bundle.module.url(forResource: "yjs-v13-xml", withExtension: "json")!)) as! [String: String]
+        let doc = try RelayMarkCollaborationDocument()
+        try doc.applyUpdate(Data(base64Encoded: fixture["browserUpdate"]!)!)
+        let before = try doc.encodeUpdate()
+        try doc.applyPresence(Data(base64Encoded: fixture["browserAwareness"]!)!, origin: "browser-socket")
+        let collaborators = try doc.collaborators()
+        #expect(collaborators.count == 1)
+        #expect(collaborators.first?.name == "Browser")
+        #expect(try doc.resolve(anchor: collaborators[0].anchor!)?.index == 6)
+        #expect(try doc.encodeUpdate() == before)
+        try doc.removePresence(origin: "browser-socket")
+        #expect(try doc.collaborators().isEmpty)
+        #expect(try doc.encodeUpdate() == before)
+    }
+
+    @Test func nestedProseEditingPreservesContainersAndCodeNewlines() throws {
+        let doc = try RelayMarkCollaborationDocument()
+        _ = try doc.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":2},"children":[{"kind":"text","delta":[{"insert":"Title"}]}]},{"kind":"element","name":"blockquote","children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Quote"}]}]}]},{"kind":"element","name":"bulletList","children":[{"kind":"element","name":"listItem","children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"One"}]}]}]},{"kind":"element","name":"listItem","children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Two"}]}]}]}]},{"kind":"element","name":"codeBlock","attributes":{"language":"swift"},"children":[{"kind":"text","delta":[{"insert":"let x=1"}]}]}]}"#.utf8))
+        var prose = try RelayMarkCollaborativeProse(snapshot: doc.snapshot())
+        #expect(prose.isEditable)
+        #expect(String(prose.text.characters) == "Title\nQuote\nOne\nTwo\nlet x=1")
+        #expect(prose.blockPaths[2] == [2, 0, 0])
+        let titleAnchor = try doc.anchor(path: [0, 0], index: 3)
+        _ = try doc.replaceProse(start: 15, end: 15, text: "\nNew")
+        prose = try RelayMarkCollaborativeProse(snapshot: doc.snapshot())
+        #expect(String(prose.text.characters).contains("One\nNew\nTwo"))
+        #expect(prose.blockPaths[3] == [2, 1, 0])
+        #expect(try doc.resolve(anchor: titleAnchor)?.index == 3)
+        let codeEnd = String(prose.text.characters).utf16.count
+        _ = try doc.replaceProse(start: codeEnd, end: codeEnd, text: "\nlet y=2")
+        prose = try RelayMarkCollaborativeProse(snapshot: doc.snapshot())
+        #expect(prose.blockPaths.count == 6)
+        #expect(String(prose.text.characters).hasSuffix("let x=1\nlet y=2"))
+        let tree = String(decoding: try doc.snapshot(), as: UTF8.self)
+        #expect(tree.contains("heading"))
+        #expect(tree.contains("blockquote"))
+        #expect(tree.contains("bulletList"))
+        #expect(tree.contains("swift"))
     }
 
 }
