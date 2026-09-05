@@ -10,9 +10,21 @@ let package = Package(
         .visionOS("26.5")
     ],
     products: [
-        .library(name: "RelayMarkSwift", targets: ["RelayMarkSwift"])
+        .library(name: "RelayMarkSwift", targets: ["RelayMarkSwift"]),
+        .library(name: "RelayMarkCollaboration", targets: ["RelayMarkCollaboration"])
     ],
     targets: [
+        .target(
+            name: "RelayMarkCollaboration",
+            path: "adapters/swift/Sources/RelayMarkCollaboration",
+            resources: [.process("Resources")]
+        ),
+        .testTarget(
+            name: "RelayMarkCollaborationTests",
+            dependencies: ["RelayMarkCollaboration"],
+            path: "adapters/swift/Tests/RelayMarkCollaborationTests",
+            resources: [.process("Fixtures")]
+        ),
         .target(
             name: "RelayMarkSwift",
             path: "adapters/swift/Sources/RelayMarkSwift"

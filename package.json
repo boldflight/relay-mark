@@ -13,10 +13,15 @@
     "test:adapters": "npm run test:swift && npm run test:elixir",
     "conformance": "node bin/relaymark.mjs conformance spec/relaymark/conformance/suite.json",
     "check:contract": "node scripts/check-contract-version.mjs",
-    "check": "npm run check:contract && npm test && npm run conformance && npm run test:adapters"
+    "check": "npm run check:contract && npm test && npm run conformance && npm run test:adapters",
+    "build:collaboration": "node scripts/build-collaboration.mjs"
   },
   "engines": {
     "node": ">=20"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "0.25.9",
+    "yjs": "13.6.32"
+  }
 }
