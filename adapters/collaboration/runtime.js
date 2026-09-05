@@ -26,6 +26,34 @@ function at(path) {
   }
   return value
 }
+// Portable anchors accept only canonical modern Yjs encodings, with bounded input.
+function relativePosition(bytes) {
+  if (!Array.isArray(bytes) || bytes.length < 1 || bytes.length > 256 || bytes.some(v => !Number.isInteger(v) || v < 0 || v > 255)) throw Error('Invalid relative position bytes')
+  const position = Y.decodeRelativePosition(Uint8Array.from(bytes))
+  if (!Number.isSafeInteger(position.assoc)) throw Error('Invalid relative association')
+  for (const id of [position.type, position.item]) {
+    if (id && (!Number.isSafeInteger(id.client) || id.client < 0 || !Number.isSafeInteger(id.clock) || id.clock < 0)) throw Error('Invalid relative identity')
+  }
+  if (position.tname !== null && position.tname !== 'default') throw Error('Unknown relative root')
+  const canonical = Y.encodeRelativePosition(position)
+  if (canonical.length !== bytes.length || canonical.some((byte, index) => byte !== bytes[index])) throw Error('Noncanonical relative position')
+  return position
+}
+function absolutePosition(relative, portable) {
+  const position = Y.createAbsolutePositionFromRelativePosition(relative, doc, !portable)
+  if (!position) return null
+  function find(container, path) {
+    if (container === position.type) return path
+    if (container instanceof Y.XmlText) return null
+    for (let i = 0; i < container.length; i++) {
+      const result = find(container.get(i), [...path, i])
+      if (result) return result
+    }
+    return null
+  }
+  const path = find(root, [])
+  return path === null ? null : { path, index: position.index, association: position.assoc }
+}
 function node(value) {
   if (value.kind === 'text') {
     const text = new Y.XmlText()
@@ -198,22 +226,17 @@ export function call(command, input) {
     case 'anchor': {
       const target = at(input.path)
       range(target, input.index)
+      if (!Number.isSafeInteger(input.association ?? 0)) throw Error('Invalid relative association')
       return Array.from(Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(target, input.index, input.association || 0)))
     }
-    case 'resolve': {
-      const position = Y.createAbsolutePositionFromRelativePosition(Y.decodeRelativePosition(Uint8Array.from(input)), doc)
-      if (!position) return null
-      function find(container, path) {
-        if (container === position.type) return path
-        if (container instanceof Y.XmlText) return null
-        for (let i = 0; i < container.length; i++) {
-          const result = find(container.get(i), [...path, i])
-          if (result) return result
-        }
-        return null
-      }
-      const path = find(root, [])
-      return path === null ? null : { path, index: position.index, association: position.assoc }
+    case 'resolve': return absolutePosition(Y.decodeRelativePosition(Uint8Array.from(input)), false)
+    case 'resolveRange': {
+      if (input.version !== 1) throw Error('Unsupported relative range version')
+      const anchorPosition = relativePosition(input.anchor)
+      const headPosition = relativePosition(input.head)
+      const anchor = absolutePosition(anchorPosition, true)
+      const head = absolutePosition(headPosition, true)
+      return anchor && head ? { anchor, head } : null
     }
     default: throw Error('Unknown collaboration command')
   }

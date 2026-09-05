@@ -107,3 +107,50 @@ elixir -r adapters/elixir/lib/relay_mark/collaborative_prose.ex \
 ```
 
 The fixture gate proves Node → actual Swift JavaScriptCore → Node interoperability. The new adversarial corpus also passes Yex semantic checks, duplicate/reordered delivery, checkpoint reload, and Node verification of its reencoded native updates using `scripts/collaboration-yex-conformance.exs`. That standalone probe loads already-built consumer dependencies without starting a server or database. The earlier `yjs-v13-xml.json` fixture additionally has a separately verified database persistence/reencoding loop in the Relay server consumer; the standalone corpus does not replace that durability test. The generic source codec's MDEx probe is `scripts/collaboration-markdown-roundtrip.exs`, run with the consumer's already-built MDEx dependencies on the Elixir code path. Platform editor composition, large-document latency, server persistence/ACLs, and browser/native interaction still require their own application gates.
+
+## Portable relative ranges
+
+A durable range uses `{ "version": 1, "anchor": "<base64>", "head": "<base64>" }`.
+Each endpoint is the canonical modern binary returned by
+`Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(...))`, bounded to
+1–256 bytes. Swift `RelativeRange` uses `Data` and Codable's base64 encoding.
+The value initializer checks framing/version; `resolve(range:)` validates both
+Yjs encodings before resolving either endpoint. Truncated, trailing, overlong,
+unsafe-integer, and unknown-root encodings throw without mutating document state.
+Unknown item IDs or deleted endpoint containers return `nil`; deletion of the
+selected characters may instead collapse both endpoints to the same position.
+Anchor/head order is preserved, including backward selections. Indices are
+UTF-16 code units; combining sequences and emoji do not change the offset unit.
+
+The host must bind the range to document ID, incarnation, schema and root before
+passing it to the engine. These bytes are not an authorization token or a globally
+unique document identity. A root-name-only position refers to `default` and can
+resolve in any replica exposing that name; only the outer host binding prevents
+cross-document or old-incarnation reuse. Unknown nested item IDs safely resolve
+to `nil` until their defining updates arrive. The engine never invents a new
+scope or infers access from successful resolution.
+
+Portable resolution passes `followUndoneDeletions: false` to the actual Yjs API.
+Local undo mappings are not synchronized to other peers, so following them would
+make durable contribution ranges resolve differently across replicas. Existing
+raw `resolve(anchor:)` retains its local-caret behavior for source compatibility.
+Any safe signed association integer is accepted: a negative association follows
+the left side; a nonnegative association follows the right side.
+
+`fixtures/relative-ranges-v1.json` contains deterministic real-Yjs nested Unicode,
+root-boundary, signed-association and foreign-item fixtures. Node verifies them
+and their byte-identical Swift resource; Swift resolves and recreates every known
+range byte-for-byte. Native tests also cover concurrent edits, deletion, malformed
+input and cross-replica undo consistency:
+
+```sh
+node --test test/collaboration-relative-ranges.test.js
+DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
+  swift test --filter RelayMarkRelativeRangeTests
+```
+
+API provenance: [Yjs relative positions](https://docs.yjs.dev/api/relative-positions)
+and the pinned Yjs 13.6.32 `src/utils/RelativePosition.js` implementation, including
+its documented cross-peer `followUndoneDeletions` behavior. This primitive does
+not yet associate human contributions with ranges or implement a contribution
+ledger, synthesis reduction, or Enhanced transport.

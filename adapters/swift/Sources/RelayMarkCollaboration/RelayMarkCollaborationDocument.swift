@@ -95,10 +95,47 @@ public final class RelayMarkCollaborationDocument {
         public let path: [Int]
         public let index: Int
         public let association: Int
+        public init(path: [Int], index: Int, association: Int = 0) {
+            self.path = path; self.index = index; self.association = association
+        }
     }
 
     public func resolve(anchor: Data) throws -> Position? {
         try JSONDecoder().decode(Position?.self, from: call("resolve", input: Array(anchor)))
+    }
+
+    /// Portable Yjs endpoints. The host must bind this value to its document, incarnation and schema.
+    public struct RelativeRange: Codable, Equatable, Sendable {
+        public let version: Int
+        public let anchor: Data
+        public let head: Data
+        public init(anchor: Data, head: Data) throws {
+            guard (1...256).contains(anchor.count), (1...256).contains(head.count) else {
+                throw Failure.runtime("Invalid relative range byte length")
+            }
+            self.version = 1; self.anchor = anchor; self.head = head
+        }
+        public init(from decoder: any Decoder) throws {
+            let fields = try decoder.container(keyedBy: CodingKeys.self)
+            guard try fields.decode(Int.self, forKey: .version) == 1 else {
+                throw DecodingError.dataCorruptedError(forKey: .version, in: fields, debugDescription: "Unsupported relative range version")
+            }
+            try self.init(anchor: fields.decode(Data.self, forKey: .anchor), head: fields.decode(Data.self, forKey: .head))
+        }
+    }
+    public struct ResolvedRange: Codable, Equatable, Sendable {
+        public let anchor: Position
+        public let head: Position
+    }
+    public func relativeRange(anchor: Position, head: Position) throws -> RelativeRange {
+        try RelativeRange(anchor: self.anchor(path: anchor.path, index: anchor.index, association: anchor.association),
+                          head: self.anchor(path: head.path, index: head.index, association: head.association))
+    }
+    /// Throws for malformed/noncanonical bytes; returns nil for unknown/deleted shared types.
+    /// Portable resolution does not follow local-only undo mappings, keeping replicas consistent.
+    public func resolve(range: RelativeRange) throws -> ResolvedRange? {
+        try JSONDecoder().decode(ResolvedRange?.self, from: call("resolveRange", input: [
+            "version": range.version, "anchor": Array(range.anchor), "head": Array(range.head)]))
     }
 
     /// Standard y-protocols awareness; ephemeral data must never enter the durable update journal.
