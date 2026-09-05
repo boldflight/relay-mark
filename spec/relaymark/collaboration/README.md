@@ -86,8 +86,8 @@ Presence uses standard y-protocols awareness binary updates, not a custom cursor
 | --- | --- | --- | --- |
 | Paragraph/heading/list/quote/code block | Editable | Editable with structural intents | Serialized |
 | Five v1 marks and entity links | Editable | Editable, preserving supported metadata | Serialized |
-| Horizontal rule / hard break | Editable | Preserved, read-only document fallback | Serialized |
-| Multiple text/embedded inline children in one block | ProseMirror binding | Preserved, read-only fallback | Supported text/hard-break sequence |
+| Horizontal rule / hard break | Editable | Editable atomic rule / inline break | Serialized |
+| Multiple text/hard-break children in one block | ProseMirror binding | Editable with per-leaf UTF-16 mapping | Supported text/hard-break sequence |
 | Unknown schema or unsupported attributes | Reject before binding/authoring | Preserve and refuse editing | Refuse lossy serialization |
 | Rich noncollaborative editor extensions | Legacy editor only | Outside this adapter | Outside v1 |
 
@@ -154,3 +154,48 @@ and the pinned Yjs 13.6.32 `src/utils/RelativePosition.js` implementation, inclu
 its documented cross-peer `followUndoneDeletions` behavior. This primitive does
 not yet associate human contributions with ranges or implement a contribution
 ledger, synthesis reduction, or Enhanced transport.
+
+
+## Native mixed inline and rule projection
+
+The native attributed projection represents `hardBreak` as U+2028 (one UTF-16
+unit) inside its existing paragraph/heading intent. A `horizontalRule` is one
+U+FFFC atom with `PresentationIntent.Kind.thematicBreak`; native hosts render it
+as an attachment/rule while retaining that one-unit backing string. Paragraph
+separators remain U+000A. These are presentation coordinates, never replacements
+for the XML or canonical Markdown source. Typing beside a rule creates an adjacent
+paragraph; selecting the rule character replaces it with a paragraph, including
+an empty paragraph when deletion leaves the document otherwise empty.
+
+`RelayMarkCollaborativeProse.textRanges(in:)` maps formatting to the actual
+`XmlText` leaf paths and local offsets, excluding breaks/rules/separators. Hosts
+must use those ranges instead of assuming `blockPath + [0]`. Position mapping
+uses text indices and XML element boundaries; a hard break/rule's own empty
+container anchors its beginning, and its parent boundary anchors its end.
+
+Local inline splices retain untouched text siblings, block identities, and entity
+link metadata. Inserting a break inside a text leaf splits only that leaf's suffix.
+Splitting/merging paragraphs moves the affected suffix by cloning it: integrated
+Yjs types cannot be relocated. This does not rebuild the fragment or unrelated
+blocks. Cross-block merges that would copy marked text or a hard break into a
+literal code block reject before mutation rather than dropping formatting. This
+is an explicit editing restriction, not a document-wide read-only fallback.
+
+`fixtures/inline-v1.json` covers mixed heading text, Unicode, hard breaks, a rule,
+nested quotes, and multiple code-text children. Eight incremental edits have
+handwritten expected presentation strings; duplicate/out-of-order updates and
+concurrent entity-reference typing verify binary convergence. Native tests cover
+every UTF-16 selection coordinate, per-leaf formatting, rule-only deletion/undo,
+and fail-closed unknown inline nodes. Regeneration is explicit, never part of
+ordinary verification:
+
+```sh
+node --test test/collaboration-inline.test.js
+RELAY_INLINE_CONFORMANCE_OUTPUT=/private/tmp/relay-inline-native.json \
+  DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
+  swift test --filter RelayMarkInlineProseTests
+node scripts/collaboration-inline-conformance.mjs /private/tmp/relay-inline-native.json
+```
+
+The final command consumes actual Swift JavaScriptCore output in upstream Yjs;
+it is not a substitute for platform attachment/IME or server durability gates.
