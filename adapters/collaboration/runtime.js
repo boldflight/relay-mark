@@ -39,6 +39,58 @@ function snapshot(value) {
 function range(target, index, length = 0) {
   if (!Number.isInteger(index) || !Number.isInteger(length) || index < 0 || length < 0 || index + length > target.length) throw Error('Invalid UTF-16 range')
 }
+function proseBlocks() {
+  return root.toArray().map(p => {
+    if (!(p instanceof Y.XmlElement) || p.nodeName !== 'paragraph' || Object.keys(p.getAttributes()).length || p.length > 1 || (p.length && !(p.get(0) instanceof Y.XmlText))) throw Error('Unsupported prose structure')
+    return { p, text: p.length ? p.get(0) : null }
+  })
+}
+function replaceProse(input) {
+  const blocks = proseBlocks()
+  if (!blocks.length) throw Error('Empty document must be enrolled with a paragraph')
+  const total = blocks.reduce((n, b) => n + (b.text?.length || 0), blocks.length - 1)
+  range({ length: total }, input.start, input.end - input.start)
+  function locate(offset) {
+    for (let i = 0; i < blocks.length; i++) {
+      const length = blocks[i].text?.length || 0
+      if (offset <= length) return [i, offset]
+      offset -= length + 1
+    }
+    throw Error('Invalid prose offset')
+  }
+  const [first, start] = locate(input.start), [last, end] = locate(input.end)
+  const lines = input.text.split('\n')
+  const endText = blocks[last].text
+  let skip = end
+  const tail = []
+  for (const run of endText?.toDelta() || []) {
+    if (typeof run.insert !== 'string') throw Error('Unsupported text embed')
+    if (skip >= run.insert.length) { skip -= run.insert.length; continue }
+    tail.push({ ...run, insert: run.insert.slice(skip) }); skip = 0
+  }
+  doc.transact(() => {
+    let text = blocks[first].text
+    if (!text) { text = new Y.XmlText(); blocks[first].p.insert(0, [text]) }
+    if (first === last && lines.length === 1) {
+      text.delete(start, end - start)
+      text.insert(start, input.text, input.attributes || {})
+      return
+    }
+    text.delete(start, text.length - start)
+    if (last > first) root.delete(first + 1, last - first)
+    text.insert(start, lines[0], input.attributes || {})
+    if (lines.length === 1) {
+      text.applyDelta([{ retain: text.length }, ...tail])
+    } else {
+      const additions = lines.slice(1).map((line, i) => {
+        const p = new Y.XmlElement('paragraph'), t = new Y.XmlText()
+        t.applyDelta([{ insert: line, attributes: input.attributes || {} }, ...(i === lines.length - 2 ? tail : [])].filter(run => run.insert !== ''))
+        p.insert(0, [t]); return p
+      })
+      root.insert(first + 1, additions)
+    }
+  }, localOrigin)
+}
 function edit(operation) {
   const target = at(operation.path || [])
   switch (operation.kind) {
@@ -76,6 +128,7 @@ export function call(command, input) {
     case 'state': return Array.from(Y.encodeStateAsUpdate(doc, input === null ? undefined : Uint8Array.from(input)))
     case 'vector': return Array.from(Y.encodeStateVector(doc))
     case 'snapshot': return snapshot(root)
+    case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates
     case 'edit': localUpdates = []; edit(input); return localUpdates
     case 'undo': localUpdates = []; undo.undo(); return localUpdates
     case 'redo': localUpdates = []; undo.redo(); return localUpdates

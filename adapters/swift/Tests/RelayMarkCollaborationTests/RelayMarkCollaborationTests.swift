@@ -65,4 +65,28 @@ struct RelayMarkCollaborationTests {
         }
     }
 
+    @Test func paragraphSplitMergePreservesSuffixAndUnknownNodes() throws {
+        let doc = try RelayMarkCollaborationDocument()
+        try seed(doc)
+        _ = try doc.replaceProse(start: 5, end: 5, text: "\nnew")
+        var prose = try RelayMarkCollaborativeProse(snapshot: doc.snapshot())
+        #expect(String(prose.text.characters) == "Hello\nnew 🌍")
+        #expect(prose.isEditable)
+        #expect(prose.blockRanges.count == 2)
+        _ = try doc.replaceProse(start: 5, end: 9, text: " again")
+        prose = try RelayMarkCollaborativeProse(snapshot: doc.snapshot())
+        #expect(String(prose.text.characters) == "Hello again 🌍")
+        #expect(prose.blockRanges.count == 1)
+        #expect(String(decoding: try doc.snapshot(), as: UTF8.self).contains("relay:entity/123"))
+        _ = try doc.edit(Data(#"{"kind":"insertNodes","path":[],"index":1,"nodes":[{"kind":"element","name":"customWidget","attributes":{"secret":"opaque"},"children":[]}]}"#.utf8))
+        #expect(try !RelayMarkCollaborativeProse(snapshot: doc.snapshot()).isEditable)
+    }
+
+    @Test func replacementUsesGraphemeBoundariesAndUTF16() {
+        let diff = RelayMarkCollaborativeProse.replacement(from: "Hi 🌍!", to: "Hi 👨‍👩‍👧‍👦!")
+        #expect(diff.start == 3)
+        #expect(diff.end == 5)
+        #expect(diff.text == "👨‍👩‍👧‍👦")
+    }
+
 }

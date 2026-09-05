@@ -66,6 +66,10 @@ public final class RelayMarkCollaborationDocument {
         try updates("edit", input: ["kind": "deleteText", "path": path, "index": index, "length": length])
     }
 
+    public func replaceProse(start: Int, end: Int, text: String) throws -> [Data] {
+        try updates("replaceProse", input: ["start": start, "end": end, "text": text])
+    }
+
     public func undo() throws -> [Data] { try updates("undo") }
     public func redo() throws -> [Data] { try updates("redo") }
 
