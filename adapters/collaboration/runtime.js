@@ -9,9 +9,55 @@ awareness.setLocalState(null)
 let awarenessUpdates = []
 const awarenessOrigins = new Map()
 awareness.on('update', ({ added, updated, removed }, origin) => {
+  for (const [key, ids] of awarenessOrigins) {
+    const retained = ids.filter(id => !removed.includes(id) && !updated.includes(id))
+    if (retained.length) awarenessOrigins.set(key, retained); else awarenessOrigins.delete(key)
+  }
   if (typeof origin === 'string' && origin !== 'local' && origin !== 'timeout') awarenessOrigins.set(origin, [...new Set([...(awarenessOrigins.get(origin) || []), ...added, ...updated])])
   if (origin === 'local') awarenessUpdates.push(Array.from(encodeAwarenessUpdate(awareness, [...added, ...updated, ...removed])))
 })
+// Snapshot bytes remain standard y-protocols data. Origin metadata is the existing
+// ephemeral ownership index, not document state or a second awareness cache.
+function presenceSnapshot() {
+  const ids = [...awareness.getStates().keys()].filter(id => id !== awareness.clientID).sort((a,b) => a-b)
+  const origins = Object.create(null), covered = new Set()
+  for (const [origin, known] of awarenessOrigins) {
+    const active = [...new Set(known.filter(id => ids.includes(id)))].sort((a,b) => a-b)
+    if (active.length) { origins[origin] = active; active.forEach(id => covered.add(id)) }
+  }
+  if (ids.some(id => !covered.has(id))) throw Error('Presence origin is unavailable')
+  return {version:1, update:Array.from(encodeAwarenessUpdate(awareness, ids)), origins}
+}
+function applyPresenceSnapshot(input) {
+  if (!input || input.version !== 1 || !Array.isArray(input.update) ||
+      input.update.some(byte => !Number.isInteger(byte) || byte < 0 || byte > 255) ||
+      !input.origins || typeof input.origins !== 'object' || Array.isArray(input.origins)) throw Error('Invalid presence snapshot')
+  const temporaryDoc = new Y.Doc()
+  temporaryDoc.clientID = awareness.clientID
+  const temporary = new Awareness(temporaryDoc)
+  temporary.setLocalState(null)
+  try {
+    applyAwarenessUpdate(temporary, Uint8Array.from(input.update), null)
+    const ids = [...temporary.getStates().keys()], covered = new Set()
+    if (ids.includes(awareness.clientID)) throw Error('Presence snapshot includes local client')
+    for (const [origin, members] of Object.entries(input.origins)) {
+      if (!origin || origin === 'local' || origin === 'timeout' || !Array.isArray(members) ||
+          !members.length || new Set(members).size !== members.length ||
+          members.some(id => !Number.isSafeInteger(id) || id < 0 || !ids.includes(id))) throw Error('Invalid presence origins')
+      members.forEach(id => covered.add(id))
+    }
+    if (ids.some(id => !covered.has(id))) throw Error('Incomplete presence origins')
+    // Reject removed/tombstone states: bootstrap snapshots contain active remote presence only.
+    if ([...temporary.meta.keys()].some(id => id !== temporary.clientID && !ids.includes(id))) throw Error('Inactive presence snapshot')
+    applyAwarenessUpdate(awareness, Uint8Array.from(input.update), null)
+    for (const [origin, members] of Object.entries(input.origins)) {
+      const current = members.filter(id => awareness.getStates().has(id) &&
+        awareness.meta.get(id)?.clock === temporary.meta.get(id)?.clock &&
+        JSON.stringify(awareness.getStates().get(id)) === JSON.stringify(temporary.getStates().get(id)))
+      if (current.length) awarenessOrigins.set(origin, [...new Set([...(awarenessOrigins.get(origin) || []), ...current])])
+    }
+  } finally { temporary.destroy(); temporaryDoc.destroy() }
+}
 const localOrigin = 'relay.local.editor'
 const undo = new Y.UndoManager(root, { trackedOrigins: new Set([localOrigin]), captureTimeout: 0 })
 let localUpdates = []
@@ -272,6 +318,8 @@ export function call(command, input) {
       awareness.setLocalState(input === null ? null : { user: { name: input.name, color: input.color }, cursor })
       return awarenessUpdates
     }
+    case 'presenceSnapshot': return presenceSnapshot()
+    case 'presenceApplySnapshot': applyPresenceSnapshot(input); return null
     case 'presenceApply': applyAwarenessUpdate(awareness, Uint8Array.from(input.data), input.origin); return null
     case 'presenceRemoveOrigin': removeAwarenessStates(awareness, awarenessOrigins.get(input) || [], 'remote'); awarenessOrigins.delete(input); return null
     case 'presenceTick': awarenessUpdates = []; globalThis.relayRunIntervals(); return awarenessUpdates

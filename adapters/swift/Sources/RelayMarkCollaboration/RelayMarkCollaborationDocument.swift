@@ -150,6 +150,27 @@ public final class RelayMarkCollaborationDocument {
         _ = try call("presenceApply", input: ["data": Array(update), "origin": origin])
     }
 
+    /// Ephemeral remote awareness with its transport-origin ownership, never durable document data.
+    public struct PresenceSnapshot: Codable, Equatable, Sendable {
+        public let version: Int
+        public let update: Data
+        public let origins: [String: [UInt64]]
+        public init(version: Int = 1, update: Data, origins: [String: [UInt64]]) {
+            self.version = version; self.update = update; self.origins = origins
+        }
+    }
+
+    public func presenceSnapshot() throws -> PresenceSnapshot {
+        struct Wire: Decodable { let version: Int; let update: [UInt8]; let origins: [String: [UInt64]] }
+        let value = try JSONDecoder().decode(Wire.self, from: call("presenceSnapshot"))
+        return PresenceSnapshot(version: value.version, update: Data(value.update), origins: value.origins)
+    }
+
+    public func applyPresenceSnapshot(_ snapshot: PresenceSnapshot) throws {
+        _ = try call("presenceApplySnapshot", input: ["version": snapshot.version,
+            "update": Array(snapshot.update), "origins": snapshot.origins])
+    }
+
     public func removePresence(origin: String) throws { _ = try call("presenceRemoveOrigin", input: origin) }
 
     /// The connected host calls every three seconds; y-protocols owns renewal and expiry policy.

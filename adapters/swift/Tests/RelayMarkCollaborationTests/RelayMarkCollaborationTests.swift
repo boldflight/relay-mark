@@ -196,6 +196,41 @@ struct RelayMarkCollaborationTests {
         #expect(try doc.encodeUpdate() == before)
     }
 
+    @Test func presenceSnapshotSeedsExistingCursorAndRetainsOriginWithoutChangingUndo() throws {
+        let remote = try RelayMarkCollaborationDocument(), owner = try RelayMarkCollaborationDocument(), child = try RelayMarkCollaborationDocument()
+        try seed(remote)
+        try owner.applyUpdate(remote.encodeUpdate()); try child.applyUpdate(remote.encodeUpdate())
+        let anchor = try remote.anchor(path: [0, 0], index: 3)
+        let awareness = try remote.setPresence(name: "Existing collaborator", anchor: anchor, head: anchor)
+        for bytes in awareness { try owner.applyPresence(bytes, origin: "external-socket") }
+        let snapshot = try owner.presenceSnapshot()
+        let roundTrip = try JSONDecoder().decode(RelayMarkCollaborationDocument.PresenceSnapshot.self,
+            from: JSONEncoder().encode(snapshot))
+        #expect(roundTrip == snapshot)
+        for bytes in awareness { try child.applyPresence(bytes, origin: "prior-path") }
+        _ = try child.insertText("local ", at: 0, path: [0, 0])
+        let before = try child.encodeUpdate()
+        try child.applyPresenceSnapshot(snapshot); try child.applyPresenceSnapshot(snapshot)
+        let cursor = try #require(child.collaborators().first)
+        #expect(cursor.name == "Existing collaborator")
+        #expect(try child.resolve(anchor: #require(cursor.anchor))?.index == 9)
+        #expect(try child.encodeUpdate() == before)
+        try child.removePresence(origin: "external-socket")
+        #expect(try child.collaborators().isEmpty)
+        _ = try child.undo()
+        #expect(try child.snapshot() == remote.snapshot())
+    }
+
+    @Test func invalidPresenceSnapshotCannotInstallUnownedCursor() throws {
+        let remote = try RelayMarkCollaborationDocument(), owner = try RelayMarkCollaborationDocument(), child = try RelayMarkCollaborationDocument()
+        for bytes in try remote.setPresence(name: "Remote") { try owner.applyPresence(bytes, origin: "socket") }
+        let snapshot = try owner.presenceSnapshot()
+        let invalid = RelayMarkCollaborationDocument.PresenceSnapshot(update: snapshot.update, origins: [:])
+        #expect(throws: (any Error).self) { try child.applyPresenceSnapshot(invalid) }
+        #expect(try child.collaborators().isEmpty)
+        #expect(try child.presenceSnapshot().origins.isEmpty)
+    }
+
     @Test func nestedProseEditingPreservesContainersAndCodeNewlines() throws {
         let doc = try RelayMarkCollaborationDocument()
         _ = try doc.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":2},"children":[{"kind":"text","delta":[{"insert":"Title"}]}]},{"kind":"element","name":"blockquote","children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Quote"}]}]}]},{"kind":"element","name":"bulletList","children":[{"kind":"element","name":"listItem","children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"One"}]}]}]},{"kind":"element","name":"listItem","children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Two"}]}]}]}]},{"kind":"element","name":"codeBlock","attributes":{"language":"swift"},"children":[{"kind":"text","delta":[{"insert":"let x=1"}]}]}]}"#.utf8))
