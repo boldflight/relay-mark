@@ -51,9 +51,14 @@ defmodule RelayMark.CollaborativeProse do
       "codeBlock" ->
         exact_attrs(attrs, ["language"])
         text = plain(children)
-        fence = if String.contains?(text, "```"), do: "~~~~", else: "```"
-        if String.contains?(text, fence), do: unsupported(:code_fence)
-        fence <> (attrs["language"] || "") <> "\n" <> text <> "\n" <> fence
+        language = attrs["language"] || ""
+
+        if not is_binary(language) or String.contains?(language, ["\n", "\r"]),
+          do: unsupported(:code_language)
+
+        character = if String.contains?(language, "`"), do: "~", else: "`"
+        fence = delimiter(text, character, 3)
+        fence <> language <> "\n" <> text <> "\n" <> fence
 
       "horizontalRule" ->
         exact_attrs(attrs, [])
@@ -101,8 +106,18 @@ defmodule RelayMark.CollaborativeProse do
 
     value =
       if attrs["code"] do
-        if map_size(attrs) > 1 or String.contains?(text, ["`", "\n"]), do: unsupported(:code_span)
-        "`" <> text <> "`"
+        if map_size(attrs) > 1 or String.contains?(text, ["\n", "\r"]),
+          do: unsupported(:code_span)
+
+        fence = delimiter(text, "`", 1)
+
+        pad =
+          String.starts_with?(text, "`") or String.ends_with?(text, "`") or
+            (String.starts_with?(text, " ") and String.ends_with?(text, " ") and
+               String.trim(text, " ") != "")
+
+        padding = if pad, do: " ", else: ""
+        fence <> padding <> text <> padding <> fence
       else
         escape(text)
       end
@@ -142,6 +157,16 @@ defmodule RelayMark.CollaborativeProse do
       _ ->
         unsupported(:code_content)
     end)
+  end
+
+  # CommonMark requires matching runs; choose a delimiter longer than every content run.
+  defp delimiter(text, character, minimum) do
+    longest =
+      Regex.scan(Regex.compile!(Regex.escape(character) <> "+"), text)
+      |> Enum.map(fn [run] -> String.length(run) end)
+      |> Enum.max(fn -> 0 end)
+
+    String.duplicate(character, max(minimum, longest + 1))
   end
 
   defp escape(text), do: String.replace(text, ~r/([\\`*_{}\[\]<>#!+\-.|~])/, "\\\\\\1")

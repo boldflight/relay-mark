@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// Deliberately bounded editable projection; unsupported structure is preserved by the replica.
 public struct RelayMarkCollaborativeProse {
@@ -18,12 +19,22 @@ public struct RelayMarkCollaborativeProse {
         var supported = true
         var identity = 0
 
+        func validInteger(_ value: Any?, minimum: Int, maximum: Int = Int.max) -> Bool {
+            guard let value, !(value is NSNull) else { return true }
+            guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                  let integer = value as? Int else { return false }
+            return integer >= minimum && integer <= maximum
+        }
+
         func appendText(_ node: [String: Any]) {
             if let delta = node["delta"] as? [[String: Any]] {
                 for run in delta {
                     guard let insert = run["insert"] as? String else { supported = false; continue }
                     let attributes = run["attributes"] as? [String: Any] ?? [:]
                     if !Set(attributes.keys).isSubset(of: ["bold", "italic", "strike", "code", "link"]) { supported = false }
+                    if attributes["code"] != nil && (attributes.count > 1 || insert.contains("\r") || insert.contains("\n")) { supported = false }
+                    if let link = attributes["link"] as? [String: Any],
+                       !Set(link.keys).isSubset(of: ["href", "target", "rel", "class"]) { supported = false }
                     var part = AttributedString(insert)
                     var intent: InlinePresentationIntent = []
                     if attributes["bold"] != nil { intent.insert(.stronglyEmphasized) }
@@ -52,11 +63,15 @@ public struct RelayMarkCollaborativeProse {
                 let kind: PresentationIntent.Kind
                 switch name {
                 case "paragraph": kind = .paragraph
-                case "heading": kind = .header(level: attributes["level"] as? Int ?? 1)
+                case "heading":
+                    if !validInteger(attributes["level"], minimum: 1, maximum: 6) { supported = false }
+                    kind = .header(level: min(6, max(1, attributes["level"] as? Int ?? 1)))
                 case "codeBlock": kind = .codeBlock(languageHint: attributes["language"] as? String)
                 case "blockquote": kind = .blockQuote
                 case "bulletList": kind = .unorderedList
-                case "orderedList": kind = .orderedList
+                case "orderedList":
+                    if !validInteger(attributes["start"], minimum: 1) { supported = false }
+                    kind = .orderedList
                 case "listItem": kind = .listItem(ordinal: ordinal + index)
                 default: supported = false; kind = .paragraph
                 }

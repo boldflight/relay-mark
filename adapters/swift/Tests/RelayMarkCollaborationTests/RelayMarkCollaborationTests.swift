@@ -31,6 +31,59 @@ struct RelayMarkCollaborationTests {
         #expect(deletion[0].before == "🌍")
     }
 
+    @Test func portableUnicodeDeletionReorderingAndConcurrentReferenceFixtures() throws {
+        let url = try #require(Bundle.module.url(forResource: "convergence-v1", withExtension: "json"))
+        let fixture = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let cases = try #require(fixture["cases"] as? [[String: Any]])
+        var exported: [[String: String]] = []
+        for item in cases {
+            let id = try #require(item["id"] as? String)
+            let updates = try #require(item["updates"] as? [String]).map { try #require(Data(base64Encoded: $0)) }
+            let orders = try #require(item["orders"] as? [[Int]])
+            let expected = try JSONSerialization.data(withJSONObject: #require(item["expected"]), options: [.sortedKeys])
+            for order in orders {
+                let doc = try RelayMarkCollaborationDocument()
+                for index in order { try doc.applyUpdate(updates[index]) }
+                let actual = try JSONSerialization.data(withJSONObject: JSONSerialization.jsonObject(with: doc.snapshot()), options: [.sortedKeys])
+                #expect(actual == expected, "Fixture \(id), delivery \(order)")
+                let restarted = try RelayMarkCollaborationDocument()
+                try restarted.applyUpdate(doc.encodeUpdate())
+                #expect(try restarted.snapshot() == doc.snapshot())
+                #expect(try doc.undo().isEmpty)
+            }
+            if item["deletion_update_index"] != nil {
+                #expect(item["state_vector_before_delete"] as? String == item["state_vector_after_delete"] as? String)
+            }
+            let native = try RelayMarkCollaborationDocument()
+            for update in updates { try native.applyUpdate(update) }
+            let vector = try native.stateVector()
+            _ = try native.insertText("Swift✅ ", at: 0, path: [0, 0])
+            exported.append(["id": id, "update": try native.encodeUpdate(since: vector).base64EncodedString()])
+        }
+        if let path = ProcessInfo.processInfo.environment["RELAY_COLLABORATION_CONFORMANCE_OUTPUT"] {
+            try JSONSerialization.data(withJSONObject: ["cases": exported], options: [.sortedKeys]).write(to: URL(fileURLWithPath: path))
+        }
+    }
+
+    @Test func nativeProjectionRejectsServerInvalidAttributesWithoutLosingReplicaContent() throws {
+        for (name, key, values) in [("heading", "level", [0, 7, 1.5, true, "2"] as [Any]),
+                                     ("orderedList", "start", [0, -1, 1.5, true, "2"] as [Any])] {
+            for value in values {
+                let paragraph: [String: Any] = ["kind": "element", "name": "paragraph", "attributes": [:], "children": []]
+                let children: [[String: Any]] = name == "orderedList" ? [["kind": "element", "name": "listItem", "attributes": [:], "children": [paragraph]]] : []
+                let snapshot: [String: Any] = ["kind": "fragment", "children": [["kind": "element", "name": name, "attributes": [key: value], "children": children]]]
+                let projection = try RelayMarkCollaborativeProse(snapshot: JSONSerialization.data(withJSONObject: snapshot))
+                #expect(!projection.isEditable)
+            }
+        }
+        let doc = try RelayMarkCollaborationDocument()
+        try seed(doc)
+        _ = try doc.edit(Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":5,"attributes":{"link":{"href":"relay:entity/123","title":"Unsupported but retained"}}}"#.utf8))
+        let before = try doc.snapshot()
+        #expect(try !RelayMarkCollaborativeProse(snapshot: before).isEditable)
+        #expect(try doc.snapshot() == before)
+    }
+
     @Test func concurrentOfflineRestartAndSelectiveUndo() throws {
         let alice = try RelayMarkCollaborationDocument()
         try seed(alice)

@@ -10,6 +10,11 @@ A future upstream contribution should add Yrs XML fragment/element/text operatio
 
 ## Contract
 
+The canonical versioned contract and capability matrix live in
+[the collaboration specification](../../spec/relaymark/collaboration/README.md).
+This adapter guide describes implementation and invocation details.
+
+
 * Schema negotiation identifier: `relaymark-prosemirror-v1` (the host negotiates supported editing capabilities).
 * One authorized document incarnation per replica; root `Y.XmlFragment('default')`, matching TipTap Collaboration's default field.
 * Binary updates and state vectors use Yjs v1 encoding (Yjs major 13); `encodeUpdate(since:)` includes deletion-only differences.

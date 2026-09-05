@@ -44,7 +44,7 @@ defmodule RelayMark.CollaborativeProseTest do
              ])
   end
 
-  test "code fences preserve content and refuse ambiguous delimiters" do
+  test "code fences preserve content" do
     node = %{
       "tag" => "codeBlock",
       "attributes" => %{"language" => "swift"},
@@ -54,5 +54,43 @@ defmodule RelayMark.CollaborativeProseTest do
     }
 
     assert {:ok, "```swift\nlet x = 1\n```"} = CollaborativeProse.to_markdown([node])
+  end
+
+  test "code spans choose lossless delimiters and CommonMark padding" do
+    for {text, expected} <- [
+          {"a`b", "``a`b``"},
+          {"`", "`` ` ``"},
+          {"``x`", "``` ``x` ```"},
+          {" padded ", "`  padded  `"},
+          {"  ", "`  `"},
+          {" left", "` left`"},
+          {"right ", "`right `"}
+        ] do
+      node = %{
+        "tag" => "paragraph",
+        "attributes" => %{},
+        "children" => [
+          %{"delta" => [%{"insert" => text, "attributes" => %{"code" => %{}}}]}
+        ]
+      }
+
+      assert {:ok, ^expected} = CollaborativeProse.to_markdown([node])
+    end
+  end
+
+  test "arbitrarily long mixed fences and trailing newlines stay literal" do
+    text = "```\n~~~~\n``````\n"
+
+    node = %{
+      "tag" => "codeBlock",
+      "attributes" => %{"language" => "swift"},
+      "children" => [%{"delta" => [%{"insert" => text}]}]
+    }
+
+    assert {:ok, "```````swift\n" <> rest} = CollaborativeProse.to_markdown([node])
+    assert rest == text <> "\n```````"
+    tilde = put_in(node, ["attributes", "language"], "language`info")
+    assert {:ok, "~~~~~language`info\n" <> rest} = CollaborativeProse.to_markdown([tilde])
+    assert rest == text <> "\n~~~~~"
   end
 end

@@ -15,6 +15,10 @@ specification.
 This directory is the portable spec package. It is designed to move into a
 standalone repository later without depending on the Phoenix application.
 
+The separately negotiated collaborative prose profile is specified in
+[collaboration/README.md](collaboration/README.md), with binary convergence fixtures.
+It does not broaden the existing portable AST conformance claims.
+
 ## Status
 
 - Spec version: `0.6.0-draft`
