@@ -11,6 +11,9 @@ defmodule RelayMark.CollaborativeProse do
   @spec to_markdown([map()]) :: {:ok, String.t()} | {:error, term()}
   def to_markdown(nodes) when is_list(nodes) do
     {:ok, Enum.map_join(nodes, "\n\n", &block/1)}
+  rescue
+    _ in [ArgumentError, Protocol.UndefinedError, BadMapError, FunctionClauseError] ->
+      {:error, {:unsupported_collaboration_content, :invalid_tree}}
   catch
     {:unsupported, reason} -> {:error, {:unsupported_collaboration_content, reason}}
   end
@@ -41,7 +44,9 @@ defmodule RelayMark.CollaborativeProse do
 
       "orderedList" ->
         exact_attrs(attrs, ["start"])
-        list(children, fn index -> "#{(attrs["start"] || 1) + index}. " end)
+        start = attrs["start"] || 1
+        if not is_integer(start) or start < 1, do: unsupported(:list_start)
+        list(children, fn index -> "#{start + index}. " end)
 
       "codeBlock" ->
         exact_attrs(attrs, ["language"])
