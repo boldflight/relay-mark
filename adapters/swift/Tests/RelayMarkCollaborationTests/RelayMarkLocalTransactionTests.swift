@@ -8,10 +8,12 @@ struct RelayMarkLocalTransactionTests {
         let transaction = initializer(UUID(), Data([1, 2]), [])
         #expect(transaction.inputIntent == nil)
         #expect(transaction.insertedTextItems == nil)
+        #expect(transaction.nativeFormatting == nil)
         let encoded = try JSONEncoder().encode(transaction)
         let object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
         #expect(object["inputIntent"] == nil)
         #expect(object["insertedTextItems"] == nil)
+        #expect(object["nativeFormatting"] == nil)
         #expect(try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: encoded) == transaction)
     }
 
@@ -45,5 +47,19 @@ struct RelayMarkLocalTransactionTests {
             #expect(decoded == transaction)
             #expect(decoded.changes.isEmpty)
         }
+    }
+
+    @Test func formattingEvidencePreservesExistingInitializerAndExactFrozenReceipt() throws {
+        let initializer: (UUID, Data, [RelayMarkLocalTransaction.TextChange], RelayMarkLocalTransaction.InputIntent?, Data?) -> RelayMarkLocalTransaction = RelayMarkLocalTransaction.init
+        let legacy = initializer(UUID(), Data([1]), [], .derived, nil)
+        #expect(legacy.nativeFormatting == nil)
+        let transaction = RelayMarkLocalTransaction(update: Data([1, 2, 3]), changes: [], inputIntent: .derived,
+            insertedTextItems: Data(#"{"version":1,"runs":[]}"#.utf8),
+            nativeFormatting: .init(startUTF16: 2, lengthUTF16: 5, mark: .italic, enabled: true))
+        let restored = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(transaction))
+        #expect(restored == transaction)
+        #expect(restored.id == transaction.id)
+        #expect(restored.update == Data([1, 2, 3]))
+        #expect(restored.nativeFormatting?.mark == .italic)
     }
 }

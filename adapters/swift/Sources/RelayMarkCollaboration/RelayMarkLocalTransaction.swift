@@ -14,6 +14,21 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     /// no text. This local evidence does not establish authenticated authorship.
     /// Freeze these bytes with the update before attempting durable persistence.
     public let insertedTextItems: Data?
+    /// A native formatting command whose editor verified unchanged text identities.
+    /// This is local operation evidence, never an assertion of text authorship.
+    public let nativeFormatting: NativeFormatting?
+
+    public struct NativeFormatting: Codable, Equatable, Sendable {
+        public enum Mark: String, Codable, Sendable { case bold, italic }
+        public let startUTF16: Int
+        public let lengthUTF16: Int
+        public let mark: Mark
+        public let enabled: Bool
+        public init(startUTF16: Int, lengthUTF16: Int, mark: Mark, enabled: Bool) {
+            self.startUTF16 = startUTF16; self.lengthUTF16 = lengthUTF16
+            self.mark = mark; self.enabled = enabled
+        }
+    }
 
     public init(id: UUID = UUID(), update: Data, changes: [TextChange]) {
         self.init(id: id, update: update, changes: changes, inputIntent: nil)
@@ -24,11 +39,18 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     }
 
     public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?, insertedTextItems: Data?) {
+        self.init(id: id, update: update, changes: changes, inputIntent: inputIntent,
+                  insertedTextItems: insertedTextItems, nativeFormatting: nil)
+    }
+
+    public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
+                insertedTextItems: Data?, nativeFormatting: NativeFormatting?) {
         self.id = id
         self.update = update
         self.changes = changes
         self.inputIntent = inputIntent
         self.insertedTextItems = insertedTextItems
+        self.nativeFormatting = nativeFormatting
     }
 
     public enum InputIntent: Codable, Equatable, Sendable {
