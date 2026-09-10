@@ -96,6 +96,29 @@ public final class RelayMarkCollaborationDocument {
         return ParagraphInsertionResult(updates: wire.updates.map { Data($0) }, evidence: wire.evidence)
     }
 
+    public struct ParagraphPasteResult: Sendable {
+        public let updates: [Data]
+        public let evidence: RelayMarkLocalTransaction.NativeParagraphPaste
+        public let insertedTextItems: Data
+    }
+
+    /// Plain LF-delimited paste at a top-level paragraph end, outside an undo
+    /// group. First line appends to the existing leaf; later lines create real
+    /// paragraphs/XmlText, including empty lines. The selection excludes LF.
+    /// Rejects CR, hard breaks, embeds, invalid Unicode, more than 131072 UTF-16
+    /// input units or 4096 new paragraphs/nonempty lines; never truncates.
+    public func insertParagraphTextAfter(index: Int, expectedEndUTF16: Int, text: String) throws -> ParagraphPasteResult {
+        struct Wire: Decodable {
+            let updates: [[UInt8]]
+            let evidence: RelayMarkLocalTransaction.NativeParagraphPaste
+            let insertedTextItems: [UInt8]
+        }
+        let wire = try JSONDecoder().decode(Wire.self, from: call("nativeParagraphPaste",
+            input: ["index": index, "endUTF16": expectedEndUTF16, "text": text]))
+        return ParagraphPasteResult(updates: wire.updates.map { Data($0) }, evidence: wire.evidence,
+                                    insertedTextItems: Data(wire.insertedTextItems))
+    }
+
     /// Groups one native input transaction, including its formatting, into one selective undo step.
     public func withUndoGroup<T>(_ body: () throws -> T) throws -> T {
         _ = try call("beginUndoGroup")

@@ -324,6 +324,97 @@ function nativeParagraphAfter(input) {
   }
   return { updates: localUpdates, evidence: { paragraphIndex: input.index, endUTF16: end } }
 }
+function nativeParagraphPaste(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'endUTF16,index,text' ||
+      !Number.isSafeInteger(input.index) || input.index < 0 || !Number.isSafeInteger(input.endUTF16) || input.endUTF16 < 0 ||
+      typeof input.text !== 'string' || input.text.length > 131072 || !input.text.includes('\n') ||
+      /[\r\u2028\u2029\ufffc]/u.test(input.text) || undo.captureTimeout !== 0 || formattingCapture) {
+    throw Error('Expected bounded isolated plain multiline paste')
+  }
+  for (let i = 0; i < input.text.length; i++) {
+    const c = input.text.charCodeAt(i)
+    if (c >= 0xD800 && c <= 0xDBFF) {
+      const next = input.text.charCodeAt(++i)
+      if (!(next >= 0xDC00 && next <= 0xDFFF)) throw Error('Invalid paste Unicode')
+    } else if (c >= 0xDC00 && c <= 0xDFFF) throw Error('Invalid paste Unicode')
+  }
+  const lines = input.text.split('\n'), count = lines.length - 1
+  if (count > 4096 || lines.filter(Boolean).length > 4096) throw Error('Paste paragraph limit exceeded')
+  const queue = [root]; let nodes = 0
+  while (queue.length) {
+    const node = queue.pop()
+    if (++nodes + count * 2 > 65536) throw Error('Paste document traversal limit exceeded')
+    if (node instanceof Y.XmlFragment && !(node instanceof Y.XmlText)) {
+      if (nodes + queue.length + node.length + count * 2 > 65536) throw Error('Paste document traversal limit exceeded')
+      for (let i = 0; i < node.length; i++) queue.push(node.get(i))
+    }
+  }
+  const target = root.get(input.index)
+  if (!(target instanceof Y.XmlElement) || target.nodeName !== 'paragraph' || Object.keys(target.getAttributes()).length ||
+      target.length !== 1 || !(target.get(0) instanceof Y.XmlText)) throw Error('Expected top-level paragraph with one text leaf')
+  const leaf = target.get(0), oldLength = leaf.length, oldDelta = leaf.toDelta()
+  if (oldDelta.some(part => typeof part.insert !== 'string' || /[\n\r\u2028\u2029\ufffc]/u.test(part.insert))) throw Error('Unsupported paste target')
+  let end = 0, found = false
+  for (const block of proseBlocks()) {
+    end += block.length
+    if (block.p === target) { found = true; break }
+    end++
+  }
+  if (!found || end !== input.endUTF16) throw Error('Paragraph-end position changed')
+  const previous = root.toArray(), oldOthers = JSON.stringify(previous.filter(p => p !== target).map(snapshot))
+  const vector = Y.encodeStateVector(doc), clocks = Y.decodeStateVector(vector)
+  const deletes = () => JSON.stringify([...Y.decodeUpdate(Y.encodeStateAsUpdate(doc, vector)).ds.clients]
+    .sort(([a], [b]) => a - b).map(([client, ranges]) => [client, ranges.map(({ clock, len }) => [clock, len])]))
+  const priorDeletes = deletes(), added = []
+  localUpdates = []; undo.stopCapturing()
+  doc.transact(() => {
+    if (lines[0]) leaf.insert(oldLength, lines[0], {})
+    for (let i = 1; i < lines.length; i++) {
+      const p = new Y.XmlElement('paragraph'), text = new Y.XmlText()
+      p.insert(0, [text]); root.insert(input.index + i, [p]); added.push(p)
+      if (lines[i]) text.insert(0, lines[i], {})
+    }
+  }, localOrigin)
+  undo.stopCapturing()
+  const afterClocks = Y.decodeStateVector(Y.encodeStateVector(doc))
+  const expectedUnits = lines.reduce((n, line) => n + line.length, count * 2)
+  if (afterClocks.get(doc.clientID) !== (clocks.get(doc.clientID) || 0) + expectedUnits ||
+      [...afterClocks].some(([client, clock]) => client !== doc.clientID && clocks.get(client) !== clock)) {
+    throw Error('Unproven paste allocation')
+  }
+  const retained = root.toArray().filter(p => !added.includes(p))
+  let remaining = oldLength
+  const prefix = leaf.toDelta().flatMap(part => {
+    const text = part.insert.slice(0, remaining); remaining -= text.length
+    return text ? [{ ...part, insert: text }] : []
+  })
+  if (localUpdates.length !== 1 || deletes() !== priorDeletes ||
+      retained.length !== previous.length || retained.some((p, i) => p !== previous[i]) ||
+      target.length !== 1 || target.get(0) !== leaf || Object.keys(target.getAttributes()).length ||
+      leaf.length !== oldLength + lines[0].length || JSON.stringify(prefix) !== JSON.stringify(oldDelta) ||
+      JSON.stringify(retained.filter(p => p !== target).map(snapshot)) !== oldOthers) throw Error('Unproven paste mutation')
+  const selection = { version: 1, runs: [] }
+  for (let i = 0; i < lines.length; i++) {
+    const p = root.get(input.index + i), text = p.get(0)
+    if (i && (p !== added[i - 1] || p.nodeName !== 'paragraph' || Object.keys(p.getAttributes()).length || p.length !== 1 ||
+        !(text instanceof Y.XmlText) || text.length !== lines[i].length)) throw Error('Unproven paste structure')
+    const index = i ? 0 : oldLength
+    let offset = 0
+    for (const part of text.toDelta()) {
+      offset += part.insert.length
+      if (offset > index && Object.keys(part.attributes || {}).length) throw Error('Paste inserted marked text')
+    }
+    const captured = captureTextItems(root, { path: [input.index + i, 0], index, length: lines[i].length })
+    if (captured.runs.some(run => run.item.clock < (clocks.get(run.item.client) || 0))) throw Error('Paste reused old text identity')
+    selection.runs.push(...captured.runs)
+  }
+  const resolved = resolveTextItems(doc, root, selection)
+  if (resolved.unavailableRuns.length || resolved.collapsedUnits || resolved.segments.map(s => s.text).join('') !== lines.join('')) {
+    throw Error('Unproven paste selection')
+  }
+  return { updates: localUpdates, evidence: { paragraphIndex: input.index, endUTF16: end, paragraphCount: count },
+    insertedTextItems: Array.from(new TextEncoder().encode(JSON.stringify(selection))) }
+}
 function replaceProse(input) {
   const blocks = proseBlocks()
   if (!blocks.length) throw Error('Empty document must be enrolled with a paragraph')
@@ -442,6 +533,7 @@ export function call(command, input) {
     case 'edit': localUpdates = []; edit(input); return localUpdates
     case 'nativeFormatting': return nativeFormatting(input)
     case 'nativeParagraphAfter': return nativeParagraphAfter(input)
+    case 'nativeParagraphPaste': return nativeParagraphPaste(input)
     case 'beginUndoGroup': undo.stopCapturing(); undo.captureTimeout = Number.MAX_SAFE_INTEGER; return null
     case 'endUndoGroup': undo.stopCapturing(); undo.captureTimeout = 0; return null
     case 'undo': return history(false).updates

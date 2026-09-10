@@ -111,6 +111,26 @@ resolver or permission to upgrade a consumer dependency.
 
 ## Explicit native paragraph-end operation
 
+`insertParagraphTextAfter(index:expectedEndUTF16:text:)` is the additive plain
+multiline paste variant. It appends the first line without marks to the existing
+leaf and creates one paragraph plus a real XmlText for every later LF-delimited
+line, including empty lines. One isolated transaction/undo item retains previous
+identities, attributes and the complete delete set. New allocation is exactly the
+inserted UTF-16 text units plus two structural units per new paragraph. The result
+contains `NativeParagraphPaste` evidence and exact `insertedTextItems` JSON;
+separators and empty structural items are excluded from that selection.
+
+Input must contain LF and must not contain CR, U+2028/U+2029, U+FFFC or invalid
+surrogates. Limits are 131072 input UTF-16 units including separators, 4096 new
+paragraphs, 4096 nonempty lines and a 65536-node resulting traversal budget.
+These are generic adapter bounds, not server admission guarantees. Relay's
+Enhanced host must additionally preflight its server's 4096-node document budget
+before applying this operation; the server remains authoritative for admission.
+Refusal never truncates input. As with Return, a post-mutation proof failure
+requires host recovery; it must never be retried as an unlabelled update.
+The host still validates the actual native paste intent and current projection.
+This primitive does not admit arbitrary splits, joins, IME or history restoration.
+
 `insertParagraphAfter(index:expectedEndUTF16:)` is an additive Swift operation for
 an explicit Return at the current end of a top-level paragraph with one XmlText.
 It runs outside an undo group and returns one update plus `NativeParagraph`
