@@ -109,6 +109,24 @@ to check surviving item/leaf identity and cannot authenticate collapsed item typ
 using `get_offset` alone. It is interoperability evidence, not a production server
 resolver or permission to upgrade a consumer dependency.
 
+## Explicit native paragraph-end operation
+
+`insertParagraphAfter(index:expectedEndUTF16:)` is an additive Swift operation for
+an explicit Return at the current end of a top-level paragraph with one XmlText.
+It runs outside an undo group and returns one update plus `NativeParagraph`
+evidence. It preserves old nodes, text identities, formatting and the document
+delete set, and allocates exactly one paragraph and one empty XmlText. A browser
+peer can immediately edit that new text type. Generic `replaceProse` behavior is
+unchanged; this is not a general newline, split, join or composition admission.
+
+Hosts may freeze the evidence in the optional `RelayMarkLocalTransaction.nativeParagraph`
+field using the additive initializer. Existing initializer signatures, absent-field
+JSON decoding and `InputIntent` cases remain unchanged. Evidence is local operation
+data, not an authorization capability. The host must separately validate the actual
+native replacement, persist exact bytes and apply its source/receipt policy. Undo
+and redo do not manufacture paragraph evidence. Application delegate integration
+and authenticated server delivery require separate consumer verification.
+
 ## Browser package consumption
 
 The Elixir package includes the pure identity adapter at

@@ -273,6 +273,57 @@ function paragraph(content, attributes, tail = []) {
   // Populate after integration: insertInline relies on live Yjs lengths.
   return { p, populate: () => { insertInline(p, 0, content, attributes); p.insert(p.length, tail.map(node)) } }
 }
+// Explicit paragraph-end Return only. Unlike generic splitting, this operation
+// never moves/recreates existing content and always creates an empty XmlText.
+function nativeParagraphAfter(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'endUTF16,index' ||
+      !Number.isSafeInteger(input.index) || input.index < 0 ||
+      !Number.isSafeInteger(input.endUTF16) || input.endUTF16 < 0 ||
+      undo.captureTimeout !== 0 || formattingCapture) throw Error('Expected isolated paragraph-end Return')
+  const target = root.get(input.index)
+  if (!(target instanceof Y.XmlElement) || target.nodeName !== 'paragraph' ||
+      Object.keys(target.getAttributes()).length || target.length !== 1 ||
+      !(target.get(0) instanceof Y.XmlText) || /[\n\r\u2028\u2029\ufffc]/u.test(target.get(0).toString())) {
+    throw Error('Expected top-level paragraph with one text leaf')
+  }
+  let end = 0, found = false
+  for (const block of proseBlocks()) {
+    end += block.length
+    if (block.p === target) { found = true; break }
+    end++
+  }
+  if (!found || end !== input.endUTF16) throw Error('Paragraph-end position changed')
+  const previous = root.toArray(), previousValue = JSON.stringify(previous.map(snapshot))
+  const vector = Y.encodeStateVector(doc), clocks = Y.decodeStateVector(vector)
+  const deletions = () => JSON.stringify([...Y.decodeUpdate(Y.encodeStateAsUpdate(doc, vector)).ds.clients]
+    .sort(([a], [b]) => a - b).map(([client, ranges]) => [client, ranges.map(({ clock, len }) => [clock, len])]))
+  const previousDeletes = deletions()
+  const next = new Y.XmlElement('paragraph')
+  next.insert(0, [new Y.XmlText()])
+  localUpdates = []
+  undo.stopCapturing()
+  doc.transact(() => root.insert(input.index + 1, [next]), localOrigin)
+  undo.stopCapturing()
+  const retained = root.toArray().filter((_, index) => index !== input.index + 1)
+  const paragraphID = Y.createRelativePositionFromTypeIndex(root, input.index + 1).item
+  const textID = Y.createRelativePositionFromTypeIndex(next, 0).item
+  const expected = new Map(clocks), after = Y.decodeStateVector(Y.encodeStateVector(doc))
+  if (!paragraphID || !textID || paragraphID.client !== textID.client ||
+      paragraphID.clock !== (clocks.get(paragraphID.client) || 0) || textID.clock !== paragraphID.clock + 1) {
+    throw Error('Unproven paragraph allocation')
+  }
+  expected.set(paragraphID.client, paragraphID.clock + 2)
+  // Exact allocations plus unchanged deletes prove no prior item identities
+  // were replaced, including invisible mutations outside the rendered root.
+  if (after.size !== expected.size || [...expected].some(([client, clock]) => after.get(client) !== clock) ||
+      deletions() !== previousDeletes || retained.length !== previous.length ||
+      retained.some((value, index) => value !== previous[index]) ||
+      JSON.stringify(retained.map(snapshot)) !== previousValue || localUpdates.length !== 1 ||
+      next.length !== 1 || !(next.get(0) instanceof Y.XmlText) || next.get(0).length !== 0) {
+    throw Error('Unproven paragraph mutation')
+  }
+  return { updates: localUpdates, evidence: { paragraphIndex: input.index, endUTF16: end } }
+}
 function replaceProse(input) {
   const blocks = proseBlocks()
   if (!blocks.length) throw Error('Empty document must be enrolled with a paragraph')
@@ -390,6 +441,7 @@ export function call(command, input) {
     case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates
     case 'edit': localUpdates = []; edit(input); return localUpdates
     case 'nativeFormatting': return nativeFormatting(input)
+    case 'nativeParagraphAfter': return nativeParagraphAfter(input)
     case 'beginUndoGroup': undo.stopCapturing(); undo.captureTimeout = Number.MAX_SAFE_INTEGER; return null
     case 'endUndoGroup': undo.stopCapturing(); undo.captureTimeout = 0; return null
     case 'undo': return history(false).updates

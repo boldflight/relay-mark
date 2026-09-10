@@ -77,6 +77,25 @@ public final class RelayMarkCollaborationDocument {
         try updates("replaceProse", input: ["start": start, "end": end, "text": text])
     }
 
+    public struct ParagraphInsertionResult: Sendable {
+        public let updates: [Data]
+        public let evidence: RelayMarkLocalTransaction.NativeParagraph
+    }
+
+    /// Explicit Return at the current end of a top-level paragraph containing
+    /// one XmlText. Creates one empty paragraph and XmlText without moving old
+    /// items. Call outside an undo group; the host must validate native intent,
+    /// persist the update/evidence together and apply its source admission policy.
+    public func insertParagraphAfter(index: Int, expectedEndUTF16: Int) throws -> ParagraphInsertionResult {
+        struct Wire: Decodable {
+            let updates: [[UInt8]]
+            let evidence: RelayMarkLocalTransaction.NativeParagraph
+        }
+        let wire = try JSONDecoder().decode(Wire.self, from: call("nativeParagraphAfter",
+            input: ["index": index, "endUTF16": expectedEndUTF16]))
+        return ParagraphInsertionResult(updates: wire.updates.map { Data($0) }, evidence: wire.evidence)
+    }
+
     /// Groups one native input transaction, including its formatting, into one selective undo step.
     public func withUndoGroup<T>(_ body: () throws -> T) throws -> T {
         _ = try call("beginUndoGroup")

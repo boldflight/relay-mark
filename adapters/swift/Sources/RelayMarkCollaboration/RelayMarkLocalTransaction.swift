@@ -18,6 +18,17 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     /// editor verified unchanged text identities. InputIntent distinguishes history.
     /// This is local operation evidence, never an assertion of text authorship.
     public let nativeFormatting: NativeFormatting?
+    /// Evidence from the explicit isolated paragraph-end operation. It does not
+    /// authorize structural edits or establish ownership of existing prose.
+    public let nativeParagraph: NativeParagraph?
+
+    public struct NativeParagraph: Codable, Equatable, Sendable {
+        public let paragraphIndex: Int
+        public let endUTF16: Int
+        public init(paragraphIndex: Int, endUTF16: Int) {
+            self.paragraphIndex = paragraphIndex; self.endUTF16 = endUTF16
+        }
+    }
 
     public struct NativeFormatting: Codable, Equatable, Sendable {
         public enum Mark: String, Codable, Sendable { case bold, italic }
@@ -46,12 +57,19 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
 
     public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
                 insertedTextItems: Data?, nativeFormatting: NativeFormatting?) {
+        self.init(id: id, update: update, changes: changes, inputIntent: inputIntent,
+                  insertedTextItems: insertedTextItems, nativeFormatting: nativeFormatting, nativeParagraph: nil)
+    }
+
+    public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
+                insertedTextItems: Data?, nativeFormatting: NativeFormatting?, nativeParagraph: NativeParagraph?) {
         self.id = id
         self.update = update
         self.changes = changes
         self.inputIntent = inputIntent
         self.insertedTextItems = insertedTextItems
         self.nativeFormatting = nativeFormatting
+        self.nativeParagraph = nativeParagraph
     }
 
     public enum InputIntent: Codable, Equatable, Sendable {
