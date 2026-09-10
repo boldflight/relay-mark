@@ -9,16 +9,26 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     /// Local editor operation evidence only. It does not establish authenticated
     /// authorship, ownership of restored text, or contribution replacement rights.
     public let inputIntent: InputIntent?
+    /// Exact item-selection JSON captured by the editor for newly inserted text.
+    /// Nil means unproven; an empty selection means a proven operation inserted
+    /// no text. This local evidence does not establish authenticated authorship.
+    /// Freeze these bytes with the update before attempting durable persistence.
+    public let insertedTextItems: Data?
 
     public init(id: UUID = UUID(), update: Data, changes: [TextChange]) {
         self.init(id: id, update: update, changes: changes, inputIntent: nil)
     }
 
     public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?) {
+        self.init(id: id, update: update, changes: changes, inputIntent: inputIntent, insertedTextItems: nil)
+    }
+
+    public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?, insertedTextItems: Data?) {
         self.id = id
         self.update = update
         self.changes = changes
         self.inputIntent = inputIntent
+        self.insertedTextItems = insertedTextItems
     }
 
     public enum InputIntent: Codable, Equatable, Sendable {
