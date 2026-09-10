@@ -46,3 +46,65 @@ Generic iOS and visionOS compiler builds of `RelayMarkCollaboration` passed usin
 The editable projection supports paragraph, heading, codeBlock, blockquote, bulletList, orderedList and listItem, including nested container paths. It carries Foundation presentation intents, preserves unmodified XML identities, inserts a sibling list item for Enter in a simple item, and retains literal newlines inside code. Unsupported embedded blocks or marks remain preserved and read-only. Cross-block replacement removes only affected leaf blocks and empty ancestors; it does not rebuild the fragment. The native editor groups text and formatting into one local undo step.
 
 Standard `y-protocols` 1.0.7 awareness uses `user: {name, color}` and y-prosemirror-compatible relative `cursor: {anchor, head}` values. The host publishes throttled selection changes, invokes library renewal/expiry, and removes peers by server channel origin. The fixture proves browser-to-native and native-to-browser cursor decoding and that awareness does not change durable document bytes. Relay Swift now supplies a host presence list and narrow AppKit/UIKit TextKit adapters that draw remote carets and ranges using native layout geometry. Its marked-text probe buffers intermediate composition and rebases committed input through these anchors.
+# Exact text item selection
+
+`captureTextItems({path,index,length})` captures a text-only UTF-16 selection as
+opaque JSON `{version:1,runs:[{item:{client,clock},type:{client,clock},count}]}`.
+The item identifies the first exact UTF-16 unit and the type identifies its shared
+text leaf. Association zero is implicit. `count` represents consecutive clocks
+for that client and shared type. Explicit identity JSON works through public
+Yjs/Yex relative-position JSON APIs without requiring interchangeable binary
+codecs. Both IDs are strictly shaped, clients are nonnegative safe integers,
+clocks are UInt32, and item clock plus count cannot exceed 2^32.
+Replica client IDs never identify human actors. The host supplies trusted edit
+intent and binds this value to a document/incarnation; this API supplies identity
+only, not authorization or source-contribution semantics.
+
+`resolveTextItems(selection)` returns `{segments,collapsedUnits,unavailableRuns}`.
+Segments contain `{path,index,length,text}` in current document order, regardless
+of input run order, and merge adjacent selected units only. They exclude unrelated
+intervening insertions. `unavailableRuns` names original run indices whose items
+or shared types cannot be resolved, including deleted ancestors; callers must not
+use partial output as complete source text. Zero-width identities are counted
+separately as collapsed units. Public Yjs resolution cannot prove a forged
+collapsed ID historically represented text rather than a formatting structure;
+shape validation does not authenticate provenance. Hosts must preserve trusted
+capture intent and servers must validate against the accepted baseline.
+Resolution never follows local-only undo mappings. Undo restoration
+requires the host's saved ownership intent; fresh CRDT IDs do not prove authorship.
+
+Input rejects unknown fields, invalid identities, overflow,
+overlapping item clocks, more than 4096 runs or 131072 total UTF-16 units, paths
+deeper than 128, atoms and split/unpaired surrogate sequences. Resolution also
+rejects more than 4096 output segments or traversal beyond 65536 nodes/depth128.
+Child counts are admitted before allocating traversal arrays. Capture and
+resolution inspect each selected leaf's full text delta to reject embedded atoms;
+their full-leaf scanning cost is bounded by the host's existing document admission
+limits, not by the selected-unit bound. This API does not impose a new document
+size policy.
+Text selections
+cannot silently flatten structural separators. These bounds limit allocation but
+are not a worst-case latency guarantee for heavily fragmented document history.
+Swift exposes `captureTextItems(path:index:length:) -> Data` and
+`resolveTextItems(_:) -> TextItemResolution`; JSON remains opaque at the host seam
+and is validated by the same runtime. The host must preserve exact bytes when it
+persists an immutable operation.
+
+The generic seam does not establish server-side Yex anchor validation or a
+cross-device contribution-index protocol. Those capabilities require separately
+verified supported server APIs and acceptance/persistence integration before
+Enhanced source mapping can be activated. The exploratory script and its limits
+remain documented in `CONTRIBUTION_IDENTITY_PROTOTYPE.md`.
+
+`elixir scripts/verify-text-items-yex.exs` installs exact Yex 0.11.0/Jason 1.4.5
+and checks the trusted portable fixture (four scenarios, 28 item identities).
+It can also run through `mix run /absolute/path/to/verify-text-items-yex.exs`
+in a consumer already loading those versions. Yex requires
+`Yex.Doc.Options{offset_kind: :utf16}` for matching native/Yjs coordinates;
+default byte offsets produce wrong positions after emoji. The proof uses public
+[`StickyIndex.from_json/to_json/get_offset`](https://github.com/satoren/y_ex/blob/v0.11.0/lib/sticky_index.ex)
+APIs; Yex's `encode_v1` representation is not interchangeable with Yjs's canonical
+relative-position binary encoding. The script relies on trusted expected paths
+to check surviving item/leaf identity and cannot authenticate collapsed item type
+using `get_offset` alone. It is interoperability evidence, not a production server
+resolver or permission to upgrade a consumer dependency.

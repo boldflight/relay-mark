@@ -138,6 +138,39 @@ public final class RelayMarkCollaborationDocument {
             "version": range.version, "anchor": Array(range.anchor), "head": Array(range.head)]))
     }
 
+    public struct TextItemSegment: Codable, Equatable, Sendable {
+        public let path: [Int]
+        public let index: Int
+        public let length: Int
+        public let text: String
+    }
+
+    public struct TextItemResolution: Codable, Equatable, Sendable {
+        /// Surviving UTF-16 segments in current document order, excluding unrelated insertions.
+        public let segments: [TextItemSegment]
+        /// Selected identities currently resolving to zero width. This does not authenticate
+        /// whether a forged identity originally represented text or a formatting structure.
+        public let collapsedUnits: Int
+        /// Original run indices whose items or shared types are unavailable/deleted.
+        /// Callers must not interpret an incomplete resolution as complete source text.
+        public let unavailableRuns: [Int]
+    }
+
+    /// Opaque versioned JSON containing exact Yjs text identities, not authorship.
+    /// Hosts bind it to the document/incarnation and supply trusted edit intent.
+    /// Rejects atoms, more than 131072 UTF-16 units or 4096 fragmented runs.
+    public func captureTextItems(path: [Int], index: Int, length: Int) throws -> Data {
+        try call("captureTextItems", input: ["path": path, "index": index, "length": length])
+    }
+
+    /// Strictly validates exact identity run JSON before resolving. Does not follow local undo mappings.
+    /// Unknown or deleted shared types remain explicit, including deleted ancestors.
+    public func resolveTextItems(_ selection: Data) throws -> TextItemResolution {
+        guard selection.count <= 5_000_000 else { throw Failure.runtime("Text item selection is too large") }
+        return try JSONDecoder().decode(TextItemResolution.self, from: call("resolveTextItems",
+            input: JSONSerialization.jsonObject(with: selection)))
+    }
+
     /// Standard y-protocols awareness; ephemeral data must never enter the durable update journal.
     public func setPresence(name: String?, color: String = "#666666", anchor: Data? = nil, head: Data? = nil) throws -> [Data] {
         guard let name else { return try updates("presenceSet") }

@@ -1,4 +1,5 @@
 import * as Y from 'yjs'
+import { captureTextItems, resolveTextItems } from './text-items.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -309,6 +310,8 @@ function safeAnchor(value) {
 }
 export function call(command, input) {
   switch (command) {
+    case 'captureTextItems': return captureTextItems(root, input)
+    case 'resolveTextItems': return resolveTextItems(doc, root, input)
     case 'presenceSet': {
       awarenessUpdates = []
       const cursor = input?.anchor && input?.head ? {
