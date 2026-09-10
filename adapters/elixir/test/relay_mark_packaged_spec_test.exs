@@ -28,6 +28,12 @@ defmodule RelayMark.PackagedSpecTest do
     end
   end
 
+  test "Hex package ships the canonical pure text-item adapter" do
+    canonical = Path.expand("../../collaboration/text-items.js", __DIR__)
+    packaged = Path.expand("../priv/collaboration/text-items.js", __DIR__)
+    assert File.read!(packaged) == File.read!(canonical)
+  end
+
   defp packaged_relative_paths do
     @packaged_root
     |> Path.join("**/*.json")

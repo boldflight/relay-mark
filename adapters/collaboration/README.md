@@ -108,3 +108,14 @@ relative-position binary encoding. The script relies on trusted expected paths
 to check surviving item/leaf identity and cannot authenticate collapsed item type
 using `get_offset` alone. It is interoperability evidence, not a production server
 resolver or permission to upgrade a consumer dependency.
+
+## Browser package consumption
+
+The Elixir package includes the pure identity adapter at
+`priv/collaboration/text-items.js`. Browser hosts can import `captureTextItems` and
+`resolveTextItems` through their existing dependency resolver. The adapter imports
+the host's `yjs`; it does not construct a document or include another runtime.
+`npm run build:collaboration` refreshes this packaged copy from the canonical source.
+The package test checks byte equality. Host code still owns edit intent and
+authenticated source admission. Availability requires a package revision containing
+this export; this source change does not publish a Hex release.
