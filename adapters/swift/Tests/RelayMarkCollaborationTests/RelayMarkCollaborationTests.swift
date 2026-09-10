@@ -8,6 +8,27 @@ struct RelayMarkCollaborationTests {
         _ = try doc.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"paragraph","attributes":{},"children":[{"kind":"text","delta":[{"insert":"Hello 🌍","attributes":{"bold":{},"link":{"href":"relay:entity/123"}}}]}]}]}"#.utf8))
     }
 
+    @Test func explicitFormattingHistoryUsesActualItemAndLegacyUndoStillReturnsUpdates() throws {
+        let doc = try RelayMarkCollaborationDocument()
+        try seed(doc)
+        let ids = try doc.captureTextItems(path: [0, 0], index: 0, length: 8)
+        let operation = Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":5,"attributes":{"italic":{}}}"#.utf8)
+        _ = try doc.editNativeFormatting(operation)
+        let undone = try doc.undoWithFormattingEvidence()
+        #expect(undone.formattingMark == .italic)
+        #expect(!undone.updates.isEmpty)
+        #expect(try doc.redoWithFormattingEvidence().formattingMark == .italic)
+        let legacyUndo: () throws -> [Data] = doc.undo
+        #expect(try !legacyUndo().isEmpty)
+        #expect(try doc.redoWithFormattingEvidence().formattingMark == .italic)
+        #expect(try doc.captureTextItems(path: [0, 0], index: 0, length: 8) == ids)
+        let reopened = try RelayMarkCollaborationDocument()
+        try reopened.applyUpdate(doc.encodeUpdate())
+        let history = try reopened.undoWithFormattingEvidence()
+        #expect(history.updates.isEmpty)
+        #expect(history.formattingMark == nil)
+    }
+
     @Test func mergedLogicalTransactionPreservesDeletionAndFormatting() throws {
         let local = try RelayMarkCollaborationDocument(), remote = try RelayMarkCollaborationDocument()
         try seed(local)

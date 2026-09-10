@@ -14,7 +14,8 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     /// no text. This local evidence does not establish authenticated authorship.
     /// Freeze these bytes with the update before attempting durable persistence.
     public let insertedTextItems: Data?
-    /// A native formatting command whose editor verified unchanged text identities.
+    /// A native formatting command, or its actually performed undo/redo, whose
+    /// editor verified unchanged text identities. InputIntent distinguishes history.
     /// This is local operation evidence, never an assertion of text authorship.
     public let nativeFormatting: NativeFormatting?
 

@@ -87,6 +87,31 @@ public final class RelayMarkCollaborationDocument {
     public func undo() throws -> [Data] { try updates("undo") }
     public func redo() throws -> [Data] { try updates("redo") }
 
+    /// Call only for an explicit native bold/italic command. The isolated history
+    /// marker is local operation evidence; it never establishes text authorship.
+    public func editNativeFormatting(_ operation: Data) throws -> [Data] {
+        try updates("nativeFormatting", input: JSONSerialization.jsonObject(with: operation))
+    }
+
+    public struct FormattingHistoryResult: Sendable {
+        public let updates: [Data]
+        /// Identifies the actually performed stack item, including skipped no-ops.
+        /// Callers must still prove unchanged text identities and bounded mark changes.
+        public let formattingMark: RelayMarkLocalTransaction.NativeFormatting.Mark?
+    }
+
+    public func undoWithFormattingEvidence() throws -> FormattingHistoryResult { try formattingHistory(redo: false) }
+    public func redoWithFormattingEvidence() throws -> FormattingHistoryResult { try formattingHistory(redo: true) }
+
+    private func formattingHistory(redo: Bool) throws -> FormattingHistoryResult {
+        struct Wire: Decodable {
+            let updates: [[UInt8]]
+            let formattingMark: RelayMarkLocalTransaction.NativeFormatting.Mark?
+        }
+        let wire = try JSONDecoder().decode(Wire.self, from: call(redo ? "redoWithFormattingEvidence" : "undoWithFormattingEvidence"))
+        return FormattingHistoryResult(updates: wire.updates.map { Data($0) }, formattingMark: wire.formattingMark)
+    }
+
     public func anchor(path: [Int], index: Int, association: Int = 0) throws -> Data {
         try bytes("anchor", input: ["path": path, "index": index, "association": association])
     }

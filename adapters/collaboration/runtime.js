@@ -61,6 +61,55 @@ function applyPresenceSnapshot(input) {
 }
 const localOrigin = 'relay.local.editor'
 const undo = new Y.UndoManager(root, { trackedOrigins: new Set([localOrigin]), captureTimeout: 0 })
+const formattingKey = Symbol('relay.native.formatting')
+let formattingCapture = null
+let historyCapture = null
+undo.on('stack-item-added', ({ stackItem, origin }) => {
+  if (historyCapture && origin === undo) historyCapture.inverse.push(stackItem)
+  else if (formattingCapture && origin === localOrigin) stackItem.meta.set(formattingKey, formattingCapture)
+})
+undo.on('stack-item-updated', ({ stackItem }) => {
+  // Even a text-equal replacement or a second mark operation makes a mixed item
+  // ineligible. Only an isolated explicit formatting command carries evidence.
+  stackItem.meta.delete(formattingKey)
+  if (historyCapture) historyCapture.mixed = true
+})
+undo.on('stack-item-popped', ({ stackItem }) => {
+  if (historyCapture) historyCapture.performed.push(stackItem)
+})
+function history(redo) {
+  if (historyCapture) throw Error('Nested history operation')
+  const capture = { inverse: [], performed: [], mixed: false }
+  historyCapture = capture
+  localUpdates = []
+  try {
+    const item = redo ? undo.redo() : undo.undo()
+    const mark = item && item.meta.get(formattingKey)
+    const proven = (mark === 'bold' || mark === 'italic') && !capture.mixed &&
+      capture.performed.length === 1 && capture.performed[0] === item && capture.inverse.length === 1
+    // Yjs creates the inverse item before reporting the actual popped item and
+    // may skip ineffective stack entries. Never infer evidence from stack tops.
+    for (const inverse of capture.inverse) {
+      if (proven) inverse.meta.set(formattingKey, mark)
+      else inverse.meta.delete(formattingKey)
+    }
+    return { updates: localUpdates, formattingMark: proven ? mark : null }
+  } finally { historyCapture = null }
+}
+function nativeFormatting(operation) {
+  const keys = Object.keys(operation.attributes || {})
+  if (operation.kind !== 'formatText' || keys.length !== 1 || !['bold', 'italic'].includes(keys[0]) ||
+      undo.captureTimeout !== 0 || formattingCapture) throw Error('Expected isolated native bold or italic command')
+  const value = operation.attributes[keys[0]]
+  if (value !== null && (typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length)) {
+    throw Error('Invalid native formatting mark')
+  }
+  undo.stopCapturing()
+  formattingCapture = keys[0]
+  localUpdates = []
+  try { edit(operation); return localUpdates }
+  finally { formattingCapture = null; undo.stopCapturing() }
+}
 let localUpdates = []
 doc.on('update', (update, origin) => {
   if (origin === localOrigin || origin === undo) localUpdates.push(Array.from(update))
@@ -340,10 +389,13 @@ export function call(command, input) {
     case 'snapshot': return snapshot(root)
     case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates
     case 'edit': localUpdates = []; edit(input); return localUpdates
+    case 'nativeFormatting': return nativeFormatting(input)
     case 'beginUndoGroup': undo.stopCapturing(); undo.captureTimeout = Number.MAX_SAFE_INTEGER; return null
     case 'endUndoGroup': undo.stopCapturing(); undo.captureTimeout = 0; return null
-    case 'undo': localUpdates = []; undo.undo(); return localUpdates
-    case 'redo': localUpdates = []; undo.redo(); return localUpdates
+    case 'undo': return history(false).updates
+    case 'redo': return history(true).updates
+    case 'undoWithFormattingEvidence': return history(false)
+    case 'redoWithFormattingEvidence': return history(true)
     case 'anchor': {
       const target = at(input.path)
       range(target, input.index)
