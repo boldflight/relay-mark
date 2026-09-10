@@ -524,6 +524,15 @@ export function call(command, input) {
       anchor: state.cursor?.anchor ? safeAnchor(state.cursor.anchor) : null,
       head: state.cursor?.head ? safeAnchor(state.cursor.head) : null
     }))
+    // Yjs 13.6.32 retains unresolved structures and deletes independently.
+    // Fail closed if the bundled store shape changes; a state vector alone does
+    // not cover pending deletes. This is completeness, never source authority.
+    case 'integrationStatus': {
+      if (!Object.hasOwn(doc.store, 'pendingStructs') || !Object.hasOwn(doc.store, 'pendingDs')) {
+        throw new Error('Unsupported integration status')
+      }
+      return { hasPendingStructs: doc.store.pendingStructs !== null, hasPendingDeletes: doc.store.pendingDs !== null }
+    }
     case 'apply': Y.applyUpdate(doc, Uint8Array.from(input), 'relay.remote'); return null
     case 'state': return Array.from(Y.encodeStateAsUpdate(doc, input === null ? undefined : Uint8Array.from(input)))
     case 'mergeUpdates': return Array.from(Y.mergeUpdates(input.map(value => Uint8Array.from(value))))

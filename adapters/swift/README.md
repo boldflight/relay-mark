@@ -53,3 +53,17 @@ published Swift package and the focused adapter-development entry point.
 
 This package is intentionally product-neutral. It does not execute Relay actions
 or know about app UI, persistence, routes, local caches, or action queues.
+
+### Scratch replica completeness
+
+`RelayMarkCollaborationDocument.integrationStatus()` exposes unresolved structure
+and deletion dependencies separately. After restoring a checkpoint and applying
+an ordered local suffix, require `isComplete` before treating the scratch document
+as complete source. Applying updates successfully or comparing state vectors
+does not cover pending delete sets. Ordinary replay keeps its existing behavior:
+missing dependencies remain retained and settle when their updates arrive.
+
+This additive adapter checks the bundled Yjs 13.6.32 store representation and
+fails closed if that representation changes. It establishes neither authorization,
+authorship, server receipt coverage nor equality with current remote state. Hosts
+still validate their own source frame, journal cuts and exact contribution IDs.

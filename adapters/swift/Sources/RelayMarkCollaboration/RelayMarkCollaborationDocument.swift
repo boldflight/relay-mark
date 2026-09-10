@@ -43,6 +43,20 @@ public final class RelayMarkCollaborationDocument {
         _ = try call("apply", input: Array(update))
     }
 
+    /// Local integration completeness, not proof of authorship, authorization, or
+    /// receipt coverage. A state vector alone cannot detect unresolved deletions.
+    public struct IntegrationStatus: Codable, Equatable, Sendable {
+        public let hasPendingStructs: Bool
+        public let hasPendingDeletes: Bool
+        public var isComplete: Bool { !hasPendingStructs && !hasPendingDeletes }
+    }
+
+    /// Check scratch reconstruction after applying its checkpoint and exact suffix.
+    /// Incomplete updates remain retained and can integrate when dependencies arrive.
+    public func integrationStatus() throws -> IntegrationStatus {
+        try JSONDecoder().decode(IntegrationStatus.self, from: call("integrationStatus"))
+    }
+
     public func stateVector() throws -> Data { try bytes("vector") }
 
     /// Full checkpoint when vector is nil; otherwise a missing-update diff, including deletions.
