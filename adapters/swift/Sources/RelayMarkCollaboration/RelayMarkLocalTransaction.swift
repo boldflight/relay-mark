@@ -1,16 +1,37 @@
 import Foundation
 
-/// One locally authored input operation. Hosts persist this together with its exact update bytes.
+/// One local editor transaction. Hosts persist this together with its exact update bytes.
 /// Replica replay never creates a contribution; generation provenance belongs to the layer host.
 public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifiable {
     public let id: UUID
     public let update: Data
     public let changes: [TextChange]
+    /// Local editor operation evidence only. It does not establish authenticated
+    /// authorship, ownership of restored text, or contribution replacement rights.
+    public let inputIntent: InputIntent?
 
     public init(id: UUID = UUID(), update: Data, changes: [TextChange]) {
+        self.init(id: id, update: update, changes: changes, inputIntent: nil)
+    }
+
+    public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?) {
         self.id = id
         self.update = update
         self.changes = changes
+        self.inputIntent = inputIntent
+    }
+
+    public enum InputIntent: Codable, Equatable, Sendable {
+        /// The start is in the pre-edit prose projection's UTF-16 coordinates.
+        /// The removed string's UTF-16 length determines the replaced extent.
+        case nativeReplacement(startUTF16: Int, removed: String, inserted: String)
+        /// A candidate diff without a validated native replacement request.
+        case derived
+        /// Committed or explicitly reviewed marked input; ownership is unresolved.
+        case composition
+        /// History restoration is never implicitly new human source material.
+        case undo
+        case redo
     }
 
     public struct TextChange: Codable, Equatable, Sendable {
