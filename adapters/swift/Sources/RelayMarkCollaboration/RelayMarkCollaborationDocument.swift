@@ -91,6 +91,34 @@ public final class RelayMarkCollaborationDocument {
         try updates("replaceProse", input: ["start": start, "end": end, "text": text])
     }
 
+    public struct ProseLineageResult: Sendable {
+        public let updates: [Data]
+        public let insertedTextItems: Data
+        /// Portable operation/copy evidence JSON; the host must authorize and verify it.
+        public let lineage: Data
+    }
+
+    /// Plain replacement across top-level, attribute-free paragraphs containing only
+    /// XmlText leaves. LF creates paragraphs; existing text marks are preserved.
+    /// Unsupported shape, Unicode and bounds fail during preflight before mutation.
+    /// Returned copies describe new identities for moved text, not new human authorship.
+    /// Persist updates and evidence together; this adapter does not authorize lineage.
+    public func replaceProseWithLineage(start: Int, end: Int, text: String) throws -> ProseLineageResult {
+        struct Wire: Decodable {
+            let updates: [[UInt8]]
+            let insertedTextItems: [UInt8]
+        }
+        let data = try call("replaceProseWithLineage", input: ["start": start, "end": end, "text": text])
+        let wire = try JSONDecoder().decode(Wire.self, from: data)
+        guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let lineage = object["lineage"] as? [String: Any] else {
+            throw Failure.runtime("Missing prose lineage evidence")
+        }
+        return ProseLineageResult(updates: wire.updates.map { Data($0) },
+            insertedTextItems: Data(wire.insertedTextItems),
+            lineage: try JSONSerialization.data(withJSONObject: lineage, options: [.sortedKeys]))
+    }
+
     public struct ParagraphInsertionResult: Sendable {
         public let updates: [Data]
         public let evidence: RelayMarkLocalTransaction.NativeParagraph

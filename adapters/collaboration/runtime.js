@@ -1,5 +1,6 @@
 import * as Y from 'yjs'
 import { captureTextItems, resolveTextItems } from './text-items.js'
+import { prepareProseLineage } from './prose-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -177,7 +178,7 @@ function inlineLength(p) {
   if (p.nodeName === 'horizontalRule') return 1
   return p.toArray().reduce((n, child) => n + (child instanceof Y.XmlText ? child.length : 1), 0)
 }
-function proseBlocks() {
+function proseBlocks(documentRoot = root) {
   const blocks = []
   function walk(parent) {
     for (const p of parent.toArray()) {
@@ -200,15 +201,15 @@ function proseBlocks() {
       } else throw Error('Unsupported prose structure')
     }
   }
-  walk(root)
+  walk(documentRoot)
   return blocks
 }
-function removeBlock(block) {
+function removeBlock(block, documentRoot = root) {
   let element = block.p
-  while (element && element !== root) {
+  while (element && element !== documentRoot) {
     const parent = element.parent
     parent.delete(parent.toArray().indexOf(element), 1)
-    if (parent.length || parent === root) return
+    if (parent.length || parent === documentRoot) return
     element = parent
   }
 }
@@ -242,7 +243,7 @@ function deleteInline(p, start, end) {
     else p.delete(p.toArray().indexOf(span.child), 1)
   }
 }
-function insertInline(p, offset, content, attributes) {
+function insertInline(p, offset, content, attributes, inserted = null) {
   if (!content) return
   let index = 0, target = null, local = offset
   const children = p.toArray()
@@ -254,7 +255,7 @@ function insertInline(p, offset, content, attributes) {
   }
   if (!target) { target = new Y.XmlText(); p.insert(index, [target]); local = 0 }
   const parts = p.nodeName === 'codeBlock' ? [content] : content.split(hardBreakCharacter)
-  if (parts.length === 1) { target.insert(local, content, attributes); return }
+  if (parts.length === 1) { target.insert(local, content, attributes); inserted?.(target, local, content.length); return }
   // Splitting an inline text to insert a break moves only that text's suffix;
   // all other XmlText siblings and the block itself retain their Yjs identities.
   const tail = sliceInline({ toArray: () => [target] }, local)
@@ -268,10 +269,14 @@ function insertInline(p, offset, content, attributes) {
   for (const item of tail) additions.push(node(item))
   p.insert(p.toArray().indexOf(target) + 1, additions)
 }
-function paragraph(content, attributes, tail = []) {
+function paragraph(content, attributes, tail = [], hooks = null) {
   const p = new Y.XmlElement('paragraph')
   // Populate after integration: insertInline relies on live Yjs lengths.
-  return { p, populate: () => { insertInline(p, 0, content, attributes); p.insert(p.length, tail.map(node)) } }
+  return { p, populate: () => {
+    insertInline(p, 0, content, attributes, hooks?.inserted)
+    const copied = tail.map(node); p.insert(p.length, copied)
+    if (copied.length) hooks?.copied(copied)
+  } }
 }
 // Explicit paragraph-end Return only. Unlike generic splitting, this operation
 // never moves/recreates existing content and always creates an empty XmlText.
@@ -415,8 +420,8 @@ function nativeParagraphPaste(input) {
   return { updates: localUpdates, evidence: { paragraphIndex: input.index, endUTF16: end, paragraphCount: count },
     insertedTextItems: Array.from(new TextEncoder().encode(JSON.stringify(selection))) }
 }
-function replaceProse(input) {
-  const blocks = proseBlocks()
+function replaceProse(input, targetDoc = doc, targetRoot = root, hooks = null) {
+  const blocks = proseBlocks(targetRoot)
   if (!blocks.length) throw Error('Empty document must be enrolled with a paragraph')
   const total = blocks.reduce((n, b) => n + b.length, blocks.length - 1)
   range({ length: total }, input.start, input.end - input.start)
@@ -434,10 +439,11 @@ function replaceProse(input) {
   const tail = lastRule ? [] : sliceInline(blocks[last].p, end)
   // A cross-block merge must not smuggle inline marks/breaks into literal code.
   if (first !== last && blocks[first].p.nodeName === 'codeBlock' && tail.some(n => n.kind !== 'text' || n.delta.some(r => Object.keys(r.attributes || {}).length))) throw Error('Cannot merge marked prose into a code block')
-  doc.transact(() => {
+  hooks?.tail(blocks[last].p, end, first !== last || lines.length !== 1)
+  targetDoc.transact(() => {
     if (first === last && !firstRule && lines.length === 1) {
       deleteInline(blocks[first].p, start, end)
-      insertInline(blocks[first].p, start, input.text, input.attributes || {})
+      insertInline(blocks[first].p, start, input.text, input.attributes || {}, hooks?.inserted)
       return
     }
     let destination = blocks[first].p
@@ -445,16 +451,19 @@ function replaceProse(input) {
       if (first === last && start === end && !input.text) return
       const parent = destination.parent, index = parent.toArray().indexOf(destination) + (start === 1 ? 1 : 0)
       const created = new Y.XmlElement('paragraph'); parent.insert(index, [created]); destination = created
-      if (start === 0 && (first !== last || end === 1)) removeBlock(blocks[first])
+      if (start === 0 && (first !== last || end === 1)) removeBlock(blocks[first], targetRoot)
     } else deleteInline(destination, start, inlineLength(destination))
     for (let i = last; i > first; i--) {
       if (i === last && lastRule && end === 0) continue
-      removeBlock(blocks[i])
+      removeBlock(blocks[i], targetRoot)
     }
-    insertInline(destination, firstRule ? 0 : start, lines[0], input.attributes || {})
-    if (lines.length === 1) destination.insert(destination.length, tail.map(node))
+    insertInline(destination, firstRule ? 0 : start, lines[0], input.attributes || {}, hooks?.inserted)
+    if (lines.length === 1) {
+      const copied = tail.map(node); destination.insert(destination.length, copied)
+      if (copied.length) hooks?.copied(copied)
+    }
     else {
-      const additions = lines.slice(1).map((line, i) => paragraph(line, input.attributes || {}, i === lines.length - 2 ? tail : []))
+      const additions = lines.slice(1).map((line, i) => paragraph(line, input.attributes || {}, i === lines.length - 2 ? tail : [], hooks))
       const parent = destination.parent
       if (parent instanceof Y.XmlElement && parent.nodeName === 'listItem' && parent.length === 1) {
         const list = parent.parent
@@ -539,6 +548,19 @@ export function call(command, input) {
     case 'vector': return Array.from(Y.encodeStateVector(doc))
     case 'snapshot': return snapshot(root)
     case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates
+    case 'replaceProseWithLineage': {
+      if (undo.captureTimeout !== 0 || formattingCapture || historyCapture) throw Error('Expected isolated prose operation')
+      const prepared = prepareProseLineage(doc, input, replaceProse)
+      localUpdates = []; undo.stopCapturing()
+      // No await or callback boundary between preflight and the same mutation.
+      replaceProse(prepared.input)
+      undo.stopCapturing()
+      const actual = Y.encodeStateAsUpdate(doc)
+      if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
+        throw Error('Prose lineage execution diverged from preflight')
+      }
+      return { updates: localUpdates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
+    }
     case 'edit': localUpdates = []; edit(input); return localUpdates
     case 'nativeFormatting': return nativeFormatting(input)
     case 'nativeParagraphAfter': return nativeParagraphAfter(input)

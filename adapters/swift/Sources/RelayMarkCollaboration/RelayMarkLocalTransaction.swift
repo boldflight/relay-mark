@@ -22,6 +22,11 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     /// authorize structural edits or establish ownership of existing prose.
     public let nativeParagraph: NativeParagraph?
     public let nativeParagraphPaste: NativeParagraphPaste?
+    /// Exact versioned structural operation/identity lineage JSON. Copied text is
+    /// distinct from newly typed text. The host negotiates support and validates
+    /// server-side provenance; these bytes alone confer no source ownership.
+    /// Persist and retry them with the same transaction/update identity.
+    public let proseLineage: Data?
 
     /// Exact bounded operation evidence; native paste intent and authorization
     /// remain the host's responsibility. Text comes from InputIntent, not here.
@@ -83,6 +88,15 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
                 insertedTextItems: Data?, nativeFormatting: NativeFormatting?, nativeParagraph: NativeParagraph?,
                 nativeParagraphPaste: NativeParagraphPaste?) {
+        self.init(id: id, update: update, changes: changes, inputIntent: inputIntent,
+                  insertedTextItems: insertedTextItems, nativeFormatting: nativeFormatting,
+                  nativeParagraph: nativeParagraph, nativeParagraphPaste: nativeParagraphPaste,
+                  proseLineage: nil)
+    }
+
+    public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
+                insertedTextItems: Data?, nativeFormatting: NativeFormatting?, nativeParagraph: NativeParagraph?,
+                nativeParagraphPaste: NativeParagraphPaste?, proseLineage: Data?) {
         self.id = id
         self.update = update
         self.changes = changes
@@ -91,6 +105,7 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
         self.nativeFormatting = nativeFormatting
         self.nativeParagraph = nativeParagraph
         self.nativeParagraphPaste = nativeParagraphPaste
+        self.proseLineage = proseLineage
     }
 
     public enum InputIntent: Codable, Equatable, Sendable {
