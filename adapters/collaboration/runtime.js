@@ -1,7 +1,7 @@
 import * as Y from 'yjs'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage } from './prose-lineage.js'
-import { prepareHistoryLineage, preserveHistoryDescendants, performHistoryWithMarks } from './history-lineage.js'
+import { prepareHistoryLineage, preserveHistoryDescendants, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -91,7 +91,7 @@ function history(redo, prepared = null) {
   try {
     const execution = prepared ? performHistoryWithMarks(doc, undo, redo, lineageKey) : null
     const item = execution ? execution.item : (redo ? undo.redo() : undo.undo())
-    const mark = item && item.meta.get(formattingKey)
+    const mark = item && (item.meta.get(formattingKey) || item.meta.get(lineageKey)?.formattingMark)
     const proven = (mark === 'bold' || mark === 'italic') && !capture.mixed &&
       capture.performed.length === 1 && capture.performed[0] === item && capture.inverse.length === 1
     // Yjs creates the inverse item before reporting the actual popped item and
@@ -105,7 +105,7 @@ function history(redo, prepared = null) {
           capture.performed.length !== 1 || capture.performed[0] !== item || capture.inverse.length !== 1) {
         throw Error('History execution diverged from preflight')
       }
-      capture.inverse[0].meta.set(lineageKey, { operationID: prepared.operationID, copies: execution.inverseCopies })
+      capture.inverse[0].meta.set(lineageKey, { operationID: prepared.operationID, copies: execution.inverseCopies, formattingMark: proven ? mark : null })
       const actual = Y.encodeStateAsUpdate(doc)
       if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
         throw Error('History state diverged from preflight')
@@ -122,11 +122,15 @@ function nativeFormatting(operation) {
   if (value !== null && (typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length)) {
     throw Error('Invalid native formatting mark')
   }
+  if (operation.operation_id !== undefined && (typeof operation.operation_id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(operation.operation_id))) throw Error('Invalid host operation identity')
+  if (lineageCapture || historyCapture) throw Error('Nested formatting operation')
   undo.stopCapturing()
+  lineageCapture = operation.operation_id ? { operationID: operation.operation_id, copies: [], formattingMark: keys[0] } : null
   formattingCapture = keys[0]
   localUpdates = []
   try { edit(operation); return localUpdates }
-  finally { formattingCapture = null; undo.stopCapturing() }
+  finally { formattingCapture = null; lineageCapture = null; undo.stopCapturing() }
 }
 let localUpdates = []
 doc.on('update', (update, origin) => {
@@ -559,6 +563,19 @@ export function call(command, input) {
       }
       return { hasPendingStructs: doc.store.pendingStructs !== null, hasPendingDeletes: doc.store.pendingDs !== null }
     }
+    case 'exportHistorySnapshot':
+      if (formattingCapture || historyCapture || lineageCapture) throw Error('History operation is active')
+      return exportHistorySnapshot(doc, undo, input, lineageKey)
+    case 'restoreHistorySnapshot': {
+      if (formattingCapture || historyCapture || lineageCapture || awareness.getStates().size ||
+          awarenessOrigins.size || awarenessUpdates.length) throw Error('History restore requires an inactive host')
+      restoreHistorySnapshot(doc, undo, input, lineageKey)
+      // Restore happens before presence starts. Keep its client identity aligned
+      // with the restored document rather than the discarded pristine identity.
+      awareness.clientID = doc.clientID; awareness.meta.clear()
+      awareness.setLocalState(null)
+      return null
+    }
     case 'apply': Y.applyUpdate(doc, Uint8Array.from(input), 'relay.remote'); return null
     case 'state': return Array.from(Y.encodeStateAsUpdate(doc, input === null ? undefined : Uint8Array.from(input)))
     case 'mergeUpdates': return Array.from(Y.mergeUpdates(input.map(value => Uint8Array.from(value))))
@@ -570,7 +587,7 @@ export function call(command, input) {
       const prepared = prepareProseLineage(doc, input, replaceProse)
       localUpdates = []; undo.stopCapturing()
       // No await or callback boundary between preflight and the same mutation.
-      lineageCapture = input.operation_id ? { operationID: input.operation_id, copies: prepared.lineage.copies } : null
+      lineageCapture = input.operation_id ? { operationID: input.operation_id, copies: prepared.lineage.copies, insertedTextItems: JSON.parse(new TextDecoder().decode(Uint8Array.from(prepared.insertedTextItems))) } : null
       try { replaceProse(prepared.input) } finally { lineageCapture = null; undo.stopCapturing() }
       const actual = Y.encodeStateAsUpdate(doc)
       if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
@@ -594,8 +611,14 @@ export function call(command, input) {
     }
     case 'undo': return history(false).updates
     case 'redo': return history(true).updates
-    case 'undoWithFormattingEvidence': return history(false)
-    case 'redoWithFormattingEvidence': return history(true)
+    case 'undoWithFormattingEvidence':
+    case 'redoWithFormattingEvidence': {
+      const redo = command === 'redoWithFormattingEvidence'
+      if (input === null) return history(redo)
+      if (formattingCapture || historyCapture || lineageCapture) throw Error('Nested history evidence')
+      const prepared = prepareHistoryLineage(doc, undo, redo, input, lineageKey, true)
+      return history(redo, prepared)
+    }
     case 'anchor': {
       const target = at(input.path)
       range(target, input.index)

@@ -147,6 +147,12 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
   if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies) || metadata.copies.length > 4096) {
     throw Error('Untracked history formatting counterpart')
   }
+  if (metadata.formattingMark) {
+    if (!['bold', 'italic'].includes(metadata.formattingMark) || metadata.copies.length) throw Error('Invalid isolated formatting history')
+    // Native formatting history must retain the UndoManager's mark reversal.
+    // The prose-only peer mark overlay would otherwise undo that reversal.
+    return { item: redo ? manager.redo() : manager.undo(), copies: [], inverseCopies: [] }
+  }
   const current = visibleAttributes(doc), counterparts = new Map()
   for (const pair of metadata.copies) {
     const source = expanded(pair.source), destination = expanded(pair.destination)
@@ -218,7 +224,7 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
 
 // Version-pinned access to nonserialized UndoManager/Item metadata lives ONLY
 // here. No custom inverse algorithm: both preflight and live use Y.UndoManager.
-export function prepareHistoryLineage(live, owner, redo, input, lineageKey) {
+export function prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting = false) {
   if (yjsPackage.version !== '13.6.32' || !input || Object.keys(input).join(',') !== 'operation_id' || !uuid(input.operation_id) ||
       owner.relayHistoryTransactionHookVersion !== 1 || owner.beforeHistoryTransactionCommit !== null ||
       owner.doc !== live || owner.captureTimeout !== 0 || owner.undoing || owner.redoing || owner.currStackItem !== null ||
@@ -229,6 +235,8 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey) {
   const prior = Y.decodeStateVector(Y.encodeStateVector(live)), oldStructs = structs(live)
   const undoStack = cloneStack(owner.undoStack), redoStack = cloneStack(owner.redoStack)
   const stack = redo ? redoStack : undoStack, top = stack.at(-1), reference = top?.meta.get(lineageKey)?.operationID
+  const formattingMark = top?.meta.get(lineageKey)?.formattingMark
+  if (formatting ? !['bold', 'italic'].includes(formattingMark) : formattingMark) throw Error('History evidence mode mismatch')
   if (!uuid(reference) || reference === input.operation_id) throw Error('History requires distinct durable operation identities')
   const staged = new Y.Doc({ gc: false }); let manager
   try {
@@ -273,4 +281,224 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey) {
       insertedTextItems: Array.from(new TextEncoder().encode('{"version":1,"runs":[]}')),
       lineage: { version: 1, operation: { kind: redo ? 'redo' : 'undo', transaction_id: reference }, copies } }
   } finally { manager?.destroy(); staged.destroy() }
+}
+
+const snapshotVersion = 1, maximumStateBytes = 8 * 1024 * 1024, maximumSnapshotBytes = 64 * 1024 * 1024
+function exactKeys(value, keys) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      Object.keys(value).sort().join(',') !== [...keys].sort().join(',')) throw Error('Invalid history snapshot fields')
+}
+function byteArray(value, maximum) {
+  if (!Array.isArray(value) || !value.length || value.length > maximum ||
+      value.some(byte => !Number.isInteger(byte) || byte < 0 || byte > 255)) throw Error('Invalid history snapshot bytes')
+  return Uint8Array.from(value)
+}
+function scopeToken(value) {
+  if (typeof value !== 'string' || !value.length || new TextEncoder().encode(value).length > 2048) throw Error('Invalid history scope token')
+}
+function intervalWire(value) {
+  return [...cloneSet(value).clients].sort(([a], [b]) => a - b)
+    .map(([client, ranges]) => ({ client, ranges: ranges.map(({ clock, len }) => ({ clock, len })) }))
+}
+function intervalSet(value) {
+  if (!Array.isArray(value) || value.length > maximumStructs) throw Error('History interval limit')
+  const result = Y.createDeleteSet()
+  for (const row of value) {
+    exactKeys(row, ['client', 'ranges'])
+    if (result.clients.has(row.client)) throw Error('Duplicate history client')
+    result.clients.set(row.client, row.ranges)
+  }
+  const copied = cloneSet(result)
+  if (JSON.stringify(intervalWire(copied)) !== JSON.stringify(value)) throw Error('Noncanonical history intervals')
+  return copied
+}
+function snapshotStack(stack, lineageKey) {
+  return cloneStack(stack).map(item => {
+    const metadata = item.meta.get(lineageKey)
+    if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies)) throw Error('Untracked history cannot be persisted')
+    return { insertions: intervalWire(item.insertions), deletions: intervalWire(item.deletions),
+      operation_id: metadata.operationID, counterparts: JSON.parse(JSON.stringify(metadata.copies)),
+      inserted_text_items: metadata.insertedTextItems || { version: 1, runs: [] }, formatting_mark: metadata.formattingMark || null }
+  })
+}
+function restoreStack(value, lineageKey, references) {
+  if (!Array.isArray(value) || value.length > maximumStack) throw Error('History stack limit')
+  return value.map(row => {
+    exactKeys(row, ['insertions', 'deletions', 'operation_id', 'counterparts', 'inserted_text_items', 'formatting_mark'])
+    if (row.formatting_mark !== null && !['bold', 'italic'].includes(row.formatting_mark)) throw Error('Invalid history formatting evidence')
+    exactKeys(row.inserted_text_items, ['version', 'runs'])
+    if (row.inserted_text_items.version !== 1 || !Array.isArray(row.inserted_text_items.runs) || row.inserted_text_items.runs.length > 4096) throw Error('Invalid history typed evidence')
+    for (const run of row.inserted_text_items.runs) {
+      exactKeys(run, ['item', 'type', 'count']); exactKeys(run.item, ['client', 'clock']); exactKeys(run.type, ['client', 'clock'])
+      if (!id(run.item) || !id(run.type) || !Number.isSafeInteger(run.count) || run.count < 1 || run.item.clock + run.count > 4294967296) throw Error('Invalid history typed run')
+    }
+    identities(row.inserted_text_items)
+    if (!uuid(row.operation_id) || references.has(row.operation_id) || !Array.isArray(row.counterparts) || row.counterparts.length > 4096) {
+      throw Error('Invalid history transaction reference')
+    }
+    references.add(row.operation_id)
+    const source = [], destination = []
+    for (const pair of row.counterparts) {
+      exactKeys(pair, ['source', 'destination'])
+      for (const selection of [pair.source, pair.destination]) {
+        exactKeys(selection, ['version', 'runs'])
+        if (selection.version !== 1 || !Array.isArray(selection.runs) || selection.runs.length > 4096) throw Error('Invalid history counterpart')
+        for (const run of selection.runs) {
+          exactKeys(run, ['item', 'type', 'count']); exactKeys(run.item, ['client', 'clock']); exactKeys(run.type, ['client', 'clock'])
+          if (!id(run.item) || !id(run.type) || !Number.isSafeInteger(run.count) || run.count < 1 || run.item.clock + run.count > 4294967296) {
+            throw Error('Invalid history counterpart run')
+          }
+        }
+      }
+      if (expanded(pair.source).length !== expanded(pair.destination).length) throw Error('History counterpart length mismatch')
+      source.push(...pair.source.runs); destination.push(...pair.destination.runs)
+    }
+    identities({ runs: source }); identities({ runs: destination })
+    return { insertions: intervalSet(row.insertions), deletions: intervalSet(row.deletions),
+      meta: new Map([[lineageKey, { operationID: row.operation_id, copies: JSON.parse(JSON.stringify(row.counterparts)), insertedTextItems: JSON.parse(JSON.stringify(row.inserted_text_items)), formattingMark: row.formatting_mark }]]) }
+  })
+}
+function cleanInterval(transaction, row) {
+  if (!id(row.item) || !Number.isSafeInteger(row.length) || row.length < 1 || row.item.clock + row.length > 4294967296) {
+    throw Error('Invalid retained history interval')
+  }
+  const item = Y.getItemCleanStart(transaction, Y.createID(row.item.client, row.item.clock))
+  Y.getItemCleanEnd(transaction, transaction.doc.store, Y.createID(row.item.client, row.item.clock + row.length - 1))
+  if (!(item instanceof Y.Item) || item.content instanceof Y.ContentDeleted) throw Error('History content unavailable')
+  return item
+}
+function installSnapshotMetadata(doc, snapshot, undoStack, redoStack) {
+  const seen = new Set()
+  Y.transact(doc, transaction => {
+    for (const row of snapshot.redone) {
+      exactKeys(row, ['item', 'length', 'target'])
+      if (!id(row.target) || seen.has(key(row.item))) throw Error('Invalid redone history identity')
+      seen.add(key(row.item))
+      let offset = 0
+      while (offset < row.length) {
+        const sourceID = { client: row.item.client, clock: row.item.clock + offset }
+        const targetID = { client: row.target.client, clock: row.target.clock + offset }
+        let item = cleanInterval(transaction, { item: sourceID, length: row.length - offset })
+        let target = cleanInterval(transaction, { item: targetID, length: row.length - offset })
+        const length = Math.min(item.length, target.length, row.length - offset)
+        item = cleanInterval(transaction, { item: sourceID, length })
+        target = cleanInterval(transaction, { item: targetID, length })
+        if (item === target || item.content.constructor !== target.content.constructor ||
+            (item.content instanceof Y.ContentType && (item.content.type.constructor !== target.content.type.constructor ||
+              (item.content.type instanceof Y.XmlElement && item.content.type.nodeName !== target.content.type.nodeName))) ||
+            (item.content instanceof Y.ContentString && item.content.str !== target.content.str)) throw Error('Mismatched restored history content')
+        item.redone = Y.createID(targetID.client, targetID.clock)
+        offset += length
+      }
+    }
+    for (const row of snapshot.retained) {
+      exactKeys(row, ['item', 'length'])
+      let offset = 0
+      while (offset < row.length) {
+        let item = cleanInterval(transaction, { item: { client: row.item.client, clock: row.item.clock + offset }, length: row.length - offset })
+        offset += item.length
+        let depth = 0
+        while (item instanceof Y.Item) {
+          if (++depth > 128) throw Error('History parent limit')
+          item.keep = true
+          item = item.parent?._item
+        }
+      }
+    }
+    // Every stack interval must address integrated structs. Redone chains are
+    // checked separately below; no pending dependency is accepted as a proof.
+    for (const entry of [...undoStack, ...redoStack]) for (const set of [entry.insertions, entry.deletions]) {
+      for (const [client, ranges] of set.clients) for (const row of ranges) {
+        if (row.clock + row.len > Y.getState(doc.store, client)) throw Error('Unintegrated history interval')
+        if (set === entry.deletions) {
+          let clock = row.clock
+          while (clock < row.clock + row.len) {
+            const item = Y.getItem(doc.store, Y.createID(client, clock))
+            if (!(item instanceof Y.Item) || item.content instanceof Y.ContentDeleted || !item.keep) throw Error('Unretained history content')
+            clock = Math.min(item.id.clock + item.length, row.clock + row.len)
+          }
+        }
+      }
+    }
+  }, 'relay.history.restore')
+  for (const item of structs(doc)) if (item instanceof Y.Item && item.redone !== null) {
+    const visited = new Set(); let current = item
+    while (current.redone !== null) {
+      if (visited.size >= maximumStructs || visited.has(key(current.id))) throw Error('Cyclic redone history')
+      visited.add(key(current.id)); current = Y.getItem(doc.store, current.redone)
+      if (!(current instanceof Y.Item)) throw Error('Missing redone history')
+    }
+  }
+}
+function pristineHistoryOwner(doc, owner) {
+  return Y.decodeStateVector(Y.encodeStateVector(doc)).size === 0 && owner.undoStack.length === 0 && owner.redoStack.length === 0 &&
+    owner.captureTimeout === 0 && !owner.undoing && !owner.redoing && owner.currStackItem === null &&
+    owner.beforeHistoryTransactionCommit === null && owner.relayHistoryTransactionHookVersion === 1
+}
+export function exportHistorySnapshot(doc, owner, input, lineageKey) {
+  exactKeys(input, ['scope_token']); scopeToken(input.scope_token)
+  if (owner.captureTimeout !== 0 || owner.undoing || owner.redoing || owner.currStackItem !== null ||
+      owner.beforeHistoryTransactionCommit !== null || owner.relayHistoryTransactionHookVersion !== 1 ||
+      doc.store.pendingStructs !== null || doc.store.pendingDs !== null) throw Error('History owner is not settled')
+  const values = structs(doc), state = Y.encodeStateAsUpdate(doc)
+  if (state.length > maximumStateBytes) throw Error('History checkpoint limit')
+  const snapshot = { version: snapshotVersion, yjs_version: '13.6.32', hook_version: 1, scope_token: input.scope_token,
+    client_id: doc.clientID, state_update: Array.from(state), state_vector: Array.from(Y.encodeStateVector(doc)),
+    undo: snapshotStack(owner.undoStack, lineageKey), redo: snapshotStack(owner.redoStack, lineageKey),
+    redone: values.filter(item => item instanceof Y.Item && item.redone !== null).map(item => ({
+      item: { client: item.id.client, clock: item.id.clock }, length: item.length, target: { client: item.redone.client, clock: item.redone.clock } })),
+    retained: values.filter(item => item instanceof Y.Item && item.keep).map(item => ({
+      item: { client: item.id.client, clock: item.id.clock }, length: item.length })) }
+  if (new TextEncoder().encode(JSON.stringify(snapshot)).length > maximumSnapshotBytes) throw Error('History snapshot limit')
+  return snapshot
+}
+export function restoreHistorySnapshot(doc, owner, input, lineageKey) {
+  exactKeys(input, ['snapshot', 'scope_token', 'transaction_ids']); scopeToken(input.scope_token)
+  if (!pristineHistoryOwner(doc, owner)) throw Error('History restore requires a pristine owner')
+  const snapshot = input.snapshot
+  if (new TextEncoder().encode(JSON.stringify(snapshot)).length > maximumSnapshotBytes) throw Error('History snapshot limit')
+  exactKeys(snapshot, ['version', 'yjs_version', 'hook_version', 'scope_token', 'client_id', 'state_update', 'state_vector', 'undo', 'redo', 'redone', 'retained'])
+  if (snapshot.version !== snapshotVersion || snapshot.yjs_version !== '13.6.32' || snapshot.hook_version !== 1 ||
+      snapshot.scope_token !== input.scope_token || !Number.isSafeInteger(snapshot.client_id) || snapshot.client_id < 0 ||
+      !Array.isArray(input.transaction_ids) || input.transaction_ids.length > 16384 ||
+      input.transaction_ids.some(value => !uuid(value)) || new Set(input.transaction_ids).size !== input.transaction_ids.length ||
+      !Array.isArray(snapshot.redone) || snapshot.redone.length > maximumStructs ||
+      !Array.isArray(snapshot.retained) || snapshot.retained.length > maximumStructs) throw Error('Invalid history snapshot binding')
+  const state = byteArray(snapshot.state_update, maximumStateBytes), vector = byteArray(snapshot.state_vector, maximumStateBytes)
+  const references = new Set(), undoStack = restoreStack(snapshot.undo, lineageKey, references), redoStack = restoreStack(snapshot.redo, lineageKey, references)
+  if ([...references].some(value => !input.transaction_ids.includes(value))) throw Error('History transaction is not retained by host')
+  const scratch = new Y.Doc({ gc: false })
+  try {
+    Y.applyUpdate(scratch, state); scratch.clientID = snapshot.client_id
+    if (scratch.store.pendingStructs !== null || scratch.store.pendingDs !== null ||
+        !equal(vector, Y.encodeStateVector(scratch)) || !equal(state, Y.encodeStateAsUpdate(scratch))) throw Error('Incomplete history checkpoint')
+    installSnapshotMetadata(scratch, snapshot, undoStack, redoStack)
+    // Decode and validate the opaque counterpart identities even when their
+    // original parent has been deleted; history receipts supply host authority.
+    for (const entry of [...undoStack, ...redoStack]) {
+      const metadata = entry.meta.get(lineageKey)
+      for (const value of [metadata.insertedTextItems, ...metadata.copies.flatMap(pair => [pair.source, pair.destination])]) for (const run of value.runs) {
+        const parent = Y.getItem(scratch.store, run.type)
+        if (!(parent instanceof Y.Item) || !(parent.content instanceof Y.ContentType) ||
+            !(parent.content.type instanceof Y.XmlText) || key(parent.id) !== key(run.type) ||
+            run.item.clock + run.count > Y.getState(scratch.store, run.item.client)) throw Error('Unavailable history counterpart')
+        let clock = run.item.clock
+        while (clock < run.item.clock + run.count) {
+          const item = Y.getItem(scratch.store, Y.createID(run.item.client, clock))
+          if (!(item instanceof Y.Item) || !(item.content instanceof Y.ContentString) || item.parent !== parent.content.type) {
+            throw Error('Mismatched history counterpart interval')
+          }
+          clock = Math.min(item.id.clock + item.length, run.item.clock + run.count)
+        }
+      }
+    }
+    if (!pristineHistoryOwner(doc, owner)) throw Error('History owner changed during restore')
+    const gc = doc.gc
+    try {
+      doc.gc = false; Y.applyUpdate(doc, state, 'relay.history.restore'); doc.clientID = snapshot.client_id
+      installSnapshotMetadata(doc, snapshot, undoStack, redoStack)
+      owner.undoStack = undoStack; owner.redoStack = redoStack; owner.stopCapturing()
+    } finally { doc.gc = gc }
+    return null
+  } finally { scratch.destroy() }
 }

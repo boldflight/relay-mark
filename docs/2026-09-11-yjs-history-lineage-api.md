@@ -63,6 +63,71 @@ The forward lineage endpoint currently accepts top-level paragraphs with text
 leaves and marks. Nested/list/code/atom structures remain unsupported by this
 evidence endpoint, although the existing generic editor supports more shapes.
 
-This does not establish durable server validation, history-stack restoration
-across process restart, or broad nested-structure support. Those remain separate
-integration/acceptance requirements.
+This does not establish server validation or broad nested-structure support.
+Process restart is covered by the generic snapshot proof below; app activation
+and atomic journal integration remain separate acceptance requirements.
+
+
+## Qualified history snapshots (September 13)
+
+`exportHistorySnapshot({scope_token})` returns a JSON object. The token is opaque
+and caller supplied. The native store defines it as `paper-history-v1:` followed
+by SHA-256 of sorted-key JSON for the full source cut (scope ID, generation,
+local sequence, remote epoch). Mark checks exact equality, not authorization.
+
+The envelope contains `version:1`, `yjs_version:"13.6.32"`, `hook_version:1`,
+`scope_token`, `client_id`, `state_update` (complete standard Yjs update bytes),
+`state_vector`, `undo`, `redo`, `redone`, and `retained`. Stack entries contain
+`insertions` and `deletions` as canonical client/clock/length intervals,
+`operation_id`, `counterparts` (exact source/destination selection pairs),
+`inserted_text_items` (selection version 1), and `formatting_mark` (null, bold,
+or italic). Redone entries carry item ID, length and target ID; retained entries
+carry item ID and length. These private snapshot fields are not server receipts.
+
+`restoreHistorySnapshot({snapshot,scope_token,transaction_ids})` returns null.
+The host supplies the exact retained journal receipt UUID allowlist separately;
+every stack operation ID must occur in it. Extra validated retained receipts are
+allowed. Duplicate IDs, unknown references, malformed intervals, unavailable
+content, counterpart type mismatch and redone cycles refuse before live mutation.
+
+Restore requires a pristine document, empty stacks and inactive presence. It
+validates complete state/vector and metadata on a scratch document, then imports
+state and restores retained/deleted content before normal GC can discard it.
+The live document's normal GC setting is restored immediately. Applying ordinary
+updates first and then importing history is unsupported: deleted text may already
+be irreversibly garbage collected. No blanket disabling of GC is required.
+After bootstrap, normal peer updates can arrive before undo/redo; restart tests
+preserve peer text, marks and original local client identity across two restores.
+
+Limits are 64 MiB serialized envelope, 8 MiB state update, 2,048 UTF-8 token bytes,
+4,096 entries per stack, 65,536 retained/redone structs, and 16,384 allowlisted
+transaction IDs. Existing selection limits also apply. Refusal does not authorize
+purging a host's durable bytes.
+
+The host must save the snapshot atomically with its associated journal updates
+and resulting source cut. It must qualify scope/account ownership before export
+and restore. The initial native-store contract only returns a snapshot at its
+exact current cut; no suffix ordering or stale snapshot recovery is inferred by
+this API. Failed persistence must retry the original update/snapshot pair.
+
+Supported tracked operations are `replaceProseWithLineage` (including supported
+inline replacements and multiline text) and isolated `nativeFormatting` bold or
+italic, each with an explicit optional `operation_id`. Formatting undo/redo
+endpoints accept optional `{operation_id}` so the actual inverse stack item can
+be durably referenced. Omitting IDs preserves legacy behavior and leaves that
+item untracked. No UUID is invented. Formatting history uses its existing typed
+formatting evidence and the same native UndoManager; the prose peer-mark overlay
+must not cancel an intentional mark reversal. `undoWithLineage` refuses a
+formatting item; a backend formatting receipt contract is still required before
+new delivery activation.
+
+Legacy `replaceProse`, generic `edit` (text/node insert/delete/format),
+`nativeParagraphAfter`, `nativeParagraphPaste`, and mixed undo groups remain
+untracked when callers use those endpoints. Unsupported nested/list/code/atom
+operations cannot be relabeled as supported prose evidence. Export refuses a
+stack containing untracked items rather than silently dropping undo history.
+
+Final focused snapshot/format validation passed 31 tests; the full JavaScript
+suite passed 81 tests. This includes invalid import atomic refusal, lossy-GC
+refusal, exact typed evidence retention, and formatting undo/redo restart with
+host-assigned inverse IDs. Earlier 29-test snapshot artifacts remain preserved.

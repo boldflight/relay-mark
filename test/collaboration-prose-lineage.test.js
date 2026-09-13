@@ -292,3 +292,118 @@ test('peer text surviving copied ancestor undo retains its current inherited mar
   assert.deepEqual(paragraphAttributes(doc, 1, 0), { bold: {} })
   peer.destroy(); doc.destroy(); original.destroy()
 })
+
+test('qualified durable history survives pristine restart, peer updates and a second undo/redo restart', () => {
+  const original = seed(), call = runtime(original)
+  call('replaceProseWithLineage', { start: 7, end: 7, text: '\n', operation_id: operationID(80) })
+  const peer = new Y.Doc(); Y.applyUpdate(peer, Uint8Array.from(call('state')))
+  let vector = Y.encodeStateVector(peer)
+  const copied = peer.getXmlFragment('default').get(1).get(0)
+  copied.format(0, 2, { italic: {} }); copied.insert(2, 'PEER')
+  call('apply', [...Y.encodeStateAsUpdate(peer, vector)])
+  const first = call('exportHistorySnapshot', { scope_token: 'account/doc/incarnation|cut:80' })
+  const pristine = new Y.Doc(), resumed = runtime(pristine)
+  resumed('restoreHistorySnapshot', { snapshot: first, scope_token: first.scope_token, transaction_ids: [operationID(80)] })
+  assert.deepEqual(resumed('state'), first.state_update)
+  // A fresh peer update arrives after bootstrap, through the unchanged apply API.
+  vector = Y.encodeStateVector(peer); peer.getXmlFragment('default').get(0).get(0).insert(0, 'PREFIX-PEER ')
+  resumed('apply', [...Y.encodeStateAsUpdate(peer, vector)])
+  const undone = resumed('undoWithLineage', { operation_id: operationID(81) })
+  assert.equal(undone.lineage.operation.transaction_id, operationID(80))
+  const undoneDoc = new Y.Doc(); Y.applyUpdate(undoneDoc, Uint8Array.from(resumed('state')))
+  assert.deepEqual(undoneDoc.getXmlFragment('default').toArray().map(p => p.toArray().flatMap(t => t.toDelta()).map(run => run.insert).join('')),
+    ['PREFIX-PEER PREFIX 🌍 generated 人🌍人', 'PEER'])
+  assert.deepEqual(paragraphAttributes(undoneDoc, 0, 19), { bold: {}, italic: {} })
+  const second = resumed('exportHistorySnapshot', { scope_token: 'account/doc/incarnation|cut:81' })
+  assert.equal(second.client_id, first.client_id)
+  const again = runtime(pristine)
+  again('restoreHistorySnapshot', { snapshot: second, scope_token: second.scope_token, transaction_ids: [operationID(81)] })
+  const redone = again('redoWithLineage', { operation_id: operationID(82) })
+  assert.equal(redone.lineage.operation.transaction_id, operationID(81))
+  const redoneDoc = new Y.Doc(); Y.applyUpdate(redoneDoc, Uint8Array.from(again('state')))
+  assert.deepEqual(redoneDoc.getXmlFragment('default').toArray().map(p => p.toArray().flatMap(t => t.toDelta()).map(run => run.insert).join('')),
+    ['PREFIX-PEER PREFIX ', '🌍PEER generated 人🌍人'])
+  assert.deepEqual(paragraphAttributes(redoneDoc, 1, 0), { bold: {}, italic: {} })
+  redoneDoc.destroy(); undoneDoc.destroy(); peer.destroy(); pristine.destroy(); original.destroy()
+})
+
+test('history snapshot refuses wrong scope, unknown receipts, corrupted metadata and nonpristine replacement atomically', () => {
+  const original = seed(), call = runtime(original)
+  call('replaceProseWithLineage', { start: 7, end: 20, text: 'NEW', operation_id: operationID(90) })
+  call('undoWithLineage', { operation_id: operationID(91) })
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'qualified|cut:91' })
+  const pristine = new Y.Doc(), target = runtime(pristine), before = target('state')
+  const args = { snapshot, scope_token: snapshot.scope_token, transaction_ids: [operationID(91)] }
+  const missing = structuredClone(snapshot); missing.retained[0].length = 4294967296
+  const cycle = structuredClone(snapshot); assert.ok(cycle.redone.length); cycle.redone[0].target = cycle.redone[0].item
+  for (const attempt of [{ ...args, scope_token: 'other-account|cut:91' }, { ...args, transaction_ids: [] },
+    { ...args, snapshot: missing }, { ...args, snapshot: cycle }]) {
+    assert.throws(() => target('restoreHistorySnapshot', attempt))
+    assert.deepEqual(target('state'), before)
+    assert.deepEqual(target('undo'), [])
+  }
+  target('restoreHistorySnapshot', args)
+  const restored = target('state')
+  assert.throws(() => target('restoreHistorySnapshot', args))
+  assert.deepEqual(target('state'), restored)
+  assert.ok(target('redoWithLineage', { operation_id: operationID(92) }).updates.length)
+  pristine.destroy(); original.destroy()
+})
+
+test('deleted content lost by ordinary GC cannot be accepted as a restorable history checkpoint', () => {
+  const original = seed(), call = runtime(original)
+  call('replaceProseWithLineage', { start: 7, end: 20, text: '', operation_id: operationID(100) })
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'qualified|cut:100' })
+  const lossy = new Y.Doc(); Y.applyUpdate(lossy, Uint8Array.from(snapshot.state_update))
+  const corrupted = structuredClone(snapshot); corrupted.state_update = [...Y.encodeStateAsUpdate(lossy)]
+  const pristine = new Y.Doc(), target = runtime(pristine), before = target('state')
+  assert.throws(() => target('restoreHistorySnapshot', { snapshot: corrupted, scope_token: snapshot.scope_token, transaction_ids: [operationID(100)] }))
+  assert.deepEqual(target('state'), before)
+  target('restoreHistorySnapshot', { snapshot, scope_token: snapshot.scope_token, transaction_ids: [operationID(100)] })
+  assert.ok(target('undoWithLineage', { operation_id: operationID(101) }).updates.length)
+  lossy.destroy(); pristine.destroy(); original.destroy()
+})
+
+test('host-identified ordinary formatting survives restart with existing formatting evidence', () => {
+  const original = seed(), call = runtime(original)
+  const before = call('state')
+  assert.throws(() => call('nativeFormatting', { kind: 'formatText', path: [0, 0], index: 0, length: 6,
+    attributes: { bold: null }, operation_id: 'invented' }))
+  assert.deepEqual(call('state'), before)
+  call('nativeFormatting', { kind: 'formatText', path: [0, 0], index: 0, length: 6,
+    attributes: { bold: null }, operation_id: operationID(110) })
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'format|cut:110' })
+  assert.equal(snapshot.undo[0].formatting_mark, 'bold')
+  assert.deepEqual(snapshot.undo[0].inserted_text_items, { version: 1, runs: [] })
+  const empty = new Y.Doc(), restored = runtime(empty)
+  restored('restoreHistorySnapshot', { snapshot, scope_token: snapshot.scope_token, transaction_ids: [operationID(110)] })
+  const state = restored('state')
+  assert.throws(() => restored('undoWithLineage', { operation_id: operationID(111) }))
+  assert.deepEqual(restored('state'), state)
+  const result = restored('undoWithFormattingEvidence', { operation_id: operationID(111) })
+  assert.equal(result.formattingMark, 'bold')
+  const decoded = new Y.Doc(); Y.applyUpdate(decoded, Uint8Array.from(restored('state')))
+  assert.deepEqual(paragraphAttributes(decoded, 0, 0), { bold: {} })
+  const inverse = restored('exportHistorySnapshot', { scope_token: 'format|cut:111' })
+  assert.equal(inverse.redo[0].operation_id, operationID(111))
+  const again = runtime(empty)
+  again('restoreHistorySnapshot', { snapshot: inverse, scope_token: inverse.scope_token, transaction_ids: [operationID(111)] })
+  assert.equal(again('redoWithFormattingEvidence', { operation_id: operationID(113) }).formattingMark, 'bold')
+  assert.equal(again('exportHistorySnapshot', { scope_token: 'format|cut:113' }).undo[0].operation_id, operationID(113))
+  // The legacy inverse has no host-assigned ID; it must not invent one.
+  again('undoWithFormattingEvidence')
+  assert.throws(() => again('exportHistorySnapshot', { scope_token: 'format|cut:114' }))
+  decoded.destroy(); empty.destroy(); original.destroy()
+})
+
+test('tracked inline replacement retains exact typed item evidence in its durable stack', () => {
+  const original = seed(), call = runtime(original)
+  const result = call('replaceProseWithLineage', { start: 0, end: 6, text: '日本🌍', operation_id: operationID(112) })
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'inline|cut:112' })
+  const typed = JSON.parse(new TextDecoder().decode(Uint8Array.from(result.insertedTextItems)))
+  assert.deepEqual(snapshot.undo[0].inserted_text_items, typed)
+  const empty = new Y.Doc(), restored = runtime(empty)
+  restored('restoreHistorySnapshot', { snapshot, scope_token: snapshot.scope_token, transaction_ids: [operationID(112)] })
+  assert.deepEqual(restored('exportHistorySnapshot', { scope_token: snapshot.scope_token }).undo[0].inserted_text_items, typed)
+  empty.destroy(); original.destroy()
+})
