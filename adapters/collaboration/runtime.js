@@ -1,7 +1,7 @@
 import { createPlacementState, preparePlacementReceipt, restorePlacementState, placementUpdateHash, createPlacementResolver } from './placement-lineage.js'
 import * as Y from 'yjs'
 import {replayFormatAttribution} from './format-attribution-replay.js'
-import {queryFormatInverse, prepareFormatAttribution} from './format-attribution.js'
+import {createFormatAttribution, queryFormatInverse, prepareFormatAttribution} from './format-attribution.js'
 import {formatAttributionCut} from './format-attribution-cut.js'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
@@ -147,11 +147,36 @@ function history(redo, prepared = null) {
 // The host supplies an independently retained, qualified recipe expectation.
 // Replay is deliberate here: keep one UndoManager and no second runtime history
 // store until measured restoration cost warrants a validated checkpoint cache.
+function checkedAttributionReplay(replayJSON, expected) {
+  if (expected?.cut !== formatAttributionCut(doc)) throw Error('Stale attributed history cut')
+  return replayFormatAttribution(replayJSON, expected)
+}
+function nextAttributionReplay(replayJSON, record, cut) {
+  const recipe = JSON.parse(replayJSON)
+  const operationID = record.kind === 'format' ? record.event.operation_id : record.receipt.operation_id
+  if (recipe.steps.some(step => (step.kind === 'format' ? step.event.operation_id : step.receipt.operation_id) === operationID)) throw Error('Duplicate attribution replay operation')
+  if (recipe.steps.length >= 16384) throw Error('Attribution replay step limit')
+  recipe.steps.push(record)
+  const json = JSON.stringify(recipe), encoded = new TextEncoder().encode(json)
+  if (encoded.length > 64*1024*1024) throw Error('Attribution replay byte limit')
+  return {replay_json:json, replay_sha256:placementUpdateHash(encoded), cut, record_json:JSON.stringify(record)}
+}
+function initialAttributionReplay(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'binding,scope_token' ||
+      typeof input.scope_token !== 'string' || !input.scope_token.length || new TextEncoder().encode(input.scope_token).length > 2048 ||
+      undo.undoStack.length || undo.redoStack.length || undo.currStackItem !== null || undo.captureTimeout !== 0 ||
+      formattingCapture || historyCapture || lineageCapture) throw Error('Attribution baseline requires an isolated owner without history')
+  const binding = createPlacementState(input.binding).binding, state = createFormatAttribution(doc)
+  const replayJSON = JSON.stringify({version:1,scope_token:input.scope_token,binding,baseline:Array.from(Y.encodeStateAsUpdate(doc)),steps:[]})
+  const encoded = new TextEncoder().encode(replayJSON)
+  if (encoded.length > 64*1024*1024) throw Error('Attribution replay byte limit')
+  return {replay_json:replayJSON,replay_sha256:placementUpdateHash(encoded),cut:state.cut}
+}
+
 function attributedHistory(redo, input) {
   if (!input || Object.keys(input).sort().join(',') !== 'expected,operation_id,reference_id,replay_json' ||
       formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attributed history request')
-  if (input.expected?.cut !== formatAttributionCut(doc)) throw Error('Stale attributed history cut')
-  const restored = replayFormatAttribution(input.replay_json, input.expected)
+  const restored = checkedAttributionReplay(input.replay_json, input.expected)
   const resolver = createPlacementResolver(restored.placementState, input.expected.binding, restored.placementReceiptIDs)
   const plan = queryFormatInverse(restored.state, {operationID:input.reference_id, resolveSuccessor:resolver})
   const prepared = prepareHistoryEvidence(doc, undo, redo, {operation_id:input.operation_id}, lineageKey, plan)
@@ -162,12 +187,7 @@ function attributedHistory(redo, input) {
   const operation = {kind:redo ? 'redo' : 'undo', reference:input.reference_id}
   const next = prepareFormatAttribution(restored.state, {beforeDoc:doc, update, event, operation, resolveSuccessor:resolver})
   if (next.cut !== prepared.expectedCut) throw Error('Attributed history cut diverged from preflight')
-  const recipe = JSON.parse(input.replay_json)
-  if (recipe.steps.some(step => (step.kind === 'format' ? step.event.operation_id : step.receipt.operation_id) === input.operation_id)) throw Error('Duplicate attribution replay operation')
-  if (recipe.steps.length >= 16384) throw Error('Attribution replay step limit')
-  recipe.steps.push({kind:'format', update:Array.from(update), event, operation})
-  const replayJSON = JSON.stringify(recipe), encoded = new TextEncoder().encode(replayJSON)
-  if (encoded.length > 64*1024*1024) throw Error('Attribution replay byte limit')
+  const successor = nextAttributionReplay(input.replay_json, {kind:'format',update:Array.from(update),event,operation}, next.cut)
   const result = history(redo, prepared)
   if (placementUpdateHash(Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))) !== placementUpdateHash(update)) {
     throw Error('Attributed history update diverged from preflight')
@@ -175,10 +195,10 @@ function attributedHistory(redo, input) {
   rememberPlacement(input.operation_id, operation.kind, prepared.reference, prepared.lineage.copies, result.updates)
   return {kind:prepared.kind, updates:result.updates, insertedTextItems:prepared.insertedTextItems,
     lineage:null, formattingMark:result.formattingMark,
-    replay_json:replayJSON, replay_sha256:placementUpdateHash(encoded), cut:next.cut}
+    ...successor}
 }
 
-function nativeFormatting(operation) {
+function prepareNativeFormatting(operation) {
   const keys = Object.keys(operation.attributes || {})
   if (operation.kind !== 'formatText' || keys.length !== 1 || !['bold', 'italic'].includes(keys[0]) ||
       undo.captureTimeout !== 0 || formattingCapture) throw Error('Expected isolated native bold or italic command')
@@ -208,10 +228,14 @@ function nativeFormatting(operation) {
     return { kind: 'formatText', path: range.path, index: range.index, length: range.length,
       attributes: { ...operation.attributes } }
   })
+  return {commands, selected, mark:keys[0]}
+}
+function nativeFormatting(operation, prepared = prepareNativeFormatting(operation)) {
+  const {commands, selected, mark} = prepared
   undo.stopCapturing()
-  lineageCapture = operation.operation_id ? { operationID: operation.operation_id, copies: [], formattingMark: keys[0],
+  lineageCapture = operation.operation_id ? { operationID: operation.operation_id, copies: [], formattingMark: mark,
     formattingTextItems: selected } : null
-  formattingCapture = keys[0]
+  formattingCapture = mark
   localUpdates = []
   try {
     doc.transact(() => { for (const command of commands) edit(command) }, localOrigin)
@@ -219,6 +243,38 @@ function nativeFormatting(operation) {
     return localUpdates
   } finally { formattingCapture = null; lineageCapture = null; undo.stopCapturing() }
 }
+function attributedNativeFormatting(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'expected,operation,replay_json' ||
+      typeof input.operation?.operation_id !== 'string') throw Error('Invalid attributed formatting request')
+  const restored = checkedAttributionReplay(input.replay_json, input.expected)
+  const prepared = prepareNativeFormatting(input.operation)
+  const scratch = new Y.Doc({gc:false}), updates = []
+  let expectedState, update, successor
+  try {
+    Y.applyUpdate(scratch, Y.encodeStateAsUpdate(doc)); scratch.clientID = doc.clientID
+    scratch.on('update', (bytes, origin) => { if (origin === localOrigin) updates.push(bytes.slice()) })
+    scratch.transact(() => {
+      for (const command of prepared.commands) {
+        let type = scratch.getXmlFragment('default')
+        for (const index of command.path) type = type.get(index)
+        type.format(command.index, command.length, command.attributes)
+      }
+    }, localOrigin)
+    if (!updates.length) throw Error('Attributed formatting made no effective change')
+    update = Y.mergeUpdates(updates)
+    const event = captureHistoryFormatEvent(doc, update, {operation_id:input.operation.operation_id,
+      mark:prepared.mark, text_items:prepared.selected})
+    const next = prepareFormatAttribution(restored.state, {beforeDoc:doc,update,event})
+    if (next.cut !== formatAttributionCut(scratch)) throw Error('Attributed formatting cut diverged from preflight')
+    successor = nextAttributionReplay(input.replay_json, {kind:'format',update:Array.from(update),event,operation:null}, next.cut)
+    expectedState = Y.encodeStateAsUpdate(scratch)
+  } finally { scratch.destroy() }
+  const result = nativeFormatting(input.operation, prepared), actual = Y.encodeStateAsUpdate(doc)
+  if (actual.length !== expectedState.length || actual.some((byte,i)=>byte !== expectedState[i]) ||
+      placementUpdateHash(Y.mergeUpdates(result.map(u=>Uint8Array.from(u)))) !== placementUpdateHash(update)) throw Error('Attributed formatting diverged from preflight')
+  return {updates:result,...successor}
+}
+
 let localUpdates = []
 doc.on('update', (update, origin) => {
   if (origin === localOrigin || origin === undo) localUpdates.push(Array.from(update))
@@ -535,6 +591,8 @@ export function call(command, input) {
       return { updates: localUpdates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
     }
     case 'edit': localUpdates = []; edit(input); return localUpdates
+    case 'createAttributionReplay': return initialAttributionReplay(input)
+    case 'nativeFormattingWithAttribution': return attributedNativeFormatting(input)
     case 'nativeFormatting': return nativeFormatting(input)
     case 'nativeParagraphAfter': return nativeParagraphAfter(input)
     case 'nativeParagraphPaste': return nativeParagraphPaste(input)

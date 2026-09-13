@@ -490,3 +490,19 @@ receipt metadata on existing journal rows. Swift's current raw hydration accesso
 is still insufficient for that ordered evidence. Session/provider activation,
 server receipts/backfill, no-effect history acceptance and cross-client gates
 remain open. The previously rejected backend channel-output edit is unchanged.
+
+
+## September 14 native forward evidence checkpoint
+
+The [forward-record API](format-attribution-internal.md#september-14-native-forward-record-checkpoint)
+now creates a local baseline and generates exact forward formatting witnesses in
+production Swift/JavaScriptCore. Forward and inverse results carry exact single-step
+record JSON for the existing journal. Verification passed 121 collaboration
+JavaScript tests, 51 Swift adapter tests and contract consistency.
+
+Next: Mark-owned sidecar codec, then additive V20 immutable row metadata and mixed
+append order, owner replay CAS in the existing snapshot envelope, and paired
+post-save sibling delivery. Do not derive ordering from remoteEpoch or timestamps,
+or move the update journal into the owner envelope. Structural record integration,
+server receipts/backfill, no-effect history acceptance and cross-client offline
+acceptance remain required. The blocked channel-output edit remains unchanged.

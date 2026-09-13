@@ -399,7 +399,42 @@ public final class RelayMarkCollaborationDocument {
     /// Candidate evidence and exact successor replay; not yet a durable host save.
     public struct AttributedHistoryResult: Sendable {
         public let evidence: HistoryEvidenceResult
+        /// Exact single replay step for the corresponding durable update row.
+        public let record: Data
         public let replay: AttributionReplay
+    }
+
+    /// Forward update and exact replay-step candidate; the host owns atomic persistence.
+    public struct AttributedEditResult: Sendable {
+        public let updates: [Data]
+        public let record: Data
+        public let replay: AttributionReplay
+    }
+
+    /// Creates a local attribution baseline before this owner has undo/redo history.
+    /// The host supplies the scope/binding and authenticates subsequent stored assertions.
+    public func createAttributionReplay(scopeToken: String, binding: PlacementBinding) throws -> AttributionReplay {
+        let wire = try JSONDecoder().decode(AttributionWire.self, from: call("createAttributionReplay", input: [
+            "scope_token": scopeToken, "binding": binding.wire
+        ]))
+        return try decodeAttributionReplay(wire, scopeToken: scopeToken, binding: binding)
+    }
+
+    /// Executes explicit native formatting with an independently authenticated replay.
+    /// Save the exact record, updates, successor replay and owner snapshot atomically.
+    public func editNativeFormattingWithAttribution(_ operation: Data, operationID: UUID,
+                                                     replay: AttributionReplay) throws -> AttributedEditResult {
+        guard var value = try JSONSerialization.jsonObject(with: operation) as? [String: Any],
+              value["operation_id"] == nil else { throw Failure.runtime("Invalid formatting operation") }
+        value["operation_id"] = operationID.uuidString.lowercased()
+        var input = try attributionInput(replay)
+        input["operation"] = value
+        let data = try call("nativeFormattingWithAttribution", input: input)
+        struct Updates: Decodable { let updates: [[UInt8]] }
+        let updates = try JSONDecoder().decode(Updates.self, from: data)
+        let wire = try JSONDecoder().decode(AttributionWire.self, from: data)
+        return AttributedEditResult(updates: updates.updates.map { Data($0) }, record: try decodeAttributionRecord(wire),
+            replay: try decodeAttributionReplay(wire, scopeToken: replay.scopeToken, binding: replay.binding))
     }
 
     /// The host supplies independently verified replay assertions for this owner.
@@ -416,28 +451,46 @@ public final class RelayMarkCollaborationDocument {
 
     private func attributedHistoryEvidence(redo: Bool, operationID: UUID, referenceID: UUID,
                                            replay: AttributionReplay) throws -> AttributedHistoryResult {
+        var input = try attributionInput(replay)
+        input["operation_id"] = operationID.uuidString.lowercased()
+        input["reference_id"] = referenceID.uuidString.lowercased()
+        let data = try call(redo ? "redoWithAttributedEvidence" : "undoWithAttributedEvidence", input: input)
+        let wire = try JSONDecoder().decode(AttributionWire.self, from: data)
+        return AttributedHistoryResult(evidence: try decodeHistoryEvidence(data), record: try decodeAttributionRecord(wire),
+            replay: try decodeAttributionReplay(wire, scopeToken: replay.scopeToken, binding: replay.binding))
+    }
+
+    private func attributionInput(_ replay: AttributionReplay) throws -> [String: Any] {
         guard let json = String(data: replay.bytes, encoding: .utf8) else {
             throw Failure.runtime("Invalid attributed history replay UTF-8")
         }
-        let data = try call(redo ? "redoWithAttributedEvidence" : "undoWithAttributedEvidence", input: [
-            "operation_id": operationID.uuidString.lowercased(),
-            "reference_id": referenceID.uuidString.lowercased(),
-            "replay_json": json,
-            "expected": ["scope_token": replay.scopeToken, "binding": replay.binding.wire,
-                         "replay_sha256": replay.digest, "cut": replay.cut]
-        ])
-        struct Wire: Decodable {
-            let replay_json: String
-            let replay_sha256: String
-            let cut: String
-        }
-        let wire = try JSONDecoder().decode(Wire.self, from: data)
+        return ["replay_json": json,
+                "expected": ["scope_token": replay.scopeToken, "binding": replay.binding.wire,
+                             "replay_sha256": replay.digest, "cut": replay.cut]]
+    }
+
+    private struct AttributionWire: Decodable {
+        let replay_json: String
+        let replay_sha256: String
+        let cut: String
+        let record_json: String?
+    }
+
+    private func decodeAttributionReplay(_ wire: AttributionWire, scopeToken: String,
+                                         binding: PlacementBinding) throws -> AttributionReplay {
         guard wire.replay_json.utf8.count <= 64 * 1024 * 1024 else {
             throw Failure.runtime("Attributed history replay limit")
         }
-        let candidate = try AttributionReplay(bytes: Data(wire.replay_json.utf8),
-            scopeToken: replay.scopeToken, binding: replay.binding, digest: wire.replay_sha256, cut: wire.cut)
-        return AttributedHistoryResult(evidence: try decodeHistoryEvidence(data), replay: candidate)
+        return try AttributionReplay(bytes: Data(wire.replay_json.utf8),
+            scopeToken: scopeToken, binding: binding, digest: wire.replay_sha256, cut: wire.cut)
+    }
+
+    private func decodeAttributionRecord(_ wire: AttributionWire) throws -> Data {
+        guard let record = wire.record_json, !record.isEmpty, record.utf8.count <= 64 * 1024 * 1024 else {
+            throw Failure.runtime("Missing or oversized attributed history record")
+        }
+        // Preserve the runtime's exact UTF-8 JSON string, not a re-encoded object.
+        return Data(record.utf8)
     }
 
     /// Resolves evidence from the actually performed tracked item. Unsupported,

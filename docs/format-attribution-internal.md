@@ -137,3 +137,47 @@ and replay persistence; negotiated server receipts/backfill; no-effect history
 acceptance and cross-client/session acceptance. The old raw-evidence standalone
 probe remains a migration gate until app callers move to the attributed API.
 These adapter results are not final app/platform gates or complete offline sync.
+
+
+## September 14 native forward-record checkpoint
+
+Native clients can now call `createAttributionReplay` on an isolated owner with no
+undo/redo history, then `editNativeFormattingWithAttribution` to generate their own
+format witnesses and successor replay. Baseline creation is read-only and refuses
+existing history. The forward API validates the current cut, prepares all ranges,
+executes the same operation on a same-client scratch document, validates the exact
+witness and successor candidate, and checks bounds before live mutation. It then
+compares complete live state and exact emitted bytes to preflight. Invalid ranges,
+UUID reuse, stale evidence and entirely ineffective formatting refuse unchanged.
+
+Both forward and inverse APIs now return `record: Data`: exact UTF-8 JSON for the
+single appended replay step, alongside update bytes and successor replay. Swift
+preserves that string without re-encoding its object. The host must persist those
+candidates atomically; returning them does not mean the app has saved them. These
+records represent validated local operation evidence, not authenticated server
+receipts or account authorization.
+
+Two production runtimes and two Swift clients generate their own forward witnesses
+and preserve a peer-owned middle character during undo. Native owner restart and
+redo consume the returned replay. Verification passed 121 collaboration JavaScript
+tests, 51 Swift tests in nine suites, and contract consistency. Exact source,
+compiled-resource and log hashes are recorded in
+`/private/tmp/relay-forward-attribution-checkpoint-20260914.json`.
+
+The next storage slice uses the existing journal, not an envelope-owned duplicate
+record index: optional immutable attribution sidecar and permanent mixed append
+ordinal on each update row, plus owner replay/digest/applied position beside that
+owner's snapshot. Current local sequence excludes remote rows; remote epoch also
+advances on duplicate echoes; timestamp/digest sorting therefore cannot recover
+attribution order. The head belongs in existing replica metadata. Duplicate echoes
+must preserve row ordinal and metadata. Legacy nil order remains unproven.
+
+Before the row migration, a Mark-owned codec should remove/reconstitute the update
+array against exact row bytes and digest so the app does not rewrite private step
+JSON or duplicate payloads. Extend the existing owned append and proposal-resolution
+transactions with shared-cut and owner replay/snapshot CAS, preserve sibling entries,
+and deliver paired durable rows after saving. A trusted baseline must precede new
+attributed history; no missing legacy events may be invented. Required tests include
+migration, mixed order at equal timestamps, immutable retry/conflicts, save rollback,
+two-owner CAS, restart parity, and missing-proof refusal. Concurrent/offline branches
+and canonical server receipts still need their full cross-client acceptance gates.
