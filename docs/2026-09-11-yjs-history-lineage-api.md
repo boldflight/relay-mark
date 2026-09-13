@@ -432,3 +432,11 @@ All six pure witness tests passed in
 `/private/tmp/relay-format-boundary-targets-v1-20260914.log`. Only tests and this
 plan changed; the existing helper already enforced the required selected-ID
 scope, so no bundle rebuild or remapping activation was needed.
+
+## 2026-09-14 reproducible contribution publication
+
+The earlier fixture-only dependency limitation is resolved. Consumer Yrs commit `524fc72da468d1d930a083fc8a573487289c3b63` and Yex commit `7a23c1ff79cb50cfa3d4ce9d20d082bd7e22ee6b` are pushed to the respective `boldflight` forks on `codex/format-event-witness`; both exact remote SHAs were verified. Yex's manifest and lockfile use that remote Yrs commit, with no committed local override. Its full suite passed against normal remote resolution: 558 tests and 63 doctests. Rust formatting, strict Clippy, Elixir formatting and Credo also passed. Consumer Yrs passed 346 unit tests and 40 doctests, with two existing ignored tests.
+
+The standalone [Yrs draft PR657](https://github.com/y-crdt/y-crdt/pull/657) is based on current upstream and excludes the prior resolver contribution. Its verified head `2168672d6c38651270c990cfb15495cfe8432f2d` passed 413 unit tests and39 doctests, with one ignored test; `cargo check -p ywasm` also passed. That check compiles the host crate, not browser WebAssembly runtime acceptance. Upstream internal block/client representations differ from the consumer backport; the two verified commits must not be treated as interchangeable dependency pins.
+
+Exact source hashes, logs and boundaries are recorded in `/private/tmp/relay-format-witness-publication-20260914.json`. A separate upstream-only Yex wrapper patch is being verified against its own base; the consumer suite does not prove it. Relay's internal witness validator and later immutable receipt/undo integration remain separate work. No format capability, paired client output, or undo remapping is activated by these library contributions. The previously requested backend history/placement output edit remains paused for direct payload/destination confirmation after automatic approval review rejected it.
