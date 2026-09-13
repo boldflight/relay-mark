@@ -157,3 +157,27 @@ the host's `yjs`; it does not construct a document or include another runtime.
 The package test checks byte equality. Host code still owns edit intent and
 authenticated source admission. Availability requires a package revision containing
 this export; this source change does not publish a Hex release.
+
+
+The same package also exports `prose-operation.js`, `prose-lineage.js` and
+`history-lineage.js` for hosts that already own a Y.Doc and UndoManager. The
+canonical `replaceProse(input, doc, root, origin, hooks)` mutates that supplied
+root under the supplied transaction origin. `prepareProseLineage` calls the same
+operation for its bounded scratch preflight; the host must execute the prepared
+operation synchronously and verify its expected state, preserving the original
+operation metadata alongside the update. The root for this evidence contract is
+`default`. TipTap remains the browser presentation and selection owner; importing
+the singleton native runtime is not the browser integration path.
+
+History helpers require the exact supported Yjs 13.6.32 instance, including the
+verified transaction hook exported as `yjs-history-hook.mjs`. Browser build tools
+must apply `patchHistoryHook` to their single host Yjs module; the patch fails on
+an unexpected upstream source hash. Shipping these helpers neither installs that
+hook into browser builds nor negotiates server capabilities. Hosts still own
+manager configuration, lifecycle, persistence and authorization.
+
+The caller-owned extraction passed 33 focused JavaScript tests across direct
+caller ownership/evidence, native prose lineage/history dispatch, mixed inline
+content and paragraph behavior. The packaged modules and hook are checked byte
+for byte against their canonical sources. This does not establish browser
+provider, TipTap history integration or server negotiation coverage.
