@@ -459,3 +459,18 @@ and [Yex PR #247](https://github.com/satoren/y_ex/pull/247), head `c8005e6d23a84
 The latter's own upstream-based suite passed 614 tests/doctests and its formatting,
 Credo, Clippy and Rust test checks; its temporary compatible Yrs backport pin and
 upstream dependency remain explicit. Hosted CI was not yet reported at publication.
+
+
+## September 14 replay and native retention checkpoint
+
+The [internal attribution checkpoint](format-attribution-internal.md#september-14-restart-verification)
+now includes bounded, hash-bound ordered recipe replay and a fixed native snapshot
+retention defect found by actual restarted-owner tests. Verification passed 115
+collaboration JavaScript tests and 47 Swift adapter tests. The next slice is atomic
+existing-row attribution evidence plus ordered local sibling delivery and a native
+replay bridge; current native restore returns unordered raw hydration rows, which
+cannot establish contribution order. Unknown remote suffixes remain fenced.
+
+Server channel output remains unchanged pending the already-requested direct
+confirmation. Native/app host activation and cross-client acceptance are still
+required before the working-branch goal is complete; no deployment is required.

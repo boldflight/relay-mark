@@ -3,7 +3,7 @@ import * as Y from 'yjs'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage, supportsProseLineage } from './prose-lineage.js'
-import { prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
+import { prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -94,6 +94,7 @@ function placementExport(input) {
 let lineageCapture = null
 let formattingCapture = null
 let historyCapture = null
+installHistoryCounterpartRetention(doc, undo, lineageKey, () => lineageCapture ? [lineageCapture] : [])
 undo.on('stack-item-added', ({ stackItem, origin }) => {
   if (historyCapture && origin === undo) historyCapture.inverse.push(stackItem)
   else if (lineageCapture && origin === localOrigin) stackItem.meta.set(lineageKey, lineageCapture)

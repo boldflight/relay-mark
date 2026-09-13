@@ -36,6 +36,31 @@ struct RelayMarkProseLineageTests {
         _ = try restored.redoWithEvidence(operationID: UUID())
     }
 
+    @Test("Peer split undo retains formatting counterparts for native owner snapshot restore")
+    func peerDeletedFormattingCounterpartsSurviveRestart() throws {
+        let baseline = try RelayMarkCollaborationDocument()
+        _ = try baseline.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Hello"}]}]}]}"#.utf8))
+        let a = try RelayMarkCollaborationDocument(), b = try RelayMarkCollaborationDocument()
+        try a.applyUpdate(baseline.encodeUpdate())
+        try b.applyUpdate(baseline.encodeUpdate())
+        let split = try a.replaceProseWithLineage(start: 2, end: 2, text: "\n", operationID: UUID())
+        for update in split.updates { try b.applyUpdate(update) }
+        let formatting = try b.editNativeFormatting(Data(#"{"kind":"formatText","ranges":[{"path":[0,0],"index":0,"length":2},{"path":[1,0],"index":0,"length":3}],"attributes":{"bold":{}}}"#.utf8), operationID: UUID())
+        for update in formatting { try a.applyUpdate(update) }
+        let inverse = try a.undoWithEvidence(operationID: UUID())
+        for update in inverse.updates { try b.applyUpdate(update) }
+        #expect(try canonical(a.snapshot()) == canonical(b.snapshot()))
+        for owner in [a, b] {
+            let saved = try owner.exportHistoryState(scopeToken: "peer-history-restart")
+            let restored = try RelayMarkCollaborationDocument()
+            try restored.restoreHistorySnapshot(saved.bytes, scopeToken: "peer-history-restart", transactionIDs: saved.transactionIDs)
+            #expect(try canonical(restored.snapshot()) == canonical(owner.snapshot()))
+            #expect(try restored.stateVector() == owner.stateVector())
+            let reopened = try restored.exportHistoryState(scopeToken: "peer-history-restart")
+            #expect(reopened.transactionIDs == saved.transactionIDs)
+        }
+    }
+
     @Test("Host eligibility is read-only and conservative")
     func hostEligibility() throws {
         let document = try RelayMarkCollaborationDocument()

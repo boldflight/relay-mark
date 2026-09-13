@@ -76,6 +76,95 @@ export function preserveHistoryDescendants(item) {
   return false
 }
 
+// Metadata refers to text which a peer may delete outside this owner's tracked
+// transactions. Compose with Yjs GC instead of taking ownership of its keep bits.
+// A parent must survive too: ContentType.gc recursively collects its descendants.
+const counterpartRetentions = new WeakMap()
+function assertCounterpartRetention(doc) {
+  for (const check of counterpartRetentions.get(doc) || []) if (!check()) throw Error('History counterpart retention limit or invalid metadata')
+}
+export function installHistoryCounterpartRetention(doc, owner, lineageKey, inFlight = () => []) {
+  const previous = doc.gcFilter
+  let index = null, disposed = false
+  const invalidate = () => { index = null }
+  function references() {
+    const ranges = new Map(); let budget = 0
+    const spend = () => { if (++budget > 131072) throw Error('History counterpart index limit') }
+    const add = (identity, count) => {
+      spend()
+      if (!id(identity) || !Number.isSafeInteger(count) || count < 1 || identity.clock + count > 4294967296) throw Error('Invalid history counterpart')
+      const values = ranges.get(identity.client) || []
+      values.push([identity.clock, identity.clock + count]); ranges.set(identity.client, values)
+    }
+    const captures = inFlight()
+    if (!Array.isArray(captures) || captures.length > maximumStack || owner.undoStack.length + owner.redoStack.length > maximumStack) throw Error('History counterpart stack limit')
+    const metadata = [...owner.undoStack, ...owner.redoStack, ...(owner.currStackItem ? [owner.currStackItem] : [])]
+      .map(entry => entry.meta.get(lineageKey)).concat(captures).filter(Boolean)
+    for (const row of metadata) {
+      spend()
+      if (row.copies && (!Array.isArray(row.copies) || row.copies.length > 4096)) throw Error('History counterpart copy limit')
+      const selections = [row.insertedTextItems, row.formattingTextItems,
+        ...(row.copies || []).flatMap(pair => [pair.source, pair.destination])].filter(Boolean)
+      for (const selection of selections) {
+       if (!Array.isArray(selection.runs) || selection.runs.length > 4096) throw Error('History counterpart selection limit')
+       for (const run of selection.runs) {
+        if (!id(run.type)) throw Error('Invalid history counterpart type')
+        add(run.item, run.count)
+        if (run.type.clock >= Y.getState(doc.store, run.type.client)) continue
+        let parent = Y.getItem(doc.store, run.type)
+        const ancestors = new Set()
+        while (parent instanceof Y.Item) {
+          if (ancestors.size >= 128 || ancestors.has(parent)) throw Error('History counterpart ancestry limit')
+          ancestors.add(parent); add(parent.id, parent.length); parent = parent.parent?._item
+        }
+       }
+      }
+    }
+    // Merge intervals, not per-character identities. Index size is bounded by
+    // retained stack selections and document ancestors; no second history store.
+    for (const [client, values] of ranges) {
+      values.sort((a,b) => a[0]-b[0]); const merged = []
+      for (const value of values) {
+        const last = merged[merged.length-1]
+        if (last && value[0] <= last[1]) last[1] = Math.max(last[1], value[1])
+        else merged.push([...value])
+      }
+      ranges.set(client, merged)
+    }
+    return ranges
+  }
+  const check = () => {
+    if (index === null) {
+      try { index = references() } catch { index = false }
+    }
+    return index !== false
+  }
+  const checks = counterpartRetentions.get(doc) || new Set()
+  checks.add(check); counterpartRetentions.set(doc, checks)
+  const filter = item => {
+    if (disposed) return previous(item)
+    if (!previous(item)) return false
+    // GC occurs after mutation: an oversized/invalid index preserves content.
+    // Subsequent checkpoint/preflight refuses until the host clears that history.
+    if (!check()) return false
+    const ranges = index.get(item.id.client) || []
+    let low = 0, high = ranges.length
+    while (low < high) { const mid = (low+high) >>> 1; if (ranges[mid][1] <= item.id.clock) low = mid+1; else high = mid }
+    return low === ranges.length || ranges[low][0] >= item.id.clock + item.length
+  }
+  doc.gcFilter = filter
+  const events = ['stack-item-added', 'stack-item-updated', 'stack-item-popped', 'stack-cleared']
+  doc.on('beforeTransaction', invalidate)
+  for (const event of events) owner.on(event, invalidate)
+  return () => {
+    disposed = true; checks.delete(check)
+    doc.off('beforeTransaction', invalidate)
+    for (const event of events) owner.off(event, invalidate)
+    if (doc.gcFilter === filter) doc.gcFilter = previous
+    index = null
+  }
+}
+
 function restoredCopies(doc, prior, links) {
   const root = doc.getXmlFragment('default'), copies = []
     for (const item of structs(doc)) {
@@ -400,6 +489,7 @@ export function prepareHistoryEvidence(live, owner, redo, input, lineageKey, for
 // Version-pinned access to nonserialized UndoManager/Item metadata lives ONLY
 // here. No custom inverse algorithm: both preflight and live use Y.UndoManager.
 export function prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting = false, formattingPlan = null) {
+  assertCounterpartRetention(live)
   if (yjsPackage.version !== '13.6.32' || !input || Object.keys(input).join(',') !== 'operation_id' || !uuid(input.operation_id) ||
       owner.relayHistoryTransactionHookVersion !== 1 || owner.beforeHistoryTransactionCommit !== null || owner.beforeHistoryItemSkip != null ||
       owner.doc !== live || owner.captureTimeout !== 0 || owner.undoing || owner.redoing || owner.currStackItem !== null ||
@@ -618,6 +708,7 @@ function pristineHistoryOwner(doc, owner) {
     owner.beforeHistoryTransactionCommit === null && owner.relayHistoryTransactionHookVersion === 1
 }
 export function exportHistorySnapshot(doc, owner, input, lineageKey) {
+  assertCounterpartRetention(doc)
   exactKeys(input, ['scope_token']); scopeToken(input.scope_token)
   if (owner.captureTimeout !== 0 || owner.undoing || owner.redoing || owner.currStackItem !== null ||
       owner.beforeHistoryTransactionCommit !== null || owner.relayHistoryTransactionHookVersion !== 1 ||
