@@ -246,3 +246,14 @@ refused; v2 uses the required pristine owner. The additive Swift test is prepare
 but has not yet been compiled at this source checkpoint. No host activation claim.
 
 Validated application checkpoint: 129 collaboration JavaScript tests, 54 Swift tests across nine suites and contract validation passed. Logs and exact source manifests are retained in `/private/tmp/relay-owned-attribution-checkpoint-20260914.json`. The matching Swift host component gate passed 50 tests, plus a three-test assertion follow-up, including real two-owner peer formatting, disk restart and atomic proposal/history/replay save. This is not app-session activation, server authorization or concurrent network acceptance.
+
+The additive attributed undo/redo overloads may omit `referenceID`. Mark selects
+only the current tracked formatting candidate internally, then scratch execution
+must prove that exact reference was actually performed. Explicit-reference APIs
+remain unchanged. Peer-only, untracked, prose, skipped and ineffective top items
+refuse unchanged; this is intermediate formatting dispatch, not general actionable
+undo selection or full editor activation. Focused five-case JavaScript coverage is
+recorded in `/private/tmp/relay-attribution-dispatch-js-v2-20260914.log`; the added
+Swift overload test remains pending coordinated compilation.
+
+Dispatch checkpoint: 132 collaboration JavaScript tests, 55 Swift tests/nine suites and contract validation passed. Matching host owner-refresh/persistence gate passed 51 tests/eight suites. Exact manifests and log hashes are embedded in `/private/tmp/relay-owner-refresh-dispatch-checkpoint-20260914.json`. This intermediate formatting dispatcher does not claim prose, skipped/no-effect history, app activation or network acceptance.

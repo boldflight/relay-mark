@@ -7,7 +7,7 @@ import {formatAttributionCut} from './format-attribution-cut.js'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage, supportsProseLineage } from './prose-lineage.js'
-import { prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, captureHistoryFormatEvent, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
+import { currentFormattingCandidate, prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, captureHistoryFormatEvent, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -197,17 +197,18 @@ function initialAttributionReplay(input) {
 }
 
 function attributedHistory(redo, input) {
-  if (!input || Object.keys(input).sort().join(',') !== 'expected,operation_id,reference_id,replay_json' ||
+  if (!input || !['expected,operation_id,reference_id,replay_json','expected,operation_id,replay_json'].includes(Object.keys(input).sort().join(',')) ||
       formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attributed history request')
   const restored = checkedAttributionReplay(input.replay_json, input.expected)
+  const referenceID = Object.hasOwn(input, 'reference_id') ? input.reference_id : currentFormattingCandidate(undo, redo, lineageKey)
   const resolver = createPlacementResolver(restored.placementState, input.expected.binding, restored.placementReceiptIDs)
-  const plan = queryFormatInverse(restored.state, {operationID:input.reference_id, resolveSuccessor:resolver})
+  const plan = queryFormatInverse(restored.state, {operationID:referenceID, resolveSuccessor:resolver})
   const prepared = prepareHistoryEvidence(doc, undo, redo, {operation_id:input.operation_id}, lineageKey, plan)
-  if (prepared.kind !== 'formatting' || prepared.reference !== input.reference_id) throw Error('Attributed history owner reference mismatch')
+  if (prepared.kind !== 'formatting' || prepared.reference !== referenceID) throw Error('Attributed history owner reference mismatch')
   const update = Y.mergeUpdates(prepared.expectedUpdates)
   const event = captureHistoryFormatEvent(doc, update, {operation_id:input.operation_id,
     mark:plan.mark, text_items:prepared.formattingTextItems})
-  const operation = {kind:redo ? 'redo' : 'undo', reference:input.reference_id}
+  const operation = {kind:redo ? 'redo' : 'undo', reference:referenceID}
   const next = prepareFormatAttribution(restored.state, {beforeDoc:doc, update, event, operation, resolveSuccessor:resolver})
   if (next.cut !== prepared.expectedCut) throw Error('Attributed history cut diverged from preflight')
   const successor = nextAttributionReplay(input.replay_json, {kind:'format',update:Array.from(update),event,operation}, next.cut)

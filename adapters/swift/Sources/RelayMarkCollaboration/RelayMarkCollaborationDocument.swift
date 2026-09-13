@@ -520,11 +520,21 @@ public final class RelayMarkCollaborationDocument {
         try attributedHistoryEvidence(redo: true, operationID: operationID, referenceID: referenceID, replay: replay)
     }
 
-    private func attributedHistoryEvidence(redo: Bool, operationID: UUID, referenceID: UUID,
+    /// Conservative current-formatting dispatch. Unknown, prose, skipped or ineffective
+    /// tops refuse unchanged; this is not general actionable history selection.
+    public func undoWithAttributedEvidence(operationID: UUID, replay: AttributionReplay) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: false, operationID: operationID, referenceID: nil, replay: replay)
+    }
+
+    public func redoWithAttributedEvidence(operationID: UUID, replay: AttributionReplay) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: true, operationID: operationID, referenceID: nil, replay: replay)
+    }
+
+    private func attributedHistoryEvidence(redo: Bool, operationID: UUID, referenceID: UUID?,
                                            replay: AttributionReplay) throws -> AttributedHistoryResult {
         var input = try attributionInput(replay)
         input["operation_id"] = operationID.uuidString.lowercased()
-        input["reference_id"] = referenceID.uuidString.lowercased()
+        if let referenceID { input["reference_id"] = referenceID.uuidString.lowercased() }
         let data = try call(redo ? "redoWithAttributedEvidence" : "undoWithAttributedEvidence", input: input)
         let wire = try JSONDecoder().decode(AttributionWire.self, from: data)
         return AttributedHistoryResult(evidence: try decodeHistoryEvidence(data), record: try decodeAttributionRecord(wire),

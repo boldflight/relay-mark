@@ -46,3 +46,42 @@ test('out-of-order and unknown records refuse without changing document or histo
  }
  call('validateAttributionReplay',{replay_json:replay.replay_json,expected:expected(replay)})
 })
+test('implicit formatting dispatch proves restarted current owner and redo without host reference',()=>{
+ const call=owner()
+ call('restoreHistorySnapshot',{snapshot:fixture.owner_snapshot,scope_token:fixture.expected.scope_token,transaction_ids:fixture.transaction_ids})
+ const undone=call('undoWithAttributedEvidence',{operation_id:fixture.undo_id,replay_json:fixture.replay_json,expected:fixture.expected})
+ assert.deepEqual(call('snapshot'),fixture.plain_snapshot)
+ const redone=call('redoWithAttributedEvidence',{operation_id:fixture.redo_id,replay_json:undone.replay_json,expected:expected(undone)})
+ assert.deepEqual(call('snapshot'),fixture.bold_snapshot)
+ assert.notEqual(redone.replay_sha256,undone.replay_sha256)
+})
+test('implicit dispatch refuses peer-only and untracked owner stacks without mutation',()=>{
+ const call=owner(),recipe=JSON.parse(fixture.replay_json)
+ call('apply',recipe.baseline)
+ let replay=call('createAttributionReplay',{scope_token:fixture.expected.scope_token,binding:fixture.expected.binding})
+ for(const step of recipe.steps)replay=call('applyAttributionRecord',{record_json:JSON.stringify(step),replay_json:replay.replay_json,expected:expected(replay)})
+ const before=call('snapshot')
+ assert.throws(()=>call('undoWithAttributedEvidence',{operation_id:fixture.undo_id,replay_json:replay.replay_json,expected:expected(replay)}))
+ assert.deepEqual(call('snapshot'),before)
+ // Untracked local edit changes the cut and must not be converted into attribution.
+ call('edit',{kind:'formatText',path:[0,0],index:0,length:1,attributes:{italic:{}}})
+ const changed=call('snapshot')
+ assert.throws(()=>call('undoWithAttributedEvidence',{operation_id:fixture.undo_id,replay_json:replay.replay_json,expected:expected(replay)}))
+ assert.deepEqual(call('snapshot'),changed)
+})
+test('masked current formatting candidate refuses rather than skipping into older history',()=>{
+ const a=owner(),b=owner(),recipe=JSON.parse(fixture.replay_json)
+ a('apply',recipe.baseline);b('apply',recipe.baseline)
+ let replay=a('createAttributionReplay',{scope_token:fixture.expected.scope_token,binding:fixture.expected.binding})
+ const format=(call,peer,value,id)=>{
+  const result=call('nativeFormattingWithAttribution',{operation:{kind:'formatText',path:[0,0],index:0,length:1,attributes:{bold:value},operation_id:id},replay_json:replay.replay_json,expected:expected(replay)})
+  peer('applyAttributionRecord',{record_json:result.record_json,replay_json:replay.replay_json,expected:expected(replay)})
+  replay=result
+ }
+ format(a,b,{},'00000000-0000-4000-8000-000000000091')
+ format(b,a,null,'00000000-0000-4000-8000-000000000092')
+ const before=a('snapshot')
+ assert.throws(()=>a('undoWithAttributedEvidence',{operation_id:'00000000-0000-4000-8000-000000000093',replay_json:replay.replay_json,expected:expected(replay)}))
+ assert.deepEqual(a('snapshot'),before)
+ a('validateAttributionReplay',{replay_json:replay.replay_json,expected:expected(replay)})
+})

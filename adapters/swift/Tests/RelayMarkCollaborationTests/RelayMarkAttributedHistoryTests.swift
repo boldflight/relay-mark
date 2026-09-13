@@ -202,4 +202,13 @@ struct RelayMarkAttributedHistoryTests {
         try restored.validateAttributionReplay(finalReplay)
     }
 
+    @Test("Implicit attributed dispatch uses the restored owner's proven formatting item")
+    func implicitFormattingDispatch() throws {
+        let (document, replay, fixture) = try setup()
+        let undone = try document.undoWithAttributedEvidence(operationID: identifier(fixture["undo_id"]), replay: replay)
+        #expect(try canonical(document.snapshot()) == encoded(#require(fixture["plain_snapshot"])))
+        _ = try document.redoWithAttributedEvidence(operationID: identifier(fixture["redo_id"]), replay: undone.replay)
+        #expect(try canonical(document.snapshot()) == encoded(#require(fixture["bold_snapshot"])))
+    }
+
 }

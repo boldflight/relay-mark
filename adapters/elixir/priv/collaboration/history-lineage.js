@@ -482,6 +482,17 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey, formatti
 
 // The scratch UndoManager performs its normal skipping. Select evidence from
 // the actual actionable item, never from a top entry that a peer made obsolete.
+// Candidate selection only. Callers must still prove the actual performed item on
+// scratch with prepareHistoryEvidence; skipped/noop/prose tops remain unsupported.
+export function currentFormattingCandidate(owner, redo, lineageKey) {
+  if (owner.undoing || owner.redoing || owner.currStackItem !== null || owner.captureTimeout !== 0) throw Error('History owner is not isolated')
+  const stack = redo ? owner.redoStack : owner.undoStack
+  if (!Array.isArray(stack) || !stack.length || stack.length > 16384) throw Error('No supported formatting candidate')
+  const metadata = stack[stack.length - 1].meta.get(lineageKey)
+  if (!uuid(metadata?.operationID) || !['bold','italic'].includes(metadata.formattingMark)) throw Error('Unsupported formatting candidate')
+  return metadata.operationID
+}
+
 export function prepareHistoryEvidence(live, owner, redo, input, lineageKey, formattingPlan = null) {
   return prepareHistoryLineage(live, owner, redo, input, lineageKey, null, formattingPlan)
 }
