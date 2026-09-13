@@ -70,3 +70,39 @@ export function unpackAttributionRecord(sidecarJSON,update,expected){
  if(placementUpdateHash(textBytes(recordJSON))!==sidecar.record_sha256)throw Error('Attribution record digest mismatch')
  return recordJSON
 }
+
+
+function metadataHeader(record) {
+ keys(record,['kind','event','operation'])
+ keys(record.event,['version','operation_id','mark'])
+ keys(record.operation,['kind','reference'])
+ const event=record.event,operation=record.operation
+ if(record.kind!=='format_noop'||event.version!==1||!uuid(event.operation_id)||
+    !['bold','italic'].includes(event.mark)||!['undo','redo'].includes(operation.kind)||
+    !uuid(operation.reference)||operation.reference===event.operation_id)throw Error('Invalid attribution metadata record')
+ return event.operation_id
+}
+
+// No-effect history has an operation identity and exact record bytes, but no
+// Yjs update payload/hash. Keep its storage shape distinct from update sidecars.
+export function packAttributionMetadata(recordJSON) {
+ const encoded=textBytes(recordJSON),record=JSON.parse(recordJSON)
+ if(JSON.stringify(record)!==recordJSON)throw Error('Attribution metadata is not compact runtime JSON')
+ const operationID=metadataHeader(record),recordHash=placementUpdateHash(encoded)
+ const sidecarJSON=JSON.stringify({version:1,record_sha256:recordHash,record})
+ return {sidecar_json:sidecarJSON,sidecar_sha256:placementUpdateHash(textBytes(sidecarJSON)),
+  record_sha256:recordHash,operation_id:operationID}
+}
+
+export function unpackAttributionMetadata(sidecarJSON,expected) {
+ keys(expected,['sidecar_sha256','operation_id'])
+ if(!hash(expected.sidecar_sha256)||!uuid(expected.operation_id))throw Error('Invalid attribution metadata expectation')
+ const encoded=textBytes(sidecarJSON)
+ if(placementUpdateHash(encoded)!==expected.sidecar_sha256)throw Error('Attribution metadata digest mismatch')
+ const sidecar=JSON.parse(sidecarJSON)
+ keys(sidecar,['version','record_sha256','record'])
+ if(sidecar.version!==1||!hash(sidecar.record_sha256)||metadataHeader(sidecar.record)!==expected.operation_id)throw Error('Invalid attribution metadata binding')
+ const recordJSON=JSON.stringify(sidecar.record)
+ if(placementUpdateHash(textBytes(recordJSON))!==sidecar.record_sha256)throw Error('Attribution metadata record digest mismatch')
+ return recordJSON
+}

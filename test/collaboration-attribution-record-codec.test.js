@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import {runInNewContext} from 'node:vm'
 import * as Y from 'yjs'
-import {packAttributionRecord,unpackAttributionRecord} from '../adapters/collaboration/attribution-record-codec.js'
+import {packAttributionRecord,unpackAttributionRecord,packAttributionMetadata,unpackAttributionMetadata} from '../adapters/collaboration/attribution-record-codec.js'
 import {placementUpdateHash} from '../adapters/collaboration/placement-lineage.js'
 import {replayFormatAttribution} from '../adapters/collaboration/format-attribution-replay.js'
 const fixture=JSON.parse(readFileSync(new URL('../adapters/swift/Tests/RelayMarkCollaborationTests/Fixtures/attributed-history-v1.json',import.meta.url),'utf8'))
@@ -86,4 +86,42 @@ test('production runtime reconstructs stored sidecars and undoes the original re
  assert.deepEqual(call('snapshot'),fixture.plain_snapshot)
  const packed=call('packAttributionRecord',{record_json:inverse.record_json,update:[...Y.mergeUpdates(inverse.updates.map(u=>Uint8Array.from(u)))]})
  assert.equal(packed.operation_id,fixture.undo_id)
+})
+
+
+test('metadata-only history roundtrips exact operation bytes without an update identity',()=>{
+ const record={kind:'format_noop',event:{version:1,operation_id:'74000000-0000-4000-8000-000000000001',mark:'bold'},operation:{kind:'undo',reference:'74000000-0000-4000-8000-000000000002'}}
+ const json=JSON.stringify(record),packed=packAttributionMetadata(json)
+ assert.equal(unpackAttributionMetadata(packed.sidecar_json,expected(packed)),json)
+ assert.equal(packed.record_sha256,placementUpdateHash(new TextEncoder().encode(json)))
+ assert.equal(Object.hasOwn(packed,'update_sha256'),false)
+ assert.equal(Object.hasOwn(JSON.parse(packed.sidecar_json),'update_sha256'),false)
+ assert.equal(Object.hasOwn(JSON.parse(packed.sidecar_json).record,'update'),false)
+ const next={...record,event:{...record.event,operation_id:'74000000-0000-4000-8000-000000000003'}}
+ const second=packAttributionMetadata(JSON.stringify(next))
+ assert.notEqual(second.record_sha256,packed.record_sha256)
+ assert.notEqual(second.sidecar_sha256,packed.sidecar_sha256)
+ assert.throws(()=>packAttributionRecord(json,[0,0]))
+ assert.throws(()=>unpackAttributionRecord(packed.sidecar_json,[0,0],expected(packed)))
+})
+
+test('metadata storage rejects disguised updates, altered identity, byte drift and malformed inverse fields',()=>{
+ const record={kind:'format_noop',event:{version:1,operation_id:'74000000-0000-4000-8000-000000000011',mark:'italic'},operation:{kind:'redo',reference:'74000000-0000-4000-8000-000000000010'}}
+ const json=JSON.stringify(record),packed=packAttributionMetadata(json)
+ for(const bad of [json+' ',JSON.stringify(record,null,2),JSON.stringify({...record,update:[]}),
+  JSON.stringify({...record,event:{...record.event,update_sha256:'0'.repeat(64)}}),
+  JSON.stringify({...record,event:{...record.event,version:2}}),
+  JSON.stringify({...record,operation:{kind:'format',reference:record.operation.reference}}),
+  JSON.stringify({...record,operation:{kind:'undo',reference:record.event.operation_id}})
+ ])assert.throws(()=>packAttributionMetadata(bad))
+ assert.throws(()=>unpackAttributionMetadata(packed.sidecar_json+' ',expected(packed)))
+ assert.throws(()=>unpackAttributionMetadata(packed.sidecar_json,{...expected(packed),operation_id:record.operation.reference}))
+ for(const mutate of [s=>s.update_sha256='0'.repeat(64),s=>s.record.update=null,s=>s.record_sha256='0'.repeat(64),s=>s.record.event.mark='bold']){
+  const sidecar=JSON.parse(packed.sidecar_json);mutate(sidecar);const changed=JSON.stringify(sidecar)
+  assert.throws(()=>unpackAttributionMetadata(changed,{...expected(packed),sidecar_sha256:placementUpdateHash(new TextEncoder().encode(changed))}))
+ }
+ const updateRecord=recipe.steps[0],ordinary=packAttributionRecord(JSON.stringify(updateRecord),updateRecord.update)
+ assert.throws(()=>unpackAttributionMetadata(ordinary.sidecar_json,expected(ordinary)))
+ assert.throws(()=>packAttributionMetadata(JSON.stringify(updateRecord)))
+ assert.equal(unpackAttributionMetadata(packed.sidecar_json,expected(packed)),json)
 })

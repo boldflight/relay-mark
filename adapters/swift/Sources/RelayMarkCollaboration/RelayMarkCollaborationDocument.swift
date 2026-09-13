@@ -478,6 +478,48 @@ public final class RelayMarkCollaborationDocument {
         return Data(wire.record_json.utf8)
     }
 
+    /// Exact metadata-only history record. There is no Yjs update or update digest.
+    /// The host must atomically persist this with its successor replay and owner snapshot.
+    public struct AttributionMetadataSidecar: Sendable {
+        public let bytes: Data
+        public let digest: String
+        public let recordDigest: String
+        public let operationID: UUID
+    }
+
+    public func packAttributionMetadata(_ record: Data) throws -> AttributionMetadataSidecar {
+        struct Wire: Decodable {
+            let sidecar_json: String
+            let sidecar_sha256: String
+            let record_sha256: String
+            let operation_id: String
+        }
+        let wire = try JSONDecoder().decode(Wire.self, from: call("packAttributionMetadata", input: [
+            "record_json": try Self.attributionJSONString(record)
+        ]))
+        guard Self.isAttributionSHA256(wire.sidecar_sha256), Self.isAttributionSHA256(wire.record_sha256),
+              let operationID = UUID(uuidString: wire.operation_id), operationID.uuidString.lowercased() == wire.operation_id,
+              !wire.sidecar_json.isEmpty, wire.sidecar_json.utf8.count <= 64 * 1024 * 1024 else {
+            throw Failure.runtime("Invalid attribution metadata sidecar")
+        }
+        return AttributionMetadataSidecar(bytes: Data(wire.sidecar_json.utf8), digest: wire.sidecar_sha256,
+            recordDigest: wire.record_sha256, operationID: operationID)
+    }
+
+    /// Expected identity and hash come from the host's separately qualified durable metadata row.
+    public func unpackAttributionMetadata(_ sidecar: Data, expectedDigest: String, operationID: UUID) throws -> Data {
+        guard Self.isAttributionSHA256(expectedDigest) else { throw Failure.runtime("Invalid attribution metadata digest") }
+        struct Wire: Decodable { let record_json: String }
+        let wire = try JSONDecoder().decode(Wire.self, from: call("unpackAttributionMetadata", input: [
+            "sidecar_json": try Self.attributionJSONString(sidecar),
+            "expected": ["sidecar_sha256": expectedDigest, "operation_id": operationID.uuidString.lowercased()]
+        ]))
+        guard !wire.record_json.isEmpty, wire.record_json.utf8.count <= 64 * 1024 * 1024 else {
+            throw Failure.runtime("Missing or oversized attribution metadata record")
+        }
+        return Data(wire.record_json.utf8)
+    }
+
     private nonisolated static func isAttributionSHA256(_ value: String) -> Bool {
         value.utf8.count == 64 && value.utf8.allSatisfy {
             (48...57).contains($0) || (97...102).contains($0)
@@ -561,11 +603,34 @@ public final class RelayMarkCollaborationDocument {
         try attributedHistoryEvidence(redo: true, operationID: operationID, referenceID: nil, replay: replay)
     }
 
+    /// Opts into metadata-only history when the exact replay proves no document change.
+    /// Empty updates still require atomic record/replay/snapshot persistence; never synthesize an update.
+    public func undoWithAttributedEvidence(operationID: UUID, referenceID: UUID, replay: AttributionReplay,
+                                           allowNoEffect: Bool) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: false, operationID: operationID, referenceID: referenceID, replay: replay, allowNoEffect: allowNoEffect)
+    }
+
+    public func redoWithAttributedEvidence(operationID: UUID, referenceID: UUID, replay: AttributionReplay,
+                                           allowNoEffect: Bool) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: true, operationID: operationID, referenceID: referenceID, replay: replay, allowNoEffect: allowNoEffect)
+    }
+
+    public func undoWithAttributedEvidence(operationID: UUID, replay: AttributionReplay,
+                                           allowNoEffect: Bool) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: false, operationID: operationID, referenceID: nil, replay: replay, allowNoEffect: allowNoEffect)
+    }
+
+    public func redoWithAttributedEvidence(operationID: UUID, replay: AttributionReplay,
+                                           allowNoEffect: Bool) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: true, operationID: operationID, referenceID: nil, replay: replay, allowNoEffect: allowNoEffect)
+    }
+
     private func attributedHistoryEvidence(redo: Bool, operationID: UUID, referenceID: UUID?,
-                                           replay: AttributionReplay) throws -> AttributedHistoryResult {
+                                           replay: AttributionReplay, allowNoEffect: Bool = false) throws -> AttributedHistoryResult {
         var input = try attributionInput(replay)
         input["operation_id"] = operationID.uuidString.lowercased()
         if let referenceID { input["reference_id"] = referenceID.uuidString.lowercased() }
+        if allowNoEffect { input["allow_no_effect"] = true }
         let data = try call(redo ? "redoWithAttributedEvidence" : "undoWithAttributedEvidence", input: input)
         let wire = try JSONDecoder().decode(AttributionWire.self, from: data)
         return AttributedHistoryResult(evidence: try decodeHistoryEvidence(data), record: try decodeAttributionRecord(wire),

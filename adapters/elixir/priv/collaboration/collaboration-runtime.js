@@ -1,4 +1,4 @@
-import {packAttributionRecord,unpackAttributionRecord} from './attribution-record-codec.js'
+import {packAttributionRecord,unpackAttributionRecord,packAttributionMetadata,unpackAttributionMetadata} from './attribution-record-codec.js'
 import { createPlacementState, preparePlacementReceipt, restorePlacementState, placementUpdateHash, createPlacementResolver } from './placement-lineage.js'
 import * as Y from 'yjs'
 import {replayFormatAttribution} from './format-attribution-replay.js'
@@ -7,7 +7,7 @@ import {formatAttributionCut} from './format-attribution-cut.js'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage, supportsProseLineage } from './prose-lineage.js'
-import { currentAttributedCandidate, prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, captureHistoryFormatEvent, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
+import { currentAttributedCandidate, prepareNoEffectHistory, prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, captureHistoryFormatEvent, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 const activeOwners = new WeakSet()
@@ -176,8 +176,8 @@ function checkedAttributionReplay(replayJSON, expected) {
 }
 function nextAttributionReplay(replayJSON, record, cut) {
   const recipe = JSON.parse(replayJSON)
-  const operationID = record.kind === 'format' ? record.event.operation_id : record.receipt.operation_id
-  if (recipe.steps.some(step => (step.kind === 'format' ? step.event.operation_id : step.receipt.operation_id) === operationID)) throw Error('Duplicate attribution replay operation')
+  const operationID = record.kind === 'placement' ? record.receipt.operation_id : record.event.operation_id
+  if (recipe.steps.some(step => (step.kind === 'placement' ? step.receipt.operation_id : step.event.operation_id) === operationID)) throw Error('Duplicate attribution replay operation')
   if (recipe.steps.length >= 16384) throw Error('Attribution replay step limit')
   recipe.steps.push(record)
   const json = JSON.stringify(recipe), encoded = new TextEncoder().encode(json)
@@ -235,13 +235,15 @@ function applyAttributionRecords(input) {
     Y.applyUpdate(scratch, Y.encodeStateAsUpdate(doc))
     for (const json of input.records_json) {
       const record = JSON.parse(json)
-      packAttributionRecord(json, record.update)
-      const update = Uint8Array.from(record.update)
-      Y.applyUpdate(scratch, update, 'relay.remote')
+      const metadataOnly=record.kind==='format_noop'
+      if(metadataOnly)packAttributionMetadata(json)
+      else packAttributionRecord(json, record.update)
+      const update=metadataOnly?null:Uint8Array.from(record.update)
+      if(update)Y.applyUpdate(scratch, update, 'relay.remote')
       const cut = formatAttributionCut(scratch)
       successor = nextAttributionReplay(successor.replay_json, record, cut)
       replayFormatAttribution(successor.replay_json, {...input.expected,replay_sha256:successor.replay_sha256,cut})
-      updates.push(update)
+      if(update)updates.push(update)
     }
   } finally { scratch.destroy() }
   // Every record has been checked before the first live update.
@@ -286,7 +288,8 @@ function attributedProseHistory(redo, input, reference) {
   return {kind:'prose',updates:result.updates,insertedTextItems:prepared.insertedTextItems,lineage:prepared.lineage,formattingMark:null,...successor}
 }
 function attributedHistory(redo, input) {
-  if (!input || !['expected,operation_id,reference_id,replay_json','expected,operation_id,replay_json'].includes(Object.keys(input).sort().join(',')) ||
+  if (!input || !['expected,operation_id,reference_id,replay_json','expected,operation_id,replay_json','allow_no_effect,expected,operation_id,reference_id,replay_json','allow_no_effect,expected,operation_id,replay_json'].includes(Object.keys(input).sort().join(',')) ||
+      (Object.hasOwn(input,'allow_no_effect')&&input.allow_no_effect!==true) ||
       formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attributed history request')
   const restored = checkedAttributionReplay(input.replay_json, input.expected)
   const candidate = Object.hasOwn(input, 'reference_id') ? {reference:input.reference_id,kind:'formatting'} : currentAttributedCandidate(undo, redo, lineageKey)
@@ -294,6 +297,20 @@ function attributedHistory(redo, input) {
   const referenceID = candidate.reference
   const resolver = createPlacementResolver(restored.placementState, input.expected.binding, restored.placementReceiptIDs)
   const plan = queryFormatInverse(restored.state, {operationID:referenceID, resolveSuccessor:resolver})
+  if(plan.kind==='noop'&&input.allow_no_effect===true) {
+    const prepared=prepareNoEffectHistory(doc,undo,redo,{operation_id:input.operation_id},lineageKey,plan)
+    const record={kind:'format_noop',event:{version:1,operation_id:input.operation_id,mark:plan.mark},
+      operation:{kind:redo?'redo':'undo',reference:referenceID}}
+    const successor=nextAttributionReplay(input.replay_json,record,input.expected.cut)
+    packAttributionMetadata(successor.record_json)
+    replayFormatAttribution(successor.replay_json,{...input.expected,replay_sha256:successor.replay_sha256,cut:successor.cut})
+    const result={kind:'formatting',updates:[],insertedTextItems:Array.from(new TextEncoder().encode('{"version":1,"runs":[]}')),
+      lineage:null,formattingMark:prepared.mark,...successor}
+    historyCapture={inverse:[],performed:[],mixed:false}
+    try{result.notificationErrorCount=prepared.commit()}finally{historyCapture=null}
+    lastPlacementOperation=null
+    return result
+  }
   const prepared = prepareHistoryEvidence(doc, undo, redo, {operation_id:input.operation_id}, lineageKey, plan)
   if (prepared.kind !== 'formatting' || prepared.reference !== referenceID) throw Error('Attributed history owner reference mismatch')
   const update = Y.mergeUpdates(prepared.expectedUpdates)
@@ -705,6 +722,14 @@ function call(command, input) {
     case 'unpackAttributionRecord': {
       if (!input || Object.keys(input).sort().join(',') !== 'expected,sidecar_json,update') throw Error('Invalid attribution unpack request')
       return {record_json:unpackAttributionRecord(input.sidecar_json,input.update,input.expected)}
+    }
+    case 'packAttributionMetadata': {
+      if(!input||Object.keys(input).join(',')!=='record_json')throw Error('Invalid attribution metadata pack request')
+      return packAttributionMetadata(input.record_json)
+    }
+    case 'unpackAttributionMetadata': {
+      if(!input||Object.keys(input).sort().join(',')!=='expected,sidecar_json')throw Error('Invalid attribution metadata unpack request')
+      return {record_json:unpackAttributionMetadata(input.sidecar_json,input.expected)}
     }
     case 'validateAttributionReplay': {
       if (!input || Object.keys(input).sort().join(',') !== 'expected,replay_json') throw Error('Invalid attribution validation request')

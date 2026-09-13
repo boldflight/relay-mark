@@ -368,3 +368,37 @@ stacks, change the sidecar storage codec, negotiate a wire contract, or admit
 metadata-only receipts. Host operation-based journal identity, owner snapshot
 persistence, server admission and cross-client acceptance remain required before
 removing the existing runtime no-effect refusal.
+
+
+### September 14: opt-in owner advancement and metadata codec
+
+Attributed undo/redo now accepts explicit `allow_no_effect: true`. Existing calls
+still refuse no-effect history. The new path validates the full successor replay
+before advancing exactly one selected formatting item within the same isolated
+UndoManager. Its inverse has empty insertion/deletion sets and preserved formatting
+targets, so it remains serializable and can become an effective redo after peer
+history changes. No Yjs transaction or synthetic update is emitted. Both stacks
+are coherent before normal history notifications; a throwing observer cannot
+lose the prepared operation result, and nested runtime history is fenced.
+
+`packAttributionMetadata` and `unpackAttributionMetadata` preserve exact compact
+record bytes using record/sidecar hashes and the operation UUID. Their strict shape
+has no update or update digest and cannot be confused with the existing update
+sidecar codec. Swift adds distinct metadata-sidecar APIs and additive undo/redo
+opt-in overloads; the old method signatures retain their behavior. Applying a
+qualified ordered metadata record advances replay without applying a raw update
+or adding peer work to the local undo stack.
+
+All 152 collaboration JavaScript tests, 59 Swift tests across ten suites, and the
+portable contract check passed. Tests cover absent/false opt-in and wrong-owner
+refusal, exact bytes/state-vector invariance, snapshot restoration, peer no-effect
+undo followed by effective redo, metadata codec separation/tampering, stale
+preparation, and observer failure/reentrancy. Receipt:
+`/private/tmp/relay-noop-owner-integration-RESULT-20260914.json`.
+
+The browser history facade also exposes explicit opt-in and freezes a metadata
+sidecar, owner snapshot and replay through callback failure/retry. Production
+providers still leave it disabled: operation-based durable journals, server
+admission/receipts, negotiated capabilities and full cross-client acceptance are
+unfinished. Library snapshot restoration and a test persistence callback are not
+proof of production durable metadata delivery.

@@ -492,6 +492,46 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey, formatti
   } finally { manager.beforeHistoryTransactionCommit = null; if (formattingPlan) manager.beforeHistoryItemSkip = null }
 }
 
+// A metadata-only disposition advances exactly one selected item on the same
+// manager. No Yjs undo transaction is run, skipped, or synthesized. The runtime
+// validates its full successor attribution replay before invoking this commit.
+export function prepareNoEffectHistory(live,owner,redo,input,lineageKey,plan) {
+ assertCounterpartRetention(live)
+ const isolated=()=>owner.doc===live&&owner.scope.length===1&&owner.scope[0]===live.getXmlFragment('default')&&
+  owner.captureTimeout===0&&!owner.undoing&&!owner.redoing&&owner.currStackItem===null&&
+  owner.beforeHistoryTransactionCommit===null&&owner.beforeHistoryItemSkip===null&&
+  owner.relayHistoryTransactionHookVersion===1&&owner.relayHistoryItemSkipHookVersion===1&&owner.ignoreRemoteMapChanges===false
+ if(yjsPackage.version!=='13.6.32'||!isolated()||!input||Object.keys(input).join(',')!=='operation_id'||!uuid(input.operation_id)||
+    !plan||plan.kind!=='noop'||plan.prestate_sha256!==formatAttributionCut(live))throw Error('Unsupported no-effect history owner')
+ const source=redo?owner.redoStack:owner.undoStack,destination=redo?owner.undoStack:owner.redoStack
+ const selected=source.at(-1),metadata=selected?.meta.get(lineageKey)
+ if(!metadata||metadata.operationID!==plan.operationID||metadata.formattingMark!==plan.mark||!Array.isArray(metadata.copies)||metadata.copies.length!==0||!metadata.formattingTextItems||destination.length>=maximumStack)throw Error('No-effect history owner reference mismatch')
+ const original={undo:snapshotStack(owner.undoStack,lineageKey),redo:snapshotStack(owner.redoStack,lineageKey)}
+ if([...original.undo,...original.redo].some(row=>row.operation_id===input.operation_id))throw Error('History requires distinct durable operation identities')
+ const inverseWire={insertions:[],deletions:[],operation_id:input.operation_id,counterparts:[],
+  inserted_text_items:{version:1,runs:[]},formatting_mark:metadata.formattingMark,
+  formatting_text_items:JSON.parse(JSON.stringify(metadata.formattingTextItems))}
+ const references=new Set()
+ restoreStack(original.undo,lineageKey,references);restoreStack(original.redo,lineageKey,references)
+ const inverse=restoreStack([inverseWire],lineageKey,references)[0]
+ const before=Y.encodeStateAsUpdate(live),clientID=live.clientID,stackFingerprint=JSON.stringify(original)
+ if(before.length>maximumStateBytes||new TextEncoder().encode(stackFingerprint).length>maximumSnapshotBytes)throw Error('No-effect history limit')
+ let committed=false
+ return {reference:metadata.operationID,mark:metadata.formattingMark,commit(){
+  if(committed||!isolated()||live.clientID!==clientID||source!==(redo?owner.redoStack:owner.undoStack)||destination!==(redo?owner.undoStack:owner.redoStack)||
+     source.at(-1)!==selected||!equal(before,Y.encodeStateAsUpdate(live))||
+     JSON.stringify({undo:snapshotStack(owner.undoStack,lineageKey),redo:snapshotStack(owner.redoStack,lineageKey)})!==stackFingerprint)throw Error('Stale no-effect history preparation')
+  source.pop();destination.push(inverse);owner.stopCapturing();committed=true
+  // Observer failure cannot discard the already prepared durable result. Both
+  // stacks are coherent before either notification, and the caller fences reentry.
+  let notificationErrorCount=0
+  for(const [name,item,type] of [['stack-item-added',inverse,redo?'undo':'redo'],['stack-item-popped',selected,redo?'redo':'undo']]) {
+   try{owner.emit(name,[{stackItem:item,type,origin:owner,changedParentTypes:new Map()},owner])}catch{notificationErrorCount++}
+  }
+  return notificationErrorCount
+ }}
+}
+
 // The scratch UndoManager performs its normal skipping. Select evidence from
 // the actual actionable item, never from a top entry that a peer made obsolete.
 // Candidate selection only. Callers must still prove the actual performed item on
