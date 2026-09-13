@@ -1,5 +1,5 @@
 import * as Y from 'yjs'
-import {createFormatAttribution, prepareFormatAttribution, prepareCopyAttribution} from './format-attribution.js'
+import {createFormatAttribution, prepareFormatAttribution, prepareCopyAttribution, prepareNoEffectFormatAttribution} from './format-attribution.js'
 import {createPlacementState, preparePlacementReceipt, placementReceiptCopies, createPlacementResolver, placementUpdateHash} from './placement-lineage.js'
 import {formatAttributionCut} from './format-attribution-cut.js'
 
@@ -41,20 +41,25 @@ export function replayFormatAttribution(replayJSON, expected) {
  let totalBytes = baseline.length
  const steps = recipe.steps.map(step => {
   if (step?.kind === 'format') keys(step, ['kind', 'update', 'event', 'operation'])
+  else if (step?.kind === 'format_noop') keys(step, ['kind', 'event', 'operation'])
   else if (step?.kind === 'placement') keys(step, ['kind', 'update', 'receipt', 'trust'])
   else throw Error('Unknown attribution replay step')
-  const update = bytes(step.update), operationID = step.kind === 'format' ? step.event?.operation_id : step.receipt?.operation_id
+  const update = step.kind === 'format_noop' ? null : bytes(step.update)
+  const operationID = step.kind === 'placement' ? step.receipt?.operation_id : step.event?.operation_id
   if (typeof operationID !== 'string' || seen.has(operationID)) throw Error('Duplicate or missing attribution replay operation')
-  seen.add(operationID); totalBytes += update.length
+  seen.add(operationID); totalBytes += update?.length || 0
   if (totalBytes > maximumBytes) throw Error('Attribution replay byte limit')
-  return {...step, update}
+  return update === null ? step : {...step, update}
  })
  const doc = new Y.Doc({gc:false})
  try {
   Y.applyUpdate(doc, baseline)
   let state = createFormatAttribution(doc)
   for (const step of steps) {
-   if (step.kind === 'format') {
+   if (step.kind === 'format_noop') {
+    state = prepareNoEffectFormatAttribution(state, {beforeDoc:doc,event:step.event,operation:step.operation,
+     resolveSuccessor:createPlacementResolver(graph,binding,ids)})
+   } else if (step.kind === 'format') {
     state = prepareFormatAttribution(state, {beforeDoc:doc, update:step.update, event:step.event,
      operation:step.operation, resolveSuccessor:createPlacementResolver(graph, binding, ids)})
    } else {
@@ -63,7 +68,7 @@ export function replayFormatAttribution(replayJSON, expected) {
     state = prepareCopyAttribution(state, {beforeDoc:doc, update:step.update,
      effectiveCopies:placementReceiptCopies(graph, binding, ids, step.receipt.operation_id)})
    }
-   Y.applyUpdate(doc, step.update)
+   if (step.kind !== 'format_noop') Y.applyUpdate(doc, step.update)
   }
   if (formatAttributionCut(doc) !== expected.cut) throw Error('Attribution replay final cut mismatch')
   return {state, placementState:graph, placementReceiptIDs:ids}

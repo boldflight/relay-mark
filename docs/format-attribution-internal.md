@@ -336,3 +336,35 @@ check passed. Evidence: `/private/tmp/relay-history-contextless-js-v1-20260914.l
 through the canonical script. This remains branch-level evidence; authenticated
 server transport, compaction/checkpoint migration and final publication gates are
 not established by these tests.
+
+
+### September 14: metadata-only inverse reconstruction
+
+The internal attribution reducer and replay recipe now accept an additive
+`format_noop` step with exactly `kind`, `event` and `operation`. The event contains
+version 1, a distinct operation UUID and the mark; the operation contains undo/redo
+and its reference. It contains no update bytes or fabricated format witness.
+The reducer recomputes a genuinely empty inverse plan against the current
+qualified cut, retains its logical scope, and advances the contribution's
+active/inactive disposition without changing Yjs bytes or the cut. Replay digest
+and operation identity distinguish these history transitions at an unchanged cut.
+
+Effective and metadata-only inverses share a bounded consumed-reference set and
+current-disposition validation. A reference cannot be reused after later toggles
+happen to restore the same boolean disposition. The set is reconstructed from the
+ordered recipe and does not add a persistence engine or external authority.
+
+All 146 collaboration JavaScript tests, 58 Swift collaboration tests across nine
+suites, and the portable contract check passed.
+The new cases cover masked undo followed by peer undo without resurrection,
+metadata undo/redo at one cut, redo becoming effective, same-value removal ABA,
+fenced/stale/forged candidates, duplicate operations, consumed references and
+fresh replay. Generated Elixir mirrors and the Swift runtime bundle are current.
+Logs: `/private/tmp/relay-mark-format-noop-all-collaboration-20260914.log` and
+`/private/tmp/relay-mark-format-noop-contract-20260914.log`.
+
+This does not activate metadata-only runtime commands, advance UndoManager
+stacks, change the sidecar storage codec, negotiate a wire contract, or admit
+metadata-only receipts. Host operation-based journal identity, owner snapshot
+persistence, server admission and cross-client acceptance remain required before
+removing the existing runtime no-effect refusal.

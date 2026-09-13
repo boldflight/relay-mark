@@ -46,7 +46,7 @@ function publish(data) {const state=Object.freeze({version:1,fenced:data.fenced,
 function read(state) {const data=states.get(state);if(!data)throw Error('Unknown attribution candidate');return data}
 export function createFormatAttribution(doc) {
  const cut=digest(doc),current=observe(doc),entries=new Map([...current].map(([k,row])=>[k,{...row,tokens:{bold:null,italic:null}}]))
- return publish({cut,fenced:false,entries,current,events:new Map(),dispositions:new Map(),retainedChanges:0})
+ return publish({cut,fenced:false,entries,current,events:new Map(),dispositions:new Map(),consumedReferences:new Set(),retainedChanges:0})
 }
 export function fenceFormatAttribution(state) {return publish({...read(state),fenced:true})}
 function prepare(state,beforeDoc,update,apply) {
@@ -57,11 +57,42 @@ function prepare(state,beforeDoc,update,apply) {
  try {
   Y.applyUpdate(scratch,Y.encodeStateAsUpdate(beforeDoc));Y.applyUpdate(scratch,update)
   const cut=digest(scratch),current=observe(scratch)
-  const next={cut,fenced:false,entries:new Map(old.entries),current,events:new Map(old.events),dispositions:new Map(old.dispositions),retainedChanges:old.retainedChanges,updateSHA256:placementUpdateHash(update)}
+  const next={cut,fenced:false,entries:new Map(old.entries),current,events:new Map(old.events),dispositions:new Map(old.dispositions),consumedReferences:new Set(old.consumedReferences),retainedChanges:old.retainedChanges,updateSHA256:placementUpdateHash(update)}
   apply(old,next)
   if(next.entries.size>maximumUnits || next.events.size>maximumEvents)throw Error('Attribution retention limit')
   return publish(next)
  } finally {scratch.destroy()}
+}
+const uuid = value => typeof value==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)
+function inverseReference(old,operation,operationID) {
+ if(!operation||Object.keys(operation).sort().join(',')!=='kind,reference'||
+    !['undo','redo'].includes(operation.kind)||!uuid(operation.reference)||operation.reference===operationID)throw Error('Invalid inverse attribution reference')
+ const reference=old.events.get(operation.reference)
+ if(!reference||(operation.kind==='redo'&&reference.kind!=='undo')||(operation.kind==='undo'&&reference.kind==='undo'))throw Error('Invalid inverse attribution kind')
+ if(old.dispositions.get(reference.disposition.contributionID)!==reference.disposition.afterActive||
+    old.consumedReferences.has(operation.reference))throw Error('Consumed inverse attribution reference')
+ return reference
+}
+
+// A verified history disposition, not a formatting event or a Yjs update. The
+// ordered host journal supplies owner authorization; replay recomputes no effect.
+export function prepareNoEffectFormatAttribution(state,{beforeDoc,event,operation,resolveSuccessor}) {
+ const old=read(state)
+ if(old.fenced||digest(beforeDoc)!==old.cut)throw Error('Fenced or stale attribution cut')
+ if(!event||Object.keys(event).sort().join(',')!=='mark,operation_id,version'||event.version!==1||
+    !uuid(event.operation_id)||!['bold','italic'].includes(event.mark)||typeof resolveSuccessor!=='function')throw Error('Invalid no-effect attribution event')
+ if(old.events.has(event.operation_id))throw Error('Duplicate attribution event')
+ const reference=inverseReference(old,operation,event.operation_id)
+ const plan=queryFormatInverse(state,{operationID:operation.reference,resolveSuccessor})
+ if(plan.kind!=='noop'||plan.mark!==event.mark)throw Error('Effective inverse cannot be a no-effect disposition')
+ const disposition={contributionID:reference.disposition.contributionID,beforeActive:reference.disposition.afterActive,afterActive:reference.disposition.beforeActive}
+ const retainedChanges=old.retainedChanges+plan.logicalScope.length
+ if(old.events.size>=maximumEvents||retainedChanges>maximumUnits)throw Error('Attribution event unit limit')
+ const next={...old,events:new Map(old.events),dispositions:new Map(old.dispositions),consumedReferences:new Set(old.consumedReferences),retainedChanges}
+ next.consumedReferences.add(operation.reference)
+ next.dispositions.set(disposition.contributionID,disposition.afterActive)
+ next.events.set(event.operation_id,{disposition,kind:operation.kind,reference:operation.reference,mark:event.mark,changes:[],scopeChanges:clone(plan.logicalScope)})
+ return publish(next)
 }
 export function prepareFormatAttribution(state,{beforeDoc,update,event,operation=null,resolveSuccessor}) {
  return prepare(state,beforeDoc,update,(old,next)=>{
@@ -72,8 +103,7 @@ export function prepareFormatAttribution(state,{beforeDoc,update,event,operation
    if(!operation||Object.keys(operation).sort().join(',')!=='kind,reference'||
       !['undo','redo'].includes(operation.kind)||typeof operation.reference!=='string'||
       operation.reference===verified.operation_id||typeof resolveSuccessor!=='function')throw Error('Invalid inverse attribution reference')
-   const reference=old.events.get(operation.reference)
-   if(!reference||(operation.kind==='redo'&&reference.kind!=='undo')||(operation.kind==='undo'&&reference.kind==='undo'))throw Error('Invalid inverse attribution kind')
+   const reference=inverseReference(old,operation,verified.operation_id)
    disposition={contributionID:reference.disposition.contributionID,beforeActive:reference.disposition.afterActive,afterActive:reference.disposition.beforeActive}
    const plan=queryFormatInverse(state,{operationID:operation.reference,resolveSuccessor})
    if(plan.kind!=='apply'||plan.mark!==verified.mark)throw Error('Ineffective inverse attribution')
@@ -102,6 +132,7 @@ export function prepareFormatAttribution(state,{beforeDoc,update,event,operation
   const scopeChanges=logicalScope||changes
   if(next.retainedChanges+changes.length+scopeChanges.length>maximumUnits)throw Error('Attribution event unit limit')
   next.retainedChanges+=changes.length+scopeChanges.length
+  if(operation!==null)next.consumedReferences.add(operation.reference)
   next.dispositions.set(disposition.contributionID,disposition.afterActive)
   next.events.set(verified.operation_id,{disposition,kind:operation?.kind||'format',reference:operation?.reference||null,mark:verified.mark,changes,scopeChanges})
  })
