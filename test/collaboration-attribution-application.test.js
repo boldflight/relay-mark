@@ -85,3 +85,19 @@ test('masked current formatting candidate refuses rather than skipping into olde
  assert.deepEqual(a('snapshot'),before)
  a('validateAttributionReplay',{replay_json:replay.replay_json,expected:expected(replay)})
 })
+test('attributed prose typing, split, join and styled paste retain exact peer replay',()=>{
+ const a=owner(),b=owner(),recipe=JSON.parse(fixture.replay_json)
+ a('apply',recipe.baseline);b('apply',recipe.baseline)
+ let replay=a('createAttributionReplay',{scope_token:fixture.expected.scope_token,binding:fixture.expected.binding})
+ for(const [i,operation] of [{start:1,end:1,text:'日本',attributes:{bold:{}}},{start:1,end:1,text:'\n'},{start:1,end:2,text:''},{start:1,end:1,text:'A\nB\n',attributes:{italic:{}}}].entries()){
+  const input={operation:{...operation,operation_id:`00000000-0000-4000-8000-00000000010${i}`},replay_json:replay.replay_json,expected:expected(replay)}
+  const result=a('replaceProseWithAttribution',input)
+  const received=b('applyAttributionRecord',{record_json:result.record_json,replay_json:replay.replay_json,expected:expected(replay)})
+  assert.equal(received.replay_json,result.replay_json)
+  assert.deepEqual(a('snapshot'),b('snapshot'))
+  const before=a('snapshot')
+  assert.throws(()=>a('replaceProseWithAttribution',input))
+  assert.deepEqual(a('snapshot'),before)
+  replay=result
+ }
+})

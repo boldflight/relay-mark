@@ -257,3 +257,15 @@ recorded in `/private/tmp/relay-attribution-dispatch-js-v2-20260914.log`; the ad
 Swift overload test remains pending coordinated compilation.
 
 Dispatch checkpoint: 132 collaboration JavaScript tests, 55 Swift tests/nine suites and contract validation passed. Matching host owner-refresh/persistence gate passed 51 tests/eight suites. Exact manifests and log hashes are embedded in `/private/tmp/relay-owner-refresh-dispatch-checkpoint-20260914.json`. This intermediate formatting dispatcher does not claim prose, skipped/no-effect history, app activation or network acceptance.
+
+`replaceProseWithAttribution` now wraps the existing canonical paragraph replacement
+with exact staged-update capture and full successor placement replay validation
+before live execution. It returns the existing typed/copy evidence plus exact record
+and replay; Swift exposes plain and uniform inserted-mark variants. Existing APIs
+retain their behavior. Focused six-case JS proof, including typing, split, join and
+styled multiline paste with peer replay parity, passed in
+`/private/tmp/relay-attributed-prose-js-v1-20260914.log`. Swift coverage is source-ready.
+Structural attributed undo/redo remains separate; unsupported structures, mixed marks,
+ambiguous successor graphs and ineffective operations are not enabled by this wrapper.
+
+Native candidate/prose checkpoint: 133 JavaScript tests, 57 Swift tests/nine suites and contract validation passed. The matching actual native editor/recovery + owner-store gate passed 66 tests, including typed replacement/split, exact failed-save retries, peer-only refresh and disjoint formatting inverse preserving peer ownership. Exact source manifests and log hashes are embedded in `/private/tmp/relay-attributed-editor-checkpoint-20260914.json`. Structural attributed undo and app-session/network activation remain pending.

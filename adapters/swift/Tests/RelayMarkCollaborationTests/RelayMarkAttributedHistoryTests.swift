@@ -211,4 +211,24 @@ struct RelayMarkAttributedHistoryTests {
         #expect(try canonical(document.snapshot()) == encoded(#require(fixture["bold_snapshot"])))
     }
 
+    @Test("Attributed native styled prose and split produce peer-replayable exact records")
+    func attributedProseForward() throws {
+        let (writer, peer) = try freshOwners()
+        var replay = try writer.createAttributionReplay(scopeToken: "prose-forward", binding: .init(documentID: UUID(), incarnation: "one"))
+        for text in ["日本", "\n", "A\nB"] {
+            let result = try writer.replaceProseWithAttribution(start: 1, end: 1, text: text,
+                insertedMarks: [.bold], operationID: UUID(), replay: replay)
+            #expect(!result.evidence.updates.isEmpty)
+            let received = try peer.applyAttributionRecord(result.record, replay: replay)
+            #expect(received.bytes == result.replay.bytes)
+            #expect(try canonical(peer.snapshot()) == canonical(writer.snapshot()))
+            replay = result.replay
+        }
+        let before = try writer.exportHistorySnapshot(scopeToken: replay.scopeToken)
+        #expect(throws: (any Error).self) {
+            try writer.replaceProseWithAttribution(start: -1, end: 0, text: "bad", operationID: UUID(), replay: replay)
+        }
+        #expect(try writer.exportHistorySnapshot(scopeToken: replay.scopeToken) == before)
+    }
+
 }

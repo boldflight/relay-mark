@@ -28,6 +28,41 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     /// Persist and retry them with the same transaction/update identity.
     public let proseLineage: Data?
 
+    /// Frozen local candidate only; decoding does not authenticate its assertions.
+    public let attribution: AttributionCandidate?
+
+    public struct AttributionCandidate: Codable, Equatable, Sendable {
+        public let record: Data
+        public let replayBytes: Data
+        public let scopeToken: String
+        public let documentID: UUID
+        public let incarnation: String
+        public let replayDigest: String
+        public let replayCut: String
+        public let inputReplayDigest: String
+
+        public init(record: Data, replay: RelayMarkCollaborationDocument.AttributionReplay,
+                    inputReplayDigest: String) throws {
+            guard !record.isEmpty, record.count <= 64 * 1024 * 1024,
+                  let text = String(data: record, encoding: .utf8), Data(text.utf8) == record,
+                  inputReplayDigest.utf8.count == 64,
+                  inputReplayDigest.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
+                throw RelayMarkCollaborationDocument.Failure.runtime("Invalid attribution candidate")
+            }
+            self.record = record; self.replayBytes = replay.bytes; self.scopeToken = replay.scopeToken
+            self.documentID = replay.binding.documentID; self.incarnation = replay.binding.incarnation
+            self.replayDigest = replay.digest; self.replayCut = replay.cut
+            self.inputReplayDigest = inputReplayDigest
+        }
+
+        /// Recreates host assertions, not semantic validation or authorization.
+        public func replay() throws -> RelayMarkCollaborationDocument.AttributionReplay {
+            try .init(bytes: replayBytes, scopeToken: scopeToken,
+                binding: .init(documentID: documentID, incarnation: incarnation),
+                digest: replayDigest, cut: replayCut)
+        }
+    }
+
     /// Exact bounded operation evidence; native paste intent and authorization
     /// remain the host's responsibility. Text comes from InputIntent, not here.
     public struct NativeParagraphPaste: Codable, Equatable, Sendable {
@@ -97,6 +132,16 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
                 insertedTextItems: Data?, nativeFormatting: NativeFormatting?, nativeParagraph: NativeParagraph?,
                 nativeParagraphPaste: NativeParagraphPaste?, proseLineage: Data?) {
+        self.init(id: id, update: update, changes: changes, inputIntent: inputIntent,
+            insertedTextItems: insertedTextItems, nativeFormatting: nativeFormatting,
+            nativeParagraph: nativeParagraph, nativeParagraphPaste: nativeParagraphPaste,
+            proseLineage: proseLineage, attribution: nil)
+    }
+
+    public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
+                insertedTextItems: Data?, nativeFormatting: NativeFormatting?, nativeParagraph: NativeParagraph?,
+                nativeParagraphPaste: NativeParagraphPaste?, proseLineage: Data?, attribution: AttributionCandidate?) {
+        self.attribution = attribution
         self.id = id
         self.update = update
         self.changes = changes

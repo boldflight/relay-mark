@@ -131,6 +131,34 @@ public final class RelayMarkCollaborationDocument {
             "attributes": attributes, "operation_id": operationID.uuidString.lowercased()])
     }
 
+    public struct AttributedProseResult: Sendable {
+        public let evidence: ProseLineageResult
+        public let record: Data
+        public let replay: AttributionReplay
+    }
+
+    public func replaceProseWithAttribution(start: Int, end: Int, text: String,
+        operationID: UUID, replay: AttributionReplay) throws -> AttributedProseResult {
+        try replaceProseWithAttribution(start: start, end: end, text: text,
+            insertedMarks: [], operationID: operationID, replay: replay)
+    }
+
+    /// Supported paragraph replacement only; full successor replay is checked before mutation.
+    /// Persist the exact candidate with the update and owner snapshot; no authorization is implied.
+    public func replaceProseWithAttribution(start: Int, end: Int, text: String,
+        insertedMarks: [RelayMarkLocalTransaction.NativeFormatting.Mark], operationID: UUID,
+        replay: AttributionReplay) throws -> AttributedProseResult {
+        var attributes: [String: [String: String]] = [:]
+        for mark in insertedMarks { attributes[mark.rawValue] = [:] }
+        var input = try attributionInput(replay)
+        input["operation"] = ["start": start, "end": end, "text": text,
+            "attributes": attributes, "operation_id": operationID.uuidString.lowercased()]
+        let data = try call("replaceProseWithAttribution", input: input)
+        let wire = try JSONDecoder().decode(AttributionWire.self, from: data)
+        return AttributedProseResult(evidence: try decodeProseLineage(data), record: try decodeAttributionRecord(wire),
+            replay: try decodeAttributionReplay(wire, scopeToken: replay.scopeToken, binding: replay.binding))
+    }
+
     /// Restores through the actual tracked history item with copied-identity evidence.
     /// Empty, untracked or mixed history refuses before mutation. Restored text is not new human input.
     public func undoWithLineage(operationID: UUID) throws -> ProseLineageResult {
@@ -278,11 +306,14 @@ public final class RelayMarkCollaborationDocument {
     }
 
     private func proseLineage(_ command: String, input: [String: Any]) throws -> ProseLineageResult {
+        return try decodeProseLineage(call(command, input: input))
+    }
+
+    private func decodeProseLineage(_ data: Data) throws -> ProseLineageResult {
         struct Wire: Decodable {
             let updates: [[UInt8]]
             let insertedTextItems: [UInt8]
         }
-        let data = try call(command, input: input)
         let wire = try JSONDecoder().decode(Wire.self, from: data)
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let lineage = object["lineage"] as? [String: Any] else {

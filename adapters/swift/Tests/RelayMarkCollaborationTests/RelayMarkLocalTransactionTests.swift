@@ -62,4 +62,36 @@ struct RelayMarkLocalTransactionTests {
         #expect(restored.update == Data([1, 2, 3]))
         #expect(restored.nativeFormatting?.mark == .italic)
     }
+    @MainActor @Test func attributionCandidatePreservesExactBytesAndLegacySignature() throws {
+        let hash = String(repeating: "a", count: 64)
+        let record = Data("{\"opaque\": \"日本\"}\n".utf8)
+        let recipe = Data("{\"opaque\":true}  ".utf8)
+        let replay = try RelayMarkCollaborationDocument.AttributionReplay(bytes: recipe,
+            scopeToken: "scope", binding: .init(documentID: UUID(), incarnation: "one"), digest: hash, cut: hash)
+        let candidate = try RelayMarkLocalTransaction.AttributionCandidate(record: record, replay: replay, inputReplayDigest: hash)
+        let transaction = RelayMarkLocalTransaction(update: Data([1]), changes: [], inputIntent: .undo,
+            insertedTextItems: nil, nativeFormatting: nil, nativeParagraph: nil,
+            nativeParagraphPaste: nil, proseLineage: nil, attribution: candidate)
+        let decoded = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(transaction))
+        #expect(decoded == transaction)
+        let retained = try #require(decoded.attribution)
+        #expect(retained.record == record)
+        #expect(try retained.replay().bytes == recipe)
+        #expect(retained.inputReplayDigest == hash)
+        // Shape-only carrier: opaque JSON here deliberately makes no witness claim.
+        let oldInitializer: (UUID, Data, [RelayMarkLocalTransaction.TextChange], RelayMarkLocalTransaction.InputIntent?, Data?, RelayMarkLocalTransaction.NativeFormatting?, RelayMarkLocalTransaction.NativeParagraph?, RelayMarkLocalTransaction.NativeParagraphPaste?, Data?) -> RelayMarkLocalTransaction = RelayMarkLocalTransaction.init
+        let old = oldInitializer(UUID(), Data([1]), [], nil, nil, nil, nil, nil, nil)
+        #expect(old.attribution == nil)
+        let oldBytes = try JSONEncoder().encode(old)
+        let object = try #require(JSONSerialization.jsonObject(with: oldBytes) as? [String: Any])
+        #expect(object["attribution"] == nil)
+        #expect(try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: oldBytes).attribution == nil)
+        #expect(throws: (any Error).self) {
+            try RelayMarkLocalTransaction.AttributionCandidate(record: Data([0xff]), replay: replay, inputReplayDigest: hash)
+        }
+        #expect(throws: (any Error).self) {
+            try RelayMarkLocalTransaction.AttributionCandidate(record: record, replay: replay, inputReplayDigest: "bad")
+        }
+    }
+
 }

@@ -162,6 +162,40 @@ function nextAttributionReplay(replayJSON, record, cut) {
   if (encoded.length > 64*1024*1024) throw Error('Attribution replay byte limit')
   return {replay_json:json, replay_sha256:placementUpdateHash(encoded), cut, record_json:JSON.stringify(record)}
 }
+function executePreparedProse(input, prepared) {
+      localUpdates = []; undo.stopCapturing()
+      // No await or callback boundary between preflight and the same mutation.
+      lineageCapture = input.operation_id ? { operationID: input.operation_id, copies: prepared.lineage.copies, insertedTextItems: JSON.parse(new TextDecoder().decode(Uint8Array.from(prepared.insertedTextItems))) } : null
+      try { replaceProse(prepared.input) } finally { lineageCapture = null; undo.stopCapturing() }
+      const actual = Y.encodeStateAsUpdate(doc)
+      if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
+        throw Error('Prose lineage execution diverged from preflight')
+      }
+      rememberPlacement(input.operation_id, 'replace_prose', null, prepared.lineage.copies, localUpdates)
+      return { updates: localUpdates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
+}
+function attributedProse(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'expected,operation,replay_json' ||
+      !input.operation?.operation_id || undo.captureTimeout !== 0 || formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attributed prose request')
+  checkedAttributionReplay(input.replay_json, input.expected)
+  const prepared = prepareProseLineage(doc, input.operation, replaceProse)
+  if (!prepared.expectedUpdates.length) throw Error('No effective attributed prose operation')
+  const update = Y.mergeUpdates(prepared.expectedUpdates)
+  const record = {kind:'placement',update:Array.from(update),receipt:{version:1,
+    document_id:input.expected.binding.document_id,incarnation:input.expected.binding.incarnation,
+    operation_id:input.operation.operation_id,update_sha256:placementUpdateHash(update),
+    operation:{kind:'replace_prose',reference:null},copies:prepared.lineage.copies},trust:'local'}
+  const scratch = new Y.Doc({gc:false}); let successor
+  try {
+    Y.applyUpdate(scratch, prepared.expectedState)
+    const cut = formatAttributionCut(scratch)
+    successor = nextAttributionReplay(input.replay_json, record, cut)
+    replayFormatAttribution(successor.replay_json,{...input.expected,replay_sha256:successor.replay_sha256,cut})
+  } finally { scratch.destroy() }
+  const result = executePreparedProse(input.operation, prepared)
+  if (placementUpdateHash(Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))) !== placementUpdateHash(update)) throw Error('Attributed prose update diverged')
+  return {...result,...successor}
+}
 function applyAttributionRecord(input) {
   if (!input || Object.keys(input).sort().join(',') !== 'expected,record_json,replay_json' ||
       formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attribution record application')
@@ -603,16 +637,7 @@ export function call(command, input) {
     case 'replaceProseWithLineage': {
       if (undo.captureTimeout !== 0 || formattingCapture || historyCapture || lineageCapture) throw Error('Expected isolated prose operation')
       const prepared = prepareProseLineage(doc, input, replaceProse)
-      localUpdates = []; undo.stopCapturing()
-      // No await or callback boundary between preflight and the same mutation.
-      lineageCapture = input.operation_id ? { operationID: input.operation_id, copies: prepared.lineage.copies, insertedTextItems: JSON.parse(new TextDecoder().decode(Uint8Array.from(prepared.insertedTextItems))) } : null
-      try { replaceProse(prepared.input) } finally { lineageCapture = null; undo.stopCapturing() }
-      const actual = Y.encodeStateAsUpdate(doc)
-      if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
-        throw Error('Prose lineage execution diverged from preflight')
-      }
-      rememberPlacement(input.operation_id, 'replace_prose', null, prepared.lineage.copies, localUpdates)
-      return { updates: localUpdates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
+      return executePreparedProse(input, prepared)
     }
     case 'edit': localUpdates = []; edit(input); return localUpdates
     case 'packAttributionRecord': {
@@ -627,6 +652,7 @@ export function call(command, input) {
       if (!input || Object.keys(input).sort().join(',') !== 'expected,replay_json') throw Error('Invalid attribution validation request')
       checkedAttributionReplay(input.replay_json, input.expected); return null
     }
+    case 'replaceProseWithAttribution': return attributedProse(input)
     case 'applyAttributionRecord': return applyAttributionRecord(input)
     case 'createAttributionReplay': return initialAttributionReplay(input)
     case 'nativeFormattingWithAttribution': return attributedNativeFormatting(input)

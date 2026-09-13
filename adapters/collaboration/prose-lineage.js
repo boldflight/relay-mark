@@ -125,6 +125,8 @@ export function prepareProseLineage(live, input, replace) {
     const operation = { kind: 'replace_prose', start_anchor: anchor(input.start), end_anchor: anchor(input.end),
       inserted_text: input.text, inserted_attributes: attributes }
     const sources = [], copies = [], typed = empty()
+    const expectedUpdates = []
+    staged.on('update', update => expectedUpdates.push(update.slice()))
     replace(operationInput, staged, root, {
       tail(p, offset, copied) {
         if (!copied) return
@@ -161,7 +163,7 @@ export function prepareProseLineage(live, input, replace) {
     if (resolved.unavailableRuns.length || resolved.collapsedUnits ||
         resolved.segments.map(segment => segment.text).join('') !== input.text.split('\n').join('')) throw Error('Unproven typed prose')
     if (live.clientID !== clientID || !equalBytes(state, Y.encodeStateAsUpdate(live))) throw Error('Prose prestate changed')
-    return { input: operationInput, expectedState: Y.encodeStateAsUpdate(staged), insertedTextItems: Array.from(new TextEncoder().encode(JSON.stringify(typed))),
+    return { input: operationInput, expectedUpdates, expectedState: Y.encodeStateAsUpdate(staged), insertedTextItems: Array.from(new TextEncoder().encode(JSON.stringify(typed))),
       lineage: { version: 1, operation, copies } }
   } finally { staged.destroy() }
 }
