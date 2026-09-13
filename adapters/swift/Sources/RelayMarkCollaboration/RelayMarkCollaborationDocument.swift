@@ -147,17 +147,93 @@ public final class RelayMarkCollaborationDocument {
         try call("exportHistorySnapshot", input: ["scope_token": scopeToken])
     }
 
+    public struct PlacementBinding: Sendable {
+        public let documentID: UUID
+        public let incarnation: String
+        public init(documentID: UUID, incarnation: String) {
+            self.documentID = documentID; self.incarnation = incarnation
+        }
+        fileprivate var wire: [String: Any] {
+            ["document_id": documentID.uuidString.lowercased(), "incarnation": incarnation]
+        }
+    }
+
+    /// Immutable candidate; save its snapshot with the update before committing it.
+    public struct PlacementCandidate: Sendable {
+        public let bytes: Data
+        public let receiptIDs: [UUID]
+    }
+
+    /// Derives the exact last emitted operation, including formatting inverse references.
+    /// This proves local runtime identity, not server acceptance or human authorship.
+    public func prepareLocalPlacementReceipt(update: Data, binding: PlacementBinding) throws -> PlacementCandidate {
+        guard !update.isEmpty, update.count <= 8 * 1024 * 1024 else { throw Failure.runtime("Placement update limit") }
+        return try placementCandidate(call("prepareLocalPlacementReceipt", input: [
+            "expected_binding": binding.wire, "update": Array(update)]))
+    }
+
+    /// The caller must authenticate server receipt authority and its document binding.
+    /// Mark validates exact update hash and graph consistency; it does not authenticate.
+    public func prepareTrustedPlacementReceipt(_ receipt: Data, update: Data,
+                                               binding: PlacementBinding) throws -> PlacementCandidate {
+        guard receipt.count <= 64 * 1024 * 1024, !update.isEmpty, update.count <= 8 * 1024 * 1024 else {
+            throw Failure.runtime("Placement receipt limit")
+        }
+        return try placementCandidate(call("preparePlacementReceipt", input: [
+            "expected_binding": binding.wire, "trust": "server", "update": Array(update),
+            "receipt": JSONSerialization.jsonObject(with: receipt)]))
+    }
+
+    public func commitPlacementReceipt(_ candidate: PlacementCandidate) throws {
+        _ = try call("commitPlacementReceipt", input: JSONSerialization.jsonObject(with: candidate.bytes))
+    }
+
+    public func exportHistorySnapshot(scopeToken: String, placementCandidate: PlacementCandidate) throws -> Data {
+        try call("exportHistorySnapshot", input: ["scope_token": scopeToken,
+            "placement_candidate": JSONSerialization.jsonObject(with: placementCandidate.bytes)])
+    }
+
+    private static func placementIDs(_ value: Any?) throws -> [UUID] {
+        guard let state = value as? [String: Any], let rows = state["receipts"] as? [[String: Any]], rows.count <= 16384 else {
+            throw Failure.runtime("Invalid placement receipt closure")
+        }
+        var seen = Set<UUID>()
+        return try rows.map { row in
+            guard let receipt = row["receipt"] as? [String: Any], let raw = receipt["operation_id"] as? String,
+                  let id = UUID(uuidString: raw), id.uuidString.lowercased() == raw, seen.insert(id).inserted else {
+                throw Failure.runtime("Invalid placement receipt identity")
+            }
+            return id
+        }
+    }
+
+    private func placementCandidate(_ bytes: Data) throws -> PlacementCandidate {
+        guard bytes.count <= 64 * 1024 * 1024,
+              let object = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else {
+            throw Failure.runtime("Placement candidate limit")
+        }
+        return PlacementCandidate(bytes: bytes, receiptIDs: try Self.placementIDs(object["state"]))
+    }
+
     /// Restores only into a pristine document, before journal suffix or remote updates.
     /// Mark validates the complete snapshot and requires every stack operation to occur
     /// in the host's exact retained transaction whitelist. Failure leaves the owner pristine.
     public struct SnapshotExport: Sendable {
         public let bytes: Data
         public let transactionIDs: [UUID]
+        public let placementReceiptIDs: [UUID]
     }
 
     /// Library-owned receipt closure; callers need not decode private stack metadata.
     public func exportHistoryState(scopeToken: String) throws -> SnapshotExport {
-        let bytes = try exportHistorySnapshot(scopeToken: scopeToken)
+        try snapshotExport(exportHistorySnapshot(scopeToken: scopeToken))
+    }
+
+    public func exportHistoryState(scopeToken: String, placementCandidate: PlacementCandidate) throws -> SnapshotExport {
+        try snapshotExport(exportHistorySnapshot(scopeToken: scopeToken, placementCandidate: placementCandidate))
+    }
+
+    private func snapshotExport(_ bytes: Data) throws -> SnapshotExport {
         struct Stack: Decodable { let operation_id: String }
         struct Wire: Decodable { let undo: [Stack]; let redo: [Stack] }
         let wire = try JSONDecoder().decode(Wire.self, from: bytes)
@@ -171,7 +247,9 @@ public final class RelayMarkCollaborationDocument {
             }
             return id
         }
-        return SnapshotExport(bytes: bytes, transactionIDs: ids)
+        let object = try JSONSerialization.jsonObject(with: bytes) as? [String: Any]
+        let placements = try object?["placement"].map(Self.placementIDs) ?? []
+        return SnapshotExport(bytes: bytes, transactionIDs: ids, placementReceiptIDs: placements)
     }
 
     public func restoreHistorySnapshot(_ snapshot: Data, scopeToken: String, transactionIDs: [UUID]) throws {
@@ -181,6 +259,18 @@ public final class RelayMarkCollaborationDocument {
         _ = try call("restoreHistorySnapshot", input: [
             "snapshot": JSONSerialization.jsonObject(with: snapshot), "scope_token": scopeToken,
             "transaction_ids": transactionIDs.map { $0.uuidString.lowercased() }])
+    }
+
+    public func restoreHistorySnapshot(_ snapshot: Data, scopeToken: String, transactionIDs: [UUID],
+                                       placementBinding: PlacementBinding, placementReceiptIDs: [UUID]) throws {
+        guard snapshot.count <= 64 * 1024 * 1024, transactionIDs.count <= 16384, placementReceiptIDs.count <= 16384 else {
+            throw Failure.runtime("History snapshot limit")
+        }
+        _ = try call("restoreHistorySnapshot", input: [
+            "snapshot": JSONSerialization.jsonObject(with: snapshot), "scope_token": scopeToken,
+            "transaction_ids": transactionIDs.map { $0.uuidString.lowercased() },
+            "expected_placement_binding": placementBinding.wire,
+            "placement_receipt_ids": placementReceiptIDs.map { $0.uuidString.lowercased() }])
     }
 
     private func proseLineage(_ command: String, input: [String: Any]) throws -> ProseLineageResult {

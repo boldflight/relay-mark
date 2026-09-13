@@ -435,6 +435,11 @@ export function call(command, input) {
       }
       return { hasPendingStructs: doc.store.pendingStructs !== null, hasPendingDeletes: doc.store.pendingDs !== null }
     }
+    case 'prepareLocalPlacementReceipt': {
+      if (!input || Object.keys(input).sort().join() !== 'expected_binding,update' || !lastPlacementOperation) throw Error('Missing local placement operation')
+      return call('preparePlacementReceipt',{expected_binding:input.expected_binding,trust:'local',update:input.update,
+        receipt:{version:1,...input.expected_binding,...JSON.parse(JSON.stringify(lastPlacementOperation))}})
+    }
     case 'preparePlacementReceipt': {
       if (input?.trust === 'local') {
         const r=input.receipt, proof=lastPlacementOperation

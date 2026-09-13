@@ -297,3 +297,14 @@ Current placement succession deliberately refuses concurrent competing successor
 from the same source; it does not claim general concurrent structural acceptance.
 Identity clients use the shared JavaScript-safe integer bound; clocks remain
 UInt32. The 4,096-run cap applies in aggregate across all copies on each side.
+
+The additive Swift bridge exposes `PlacementBinding` and opaque
+`PlacementCandidate(bytes, receiptIDs)`. `prepareLocalPlacementReceipt(update:binding:)`
+derives the last exact runtime operation, including a formatting inverse's actual
+reference. `prepareTrustedPlacementReceipt(_:update:binding:)` is explicitly the
+authenticated-host server path. Export accepts an optional candidate through an
+overload; `commitPlacementReceipt` follows the successful atomic host save.
+`SnapshotExport.placementReceiptIDs` stays separate from local `transactionIDs`.
+The restore overload takes both the expected placement binding and independent
+placement receipt whitelist. Existing no-graph calls remain source compatible.
+None of these bridges enables graph remapping or changes source admission.

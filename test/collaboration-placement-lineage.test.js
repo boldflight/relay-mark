@@ -90,3 +90,18 @@ test('aggregate source and destination runs are each capped across copy pairs',(
  assert.equal(add(createPlacementState(binding),receipt(10,make(2048))).receipts.length,1)
  assert.throws(()=>add(createPlacementState(binding),receipt(10,make(2049))),/aggregate run/)
 })
+
+test('actual server accepted split undo redo sidecars match updates and restore directed history',async()=>{
+ const {readFile}=await import('node:fs/promises')
+ const fixture=JSON.parse(await readFile(new URL('./fixtures/placement-receipt-server-v1.json',import.meta.url),'utf8'))
+ const first=fixture.receipts[0], expected={document_id:first.document_id,incarnation:first.incarnation}
+ let state=createPlacementState(expected)
+ for(let i=0;i<fixture.receipts.length;i++) {
+  assert.equal(fixture.operation_updates_base64[i].length,1)
+  const receipt=fixture.receipts[i], update=Array.from(Buffer.from(fixture.operation_updates_base64[i][0],'base64'))
+  state=preparePlacementReceipt(state,{expected_binding:expected,trust:'server',update,receipt})
+  assert.deepEqual(preparePlacementReceipt(state,{expected_binding:expected,trust:'server',update,receipt}),state)
+ }
+ assert.deepEqual(state.receipts.map(r=>r.receipt.operation.kind),['replace_prose','undo','redo'])
+ assert.deepEqual(restorePlacementState(JSON.parse(JSON.stringify(state)),expected,fixture.receipts.map(r=>r.operation_id)),state)
+})

@@ -1,0 +1,260 @@
+{
+  "receipts": [
+    {
+      "copies": [
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 13,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 3
+                },
+                "type": {
+                  "client": 3848998596,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 13,
+                "item": {
+                  "client": 746132551,
+                  "clock": 10
+                },
+                "type": {
+                  "client": 746132551,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          }
+        },
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 4,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 18
+                },
+                "type": {
+                  "client": 3848998596,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 4,
+                "item": {
+                  "client": 3233527757,
+                  "clock": 1
+                },
+                "type": {
+                  "client": 746132551,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          }
+        }
+      ],
+      "document_id": "6adb7151-f615-4e18-9ae7-0ead5f57d886",
+      "incarnation": "6adb7151-f615-4e18-9ae7-0ead5f57d886",
+      "operation": {
+        "kind": "replace_prose",
+        "reference": null
+      },
+      "operation_id": "30000000-0000-4000-8000-000000000301",
+      "update_sha256": "93fa088ae1624abb7b0f1a0be19ec7cc01a147d0355e04ec3cf11673340b6e10",
+      "version": 1
+    },
+    {
+      "copies": [
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 13,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 23
+                },
+                "type": {
+                  "client": 746132551,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 13,
+                "item": {
+                  "client": 746132551,
+                  "clock": 10
+                },
+                "type": {
+                  "client": 746132551,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          }
+        },
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 4,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 37
+                },
+                "type": {
+                  "client": 746132551,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 4,
+                "item": {
+                  "client": 3233527757,
+                  "clock": 1
+                },
+                "type": {
+                  "client": 746132551,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          }
+        }
+      ],
+      "document_id": "6adb7151-f615-4e18-9ae7-0ead5f57d886",
+      "incarnation": "6adb7151-f615-4e18-9ae7-0ead5f57d886",
+      "operation": {
+        "kind": "undo",
+        "reference": "30000000-0000-4000-8000-000000000301"
+      },
+      "operation_id": "30000000-0000-4000-8000-000000000302",
+      "update_sha256": "4819b682a488c749f27d58281c486b22b3f2ed35b8292228b28999428c145703",
+      "version": 1
+    },
+    {
+      "copies": [
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 13,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 45
+                },
+                "type": {
+                  "client": 3848998596,
+                  "clock": 43
+                }
+              }
+            ],
+            "version": 1
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 13,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 3
+                },
+                "type": {
+                  "client": 3848998596,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          }
+        },
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 4,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 60
+                },
+                "type": {
+                  "client": 3848998596,
+                  "clock": 43
+                }
+              }
+            ],
+            "version": 1
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 4,
+                "item": {
+                  "client": 3848998596,
+                  "clock": 18
+                },
+                "type": {
+                  "client": 3848998596,
+                  "clock": 1
+                }
+              }
+            ],
+            "version": 1
+          }
+        }
+      ],
+      "document_id": "6adb7151-f615-4e18-9ae7-0ead5f57d886",
+      "incarnation": "6adb7151-f615-4e18-9ae7-0ead5f57d886",
+      "operation": {
+        "kind": "redo",
+        "reference": "30000000-0000-4000-8000-000000000302"
+      },
+      "operation_id": "30000000-0000-4000-8000-000000000303",
+      "update_sha256": "432f18f65e6f14ef19257de1d01247715528b08048cbc76a6d3125603c7ea8c2",
+      "version": 1
+    }
+  ],
+  "initial_update_base64": "AgPN7+6FDACGx6jk4wIXBml0YWxpYwJ7fYTN7+6FDAAK5Lq68J+MjeS6uobN7+6FDAQGaXRhbGljBG51bGwFx6jk4wIABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDHqOTjAgAGBgDHqOTjAgEEYm9sZAJ7fYTHqOTjAgIWUFJFRklYIPCfjI0gZ2VuZXJhdGVkIIbHqOTjAhYEYm9sZARudWxsAA==",
+  "fixture_kind": "synthetic_accepted_enhanced_placement_receipts",
+  "operation_updates_base64": [
+    [
+      "AQjEnayrDgCHx6jk4wIAAwlwYXJhZ3JhcGgHAMSdrKsOAAYGAMSdrKsOAQRib2xkAnt9hMSdrKsOAg/wn4yNIGdlbmVyYXRlZCCGxJ2sqw4PBGJvbGQEbnVsbIbEnayrDhAGaXRhbGljAnt9hMSdrKsOEQrkurrwn4yN5Lq6hsSdrKsOFQZpdGFsaWMEbnVsbALN7+6FDAEABseo5OMCAQoN"
+    ],
+    [
+      "AQTEnayrDhfEx6jk4wIJx6jk4wIKD/CfjI0gZ2VuZXJhdGVkIMbHqOTjAhfN7+6FDAAGaXRhbGljAnt9xM3v7oUMAM3v7oUMAQrkurrwn4yN5Lq6xs3v7oUMBM3v7oUMBQZpdGFsaWMEbnVsbAHEnayrDgEAFw=="
+    ],
+    [
+      "AQjEnayrDirHx6jk4wIAxJ2sqw4AAwlwYXJhZ3JhcGgHAMSdrKsOKgYGAMSdrKsOKwRib2xkAnt9hMSdrKsOLA/wn4yNIGdlbmVyYXRlZCCGxJ2sqw45BGJvbGQEbnVsbIbEnayrDjoGaXRhbGljAnt9hMSdrKsOOwrkurrwn4yN5Lq6hsSdrKsOPwZpdGFsaWMEbnVsbAHEnayrDgEXEw=="
+    ]
+  ]
+}

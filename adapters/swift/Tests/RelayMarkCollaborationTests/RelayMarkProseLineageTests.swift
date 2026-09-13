@@ -4,6 +4,41 @@ import Testing
 
 @MainActor
 struct RelayMarkProseLineageTests {
+    @Test("Placement candidates preserve exact local formatting references through atomic export and restart")
+    func placementBridgeRoundTrip() throws {
+        let baseline = try seed(), document = try RelayMarkCollaborationDocument(), operationID = UUID(), inverseID = UUID()
+        try document.applyUpdate(baseline.encodeUpdate())
+        let binding = RelayMarkCollaborationDocument.PlacementBinding(documentID: UUID(), incarnation: "one")
+        let updates = try document.editNativeFormatting(Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":6,"attributes":{"italic":{}}}"#.utf8), operationID: operationID)
+        let update = try document.mergeUpdates(updates)
+        let candidate = try document.prepareLocalPlacementReceipt(update: update, binding: binding)
+        #expect(candidate.receiptIDs == [operationID])
+        let unchanged = try document.exportHistoryState(scopeToken: "old")
+        #expect(unchanged.placementReceiptIDs.isEmpty)
+        let saved = try document.exportHistoryState(scopeToken: "cut1", placementCandidate: candidate)
+        #expect(saved.placementReceiptIDs == [operationID])
+        try document.commitPlacementReceipt(candidate)
+        let inverse = try document.undoWithEvidence(operationID: inverseID)
+        let inverseCandidate = try document.prepareLocalPlacementReceipt(update: document.mergeUpdates(inverse.updates), binding: binding)
+        let wire = try #require(JSONSerialization.jsonObject(with: inverseCandidate.bytes) as? [String: Any])
+        let state = try #require(wire["state"] as? [String: Any])
+        let rows = try #require(state["receipts"] as? [[String: Any]])
+        let last = try #require(rows.last?["receipt"] as? [String: Any])
+        let operation = try #require(last["operation"] as? [String: String])
+        #expect(operation["kind"] == "undo" && operation["reference"] == operationID.uuidString.lowercased())
+        let second = try document.exportHistoryState(scopeToken: "cut2", placementCandidate: inverseCandidate)
+        let restored = try RelayMarkCollaborationDocument(), pristine = try restored.encodeUpdate()
+        #expect(throws: (any Error).self) {
+            try restored.restoreHistorySnapshot(second.bytes, scopeToken: "cut2", transactionIDs: second.transactionIDs)
+        }
+        #expect(try restored.encodeUpdate() == pristine)
+        try restored.restoreHistorySnapshot(second.bytes, scopeToken: "cut2", transactionIDs: second.transactionIDs,
+            placementBinding: binding, placementReceiptIDs: second.placementReceiptIDs)
+        let reopened = try restored.exportHistoryState(scopeToken: "cut2")
+        #expect(reopened.placementReceiptIDs == [operationID, inverseID])
+        _ = try restored.redoWithEvidence(operationID: UUID())
+    }
+
     @Test("Host eligibility is read-only and conservative")
     func hostEligibility() throws {
         let document = try RelayMarkCollaborationDocument()
@@ -95,7 +130,7 @@ struct RelayMarkProseLineageTests {
         let paragraphs = try #require(snapshot["children"] as? [[String: Any]])
         let leaves = try #require(paragraphs[1]["children"] as? [[String: Any]])
         let delta = try #require(leaves.last?["delta"])
-        #expect(try encoded(delta) == canonical(Data(#"[{"insert":"🌍 generated ","attributes":{"bold":{}}},{"insert":"人🌍人","attributes":{"italic":{}}}]"#.utf8)))
+        #expect(try encoded(delta) == canonical(Data(#"[{"insert":"next "},{"insert":"🌍 generated ","attributes":{"bold":{}}},{"insert":"人🌍人","attributes":{"italic":{}}}]"#.utf8)))
         let reopened = try RelayMarkCollaborationDocument()
         try reopened.applyUpdate(checkpoint)
         for update in result.updates + result.updates { try reopened.applyUpdate(update) }
