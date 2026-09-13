@@ -231,4 +231,19 @@ struct RelayMarkAttributedHistoryTests {
         #expect(try writer.exportHistorySnapshot(scopeToken: replay.scopeToken) == before)
     }
 
+    @Test("Implicit attributed structural undo and redo preserve the original split")
+    func attributedStructuralHistory() throws {
+        let (document, _) = try freshOwners()
+        let plain = try canonical(document.snapshot())
+        let baseline = try document.createAttributionReplay(scopeToken: "structural", binding: .init(documentID: UUID(), incarnation: "one"))
+        let split = try document.replaceProseWithAttribution(start: 2, end: 2, text: "\n", operationID: UUID(), replay: baseline)
+        let splitSnapshot = try canonical(document.snapshot())
+        let undone = try document.undoWithAttributedEvidence(operationID: UUID(), replay: split.replay)
+        #expect(undone.evidence.kind == .prose)
+        #expect(try canonical(document.snapshot()) == plain)
+        let redone = try document.redoWithAttributedEvidence(operationID: UUID(), replay: undone.replay)
+        #expect(redone.evidence.kind == .prose)
+        #expect(try canonical(document.snapshot()) == splitSnapshot)
+    }
+
 }

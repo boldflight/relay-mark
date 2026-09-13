@@ -101,3 +101,45 @@ test('attributed prose typing, split, join and styled paste retain exact peer re
   replay=result
  }
 })
+test('implicit structural split undo and redo retain peer formatting and exact peer recipes',()=>{
+ const a=owner(),b=owner(),recipe=JSON.parse(fixture.replay_json)
+ a('apply',recipe.baseline);b('apply',recipe.baseline)
+ let replay=a('createAttributionReplay',{scope_token:fixture.expected.scope_token,binding:fixture.expected.binding})
+ const advance=(sender,peer,command,args)=>{
+  const result=sender(command,{...args,replay_json:replay.replay_json,expected:expected(replay)})
+  const received=peer('applyAttributionRecord',{record_json:result.record_json,replay_json:replay.replay_json,expected:expected(replay)})
+  assert.equal(received.replay_json,result.replay_json);assert.deepEqual(sender('snapshot'),peer('snapshot'))
+  replay=result;return result
+ }
+ advance(a,b,'replaceProseWithAttribution',{operation:{start:2,end:2,text:'\n',operation_id:'00000000-0000-4000-8000-000000000201'}})
+ advance(b,a,'nativeFormattingWithAttribution',{operation:{kind:'formatText',ranges:[{path:[0,0],index:0,length:2},{path:[1,0],index:0,length:3}],attributes:{bold:{}},operation_id:'00000000-0000-4000-8000-000000000202'}})
+ const split=a('snapshot')
+ const undone=advance(a,b,'undoWithAttributedEvidence',{operation_id:'00000000-0000-4000-8000-000000000203'})
+ assert.equal(undone.kind,'prose')
+ const redone=advance(a,b,'redoWithAttributedEvidence',{operation_id:'00000000-0000-4000-8000-000000000204'})
+ assert.equal(redone.kind,'prose');assert.deepEqual(a('snapshot'),split)
+})
+test('implicit attributed typing undo restores exact baseline',()=>{
+ const call=owner(),recipe=JSON.parse(fixture.replay_json)
+ call('apply',recipe.baseline)
+ const baseline=call('snapshot'),replay=call('createAttributionReplay',{scope_token:fixture.expected.scope_token,binding:fixture.expected.binding})
+ const forward=call('replaceProseWithAttribution',{operation:{start:1,end:1,text:'日本',operation_id:'00000000-0000-4000-8000-000000000211'},replay_json:replay.replay_json,expected:expected(replay)})
+ call('undoWithAttributedEvidence',{operation_id:'00000000-0000-4000-8000-000000000212',replay_json:forward.replay_json,expected:expected(forward)})
+ assert.deepEqual(call('snapshot'),baseline)
+})
+test('batch validates every record before live mutation and retains exact final recipe',()=>{
+ const recipe=JSON.parse(fixture.replay_json), call=owner()
+ call('apply',recipe.baseline)
+ const replay=call('createAttributionReplay',{scope_token:fixture.expected.scope_token,binding:fixture.expected.binding})
+ const records=recipe.steps.map(step=>JSON.stringify(step)), before=call('snapshot')
+ for(const candidate of [[records[0],'{"kind":"unknown","update":[0,0]}'],[records[0],records[0]],[records[1],records[0]]]){
+  assert.throws(()=>call('applyAttributionRecords',{records_json:candidate,replay_json:replay.replay_json,expected:expected(replay)}))
+  assert.deepEqual(call('snapshot'),before)
+  call('validateAttributionReplay',{replay_json:replay.replay_json,expected:expected(replay)})
+ }
+ const first=call('applyAttributionRecords',{records_json:records.slice(0,2),replay_json:replay.replay_json,expected:expected(replay)})
+ assert.equal(JSON.parse(first.replay_json).steps.length,2)
+ const final=records.length===2?first:call('applyAttributionRecords',{records_json:records.slice(2),replay_json:first.replay_json,expected:expected(first)})
+ assert.equal(final.replay_json,fixture.replay_json)
+ const visible=call('snapshot');call('undo');assert.deepEqual(call('snapshot'),visible)
+})

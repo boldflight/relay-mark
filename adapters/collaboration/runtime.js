@@ -7,7 +7,7 @@ import {formatAttributionCut} from './format-attribution-cut.js'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage, supportsProseLineage } from './prose-lineage.js'
-import { currentFormattingCandidate, prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, captureHistoryFormatEvent, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
+import { currentAttributedCandidate, prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, captureHistoryFormatEvent, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -196,27 +196,40 @@ function attributedProse(input) {
   if (placementUpdateHash(Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))) !== placementUpdateHash(update)) throw Error('Attributed prose update diverged')
   return {...result,...successor}
 }
-function applyAttributionRecord(input) {
-  if (!input || Object.keys(input).sort().join(',') !== 'expected,record_json,replay_json' ||
-      formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attribution record application')
+function applyAttributionRecords(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'expected,records_json,replay_json' ||
+      formattingCapture || historyCapture || lineageCapture || !Array.isArray(input.records_json) ||
+      !input.records_json.length || input.records_json.length > 16384) throw Error('Invalid attribution records application')
+  let total = 0
+  for (const json of input.records_json) {
+    if (typeof json !== 'string' || json.length > 64*1024*1024) throw Error('Invalid attribution record size')
+    total += new TextEncoder().encode(json).length
+    if (total > 64*1024*1024) throw Error('Attribution batch size limit')
+  }
   checkedAttributionReplay(input.replay_json, input.expected)
-  if (typeof input.record_json !== 'string' || input.record_json.length > 64*1024*1024) throw Error('Invalid attribution record size')
-  const record = JSON.parse(input.record_json)
-  // Reuse the exact compact codec contract; the host independently qualifies its row.
-  packAttributionRecord(input.record_json, record.update)
-  const update = Uint8Array.from(record.update), scratch = new Y.Doc({gc:false})
-  let successor
+  const scratch = new Y.Doc({gc:false}), updates = []
+  let successor = {replay_json:input.replay_json,replay_sha256:input.expected.replay_sha256,cut:input.expected.cut}
   try {
     Y.applyUpdate(scratch, Y.encodeStateAsUpdate(doc))
-    Y.applyUpdate(scratch, update, 'relay.remote')
-    const cut = formatAttributionCut(scratch)
-    successor = nextAttributionReplay(input.replay_json, record, cut)
-    replayFormatAttribution(successor.replay_json, {...input.expected,
-      replay_sha256:successor.replay_sha256, cut})
+    for (const json of input.records_json) {
+      const record = JSON.parse(json)
+      packAttributionRecord(json, record.update)
+      const update = Uint8Array.from(record.update)
+      Y.applyUpdate(scratch, update, 'relay.remote')
+      const cut = formatAttributionCut(scratch)
+      successor = nextAttributionReplay(successor.replay_json, record, cut)
+      replayFormatAttribution(successor.replay_json, {...input.expected,replay_sha256:successor.replay_sha256,cut})
+      updates.push(update)
+    }
   } finally { scratch.destroy() }
-  Y.applyUpdate(doc, update, 'relay.remote')
-  if (formatAttributionCut(doc) !== successor.cut) throw Error('Attributed record application diverged')
+  // Every record has been checked before the first live update.
+  for (const update of updates) Y.applyUpdate(doc, update, 'relay.remote')
+  if (formatAttributionCut(doc) !== successor.cut) throw Error('Attributed records application diverged')
   return successor
+}
+function applyAttributionRecord(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'expected,record_json,replay_json') throw Error('Invalid attribution record application')
+  return applyAttributionRecords({expected:input.expected,replay_json:input.replay_json,records_json:[input.record_json]})
 }
 function initialAttributionReplay(input) {
   if (!input || Object.keys(input).sort().join(',') !== 'binding,scope_token' ||
@@ -230,11 +243,33 @@ function initialAttributionReplay(input) {
   return {replay_json:replayJSON,replay_sha256:placementUpdateHash(encoded),cut:state.cut}
 }
 
+function attributedProseHistory(redo, input, reference) {
+  const prepared = prepareHistoryEvidence(doc, undo, redo, {operation_id:input.operation_id}, lineageKey)
+  if (prepared.kind !== 'prose' || prepared.reference !== reference) throw Error('Attributed prose history candidate was skipped')
+  const update = Y.mergeUpdates(prepared.expectedUpdates)
+  const record = {kind:'placement',update:Array.from(update),receipt:{version:1,
+    document_id:input.expected.binding.document_id,incarnation:input.expected.binding.incarnation,
+    operation_id:input.operation_id,update_sha256:placementUpdateHash(update),
+    operation:{kind:redo?'redo':'undo',reference},copies:prepared.lineage.copies},trust:'local'}
+  const scratch = new Y.Doc({gc:false}); let successor
+  try {
+    Y.applyUpdate(scratch, prepared.expectedState)
+    const cut = formatAttributionCut(scratch)
+    successor = nextAttributionReplay(input.replay_json, record, cut)
+    replayFormatAttribution(successor.replay_json,{...input.expected,replay_sha256:successor.replay_sha256,cut})
+  } finally { scratch.destroy() }
+  const result = history(redo, prepared)
+  if (placementUpdateHash(Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))) !== placementUpdateHash(update)) throw Error('Attributed prose history update diverged')
+  rememberPlacement(input.operation_id, redo?'redo':'undo', reference, prepared.lineage.copies, result.updates)
+  return {kind:'prose',updates:result.updates,insertedTextItems:prepared.insertedTextItems,lineage:prepared.lineage,formattingMark:null,...successor}
+}
 function attributedHistory(redo, input) {
   if (!input || !['expected,operation_id,reference_id,replay_json','expected,operation_id,replay_json'].includes(Object.keys(input).sort().join(',')) ||
       formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attributed history request')
   const restored = checkedAttributionReplay(input.replay_json, input.expected)
-  const referenceID = Object.hasOwn(input, 'reference_id') ? input.reference_id : currentFormattingCandidate(undo, redo, lineageKey)
+  const candidate = Object.hasOwn(input, 'reference_id') ? {reference:input.reference_id,kind:'formatting'} : currentAttributedCandidate(undo, redo, lineageKey)
+  if (candidate.kind === 'prose') return attributedProseHistory(redo, input, candidate.reference)
+  const referenceID = candidate.reference
   const resolver = createPlacementResolver(restored.placementState, input.expected.binding, restored.placementReceiptIDs)
   const plan = queryFormatInverse(restored.state, {operationID:referenceID, resolveSuccessor:resolver})
   const prepared = prepareHistoryEvidence(doc, undo, redo, {operation_id:input.operation_id}, lineageKey, plan)
@@ -653,6 +688,7 @@ export function call(command, input) {
       checkedAttributionReplay(input.replay_json, input.expected); return null
     }
     case 'replaceProseWithAttribution': return attributedProse(input)
+    case 'applyAttributionRecords': return applyAttributionRecords(input)
     case 'applyAttributionRecord': return applyAttributionRecord(input)
     case 'createAttributionReplay': return initialAttributionReplay(input)
     case 'nativeFormattingWithAttribution': return attributedNativeFormatting(input)

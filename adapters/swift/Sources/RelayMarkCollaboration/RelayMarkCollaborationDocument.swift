@@ -551,8 +551,8 @@ public final class RelayMarkCollaborationDocument {
         try attributedHistoryEvidence(redo: true, operationID: operationID, referenceID: referenceID, replay: replay)
     }
 
-    /// Conservative current-formatting dispatch. Unknown, prose, skipped or ineffective
-    /// tops refuse unchanged; this is not general actionable history selection.
+    /// Conservative current tracked prose/formatting dispatch. Unknown, skipped or
+    /// ineffective tops refuse unchanged; this is not general actionable history selection.
     public func undoWithAttributedEvidence(operationID: UUID, replay: AttributionReplay) throws -> AttributedHistoryResult {
         try attributedHistoryEvidence(redo: false, operationID: operationID, referenceID: nil, replay: replay)
     }
@@ -585,6 +585,22 @@ public final class RelayMarkCollaborationDocument {
         var input = try attributionInput(replay)
         input["record_json"] = try Self.attributionJSONString(record)
         let wire = try JSONDecoder().decode(AttributionWire.self, from: call("applyAttributionRecord", input: input))
+        return try decodeAttributionReplay(wire, scopeToken: replay.scopeToken, binding: replay.binding)
+    }
+
+    /// Preflights the entire nonempty ordered suffix before applying any live update.
+    /// The host qualifies every row and atomically persists the resulting owner metadata.
+    public func applyAttributionRecords(_ records: [Data], replay: AttributionReplay) throws -> AttributionReplay {
+        guard !records.isEmpty, records.count <= 16384 else { throw Failure.runtime("Invalid attribution batch") }
+        var total = 0
+        let strings = try records.map { bytes in
+            guard bytes.count <= 64 * 1024 * 1024 - total else { throw Failure.runtime("Attribution batch size limit") }
+            total += bytes.count
+            return try Self.attributionJSONString(bytes)
+        }
+        var input = try attributionInput(replay)
+        input["records_json"] = strings
+        let wire = try JSONDecoder().decode(AttributionWire.self, from: call("applyAttributionRecords", input: input))
         return try decodeAttributionReplay(wire, scopeToken: replay.scopeToken, binding: replay.binding)
     }
 

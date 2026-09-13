@@ -269,3 +269,22 @@ Structural attributed undo/redo remains separate; unsupported structures, mixed 
 ambiguous successor graphs and ineffective operations are not enabled by this wrapper.
 
 Native candidate/prose checkpoint: 133 JavaScript tests, 57 Swift tests/nine suites and contract validation passed. The matching actual native editor/recovery + owner-store gate passed 66 tests, including typed replacement/split, exact failed-save retries, peer-only refresh and disjoint formatting inverse preserving peer ownership. Exact source manifests and log hashes are embedded in `/private/tmp/relay-attributed-editor-checkpoint-20260914.json`. Structural attributed undo and app-session/network activation remain pending.
+
+### 2026-09-14: structural history and complete peer suffixes
+
+Implicit attributed history now selects supported tracked prose as well as formatting.
+It proves the actual performed reference on scratch, validates the successor placement
+recipe before live undo/redo, and compares the exact resulting update. Explicit-reference
+formatting dispatch stays compatible; skipped, unknown and ineffective history still
+refuses unchanged. Split undo/redo preserves peer formatting through the copy lineage.
+
+`applyAttributionRecords` validates the entire nonempty ordered suffix before any live
+update and returns one final replay for host metadata persistence. Invalid later rows,
+duplicates and out-of-order records refuse without partial application. This is integrity
+and semantic validation; the host still owns authorization and durable row qualification.
+
+Focused verification: 136 collaboration JavaScript tests, 16 Swift bridge/carrier tests,
+67 native editor/recovery/store tests, and portable contract check passed. Immutable
+local receipt: `/private/tmp/relay-structural-batch-checkpoint-20260914.json`. These tests
+do not establish app-session activation, authenticated remote evidence delivery, or
+cross-client acceptance. Publication and platform gates remain pending.
