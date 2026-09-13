@@ -416,3 +416,27 @@ Receipt: `/private/tmp/relay-attribution-schema-v20-v1-20260914/metadata-editor-
 This host candidate does not itself authorize storage, enable Session integration
 or establish negotiated network delivery. The collaboration runtime bundle is
 unchanged by this additive Swift type.
+
+
+### Blocking acceptance: independent concurrent inverses
+
+Run `node scripts/reproduce-concurrent-format-inverses.mjs`. This dedicated
+acceptance reproduction currently exits **1**, not a passing regression claim.
+Its captured fixture is `test/fixtures/concurrent-format-inverses.json`. Both
+owners observed A applying bold and B clearing it, then undid independently. A
+authored a metadata-only undo; B authored an effective undo restoring bold.
+
+A-first rejects B with `Ineffective inverse attribution`; B-first rejects A with
+`Effective inverse cannot be a no-effect disposition`. Rejection preserves each
+receiver's bytes, but one operation remains unaccepted and the visible result
+depends on arrival order. Both contributions undone must converge to plain Hello.
+The existing ordered five-operation fixture does not establish this concurrency
+property. This is a blocker for offline multiplayer activation.
+
+The next protocol step must bind each immutable original candidate to its observed
+receipt basis, validate intent there, then reconcile its effect against current
+contribution state. Metadata history requires an operation basis in addition to a
+Yjs state vector, since it advances without changing document bytes. Corrective
+updates must be separately identified and linked, never substituted into the
+original candidate or counted as a fresh human contribution. The strict current
+replay APIs must not be silently relaxed to accept visibly inconsistent state.
