@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import * as Y from 'yjs'
+import { placementUpdateHash } from '../adapters/collaboration/placement-lineage.js'
 import { captureTextItems, resolveTextItems } from '../adapters/collaboration/text-items.js'
 
 const bundle = readFileSync(new URL('../adapters/swift/Sources/RelayMarkCollaboration/Resources/yjs-runtime.js', import.meta.url), 'utf8')
@@ -47,8 +48,8 @@ test('middle split copies mixed-origin marked Unicode tail by identity, retains 
   assert.deepEqual(result.lineage.copies[0].source, tail)
   assert.equal(selected(doc, result.lineage.copies[0].destination), '🌍 generated 人🌍人')
   assert.notDeepEqual(result.lineage.copies[0].source, result.lineage.copies[0].destination)
-  const copied = doc.getXmlFragment('default').get(1).get(1)
-  assert.deepEqual(copied.toDelta(), [{ insert: '🌍 generated ', attributes: { bold: {} } },
+  const copied = doc.getXmlFragment('default').get(1).get(0)
+  assert.deepEqual(copied.toDelta(), [{ insert: 'next ' }, { insert: '🌍 generated ', attributes: { bold: {} } },
     { insert: '人🌍人', attributes: { italic: {} } }])
   assert.deepEqual(Object.keys(result.lineage.operation).sort(), ['end_anchor', 'inserted_attributes', 'inserted_text', 'kind', 'start_anchor'])
   doc.destroy(); original.destroy()
@@ -552,4 +553,65 @@ test('read-only host eligibility shares structure checks and conservatively rest
   const paragraph = runtime(empty)
   assert.equal(paragraph('supportsProseLineage'), true)
   empty.destroy()
+})
+
+
+test('raw peer split undo does not invent formatting ancestry for restored text', () => {
+  const seed = new Y.Doc(), p = new Y.XmlElement('paragraph'), t = new Y.XmlText()
+  p.insert(0, [t]); seed.getXmlFragment('default').insert(0, [p]); t.insert(0, 'Hello')
+  let a = runtime(seed), b = runtime(seed)
+  const split = a('replaceProseWithLineage', {start: 2, end: 2, text: '\n', operation_id: operationID(190)})
+  for (const u of split.updates) b('apply', u)
+  const append = b('replaceProseWithLineage', {start: 6, end: 6, text: ' B', operation_id: operationID(191)})
+  for (const u of append.updates) a('apply', u)
+  for (const u of b('nativeFormatting', {kind:'formatText', ranges:[{path:[0,0],index:0,length:2},{path:[1,0],index:0,length:5}],attributes:{bold:{}},operation_id:operationID(192)})) a('apply',u)
+  for (const u of b('undoWithEvidence',{operation_id:operationID(193)}).updates) a('apply',u)
+  for (const u of b('redoWithEvidence',{operation_id:operationID(194)}).updates) a('apply',u)
+  const sa=a('exportHistorySnapshot',{scope_token:'a'}), sb=b('exportHistorySnapshot',{scope_token:'b'})
+  const empty = new Y.Doc(); a=runtime(empty);b=runtime(empty)
+  a('restoreHistorySnapshot',{snapshot:sa,scope_token:'a',transaction_ids:[operationID(190)]})
+  b('restoreHistorySnapshot',{snapshot:sb,scope_token:'b',transaction_ids:[191,192,193,194].map(operationID)})
+  const peer=new Y.Doc(); Y.applyUpdate(peer,Uint8Array.from(a('state'))); const vector=Y.encodeStateVector(peer)
+  peer.getXmlFragment('default').get(0).get(0).insert(0,'Peer ')
+  const remote=[...Y.encodeStateAsUpdate(peer,vector)];a('apply',remote);b('apply',remote)
+  for(const u of a('undoWithEvidence',{operation_id:operationID(195)}).updates)b('apply',u)
+  const undone=b('undoWithEvidence',{operation_id:operationID(196)})
+  assert.equal(undone.kind,'formatting')
+  for(const u of undone.updates)a('apply',u)
+  const da=new Y.Doc(), db=new Y.Doc(); Y.applyUpdate(da,Uint8Array.from(a('state')));Y.applyUpdate(db,Uint8Array.from(b('state')))
+  assert.deepEqual(Y.encodeStateAsUpdate(da),Y.encodeStateAsUpdate(db))
+  // Raw Yjs delivery carries no source-to-copy lineage. Only surviving selected
+  // IDs may change; this documents the live ancestry gap, not complete undo parity.
+  assert.deepEqual(db.getXmlFragment('default').toArray().map(p=>p.toArray().map(t=>t.toDelta())),
+    [[[{insert:'Peer He'},{insert:'llo',attributes:{bold:{}}}]],[[{insert:' B'}]]])
+  da.destroy();db.destroy()
+  seed.destroy();empty.destroy();peer.destroy()
+})
+
+
+test('local placement candidates pair exact emitted operations and persist before graph commit', () => {
+  const original=seed(),call=runtime(original),op=operationID(210)
+  const forward=call('replaceProseWithLineage',{start:7,end:7,text:'\n',operation_id:op})
+  const update=Array.from(Y.mergeUpdates(forward.updates.map(u=>Uint8Array.from(u))))
+  const binding={document_id:operationID(211),incarnation:'one'}
+  const receipt={version:1,...binding,operation_id:op,update_sha256:placementUpdateHash(Uint8Array.from(update)),
+    operation:{kind:'replace_prose',reference:null},copies:forward.lineage.copies}
+  assert.throws(()=>call('preparePlacementReceipt',{expected_binding:binding,trust:'local',update,receipt:{...receipt,copies:[]}}))
+  const candidate=call('preparePlacementReceipt',{expected_binding:binding,trust:'local',update,receipt})
+  assert.equal(call('exportHistorySnapshot',{scope_token:'old'}).placement,undefined)
+  const persisted=call('exportHistorySnapshot',{scope_token:'new',placement_candidate:candidate})
+  assert.equal(persisted.placement.receipts.length,1)
+  // A failed host save simply discards this candidate; graph is still behind it.
+  assert.equal(call('exportHistorySnapshot',{scope_token:'old'}).placement,undefined)
+  const sorted=JSON.parse(JSON.stringify(candidate,function(k,v){return v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(n=>[n,v[n]])):v}))
+  call('commitPlacementReceipt',sorted)
+  assert.equal(call('exportHistorySnapshot',{scope_token:'new'}).placement.receipts.length,1)
+  assert.throws(()=>call('commitPlacementReceipt',candidate))
+  const pristine=new Y.Doc(), restored=runtime(pristine), before=restored('state')
+  assert.throws(()=>restored('restoreHistorySnapshot',{snapshot:persisted,scope_token:'new',transaction_ids:[op]}))
+  assert.deepEqual(restored('state'),before)
+  restored('restoreHistorySnapshot',{snapshot:persisted,scope_token:'new',transaction_ids:[op],
+    expected_placement_binding:binding,placement_receipt_ids:[op]})
+  assert.deepEqual(restored('exportHistorySnapshot',{scope_token:'new'}).placement,persisted.placement)
+  original.destroy();pristine.destroy()
 })

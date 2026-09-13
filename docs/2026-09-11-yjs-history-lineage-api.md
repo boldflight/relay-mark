@@ -212,3 +212,88 @@ a retained history stack when a later remote shape becomes ineligible.
 
 Eligibility verification: 29 focused JavaScript tests and all eight Swift prose
 lineage bridge tests passed with the matching bundle on September 13, 2026.
+
+## Proposed trusted placement receipt input (September 13)
+
+This is a generic edit-history boundary, not human-source classification. The host
+must authenticate the receipt and atomically pair its retention with the exact
+update and history snapshot. Mark validates shape, identity and graph consistency;
+it does not turn a caller assertion into server authorization.
+
+```json
+{
+  "version": 1,
+  "document_id": "canonical-lowercase-uuid",
+  "incarnation": "opaque-nonempty-string",
+  "update_sha256": "64-lowercase-hex",
+  "operation_id": "canonical-lowercase-uuid",
+  "operation": {"kind": "replace_prose", "reference": null},
+  "copies": [{"source": {"version": 1, "runs": []}, "destination": {"version": 1, "runs": []}}]
+}
+```
+
+`kind` is `replace_prose`, `format`, `undo`, or `redo`. Forward kinds require a
+null reference; inverse kinds require the exact prior operation UUID. Format
+receipts have no copies. Copy selections use the existing version-one item/type
+identity runs, with equal ordered unit counts and no overlap or text inference.
+The host passes expected document/incarnation separately. Local receipts use the
+same shape after a successful exact operation; this initial API records evidence
+only and does not send or authorize it.
+
+The core keeps immutable receipts keyed by operation UUID. Identical replay is a
+no-op; a changed payload/hash, unknown inverse reference, mismatched binding,
+cycle, or competing successor refuses before changing graph state. A forward
+copy records source-to-destination succession. An inverse's actual source-to-new
+copy is paired through its referenced receipt to derive prior-placement-to-new
+placement edges; it must not form an undirected equivalence class. Old simple
+history remains unchanged and no formatting target remapping is activated here.
+
+Bounds: 16,384 receipts, 4,096 copy pairs/runs per receipt, 131,072 total retained
+unit edges, 256 UTF-8 bytes for incarnation, and the existing 64 MiB snapshot
+ceiling. No automatic eviction. Snapshot retention includes the exact binding and
+receipt list; restore recomputes and validates the graph and checks the host's
+receipt allowlist before installing it. Legacy snapshots without this optional
+extension retain their previous meaning. A separate trusted evidence allowlist is
+required for peer receipts; it must not widen the owner's local undo whitelist.
+
+The provisional JavaScript implementation uses immutable
+`preparePlacementReceipt(state, {expected_binding, trust, update, receipt})` and
+`restorePlacementState(snapshot, expected_binding, receiptIDs)`. Exact update
+bytes are SHA-256 checked with lib0. `trust` is explicitly `local` or `server`;
+this value is an assertion by the authenticated host, not network verification.
+At the bundled runtime boundary, `local` must additionally match the last actual
+operation's UUID, kind/reference, copies and merged update hash. Server receipts
+remain subject to caller authorization. Receipt replay retains its original
+trust label and never silently upgrades local evidence to server acceptance.
+
+The runtime's `preparePlacementReceipt` returns
+`{version:1, base_sha256, state}` and holds it as an uncommitted candidate.
+`exportHistorySnapshot({scope_token, placement_candidate})` can include that
+candidate for the host's atomic store append. Only after the save succeeds does
+`commitPlacementReceipt(candidate)` advance the graph, checking the exact held
+candidate and unchanged graph base. A failed append therefore does not advance
+live graph state. The host must also enforce its existing document cut/ownership
+fence; the graph CAS is not a replacement for database transaction ownership.
+
+Snapshots with graph state add optional `placement`. Their restore additionally
+requires `expected_placement_binding` and `placement_receipt_ids`; graph validation
+finishes before the existing pristine document restore begins. Old snapshots and
+restore calls remain unchanged. Graph units are bounded across all retained
+receipts, and conflicting item/type identity declarations refuse. This core does
+not yet supply remote receipt transport, marker attribution, or format remapping.
+
+Checkpoint/compaction admission is a separate pending pathway. The exact-live
+API deliberately rejects absent update bytes, including for server trust. Existing
+graph snapshot restoration needs no original update bytes, but only restores
+already retained receipts; it is not authenticated server backfill admission.
+A future `prepareCheckpointPlacement` must take expected document/incarnation,
+the exact checkpoint bytes and independently host-verified checkpoint digest,
+and a host-verified operation-ID-to-canonical-receipt-hash allowlist covering the
+server sidecars. It may then validate/rebuild a candidate graph without expired
+raw updates. Mere receipt IDs or caller-provided update hashes do not establish
+checkpoint coverage. This must not reuse or weaken the runtime-proven local path.
+
+Current placement succession deliberately refuses concurrent competing successors
+from the same source; it does not claim general concurrent structural acceptance.
+Identity clients use the shared JavaScript-safe integer bound; clocks remain
+UInt32. The 4,096-run cap applies in aggregate across all copies on each side.

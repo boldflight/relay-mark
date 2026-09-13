@@ -1,3 +1,4 @@
+import { createPlacementState, preparePlacementReceipt, restorePlacementState, placementUpdateHash } from './placement-lineage.js'
 import * as Y from 'yjs'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
@@ -66,6 +67,30 @@ const localOrigin = 'relay.local.editor'
 const undo = new Y.UndoManager(root, { trackedOrigins: new Set([localOrigin]), captureTimeout: 0, deleteFilter: preserveHistoryDescendants })
 const formattingKey = Symbol('relay.native.formatting')
 const lineageKey = Symbol('relay.native.lineage')
+// Host persists a candidate before commit; graph never advances on a failed save.
+let placementState = null, placementCandidate = null, lastPlacementOperation = null
+const placementJSON = value => JSON.stringify(value, function (key, item) {
+  return item && typeof item === 'object' && !Array.isArray(item)
+    ? Object.fromEntries(Object.keys(item).sort().map(name => [name,item[name]])) : item
+})
+const placementBase = () => placementUpdateHash(new TextEncoder().encode(placementJSON(placementState)))
+function rememberPlacement(operationID, kind, reference, copies, updates) {
+  if (!operationID || !updates.length) { lastPlacementOperation = null; return }
+  lastPlacementOperation = JSON.parse(JSON.stringify({ operation_id: operationID, operation: {kind, reference}, copies,
+    update_sha256: placementUpdateHash(Y.mergeUpdates(updates.map(u => Uint8Array.from(u)))) }))
+}
+function placementExport(input) {
+  if (!input || Object.keys(input).some(k => !['scope_token','placement_candidate'].includes(k))) throw Error('Invalid placement export')
+  const snapshot = exportHistorySnapshot(doc, undo, {scope_token:input.scope_token}, lineageKey)
+  let state = placementState
+  if (input.placement_candidate !== undefined) {
+    if (!placementCandidate || placementJSON(input.placement_candidate) !== placementJSON(placementCandidate) || placementCandidate.base_sha256 !== placementBase()) throw Error('Stale placement candidate')
+    state = placementCandidate.state
+  }
+  if (state) snapshot.placement = JSON.parse(JSON.stringify(state))
+  if (new TextEncoder().encode(JSON.stringify(snapshot)).length > 64*1024*1024) throw Error('History snapshot limit')
+  return snapshot
+}
 let lineageCapture = null
 let formattingCapture = null
 let historyCapture = null
@@ -152,6 +177,7 @@ function nativeFormatting(operation) {
   localUpdates = []
   try {
     doc.transact(() => { for (const command of commands) edit(command) }, localOrigin)
+    rememberPlacement(operation.operation_id, 'format', null, [], localUpdates)
     return localUpdates
   } finally { formattingCapture = null; lineageCapture = null; undo.stopCapturing() }
 }
@@ -409,13 +435,35 @@ export function call(command, input) {
       }
       return { hasPendingStructs: doc.store.pendingStructs !== null, hasPendingDeletes: doc.store.pendingDs !== null }
     }
+    case 'preparePlacementReceipt': {
+      if (input?.trust === 'local') {
+        const r=input.receipt, proof=lastPlacementOperation
+        if (!proof || r?.operation_id !== proof.operation_id || r?.update_sha256 !== proof.update_sha256 ||
+            placementJSON(r?.operation) !== placementJSON(proof.operation) || placementJSON(r?.copies) !== placementJSON(proof.copies)) throw Error('Local placement receipt is not runtime-proven')
+      }
+      const state=preparePlacementReceipt(placementState || createPlacementState(input.expected_binding),input)
+      placementCandidate={version:1,base_sha256:placementBase(),state}
+      return JSON.parse(JSON.stringify(placementCandidate))
+    }
+    case 'commitPlacementReceipt': {
+      if (!placementCandidate || placementJSON(input)!==placementJSON(placementCandidate) || input.base_sha256!==placementBase()) throw Error('Stale placement candidate')
+      placementState=JSON.parse(JSON.stringify(placementCandidate.state));placementCandidate=null;return null
+    }
     case 'exportHistorySnapshot':
       if (formattingCapture || historyCapture || lineageCapture) throw Error('History operation is active')
-      return exportHistorySnapshot(doc, undo, input, lineageKey)
+      return placementExport(input)
     case 'restoreHistorySnapshot': {
       if (formattingCapture || historyCapture || lineageCapture || awareness.getStates().size ||
           awarenessOrigins.size || awarenessUpdates.length) throw Error('History restore requires an inactive host')
-      restoreHistorySnapshot(doc, undo, input, lineageKey)
+      let restoredPlacement=null
+      if (input.snapshot?.placement !== undefined) {
+        restoredPlacement=restorePlacementState(input.snapshot.placement,input.expected_placement_binding,input.placement_receipt_ids)
+      } else if (input.expected_placement_binding !== undefined || input.placement_receipt_ids !== undefined) throw Error('Unexpected placement restore expectation')
+      const {placement,...snapshot}=input.snapshot
+      const allowed=['snapshot','scope_token','transaction_ids',...(placement ? ['expected_placement_binding','placement_receipt_ids'] : [])]
+      if (Object.keys(input).some(k=>!allowed.includes(k))) throw Error('Invalid placement restore fields')
+      restoreHistorySnapshot(doc, undo, {snapshot,scope_token:input.scope_token,transaction_ids:input.transaction_ids}, lineageKey)
+      placementState=restoredPlacement;placementCandidate=null;lastPlacementOperation=null
       // Historical item IDs stay in the snapshot, but this owner keeps a fresh
       // session ID. Align awareness if Yjs rotated a colliding pristine ID.
       awareness.clientID = doc.clientID; awareness.meta.clear()
@@ -440,6 +488,7 @@ export function call(command, input) {
       if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
         throw Error('Prose lineage execution diverged from preflight')
       }
+      rememberPlacement(input.operation_id, 'replace_prose', null, prepared.lineage.copies, localUpdates)
       return { updates: localUpdates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
     }
     case 'edit': localUpdates = []; edit(input); return localUpdates
@@ -454,6 +503,7 @@ export function call(command, input) {
       const redo = command === 'redoWithEvidence'
       const prepared = prepareHistoryEvidence(doc, undo, redo, input, lineageKey)
       const result = history(redo, prepared)
+      rememberPlacement(input.operation_id, redo ? 'redo' : 'undo', prepared.reference, prepared.lineage.copies, result.updates)
       return { kind: prepared.kind, updates: result.updates, insertedTextItems: prepared.insertedTextItems,
         lineage: prepared.kind === 'prose' ? prepared.lineage : null, formattingMark: result.formattingMark }
     }
@@ -463,6 +513,7 @@ export function call(command, input) {
       const redo = command === 'redoWithLineage'
       const prepared = prepareHistoryLineage(doc, undo, redo, input, lineageKey)
       const result = history(redo, prepared)
+      rememberPlacement(input.operation_id, redo ? 'redo' : 'undo', prepared.reference, prepared.lineage.copies, result.updates)
       return { updates: result.updates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
     }
     case 'undo': return history(false).updates
@@ -473,7 +524,9 @@ export function call(command, input) {
       if (input === null) return history(redo)
       if (formattingCapture || historyCapture || lineageCapture) throw Error('Nested history evidence')
       const prepared = prepareHistoryLineage(doc, undo, redo, input, lineageKey, true)
-      return history(redo, prepared)
+      const result=history(redo,prepared)
+      rememberPlacement(input.operation_id,redo ? 'redo' : 'undo',prepared.reference,prepared.lineage.copies,result.updates)
+      return result
     }
     case 'anchor': {
       const target = at(input.path)
