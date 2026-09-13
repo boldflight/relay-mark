@@ -178,4 +178,28 @@ struct RelayMarkAttributedHistoryTests {
         #expect(try document.exportHistorySnapshot(scopeToken: replay.scopeToken) == before)
     }
 
+    @Test("Ordered peer records advance exact replay without capturing local history")
+    func peerRecordApplication() throws {
+        let (writer, peer) = try freshOwners()
+        let baseline = try writer.createAttributionReplay(scopeToken: "peer-record", binding: .init(documentID: UUID(), incarnation: "one"))
+        let firstID = UUID()
+        let first = try writer.editNativeFormattingWithAttribution(Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":5,"attributes":{"bold":{}}}"#.utf8), operationID: firstID, replay: baseline)
+        try peer.validateAttributionReplay(baseline)
+        let received = try peer.applyAttributionRecord(first.record, replay: baseline)
+        #expect(received.bytes == first.replay.bytes)
+        let snapshot = try peer.exportHistorySnapshot(scopeToken: baseline.scopeToken)
+        #expect(throws: (any Error).self) { try peer.applyAttributionRecord(first.record, replay: received) }
+        #expect(try peer.exportHistorySnapshot(scopeToken: baseline.scopeToken) == snapshot)
+        let emptyHistory = try peer.exportHistoryState(scopeToken: baseline.scopeToken)
+        #expect(emptyHistory.transactionIDs.isEmpty)
+        let inverse = try writer.undoWithAttributedEvidence(operationID: UUID(), referenceID: firstID, replay: first.replay)
+        let finalReplay = try peer.applyAttributionRecord(inverse.record, replay: received)
+        #expect(finalReplay.bytes == inverse.replay.bytes)
+        #expect(try canonical(peer.snapshot()) == canonical(writer.snapshot()))
+        let saved = try peer.exportHistoryState(scopeToken: baseline.scopeToken)
+        let restored = try RelayMarkCollaborationDocument()
+        try restored.restoreHistorySnapshot(saved.bytes, scopeToken: baseline.scopeToken, transactionIDs: saved.transactionIDs)
+        try restored.validateAttributionReplay(finalReplay)
+    }
+
 }

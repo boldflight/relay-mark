@@ -531,6 +531,22 @@ public final class RelayMarkCollaborationDocument {
             replay: try decodeAttributionReplay(wire, scopeToken: replay.scopeToken, binding: replay.binding))
     }
 
+    /// Read-only full replay validation against this document and independently saved assertions.
+    public func validateAttributionReplay(_ replay: AttributionReplay) throws {
+        _ = try call("validateAttributionReplay", input: attributionInput(replay))
+    }
+
+    /// Validates the entire successor recipe before applying one ordered peer update,
+    /// using remote origin so it does not create a local undo item. The host must first
+    /// authenticate the exact record through its qualified row/codec and persist the
+    /// returned replay with the owner snapshot atomically. This does not authorize a peer.
+    public func applyAttributionRecord(_ record: Data, replay: AttributionReplay) throws -> AttributionReplay {
+        var input = try attributionInput(replay)
+        input["record_json"] = try Self.attributionJSONString(record)
+        let wire = try JSONDecoder().decode(AttributionWire.self, from: call("applyAttributionRecord", input: input))
+        return try decodeAttributionReplay(wire, scopeToken: replay.scopeToken, binding: replay.binding)
+    }
+
     private func attributionInput(_ replay: AttributionReplay) throws -> [String: Any] {
         guard let json = String(data: replay.bytes, encoding: .utf8) else {
             throw Failure.runtime("Invalid attributed history replay UTF-8")

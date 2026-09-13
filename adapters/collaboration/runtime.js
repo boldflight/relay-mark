@@ -162,6 +162,28 @@ function nextAttributionReplay(replayJSON, record, cut) {
   if (encoded.length > 64*1024*1024) throw Error('Attribution replay byte limit')
   return {replay_json:json, replay_sha256:placementUpdateHash(encoded), cut, record_json:JSON.stringify(record)}
 }
+function applyAttributionRecord(input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'expected,record_json,replay_json' ||
+      formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attribution record application')
+  checkedAttributionReplay(input.replay_json, input.expected)
+  if (typeof input.record_json !== 'string' || input.record_json.length > 64*1024*1024) throw Error('Invalid attribution record size')
+  const record = JSON.parse(input.record_json)
+  // Reuse the exact compact codec contract; the host independently qualifies its row.
+  packAttributionRecord(input.record_json, record.update)
+  const update = Uint8Array.from(record.update), scratch = new Y.Doc({gc:false})
+  let successor
+  try {
+    Y.applyUpdate(scratch, Y.encodeStateAsUpdate(doc))
+    Y.applyUpdate(scratch, update, 'relay.remote')
+    const cut = formatAttributionCut(scratch)
+    successor = nextAttributionReplay(input.replay_json, record, cut)
+    replayFormatAttribution(successor.replay_json, {...input.expected,
+      replay_sha256:successor.replay_sha256, cut})
+  } finally { scratch.destroy() }
+  Y.applyUpdate(doc, update, 'relay.remote')
+  if (formatAttributionCut(doc) !== successor.cut) throw Error('Attributed record application diverged')
+  return successor
+}
 function initialAttributionReplay(input) {
   if (!input || Object.keys(input).sort().join(',') !== 'binding,scope_token' ||
       typeof input.scope_token !== 'string' || !input.scope_token.length || new TextEncoder().encode(input.scope_token).length > 2048 ||
@@ -600,6 +622,11 @@ export function call(command, input) {
       if (!input || Object.keys(input).sort().join(',') !== 'expected,sidecar_json,update') throw Error('Invalid attribution unpack request')
       return {record_json:unpackAttributionRecord(input.sidecar_json,input.update,input.expected)}
     }
+    case 'validateAttributionReplay': {
+      if (!input || Object.keys(input).sort().join(',') !== 'expected,replay_json') throw Error('Invalid attribution validation request')
+      checkedAttributionReplay(input.replay_json, input.expected); return null
+    }
+    case 'applyAttributionRecord': return applyAttributionRecord(input)
     case 'createAttributionReplay': return initialAttributionReplay(input)
     case 'nativeFormattingWithAttribution': return attributedNativeFormatting(input)
     case 'nativeFormatting': return nativeFormatting(input)

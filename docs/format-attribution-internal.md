@@ -219,3 +219,30 @@ The source codec and packaged Elixir module are byte-identical, SHA-256
 `e6abdf9cedd8abc15b4233ca12ac0e725a72afd16a1a0ec66c95cc9526850b93`.
 The generated Swift runtime resource is SHA-256
 `7036a7b7d682f65d0eeb0c4a6d48fb5d5778ca5b373fd68611af432d7f105b82`.
+
+## September 14 ordered peer-record bridge
+
+`validateAttributionReplay` checks the exact recipe and independently retained
+scope/binding/digest/cut against the current document without editing it.
+`applyAttributionRecord` accepts one compact runtime record, checks its update
+binding through the codec, validates the old recipe/current cut, and preflights the
+entire successor recipe on scratch state before applying the update with the same
+remote origin as ordinary hydration. It returns exact successor JSON/digest/cut;
+it does not capture a new local undo item. Duplicate, unknown, incomplete or
+out-of-order evidence refuses before live application. Baseline and prior steps
+remain in the recipe.
+
+The host must qualify the row and sidecar independently, deliver contiguous mixed
+journal order, and atomically save the returned replay and owner snapshot. These
+commands do not authenticate peers, recover missing owner operations or persist
+anything themselves. Restore owner snapshots into a pristine runtime; applying raw
+suffix updates first deliberately makes the old replay stale.
+
+Focused actual JavaScript evidence passed two tests in
+`/private/tmp/relay-attribution-application-js-v2-20260914.log`: exact fixture replay
+reconstruction, no local undo capture, restored owner undo, and refusal controls.
+The initial test attempted snapshot restoration on a populated runtime and correctly
+refused; v2 uses the required pristine owner. The additive Swift test is prepared
+but has not yet been compiled at this source checkpoint. No host activation claim.
+
+Validated application checkpoint: 129 collaboration JavaScript tests, 54 Swift tests across nine suites and contract validation passed. Logs and exact source manifests are retained in `/private/tmp/relay-owned-attribution-checkpoint-20260914.json`. The matching Swift host component gate passed 50 tests, plus a three-test assertion follow-up, including real two-owner peer formatting, disk restart and atomic proposal/history/replay save. This is not app-session activation, server authorization or concurrent network acceptance.
