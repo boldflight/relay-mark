@@ -372,3 +372,38 @@ re-capture from expired updates or mark values. Yrs currently exposes update
 insertion/deletion sets but keeps block content traversal crate-private. A bounded
 read-only format-event API in Yrs/Yex is needed to validate and retain this exact
 sidecar at acceptance. No format remapping or transport activation is included.
+
+## 2026-09-14 generic format witness checkpoint
+
+The isolated Yrs worktree `/Users/douglas/Developer/y-crdt-worktrees/format-event-witness`
+contains tested commit `cf0c57f75f8591f33450f67ef21cae7fdb9cc36c`.
+`FormatEvent::inspect` observes an exact format-only update against settled UTF-16
+prestate without mutating the caller. Four focused Rust tests pass, including
+actual Yjs 13.6.32 `{}`/null add/remove/ABA parity for inserted, deleted and
+effective marker identities, and refusal beneath deleted XML ancestors.
+
+The Yex wrapper and two passing focused tests remain **uncommitted** in
+`/Users/douglas/Developer/y-ex-worktrees/format-event-witness` at base `a312e0c`.
+Its committed dependency pin is unchanged. Only the isolated verification fixture
+`/private/tmp/relay-format-witness-yex-v1-20260913` points to local tested Yrs source.
+Before a reproducible Yex checkpoint, make the exact Yrs commit remotely available
+under separately authorized publishing, update the dependency pin, and verify
+normal resolution. Nothing was pushed during this checkpoint.
+
+The exact source hashes and logs are recorded in
+`/private/tmp/relay-format-witness-checkpoint-20260914.json`.
+Rust log: `/private/tmp/relay-format-witness-rust-v2-20260913.log`.
+Yex log: `/private/tmp/relay-format-witness-yex-v3-20260913.log`.
+The shared actual-JS fixture is tracked in Yrs and prepared in Yex; no human-source
+classification or server authorization is inferred by the generic API.
+
+Limits remain explicit: checkpoint size is checked after encoding, and encoding
+and scratch replay cost scale with document size outside the traversal budget.
+Merged/GC events with lost marker content and updates that also clean up a different
+attribute refuse. A format boundary reset can change an outside unit's effective
+marker identity without changing its value; selected target IDs remain the intent
+scope, so an outside reset alone must not invalidate another user's formatting.
+A dedicated boundary-reset regression is still needed before remapping activation.
+A future domain format-event capability/version must be negotiated separately;
+this does not broaden `prose_lineage_v1`. Trusted acceptance/compaction witnesses,
+paired host persistence and selective remapping are still unactivated.
