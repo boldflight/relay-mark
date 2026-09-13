@@ -307,3 +307,32 @@ portable contract check passed. The factory tests exercise two caller-owned cont
 paired prose/history/format replay, duplicate ownership refusal, and cleanup/reuse.
 Exact source/log hashes are in `/private/tmp/relay-shared-runtime-checkpoint-20260914.json`.
 This extraction alone does not wire TipTap persistence or activate network evidence.
+
+
+### 2026-09-14: restored typed identities and canonical history updates
+
+A verified structural inverse may restore an exact retired typed or baseline
+identity. Copy attribution now obtains its tokens from that retained identity;
+unknown sources, ambiguous mappings, existing destinations, or mismatching
+characters/attributes still refuse. Effective copies remain issued placement
+ancestry, never inferred from text equality.
+
+Structural undo also performs Yjs's existing contextless formatting cleanup on
+its affected deleted text items inside the existing history transaction. Without
+this, local undo retained a redundant marker that remote integration deleted,
+so the emitted bytes could not replay to the strict expected cut. The pinned,
+source-hash-checked Yjs hook exports that existing implementation under an internal
+Relay name; no copied cleanup algorithm or relaxed cut comparison is used.
+Missing cleanup support fails owner setup or history preflight.
+
+The actual two-owner regression inserts Japanese text and a paragraph split,
+applies peer bold to the inserted text, undoes and redoes the insertion, then
+selectively undoes the peer formatting. Every step checks independent replay and
+its exact cut. Selected baseline deletion/undo is covered too. All 142 collaboration
+JavaScript tests, the hook test, 58 Swift bridge tests and the portable contract
+check passed. Evidence: `/private/tmp/relay-history-contextless-js-v1-20260914.log`,
+`/private/tmp/relay-history-contextless-hook-v1-20260914.log`, and
+`/private/tmp/relay-history-cleanup-swift-20260914.log`. Adapter artifacts were rebuilt
+through the canonical script. This remains branch-level evidence; authenticated
+server transport, compaction/checkpoint migration and final publication gates are
+not established by these tests.

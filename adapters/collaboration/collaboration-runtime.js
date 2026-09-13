@@ -21,7 +21,7 @@ const doc = supplied ? options.doc : new Y.Doc()
 const root = supplied ? options.root || doc?.getXmlFragment('default') : doc.getXmlFragment('default')
 const localOrigin = supplied ? options.localOrigin : 'relay.local.editor'
 const undo = supplied ? options.manager : new Y.UndoManager(root, { trackedOrigins: new Set([localOrigin]), captureTimeout: 0, deleteFilter: preserveHistoryDescendants })
-if (!(doc instanceof Y.Doc) || root !== doc.getXmlFragment('default') || undo?.doc !== doc ||
+if (typeof Y.relayCleanupContextlessFormattingGap !== 'function' || !(doc instanceof Y.Doc) || root !== doc.getXmlFragment('default') || undo?.doc !== doc ||
     undo.scope.length !== 1 || undo.scope[0] !== root || undo.captureTimeout !== 0 ||
     undo.undoStack.length || undo.redoStack.length || undo.currStackItem !== null || undo.undoing || undo.redoing ||
     undo.relayHistoryTransactionHookVersion !== 1 || undo.beforeHistoryTransactionCommit !== null || undo.beforeHistoryItemSkip != null ||

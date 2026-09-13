@@ -376,7 +376,7 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey, formatti
   const prior = Y.decodeStateVector(Y.encodeStateVector(doc))
   const links = new Map(structs(doc).filter(item => item instanceof Y.Item).map(item => [key(item.id), item.redone && key(item.redone)]))
   let execution = null, skipExecutedItem = null
-  const applyHistoryMarks = ({ stackItem }) => {
+  const applyHistoryMarks = ({ stackItem, transaction }) => {
     if (execution) throw Error('History hook performed multiple items')
     const metadata = stackItem.meta.get(lineageKey)
     if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies) || metadata.copies.length > 4096) {
@@ -458,6 +458,18 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey, formatti
             canonicalAttributes(row.attributes) !== canonicalAttributes(first.desired))) { leaf.format(first.offset, length, changes); didFormat = true }
       }
     }
+    if (!metadata.formattingMark) {
+      // Remote update integration cleans redundant YText markers. Do the same
+      // canonical cleanup inside this existing structural history transaction,
+      // before its bytes and inverse are emitted, including deleted source leaves.
+      const affected = []
+      Y.iterateDeletedStructs(transaction, transaction.deleteSet, item => {
+        if (item instanceof Y.Item && item.parent instanceof Y.XmlText && item.parent._hasFormatting &&
+            !(item.content instanceof Y.ContentFormat)) affected.push(item)
+      })
+      if (affected.length > 131072) throw Error('History formatting cleanup limit')
+      for (const item of affected) Y.relayCleanupContextlessFormattingGap(transaction, item)
+    }
     execution = { copies, inverseCopies, formattingTextItems: attributedSelection || metadata.formattingTextItems || null }
     return didFormat
   }
@@ -507,6 +519,7 @@ export function prepareHistoryEvidence(live, owner, redo, input, lineageKey, for
 // here. No custom inverse algorithm: both preflight and live use Y.UndoManager.
 export function prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting = false, formattingPlan = null) {
   assertCounterpartRetention(live)
+  if (typeof Y.relayCleanupContextlessFormattingGap !== 'function') throw Error('Missing pinned history cleanup hook')
   if (yjsPackage.version !== '13.6.32' || !input || Object.keys(input).join(',') !== 'operation_id' || !uuid(input.operation_id) ||
       owner.relayHistoryTransactionHookVersion !== 1 || owner.beforeHistoryTransactionCommit !== null || owner.beforeHistoryItemSkip != null ||
       owner.doc !== live || owner.captureTimeout !== 0 || owner.undoing || owner.redoing || owner.currStackItem !== null ||

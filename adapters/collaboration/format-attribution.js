@@ -112,7 +112,9 @@ export function prepareCopyAttribution(state,{beforeDoc,update,effectiveCopies})
   const destinations=new Set(),sources=new Set()
   for(const pair of effectiveCopies) {
    const sk=key(pair.source),dk=key(pair.destination),source=old.entries.get(sk),destination=next.current.get(dk)
-   if(!old.current.has(sk)||!source||!destination||old.current.has(dk)||sources.has(sk)||destinations.has(dk))throw Error('Unavailable or duplicate attribution copy')
+   // A verified inverse may restore an exact retired identity (typed or baseline).
+   // Retained entries preserve its tokens; never infer ancestry from matching text.
+   if(!source||!destination||old.current.has(dk)||sources.has(sk)||destinations.has(dk))throw Error('Unavailable or duplicate attribution copy')
    if(source.character!==destination.character||!equal(source.attributes,destination.attributes))throw Error('Attribution copy semantics mismatch')
    sources.add(sk);destinations.add(dk)
    next.entries.set(dk,{...destination,tokens:clone(source.tokens)})

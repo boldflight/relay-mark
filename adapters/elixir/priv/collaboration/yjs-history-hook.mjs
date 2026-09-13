@@ -15,7 +15,7 @@ export function patchHistoryHook(source) {
     if (source.split(before).length !== 2) throw Error('Ambiguous Yjs history hook patch')
     source = source.replace(before, after)
   }
-  return source
+  return source + '\nexport { cleanupContextlessFormattingGap as relayCleanupContextlessFormattingGap };\n'
 }
 export const historyHookPlugin = {
   name: 'relay-yjs-history-transaction-hook-v1',
