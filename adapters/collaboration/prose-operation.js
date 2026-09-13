@@ -105,17 +105,19 @@ function insertInline(p, offset, content, attributes, inserted = null) {
     local -= length
   }
   if (!target) { target = new Y.XmlText(); p.insert(index, [target]); local = 0 }
+  // Yjs may add null resets to the supplied attribute map. Do not mutate
+  // the canonical operation evidence or reuse those resets on another leaf.
   const parts = p.nodeName === 'codeBlock' ? [content] : content.split(hardBreakCharacter)
-  if (parts.length === 1) { target.insert(local, content, attributes); inserted?.(target, local, content.length); return }
+  if (parts.length === 1) { target.insert(local, content, { ...attributes }); inserted?.(target, local, content.length); return }
   // Splitting an inline text to insert a break moves only that text's suffix;
   // all other XmlText siblings and the block itself retain their Yjs identities.
   const tail = sliceInline({ toArray: () => [target] }, local)
   target.delete(local, target.length - local)
-  target.insert(local, parts[0], attributes)
+  target.insert(local, parts[0], { ...attributes })
   const additions = []
   for (const part of parts.slice(1)) {
     additions.push(new Y.XmlElement('hardBreak'))
-    const text = new Y.XmlText(); text.insert(0, part, attributes); additions.push(text)
+    const text = new Y.XmlText(); text.insert(0, part, { ...attributes }); additions.push(text)
   }
   for (const item of tail) additions.push(node(item))
   p.insert(p.toArray().indexOf(target) + 1, additions)

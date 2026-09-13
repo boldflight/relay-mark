@@ -1,6 +1,13 @@
 import * as Y from 'yjs'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 
+// Uniform canonical marks supported by the existing native/browser formatting commands.
+export function validProseAttributes(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value) &&
+    Object.entries(value).every(([mark, attributes]) => ['bold', 'italic'].includes(mark) &&
+      attributes !== null && typeof attributes === 'object' && !Array.isArray(attributes) && !Object.keys(attributes).length)
+}
+
 const empty = () => ({ version: 1, runs: [] })
 const equalBytes = (a, b) => a.length === b.length && a.every((value, i) => value === b[i])
 function unicode(value) {
@@ -42,14 +49,14 @@ export function prepareProseLineage(live, input, replace) {
       !Number.isSafeInteger(input.start) || !Number.isSafeInteger(input.end) ||
       input.start < 0 || input.end < input.start || typeof input.text !== 'string' ||
       input.text.length > 131072 || /[\r\u2028\u2029\ufffc]/u.test(input.text) ||
-      (input.attributes !== undefined && (!input.attributes || typeof input.attributes !== 'object' ||
-       Array.isArray(input.attributes) || Object.keys(input.attributes).length))) throw Error('Unsupported prose lineage operation')
+      (input.attributes !== undefined && !validProseAttributes(input.attributes))) throw Error('Unsupported prose lineage operation')
   if (input.operation_id !== undefined && (typeof input.operation_id !== 'string' ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(input.operation_id))) {
     throw Error('Invalid host operation identity')
   }
   unicode(input.text)
-  const operationInput = { start: input.start, end: input.end, text: input.text, attributes: {} }
+  const attributes = Object.fromEntries(Object.keys(input.attributes || {}).sort().map(mark => [mark, {}]))
+  const operationInput = { start: input.start, end: input.end, text: input.text, attributes }
   const state = Y.encodeStateAsUpdate(live), vector = Y.encodeStateVector(live), clientID = live.clientID
   // Retain the exact historical structs encoded by the live undo owner.
   const staged = new Y.Doc({ gc: false })
@@ -98,7 +105,7 @@ export function prepareProseLineage(live, input, replace) {
       throw Error('Invalid prose lineage anchor')
     }
     const operation = { kind: 'replace_prose', start_anchor: anchor(input.start), end_anchor: anchor(input.end),
-      inserted_text: input.text, inserted_attributes: {} }
+      inserted_text: input.text, inserted_attributes: attributes }
     const sources = [], copies = [], typed = empty()
     replace(operationInput, staged, root, {
       tail(p, offset, copied) {

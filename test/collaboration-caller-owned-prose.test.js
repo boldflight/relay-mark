@@ -70,3 +70,31 @@ test('Elixir distribution contains exact shared modules and the same host Yjs pa
   assert.deepEqual(readFileSync(new URL('../adapters/elixir/priv/collaboration/yjs-history-hook.mjs', import.meta.url)),
     readFileSync(new URL('../scripts/yjs-history-hook.mjs', import.meta.url)))
 })
+
+
+test('uniform bold and italic typed marks are explicit evidence while copied tail marks stay unchanged', () => {
+  for (const attributes of [{ bold: {} }, { italic: {} }, { bold: {}, italic: {} }]) {
+    const { doc, root } = seed(), origin = Symbol('editor')
+    const replace = (input, targetDoc, targetRoot, hooks) => replaceProse(input, targetDoc, targetRoot, origin, hooks)
+    try {
+      const prepared = prepareProseLineage(doc, { start: 5, end: 5, text: '日本\nnext ', attributes }, replace)
+      assert.deepEqual(prepared.lineage.operation.inserted_attributes, attributes)
+      replace(prepared.input, doc, root)
+      assert.deepEqual(Y.encodeStateAsUpdate(doc), prepared.expectedState)
+      assert.deepEqual(root.get(1).get(0).toDelta(), [{ insert: 'next ', attributes }])
+      assert.deepEqual(root.get(1).get(1).toDelta(), [{ insert: '🌍 tail', attributes: { bold: {} } }])
+      assert.equal(resolveTextItems(doc, root, decode(prepared.insertedTextItems)).segments.map(p => p.text).join(''), '日本next ')
+    } finally { doc.destroy() }
+  }
+})
+
+test('unsupported or noncanonical inserted marks are rejected before caller mutation', () => {
+  const { doc, root } = seed(), origin = Symbol('editor'), before = Y.encodeStateAsUpdate(doc)
+  try {
+    for (const attributes of [{ bold: true }, { bold: null }, { italic: [] }, { bold: { extra: true } }, { link: { href: 'https://example.com' } }]) {
+      assert.throws(() => prepareProseLineage(doc, { start: 5, end: 5, text: 'bad', attributes },
+        (input, targetDoc, targetRoot, hooks) => replaceProse(input, targetDoc, targetRoot, origin, hooks)), /Unsupported/)
+      assert.deepEqual(Y.encodeStateAsUpdate(doc), before)
+    }
+  } finally { doc.destroy() }
+})
