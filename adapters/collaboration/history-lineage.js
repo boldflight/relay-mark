@@ -1,4 +1,5 @@
 import * as Y from 'yjs'
+import { placementUpdateHash } from './placement-lineage.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import yjsPackage from 'yjs/package.json' with { type: 'json' }
 
@@ -120,6 +121,117 @@ function visibleAttributes(doc) {
   walk(root, [])
   return found
 }
+// Version-pinned effective marker observation. A removal marker has its own
+// identity; absence of any marker is represented by null, not an invented ID.
+export function captureHistoryMarkerState(doc) {
+  if (yjsPackage.version !== '13.6.32') throw Error('Unsupported history marker runtime')
+  const visible = visibleAttributes(doc), leaves = new Set([...visible.values()].map(row => row.leaf))
+  const found = new Map(); let visited = 0
+  for (const leaf of leaves) {
+    let item = leaf._start
+    const markers = {bold:{marker:null,enabled:false},italic:{marker:null,enabled:false}}
+    while (item !== null) {
+      if (++visited > maximumStructs || !(item instanceof Y.Item) || item.parent !== leaf) throw Error('Unsupported history marker structure')
+      if (!item.deleted) {
+        if (item.content instanceof Y.ContentFormat && ['bold','italic'].includes(item.content.key)) {
+          const value=item.content.value
+          if (value !== null && (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length)) throw Error('Unsupported history marker value')
+          markers[item.content.key]={marker:{client:item.id.client,clock:item.id.clock},enabled:value!==null}
+        } else if (item.content instanceof Y.ContentString) {
+          for (let offset=0;offset<item.length;offset++) {
+            const identity=key({client:item.id.client,clock:item.id.clock+offset}), row=visible.get(identity)
+            if (!row || row.leaf!==leaf) throw Error('Missing visible history marker unit')
+            found.set(identity,{unit:row.unit,marks:JSON.parse(JSON.stringify(markers))})
+          }
+        }
+      }
+      item=item.right
+    }
+  }
+  if (found.size!==visible.size) throw Error('Incomplete history marker observation')
+  return [...found.values()]
+}
+
+export function captureSelectedFormattingStates(before, after, selected, mark) {
+  if (!['bold','italic'].includes(mark)) throw Error('Invalid formatting attribution mark')
+  const index=rows=>new Map(rows.map(row=>[key(row.unit.item),row]))
+  const old=index(before), current=index(after)
+  return expanded(selected).map(unit=>{
+    const a=old.get(key(unit.item)),b=current.get(key(unit.item))
+    if (!a || !b || key(a.unit.type)!==key(unit.type) || key(b.unit.type)!==key(unit.type)) throw Error('Unavailable formatting marker target')
+    return {unit:JSON.parse(JSON.stringify(unit)),before:a.marks[mark],after:b.marks[mark]}
+  })
+}
+
+// A format event is observed from an exact prestate and one transaction update.
+// It retains real removed marker IDs even when poststate cleanup leaves null.
+// No event is reconstructed from merged/GC bytes or final mark values alone.
+export function captureHistoryFormatEvent(beforeDoc, update, input) {
+  exactKeys(input,['operation_id','mark','text_items'])
+  if (beforeDoc.store.pendingStructs !== null || beforeDoc.store.pendingDs !== null) throw Error('Incomplete format prestate')
+  if (!uuid(input.operation_id) || !['bold','italic'].includes(input.mark) || !(update instanceof Uint8Array) ||
+      !update.length || update.length>maximumStateBytes) throw Error('Invalid formatting event input')
+  exactKeys(input.text_items,['version','runs'])
+  if (input.text_items.version!==1 || !Array.isArray(input.text_items.runs) || !input.text_items.runs.length || input.text_items.runs.length>4096) throw Error('Invalid format target selection')
+  for (const run of input.text_items.runs) {
+    exactKeys(run,['item','type','count'])
+    if (!id(run.item) || !id(run.type) || !Number.isSafeInteger(run.count) || run.count<1 || run.item.clock+run.count>4294967296) throw Error('Invalid format target identity')
+  }
+  const targets=expanded(input.text_items),targetIDs=new Set(targets.map(unit=>key(unit.item)))
+  const before=captureHistoryMarkerState(beforeDoc),old=new Map(before.map(row=>[key(row.unit.item),row]))
+  for (const unit of targets) if (key(old.get(key(unit.item))?.unit.type || {})!==key(unit.type)) throw Error('Unavailable format event target')
+  const decoded=Y.decodeUpdate(update),inserted=[],deleted=[],newMarkers=new Map()
+  for (const item of decoded.structs) {
+    if (!(item instanceof Y.Item) || !(item.content instanceof Y.ContentFormat) || item.content.key!==input.mark ||
+        item.length!==1 || !id(item.id)) throw Error('Unprovable or non-format event allocation')
+    if (item.id.clock < Y.getState(beforeDoc.store,item.id.client)) throw Error('Format event already integrated')
+    if (inserted.length>=4096) throw Error('Format event marker limit')
+    const marker={client:item.id.client,clock:item.id.clock};inserted.push(marker);newMarkers.set(key(marker),item)
+  }
+  for (const [client,ranges] of decoded.ds.clients) for (const range of ranges) {
+    if (range.len>4096 || deleted.length+range.len>4096) throw Error('Format event marker limit')
+    for (let n=0;n<range.len;n++) {
+      const marker={client,clock:range.clock+n}
+      const item=newMarkers.get(key(marker)) || (marker.clock<Y.getState(beforeDoc.store,client) ? Y.getItem(beforeDoc.store,marker) : null)
+      if (!(item instanceof Y.Item) || !(item.content instanceof Y.ContentFormat) || item.content.key!==input.mark || item.deleted || item.length!==1) throw Error('Unprovable format marker deletion')
+      deleted.push(marker)
+    }
+  }
+  if (!inserted.length && !deleted.length) throw Error('No formatting event')
+  const scratch=new Y.Doc({gc:false})
+  try {
+    Y.applyUpdate(scratch,Y.encodeStateAsUpdate(beforeDoc));Y.applyUpdate(scratch,update)
+    if (scratch.store.pendingStructs || scratch.store.pendingDs) throw Error('Incomplete format event')
+    const after=captureHistoryMarkerState(scratch),current=new Map(after.map(row=>[key(row.unit.item),row]))
+    if (current.size!==old.size) throw Error('Format event changed text identities')
+    const changes=[]
+    for (const [identity,previous] of old) {
+      const next=current.get(identity)
+      if (!next || key(next.unit.type)!==key(previous.unit.type)) throw Error('Format event changed text placement')
+      for (const mark of ['bold','italic']) {
+        if (previous.marks[mark].enabled!==next.marks[mark].enabled && (mark!==input.mark || !targetIDs.has(identity))) throw Error('Format event changed untargeted marks')
+      }
+      if (targetIDs.has(identity) && canonicalAttributes(previous.marks[input.mark])!==canonicalAttributes(next.marks[input.mark])) {
+        const a=previous.marks[input.mark],b=next.marks[input.mark]
+        if ((a.marker && !deleted.some(marker=>key(marker)===key(a.marker))) &&
+            (b.marker && !newMarkers.has(key(b.marker)))) throw Error('Unproven format target transition')
+        changes.push({unit:previous.unit,before:a,after:b})
+      }
+    }
+    if (!changes.length) throw Error('Unprovable or ineffective formatting event')
+    const sorted=values=>values.sort((a,b)=>a.client-b.client||a.clock-b.clock)
+    return {version:1,operation_id:input.operation_id,update_sha256:placementUpdateHash(update),mark:input.mark,
+      text_items:JSON.parse(JSON.stringify(input.text_items)),inserted_markers:sorted(inserted),deleted_markers:sorted(deleted),changes}
+  } finally { scratch.destroy() }
+}
+
+export function validateHistoryFormatEvent(beforeDoc, update, event) {
+  exactKeys(event,['version','operation_id','update_sha256','mark','text_items','inserted_markers','deleted_markers','changes'])
+  const actual=captureHistoryFormatEvent(beforeDoc,update,{operation_id:event.operation_id,mark:event.mark,text_items:event.text_items})
+  if (canonicalAttributes(event)!==canonicalAttributes(actual)) throw Error('Mismatched formatting event witness')
+  return actual
+}
+
 function appendPair(result, source, destination) {
   const last = result.at(-1), a = last?.source.runs[0], b = last?.destination.runs[0]
   const next = (run, unit) => run && run.item.client === unit.item.client &&

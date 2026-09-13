@@ -315,3 +315,60 @@ coalesce ordered contiguous source/destination unit pairs independently of the
 original run/copy partition; the operation request JSON is never rewritten. Exact
 original Mark endpoint fixtures and their matching accepted server exports prove
 local-to-server duplicate acceptance despite that partition difference.
+
+## Formatting attribution investigation
+
+An effective ContentFormat identity distinguishes ordinary mark addition and many
+peer changes. It is insufficient for removal: actual Yjs cleanup leaves
+`{marker:null, enabled:false}` both after local removal and after a peer add/remove
+ABA. A regression retains this counterexample. No remapping is activated from
+null-marker equality. Exact removal attribution must retain the real removed
+marker identity and immutable operation identity while that event is observed.
+Per-operation paired updates can maintain this witness; a later merged/compacted
+raw update cannot recover a garbage-collected marker's former meaning.
+
+Current server ReferenceCodec trees retain text item IDs and mark values only;
+they do not retain ContentFormat event/deletion identities. Acceptance-time
+formatting sidecars or an additive Yrs/Yex observation API are required for
+authenticated compacted bootstrap. This remains an implementation dependency,
+not a reason to infer marker identity from text, values, offsets or timestamps.
+
+### Pure format-event prototype
+
+`captureHistoryFormatEvent(beforeDoc, exactUpdate, {operation_id, mark, text_items})`
+returns a provisional sidecar:
+
+```json
+{
+  "version": 1,
+  "operation_id": "immutable-operation-uuid",
+  "update_sha256": "exact-update-digest",
+  "mark": "bold",
+  "text_items": {"version": 1, "runs": []},
+  "inserted_markers": [{"client": 1, "clock": 2}],
+  "deleted_markers": [{"client": 1, "clock": 3}],
+  "changes": [{
+    "unit": {"item": {"client": 1, "clock": 4}, "type": {"client": 1, "clock": 0}},
+    "before": {"marker": {"client": 1, "clock": 3}, "enabled": true},
+    "after": {"marker": null, "enabled": false}
+  }]
+}
+```
+
+It rejects text/other-mark allocation or deletion, unresolved integration,
+unavailable/previously deleted format markers, untargeted mark changes and
+ineffective or garbage-collected events. It replays the exact update against a
+scratch copy of the supplied prestate. `validateHistoryFormatEvent` re-captures
+and requires exact canonical equality. The prestate is not mutated. Selected
+units are capped at 131,072 and marker arrays at 4,096. This is evidence capture,
+not authorization: the host binds document/incarnation and authenticates receipt
+identity. A removed marker ID plus immutable operation identity distinguishes the
+event from a later peer removal even when both poststates show no marker.
+
+The tested live per-operation pathway does not validate a merged add/remove
+history after its marker content has been garbage-collected. That case refuses.
+Compacted bootstrap needs a previously authenticated retained event sidecar, not
+re-capture from expired updates or mark values. Yrs currently exposes update
+insertion/deletion sets but keeps block content traversal crate-private. A bounded
+read-only format-event API in Yrs/Yex is needed to validate and retain this exact
+sidecar at acceptance. No format remapping or transport activation is included.
