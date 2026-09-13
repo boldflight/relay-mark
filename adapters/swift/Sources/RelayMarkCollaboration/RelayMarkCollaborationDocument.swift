@@ -124,6 +124,24 @@ public final class RelayMarkCollaborationDocument {
         try proseLineage("redoWithLineage", input: ["operation_id": operationID.uuidString.lowercased()])
     }
 
+    /// Exports the settled standard document and its actual local history stack. The host
+    /// binds the token to a qualified durable cut and persists it atomically with updates.
+    public func exportHistorySnapshot(scopeToken: String) throws -> Data {
+        try call("exportHistorySnapshot", input: ["scope_token": scopeToken])
+    }
+
+    /// Restores only into a pristine document, before journal suffix or remote updates.
+    /// Mark validates the complete snapshot and requires every stack operation to occur
+    /// in the host's exact retained transaction whitelist. Failure leaves the owner pristine.
+    public func restoreHistorySnapshot(_ snapshot: Data, scopeToken: String, transactionIDs: [UUID]) throws {
+        guard snapshot.count <= 64 * 1024 * 1024, transactionIDs.count <= 16384 else {
+            throw Failure.runtime("History snapshot limit")
+        }
+        _ = try call("restoreHistorySnapshot", input: [
+            "snapshot": JSONSerialization.jsonObject(with: snapshot), "scope_token": scopeToken,
+            "transaction_ids": transactionIDs.map { $0.uuidString.lowercased() }])
+    }
+
     private func proseLineage(_ command: String, input: [String: Any]) throws -> ProseLineageResult {
         struct Wire: Decodable {
             let updates: [[UInt8]]

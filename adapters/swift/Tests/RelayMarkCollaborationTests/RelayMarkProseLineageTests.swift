@@ -4,6 +4,38 @@ import Testing
 
 @MainActor
 struct RelayMarkProseLineageTests {
+    @Test("Durable tracked history restores only into a pristine matching owner")
+    func durableSnapshotRoundTrip() throws {
+        let baseline = try seed(), document = try RelayMarkCollaborationDocument()
+        try document.applyUpdate(baseline.encodeUpdate())
+        let original = try canonical(document.snapshot()), forwardID = UUID(), undoID = UUID()
+        _ = try document.replaceProseWithLineage(start: 7, end: 7, text: "\nH", operationID: forwardID)
+        let changed = try canonical(document.snapshot())
+        let bytes = try document.exportHistorySnapshot(scopeToken: "qualified-cut-1")
+        let restored = try RelayMarkCollaborationDocument(), pristine = try restored.encodeUpdate()
+        #expect(throws: (any Error).self) {
+            try restored.restoreHistorySnapshot(bytes, scopeToken: "wrong-cut", transactionIDs: [forwardID])
+        }
+        #expect(try restored.encodeUpdate() == pristine)
+        #expect(throws: (any Error).self) {
+            try restored.restoreHistorySnapshot(bytes, scopeToken: "qualified-cut-1", transactionIDs: [])
+        }
+        #expect(try restored.encodeUpdate() == pristine)
+        try restored.restoreHistorySnapshot(bytes, scopeToken: "qualified-cut-1", transactionIDs: [forwardID])
+        #expect(try canonical(restored.snapshot()) == changed)
+        #expect(throws: (any Error).self) {
+            try restored.restoreHistorySnapshot(bytes, scopeToken: "qualified-cut-1", transactionIDs: [forwardID])
+        }
+        let undo = try restored.undoWithLineage(operationID: undoID)
+        #expect(try canonical(restored.snapshot()) == original)
+        #expect((try json(undo.lineage)["operation"] as? [String: String])?["transaction_id"] == forwardID.uuidString.lowercased())
+        let second = try RelayMarkCollaborationDocument()
+        try second.restoreHistorySnapshot(restored.exportHistorySnapshot(scopeToken: "qualified-cut-2"),
+            scopeToken: "qualified-cut-2", transactionIDs: [forwardID, undoID])
+        _ = try second.redoWithLineage(operationID: UUID())
+        #expect(try canonical(second.snapshot()) == changed)
+    }
+
     private func seed() throws -> RelayMarkCollaborationDocument {
         let document = try RelayMarkCollaborationDocument()
         _ = try document.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"PREFIX 🌍 generated ","attributes":{"bold":{}}}]}]}]}"#.utf8))
