@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.6.2
+
+- Adds `RelayMark.CollaborativeProse.to_markdown/1`, a conservative projection
+  from the version-one collaborative XML tree to Markdown. Unsupported nodes,
+  marks and attributes return an error rather than silently losing content.
+- Keeps collaboration transport, CRDT execution and host authorization outside
+  this generic codec; no native Yjs dependency is required by the Hex package.
+- Preserves existing adapter APIs and the portable `0.6.0-draft` conformance
+  contract. The package includes the codec and canonical bundled schemas.
+
 ## 0.6.1
 
 - Exposes `RelayMark.project_manifest/2` as the canonical public manifest

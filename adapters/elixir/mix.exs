@@ -1,7 +1,7 @@
 defmodule RelayMarkElixir.MixProject do
   use Mix.Project
 
-  @version "0.6.1"
+  @version "0.6.2"
   @source_url "https://github.com/boldflight/relay-mark"
 
   def project do
