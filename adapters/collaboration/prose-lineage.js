@@ -38,12 +38,16 @@ function identities(selection) {
 // No user callbacks/await may occur between this preflight and live execution.
 export function prepareProseLineage(live, input, replace) {
   if (!input || typeof input !== 'object' || Array.isArray(input) ||
-      Object.keys(input).some(key => !['start', 'end', 'text', 'attributes'].includes(key)) ||
+      Object.keys(input).some(key => !['start', 'end', 'text', 'attributes', 'operation_id'].includes(key)) ||
       !Number.isSafeInteger(input.start) || !Number.isSafeInteger(input.end) ||
       input.start < 0 || input.end < input.start || typeof input.text !== 'string' ||
       input.text.length > 131072 || /[\r\u2028\u2029\ufffc]/u.test(input.text) ||
       (input.attributes !== undefined && (!input.attributes || typeof input.attributes !== 'object' ||
        Array.isArray(input.attributes) || Object.keys(input.attributes).length))) throw Error('Unsupported prose lineage operation')
+  if (input.operation_id !== undefined && (typeof input.operation_id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(input.operation_id))) {
+    throw Error('Invalid host operation identity')
+  }
   unicode(input.text)
   const operationInput = { start: input.start, end: input.end, text: input.text, attributes: {} }
   const state = Y.encodeStateAsUpdate(live), vector = Y.encodeStateVector(live), clientID = live.clientID

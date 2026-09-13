@@ -1,6 +1,7 @@
 import * as Y from 'yjs'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage } from './prose-lineage.js'
+import { prepareHistoryLineage, preserveHistoryDescendants, performHistoryWithMarks } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -61,30 +62,35 @@ function applyPresenceSnapshot(input) {
   } finally { temporary.destroy(); temporaryDoc.destroy() }
 }
 const localOrigin = 'relay.local.editor'
-const undo = new Y.UndoManager(root, { trackedOrigins: new Set([localOrigin]), captureTimeout: 0 })
+const undo = new Y.UndoManager(root, { trackedOrigins: new Set([localOrigin]), captureTimeout: 0, deleteFilter: preserveHistoryDescendants })
 const formattingKey = Symbol('relay.native.formatting')
+const lineageKey = Symbol('relay.native.lineage')
+let lineageCapture = null
 let formattingCapture = null
 let historyCapture = null
 undo.on('stack-item-added', ({ stackItem, origin }) => {
   if (historyCapture && origin === undo) historyCapture.inverse.push(stackItem)
+  else if (lineageCapture && origin === localOrigin) stackItem.meta.set(lineageKey, lineageCapture)
   else if (formattingCapture && origin === localOrigin) stackItem.meta.set(formattingKey, formattingCapture)
 })
 undo.on('stack-item-updated', ({ stackItem }) => {
   // Even a text-equal replacement or a second mark operation makes a mixed item
   // ineligible. Only an isolated explicit formatting command carries evidence.
   stackItem.meta.delete(formattingKey)
+  stackItem.meta.delete(lineageKey)
   if (historyCapture) historyCapture.mixed = true
 })
 undo.on('stack-item-popped', ({ stackItem }) => {
   if (historyCapture) historyCapture.performed.push(stackItem)
 })
-function history(redo) {
+function history(redo, prepared = null) {
   if (historyCapture) throw Error('Nested history operation')
   const capture = { inverse: [], performed: [], mixed: false }
   historyCapture = capture
   localUpdates = []
   try {
-    const item = redo ? undo.redo() : undo.undo()
+    const execution = prepared ? performHistoryWithMarks(doc, undo, redo, lineageKey) : null
+    const item = execution ? execution.item : (redo ? undo.redo() : undo.undo())
     const mark = item && item.meta.get(formattingKey)
     const proven = (mark === 'bold' || mark === 'italic') && !capture.mixed &&
       capture.performed.length === 1 && capture.performed[0] === item && capture.inverse.length === 1
@@ -93,6 +99,17 @@ function history(redo) {
     for (const inverse of capture.inverse) {
       if (proven) inverse.meta.set(formattingKey, mark)
       else inverse.meta.delete(formattingKey)
+    }
+    if (prepared) {
+      if (!item || item.meta.get(lineageKey)?.operationID !== prepared.reference || capture.mixed ||
+          capture.performed.length !== 1 || capture.performed[0] !== item || capture.inverse.length !== 1) {
+        throw Error('History execution diverged from preflight')
+      }
+      capture.inverse[0].meta.set(lineageKey, { operationID: prepared.operationID, copies: execution.inverseCopies })
+      const actual = Y.encodeStateAsUpdate(doc)
+      if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
+        throw Error('History state diverged from preflight')
+      }
     }
     return { updates: localUpdates, formattingMark: proven ? mark : null }
   } finally { historyCapture = null }
@@ -549,12 +566,12 @@ export function call(command, input) {
     case 'snapshot': return snapshot(root)
     case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates
     case 'replaceProseWithLineage': {
-      if (undo.captureTimeout !== 0 || formattingCapture || historyCapture) throw Error('Expected isolated prose operation')
+      if (undo.captureTimeout !== 0 || formattingCapture || historyCapture || lineageCapture) throw Error('Expected isolated prose operation')
       const prepared = prepareProseLineage(doc, input, replaceProse)
       localUpdates = []; undo.stopCapturing()
       // No await or callback boundary between preflight and the same mutation.
-      replaceProse(prepared.input)
-      undo.stopCapturing()
+      lineageCapture = input.operation_id ? { operationID: input.operation_id, copies: prepared.lineage.copies } : null
+      try { replaceProse(prepared.input) } finally { lineageCapture = null; undo.stopCapturing() }
       const actual = Y.encodeStateAsUpdate(doc)
       if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
         throw Error('Prose lineage execution diverged from preflight')
@@ -567,6 +584,14 @@ export function call(command, input) {
     case 'nativeParagraphPaste': return nativeParagraphPaste(input)
     case 'beginUndoGroup': undo.stopCapturing(); undo.captureTimeout = Number.MAX_SAFE_INTEGER; return null
     case 'endUndoGroup': undo.stopCapturing(); undo.captureTimeout = 0; return null
+    case 'undoWithLineage':
+    case 'redoWithLineage': {
+      if (formattingCapture || historyCapture || lineageCapture) throw Error('Nested history evidence')
+      const redo = command === 'redoWithLineage'
+      const prepared = prepareHistoryLineage(doc, undo, redo, input, lineageKey)
+      const result = history(redo, prepared)
+      return { updates: result.updates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
+    }
     case 'undo': return history(false).updates
     case 'redo': return history(true).updates
     case 'undoWithFormattingEvidence': return history(false)
