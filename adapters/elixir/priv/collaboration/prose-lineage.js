@@ -136,8 +136,9 @@ export function prepareProseLineage(live, input, replace) {
       inserted(leaf, index, length) { typed.runs.push(...capture(root, leaf, index, length).runs) },
       copied(nodes) {
         if (nodes.length !== sources.length) throw Error('Incomplete copied prose evidence')
-        nodes.forEach((leaf, index) => {
-          const destination = capture(root, leaf, 0, leaf.length), source = sources[index]
+        nodes.forEach((entry, index) => {
+          const leaf = entry.leaf || entry
+          const destination = capture(root, leaf, entry.index || 0, entry.length), source = sources[index]
           if (units(source) !== units(destination)) throw Error('Copied prose length changed')
           copies.push({ source, destination })
         })

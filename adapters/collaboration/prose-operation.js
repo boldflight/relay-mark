@@ -122,13 +122,28 @@ function insertInline(p, offset, content, attributes, inserted = null) {
   for (const item of tail) additions.push(node(item))
   p.insert(p.toArray().indexOf(target) + 1, additions)
 }
+function appendCopiedTail(p, tail, hooks) {
+  const copied = []
+  for (const value of tail) {
+    const last = p.length ? p.get(p.length - 1) : null
+    if (value.kind === 'text' && last instanceof Y.XmlText) {
+      const index = last.length
+      for (const run of value.delta) last.insert(last.length, run.insert, { ...(run.attributes || {}) })
+      copied.push({ leaf: last, index, length: last.length - index })
+    } else {
+      const child = node(value)
+      p.insert(p.length, [child])
+      copied.push(child instanceof Y.XmlText ? { leaf: child, index: 0, length: child.length } : child)
+    }
+  }
+  if (copied.length) hooks?.copied(copied)
+}
 function paragraph(content, attributes, tail = [], hooks = null) {
   const p = new Y.XmlElement('paragraph')
   // Populate after integration: insertInline relies on live Yjs lengths.
   return { p, populate: () => {
     insertInline(p, 0, content, attributes, hooks?.inserted)
-    const copied = tail.map(node); p.insert(p.length, copied)
-    if (copied.length) hooks?.copied(copied)
+    appendCopiedTail(p, tail, hooks)
   } }
 }
 export function replaceProse(input, targetDoc, targetRoot, origin, hooks = null) {
@@ -170,8 +185,7 @@ export function replaceProse(input, targetDoc, targetRoot, origin, hooks = null)
     }
     insertInline(destination, firstRule ? 0 : start, lines[0], input.attributes || {}, hooks?.inserted)
     if (lines.length === 1) {
-      const copied = tail.map(node); destination.insert(destination.length, copied)
-      if (copied.length) hooks?.copied(copied)
+      appendCopiedTail(destination, tail, hooks)
     }
     else {
       const additions = lines.slice(1).map((line, i) => paragraph(line, input.attributes || {}, i === lines.length - 2 ? tail : [], hooks))

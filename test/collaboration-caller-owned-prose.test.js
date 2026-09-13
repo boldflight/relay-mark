@@ -40,7 +40,8 @@ test('shared prose uses the caller document, origin and existing undo owner with
     assert.equal(prepared.lineage.copies.length, 1)
     const copied = resolveTextItems(doc, root, prepared.lineage.copies[0].destination)
     assert.equal(copied.segments.map(part => part.text).join(''), '🌍 tail')
-    assert.deepEqual(root.get(1).get(1).toDelta(), [{ insert: '🌍 tail', attributes: { bold: {} } }])
+    assert.equal(root.get(1).length, 1)
+    assert.deepEqual(root.get(1).get(0).toDelta(), [{ insert: 'next ' }, { insert: '🌍 tail', attributes: { bold: {} } }])
     manager.undo()
     assert.deepEqual(plain(root), ['Left 🌍 tail'])
     manager.redo()
@@ -81,8 +82,10 @@ test('uniform bold and italic typed marks are explicit evidence while copied tai
       assert.deepEqual(prepared.lineage.operation.inserted_attributes, attributes)
       replace(prepared.input, doc, root)
       assert.deepEqual(Y.encodeStateAsUpdate(doc), prepared.expectedState)
-      assert.deepEqual(root.get(1).get(0).toDelta(), [{ insert: 'next ', attributes }])
-      assert.deepEqual(root.get(1).get(1).toDelta(), [{ insert: '🌍 tail', attributes: { bold: {} } }])
+      assert.equal(root.get(1).length, 1)
+      assert.deepEqual(root.get(1).get(0).toDelta(), Object.keys(attributes).length === 1 && attributes.bold
+        ? [{ insert: 'next 🌍 tail', attributes }]
+        : [{ insert: 'next ', attributes }, { insert: '🌍 tail', attributes: { bold: {} } }])
       assert.equal(resolveTextItems(doc, root, decode(prepared.insertedTextItems)).segments.map(p => p.text).join(''), '日本next ')
     } finally { doc.destroy() }
   }
