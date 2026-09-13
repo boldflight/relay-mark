@@ -403,7 +403,32 @@ Merged/GC events with lost marker content and updates that also clean up a diffe
 attribute refuse. A format boundary reset can change an outside unit's effective
 marker identity without changing its value; selected target IDs remain the intent
 scope, so an outside reset alone must not invalidate another user's formatting.
-A dedicated boundary-reset regression is still needed before remapping activation.
+The focused boundary-reset regression below verifies this distinction; remapping
+remains disabled.
 A future domain format-event capability/version must be negotiated separately;
 this does not broaden `prose_lineage_v1`. Trusted acceptance/compaction witnesses,
 paired host persistence and selective remapping are still unactivated.
+
+
+### Selected format scope proof (2026-09-14)
+
+Actual Yjs formatting of the first two units of `Hello 🌍` inserts a bold marker
+for those units and a null reset marker for the remaining suffix. Every suffix
+unit stays unbolded despite its effective marker changing from absent to the new
+reset ID. The event records that reset in `inserted_markers` for exact-update
+validation but excludes all suffix units from `changes`. A forged witness adding
+an outside unit refuses; a claimed selection omitting an actually bolded unit
+also refuses. Thus marker allocation is structural evidence, while selected text
+identities bound the formatting intent. No generic marker-ID change grants
+permission to invalidate another user's format operation.
+
+A second actual transaction removes italic and adds bold over the same text.
+It is valid Yjs formatting but refuses both single-bold and single-italic event
+witnesses. This proves the conservative combined-mark limit; it is not evidence
+that an ordinary bold-only operation necessarily deletes italic markers.
+Supporting multiple mark events requires an explicit contract, not silent widening.
+
+All six pure witness tests passed in
+`/private/tmp/relay-format-boundary-targets-v1-20260914.log`. Only tests and this
+plan changed; the existing helper already enforced the required selected-ID
+scope, so no bundle rebuild or remapping activation was needed.

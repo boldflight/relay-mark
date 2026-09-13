@@ -80,3 +80,54 @@ test('merged GC formatting events and text edits cannot manufacture a marker wit
  assert.throws(()=>captureHistoryFormatEvent(before,Y.encodeStateAsUpdate(doc,next),{operation_id:operationID(6),mark:'bold',text_items:selected}),/non-format/)
  before.destroy();doc.destroy()
 })
+
+test('a boundary reset outside selected identities is structure, not formatting intent',()=>{
+ const producer=new Y.Doc(),p=new Y.XmlElement('paragraph'),t=new Y.XmlText()
+ p.insert(0,[t]);producer.getXmlFragment('default').insert(0,[p]);t.insert(0,'Hello 🌍')
+ const receiver=new Y.Doc();Y.applyUpdate(receiver,Y.encodeStateAsUpdate(producer))
+ const selected=captureTextItems(receiver.getXmlFragment('default'),{path:[0,0],index:0,length:2})
+ const before=captureHistoryMarkerState(receiver),beforeBytes=Y.encodeStateAsUpdate(receiver)
+ let update;const listener=u=>{update=u};producer.on('update',listener)
+ t.format(0,2,{bold:{}});producer.off('update',listener)
+ const after=captureHistoryMarkerState(producer)
+ const event=captureHistoryFormatEvent(receiver,update,{operation_id:operationID(7),mark:'bold',text_items:selected})
+ assert.equal(event.changes.length,2)
+ assert.deepEqual(event.changes.map(change=>change.unit),before.slice(0,2).map(row=>row.unit))
+ for(let i=2;i<before.length;i++) {
+  assert.equal(before[i].marks.bold.enabled,false);assert.equal(after[i].marks.bold.enabled,false)
+  assert.equal(before[i].marks.bold.marker,null);assert.ok(after[i].marks.bold.marker)
+  assert.ok(event.inserted_markers.some(id=>id.client===after[i].marks.bold.marker.client && id.clock===after[i].marks.bold.marker.clock))
+  assert.ok(!event.changes.some(change=>change.unit.item.client===after[i].unit.item.client && change.unit.item.clock===after[i].unit.item.clock))
+ }
+ // The reset allocation is retained for exact-update verification, but its outside
+ // effective marker transitions cannot be added to the selected-intent witness.
+ const forged=JSON.parse(JSON.stringify(event))
+ forged.changes.push({unit:before[2].unit,before:before[2].marks.bold,after:after[2].marks.bold})
+ assert.throws(()=>validateHistoryFormatEvent(receiver,update,forged),/Mismatched/)
+ const underscoped=captureTextItems(receiver.getXmlFragment('default'),{path:[0,0],index:0,length:1})
+ assert.throws(()=>captureHistoryFormatEvent(receiver,update,{operation_id:operationID(7),mark:'bold',text_items:underscoped}),/untargeted marks/)
+ assert.deepEqual(validateHistoryFormatEvent(receiver,update,event),event)
+ assert.deepEqual(Y.encodeStateAsUpdate(receiver),beforeBytes)
+ receiver.destroy();producer.destroy()
+})
+
+test('one transaction combining mark removal and addition refuses a single-mark witness',()=>{
+ const producer=new Y.Doc(),p=new Y.XmlElement('paragraph'),t=new Y.XmlText()
+ p.insert(0,[t]);producer.getXmlFragment('default').insert(0,[p]);t.insert(0,'Hello',{italic:{}})
+ const receiver=new Y.Doc();Y.applyUpdate(receiver,Y.encodeStateAsUpdate(producer))
+ const beforeBytes=Y.encodeStateAsUpdate(receiver)
+ const selected=captureTextItems(receiver.getXmlFragment('default'),{path:[0,0],index:0,length:5})
+ let update;const listener=u=>{update=u};producer.on('update',listener)
+ producer.transact(()=>{t.format(0,5,{italic:null});t.format(0,5,{bold:{}})})
+ producer.off('update',listener)
+ const decoded=Y.decodeUpdate(update)
+ assert.ok(decoded.structs.some(item=>item.content instanceof Y.ContentFormat && item.content.key==='bold'))
+ assert.ok([...decoded.ds.clients.values()].some(ranges=>ranges.some(range=>range.len>0)))
+ assert.deepEqual(t.toDelta(),[{insert:'Hello',attributes:{bold:{}}}])
+ // Although this is valid Yjs formatting, a witness for bold cannot erase the
+ // exact italic-removal event (nor can an italic witness omit bold allocations).
+ assert.throws(()=>captureHistoryFormatEvent(receiver,update,{operation_id:operationID(8),mark:'bold',text_items:selected}),/Unprovable/)
+ assert.throws(()=>captureHistoryFormatEvent(receiver,update,{operation_id:operationID(8),mark:'italic',text_items:selected}),/Unprovable/)
+ assert.deepEqual(Y.encodeStateAsUpdate(receiver),beforeBytes)
+ receiver.destroy();producer.destroy()
+})
