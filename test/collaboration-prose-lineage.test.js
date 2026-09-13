@@ -504,3 +504,30 @@ test('two pristine restores keep distinct session IDs and concurrent edits and s
   assert.deepEqual(receiver('presenceStates').map(value => value.name), ['Restored'])
   value.destroy(); empty.destroy(); original.destroy()
 })
+
+test('multi-paragraph formatting is one tracked update and protects peer marks through undo', () => {
+  const original = seed(), call = runtime(original)
+  call('replaceProseWithLineage', { start: 7, end: 7, text: '\n', operation_id: operationID(170) })
+  const before = call('state')
+  assert.throws(() => call('nativeFormatting', { kind: 'formatText', ranges: [
+    { path: [0, 0], index: 0, length: 6 }, { path: [99, 0], index: 0, length: 2 }
+  ], attributes: { italic: {} }, operation_id: operationID(171) }))
+  assert.deepEqual(call('state'), before)
+  const updates = call('nativeFormatting', { kind: 'formatText', ranges: [
+    { path: [0, 0], index: 0, length: 6 }, { path: [1, 0], index: 0, length: 2 }
+  ], attributes: { italic: {} }, operation_id: operationID(171) })
+  assert.equal(updates.length, 1)
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'multiple|171' })
+  assert.equal(snapshot.undo.length, 2); assert.equal(snapshot.undo.at(-1).operation_id, operationID(171))
+  const peer = new Y.Doc(); Y.applyUpdate(peer, Uint8Array.from(call('state')))
+  const vector = Y.encodeStateVector(peer)
+  peer.getXmlFragment('default').get(1).get(0).insert(2, 'P', { bold: {} })
+  call('apply', [...Y.encodeStateAsUpdate(peer, vector)])
+  assert.equal(call('undoWithEvidence', { operation_id: operationID(172) }).kind, 'formatting')
+  const after = new Y.Doc(); Y.applyUpdate(after, Uint8Array.from(call('state')))
+  assert.deepEqual(paragraphAttributes(after, 0, 0), { bold: {} })
+  assert.deepEqual(paragraphAttributes(after, 1, 0), { bold: {} })
+  assert.deepEqual(paragraphAttributes(after, 1, 2), { bold: {} })
+  assert.equal(call('redoWithEvidence', { operation_id: operationID(173) }).kind, 'formatting')
+  after.destroy(); peer.destroy(); original.destroy()
+})

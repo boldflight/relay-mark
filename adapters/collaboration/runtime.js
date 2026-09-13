@@ -126,13 +126,34 @@ function nativeFormatting(operation) {
   if (operation.operation_id !== undefined && (typeof operation.operation_id !== 'string' ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(operation.operation_id))) throw Error('Invalid host operation identity')
   if (lineageCapture || historyCapture) throw Error('Nested formatting operation')
+  const ranges = operation.ranges === undefined
+    ? [{ path: operation.path, index: operation.index, length: operation.length }] : operation.ranges
+  if (!Array.isArray(ranges) || !ranges.length || ranges.length > 4096 ||
+      (operation.ranges !== undefined && ['path', 'index', 'length'].some(key => Object.hasOwn(operation, key)))) {
+    throw Error('Invalid native formatting ranges')
+  }
+  const selected = { version: 1, runs: [] }, seen = new Set()
+  const commands = ranges.map(range => {
+    const captured = captureTextItems(root, range)
+    selected.runs.push(...captured.runs)
+    if (selected.runs.length > 4096) throw Error('Formatting selection limit')
+    for (const run of captured.runs) for (let n = 0; n < run.count; n++) {
+      const key = `${run.item.client}:${run.item.clock + n}`
+      if (seen.has(key) || seen.size >= 131072) throw Error('Overlapping or oversized formatting selection')
+      seen.add(key)
+    }
+    return { kind: 'formatText', path: range.path, index: range.index, length: range.length,
+      attributes: { ...operation.attributes } }
+  })
   undo.stopCapturing()
   lineageCapture = operation.operation_id ? { operationID: operation.operation_id, copies: [], formattingMark: keys[0],
-    formattingTextItems: captureTextItems(root, { path: operation.path, index: operation.index, length: operation.length }) } : null
+    formattingTextItems: selected } : null
   formattingCapture = keys[0]
   localUpdates = []
-  try { edit(operation); return localUpdates }
-  finally { formattingCapture = null; lineageCapture = null; undo.stopCapturing() }
+  try {
+    doc.transact(() => { for (const command of commands) edit(command) }, localOrigin)
+    return localUpdates
+  } finally { formattingCapture = null; lineageCapture = null; undo.stopCapturing() }
 }
 let localUpdates = []
 doc.on('update', (update, origin) => {

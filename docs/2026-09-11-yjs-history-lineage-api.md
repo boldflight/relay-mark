@@ -189,3 +189,14 @@ structural failed-save peer arrivals). Concurrent restores use distinct active
 client IDs, converge after independent edits/undo, and publish fresh awareness
 despite an old session's higher-clock tombstone. These focused package checks do
 not claim a browser or live-server acceptance gate.
+
+
+`nativeFormatting` also accepts `ranges: [{path, index, length}]` instead of the
+legacy single range fields. It validates every selected text identity before
+mutation and formats all ranges in one Yjs transaction and one host operation
+identity. Paragraph separators have no text identity or stored inline mark.
+Formatting undo uses the same selected-identity preservation rules across leaves.
+The focused runtime checks passed 37 tests; all 92 JavaScript tests passed. The
+actual emitted two-paragraph Unicode update and formatting undo/redo are retained
+in `/private/tmp/relay-mark-multiline-format-interoperability-v1-20260913.json`;
+native host acceptance is recorded separately after the matched package check.
