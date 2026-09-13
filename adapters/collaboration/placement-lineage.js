@@ -62,10 +62,18 @@ function receipt(x, expected) {
     })
   })
   if ([...sources].some(x => destinations.has(x))) throw Error('Overlapping placement copies')
-  // Canonicalize every object field; duplicate replay is independent of JSON key order.
-  const wireSelection = x => ({ version: 1, runs: x.runs.map(r => ({item:id(r.item), type:id(r.type), count:r.count})) })
+  // Canonical ordered unit-pair coalescing ignores caller copy/run partition.
+  // It never changes the original operation request/evidence bytes.
+  const copies=[]
+  for (const pair of pairs) {
+    const last=copies.at(-1), a=last?.source.runs[0], b=last?.destination.runs[0]
+    const follows=(run,unit)=>run && run.item.client===unit.item.client && run.item.clock+run.count===unit.item.clock &&
+      run.type.client===unit.type.client && run.type.clock===unit.type.clock
+    if (follows(a,pair.source) && follows(b,pair.destination)) { a.count++; b.count++ }
+    else copies.push({source:{version:1,runs:[{...clone(pair.source),count:1}]},destination:{version:1,runs:[{...clone(pair.destination),count:1}]}})
+  }
   return { value: { version: 1, ...expected, update_sha256:x.update_sha256, operation_id:x.operation_id,
-    operation:{kind:x.operation.kind,reference:x.operation.reference}, copies:x.copies.map(p=>({source:wireSelection(p.source),destination:wireSelection(p.destination)})) }, pairs }
+    operation:{kind:x.operation.kind,reference:x.operation.reference}, copies }, pairs }
 }
 
 // Immutable candidates let the host save update + candidate snapshot before

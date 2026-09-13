@@ -160,6 +160,8 @@ public final class RelayMarkCollaborationDocument {
 
     /// Immutable candidate; save its snapshot with the update before committing it.
     public struct PlacementCandidate: Sendable {
+        /// Exact canonical receipt for the associated update row.
+        public let receipt: Data
         public let bytes: Data
         public let receiptIDs: [UUID]
     }
@@ -212,7 +214,9 @@ public final class RelayMarkCollaborationDocument {
               let object = try JSONSerialization.jsonObject(with: bytes) as? [String: Any] else {
             throw Failure.runtime("Placement candidate limit")
         }
-        return PlacementCandidate(bytes: bytes, receiptIDs: try Self.placementIDs(object["state"]))
+        guard let receipt = object["receipt"] as? [String: Any] else { throw Failure.runtime("Missing placement receipt") }
+        return PlacementCandidate(receipt: try JSONSerialization.data(withJSONObject: receipt, options: [.sortedKeys]),
+            bytes: bytes, receiptIDs: try Self.placementIDs(object["state"]))
     }
 
     /// Restores only into a pristine document, before journal suffix or remote updates.

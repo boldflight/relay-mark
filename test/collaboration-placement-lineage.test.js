@@ -105,3 +105,21 @@ test('actual server accepted split undo redo sidecars match updates and restore 
  assert.deepEqual(state.receipts.map(r=>r.receipt.operation.kind),['replace_prose','undo','redo'])
  assert.deepEqual(restorePlacementState(JSON.parse(JSON.stringify(state)),expected,fixture.receipts.map(r=>r.operation_id)),state)
 })
+
+
+test('actual local endpoint copies normalize identically to accepted server exported receipts',async()=>{
+ const {readFile}=await import('node:fs/promises')
+ const local=JSON.parse(await readFile(new URL('./fixtures/placement-receipt-local-v1.json',import.meta.url),'utf8'))
+ const server=JSON.parse(await readFile(new URL('./fixtures/placement-receipt-server-v1.json',import.meta.url),'utf8'))
+ const expected={document_id:server.receipts[0].document_id,incarnation:server.receipts[0].incarnation}
+ let state=createPlacementState(expected)
+ for(let i=0;i<local.steps.length;i++) {
+  const step=local.steps[i], accepted=server.receipts[i], original=JSON.stringify(step.lineage)
+  const update=Array.from(Buffer.from(step.operation_updates_base64[0],'base64'))
+  const emitted={...accepted,copies:step.lineage.copies}
+  state=preparePlacementReceipt(state,{expected_binding:expected,trust:'local',update,receipt:emitted})
+  assert.deepEqual(state.receipts.at(-1).receipt,accepted)
+  assert.deepEqual(preparePlacementReceipt(state,{expected_binding:expected,trust:'server',update,receipt:accepted}),state)
+  assert.equal(JSON.stringify(step.lineage),original)
+ }
+})

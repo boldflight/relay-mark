@@ -308,3 +308,10 @@ overload; `commitPlacementReceipt` follows the successful atomic host save.
 The restore overload takes both the expected placement binding and independent
 placement receipt whitelist. Existing no-graph calls remain source compatible.
 None of these bridges enables graph remapping or changes source admission.
+
+`PlacementCandidate.receipt` exposes only the exact canonical derived receipt for
+the update row, while `bytes` remains the opaque graph candidate. Receipt copies
+coalesce ordered contiguous source/destination unit pairs independently of the
+original run/copy partition; the operation request JSON is never rewritten. Exact
+original Mark endpoint fixtures and their matching accepted server exports prove
+local-to-server duplicate acceptance despite that partition difference.

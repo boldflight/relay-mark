@@ -1,0 +1,393 @@
+{
+  "producer": "actual replaceProseWithLineage/undoWithLineage/redoWithLineage runtime endpoints",
+  "source_sha256": {
+    "adapters/collaboration/runtime.js": "f2c8d33b8096c080f98709e70226cc3e9e3574d4e9eed055a169570cd512f89d",
+    "adapters/collaboration/prose-lineage.js": "4eabb70a437d631ed570f1471d70953c51124a28388275aa0ec723e5f19a5531",
+    "adapters/collaboration/history-lineage.js": "27257010cbd0f735d8dedb443bbc724c5fd7ad7c4b3444470a6fa78918734a8d",
+    "adapters/collaboration/text-items.js": "f36023fe6ee46cc3c88852ad74f5b51b96977afbd09976fa895cfdf8f954d6fe",
+    "adapters/swift/Sources/RelayMarkCollaboration/Resources/yjs-runtime.js": "2efc9d4fb7da485edd53b72341b20d77575a48fb9cbeaf62f3bdd070f193f390",
+    "package-lock.json": "8a73a85bfd6b12ca92874f06adb519675b786c8f38e61d9834e3c4d9c5019498"
+  },
+  "steps": [
+    {
+      "host_transaction_id": "30000000-0000-4000-8000-000000000301",
+      "command": "replaceProseWithLineage",
+      "input": {
+        "start": 7,
+        "end": 7,
+        "text": "\n",
+        "operation_id": "30000000-0000-4000-8000-000000000301"
+      },
+      "before_update_base64": "AgPN7+6FDACGx6jk4wIXBml0YWxpYwJ7fYTN7+6FDAAK5Lq68J+MjeS6uobN7+6FDAQGaXRhbGljBG51bGwFx6jk4wIABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDHqOTjAgAGBgDHqOTjAgEEYm9sZAJ7fYTHqOTjAgIWUFJFRklYIPCfjI0gZ2VuZXJhdGVkIIbHqOTjAhYEYm9sZARudWxsAA==",
+      "after_update_base64": "AwjEnayrDgCHx6jk4wIAAwlwYXJhZ3JhcGgHAMSdrKsOAAYGAMSdrKsOAQRib2xkAnt9hMSdrKsOAg/wn4yNIGdlbmVyYXRlZCCGxJ2sqw4PBGJvbGQEbnVsbIbEnayrDhAGaXRhbGljAnt9hMSdrKsOEQrkurrwn4yN5Lq6hsSdrKsOFQZpdGFsaWMEbnVsbAPN7+6FDACGx6jk4wIXBml0YWxpYwJ7fYTN7+6FDAAK5Lq68J+MjeS6uobN7+6FDAQGaXRhbGljBG51bGwGx6jk4wIABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDHqOTjAgAGBgDHqOTjAgEEYm9sZAJ7fYTHqOTjAgIHUFJFRklYIITHqOTjAgkP8J+MjSBnZW5lcmF0ZWQghseo5OMCFgRib2xkBG51bGwCze/uhQwBAAbHqOTjAgEKDQ==",
+      "operation_updates_base64": [
+        "AQjEnayrDgCHx6jk4wIAAwlwYXJhZ3JhcGgHAMSdrKsOAAYGAMSdrKsOAQRib2xkAnt9hMSdrKsOAg/wn4yNIGdlbmVyYXRlZCCGxJ2sqw4PBGJvbGQEbnVsbIbEnayrDhAGaXRhbGljAnt9hMSdrKsOEQrkurrwn4yN5Lq6hsSdrKsOFQZpdGFsaWMEbnVsbALN7+6FDAEABseo5OMCAQoN"
+      ],
+      "inserted_text_items": {
+        "version": 1,
+        "runs": []
+      },
+      "lineage": {
+        "version": 1,
+        "operation": {
+          "kind": "replace_prose",
+          "start_anchor": [
+            0,
+            199,
+            168,
+            228,
+            227,
+            2,
+            10,
+            0
+          ],
+          "end_anchor": [
+            0,
+            199,
+            168,
+            228,
+            227,
+            2,
+            10,
+            0
+          ],
+          "inserted_text": "\n",
+          "inserted_attributes": {}
+        },
+        "copies": [
+          {
+            "source": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 746132551,
+                    "clock": 10
+                  },
+                  "type": {
+                    "client": 746132551,
+                    "clock": 1
+                  },
+                  "count": 13
+                },
+                {
+                  "item": {
+                    "client": 3233527757,
+                    "clock": 1
+                  },
+                  "type": {
+                    "client": 746132551,
+                    "clock": 1
+                  },
+                  "count": 4
+                }
+              ]
+            },
+            "destination": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 3
+                  },
+                  "type": {
+                    "client": 3848998596,
+                    "clock": 1
+                  },
+                  "count": 13
+                },
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 18
+                  },
+                  "type": {
+                    "client": 3848998596,
+                    "clock": 1
+                  },
+                  "count": 4
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected_paragraphs": [
+        {
+          "plain": "PREFIX ",
+          "leaves": [
+            [
+              {
+                "insert": "PREFIX ",
+                "attributes": {
+                  "bold": {}
+                }
+              }
+            ]
+          ]
+        },
+        {
+          "plain": "\ud83c\udf0d generated \u4eba\ud83c\udf0d\u4eba",
+          "leaves": [
+            [
+              {
+                "insert": "\ud83c\udf0d generated ",
+                "attributes": {
+                  "bold": {}
+                }
+              },
+              {
+                "insert": "\u4eba\ud83c\udf0d\u4eba",
+                "attributes": {
+                  "italic": {}
+                }
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "host_transaction_id": "30000000-0000-4000-8000-000000000302",
+      "command": "undoWithLineage",
+      "input": {
+        "operation_id": "30000000-0000-4000-8000-000000000302"
+      },
+      "before_update_base64": "AwjEnayrDgCHx6jk4wIAAwlwYXJhZ3JhcGgHAMSdrKsOAAYGAMSdrKsOAQRib2xkAnt9hMSdrKsOAg/wn4yNIGdlbmVyYXRlZCCGxJ2sqw4PBGJvbGQEbnVsbIbEnayrDhAGaXRhbGljAnt9hMSdrKsOEQrkurrwn4yN5Lq6hsSdrKsOFQZpdGFsaWMEbnVsbAPN7+6FDACGx6jk4wIXBml0YWxpYwJ7fYTN7+6FDAAK5Lq68J+MjeS6uobN7+6FDAQGaXRhbGljBG51bGwGx6jk4wIABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDHqOTjAgAGBgDHqOTjAgEEYm9sZAJ7fYTHqOTjAgIHUFJFRklYIITHqOTjAgkP8J+MjSBnZW5lcmF0ZWQghseo5OMCFgRib2xkBG51bGwCze/uhQwBAAbHqOTjAgEKDQ==",
+      "after_update_base64": "AwzEnayrDgCHx6jk4wIAAwlwYXJhZ3JhcGgHAMSdrKsOAAYGAMSdrKsOAQRib2xkAnt9hMSdrKsOAg/wn4yNIGdlbmVyYXRlZCCGxJ2sqw4PBGJvbGQEbnVsbIbEnayrDhAGaXRhbGljAnt9hMSdrKsOEQrkurrwn4yN5Lq6hsSdrKsOFQZpdGFsaWMEbnVsbMTHqOTjAgnHqOTjAgoP8J+MjSBnZW5lcmF0ZWQgxseo5OMCF83v7oUMAAZpdGFsaWMCe33Eze/uhQwAze/uhQwBCuS6uvCfjI3kurrGze/uhQwEze/uhQwFBml0YWxpYwRudWxsA83v7oUMAIbHqOTjAhcGaXRhbGljAnt9hM3v7oUMAArkurrwn4yN5Lq6hs3v7oUMBAZpdGFsaWMEbnVsbAbHqOTjAgAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHAMeo5OMCAAYGAMeo5OMCAQRib2xkAnt9hMeo5OMCAgdQUkVGSVgghMeo5OMCCQ/wn4yNIGdlbmVyYXRlZCCGx6jk4wIWBGJvbGQEbnVsbAPEnayrDgEAF83v7oUMAQAGx6jk4wIBCg0=",
+      "operation_updates_base64": [
+        "AQTEnayrDhfEx6jk4wIJx6jk4wIKD/CfjI0gZ2VuZXJhdGVkIMbHqOTjAhfN7+6FDAAGaXRhbGljAnt9xM3v7oUMAM3v7oUMAQrkurrwn4yN5Lq6xs3v7oUMBM3v7oUMBQZpdGFsaWMEbnVsbAHEnayrDgEAFw=="
+      ],
+      "inserted_text_items": {
+        "version": 1,
+        "runs": []
+      },
+      "lineage": {
+        "version": 1,
+        "operation": {
+          "kind": "undo",
+          "transaction_id": "30000000-0000-4000-8000-000000000301"
+        },
+        "copies": [
+          {
+            "source": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 746132551,
+                    "clock": 10
+                  },
+                  "type": {
+                    "client": 746132551,
+                    "clock": 1
+                  },
+                  "count": 13
+                }
+              ]
+            },
+            "destination": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 23
+                  },
+                  "type": {
+                    "client": 746132551,
+                    "clock": 1
+                  },
+                  "count": 13
+                }
+              ]
+            }
+          },
+          {
+            "source": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3233527757,
+                    "clock": 1
+                  },
+                  "type": {
+                    "client": 746132551,
+                    "clock": 1
+                  },
+                  "count": 4
+                }
+              ]
+            },
+            "destination": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 37
+                  },
+                  "type": {
+                    "client": 746132551,
+                    "clock": 1
+                  },
+                  "count": 4
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected_paragraphs": [
+        {
+          "plain": "PREFIX \ud83c\udf0d generated \u4eba\ud83c\udf0d\u4eba",
+          "leaves": [
+            [
+              {
+                "insert": "PREFIX \ud83c\udf0d generated ",
+                "attributes": {
+                  "bold": {}
+                }
+              },
+              {
+                "insert": "\u4eba\ud83c\udf0d\u4eba",
+                "attributes": {
+                  "italic": {}
+                }
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "host_transaction_id": "30000000-0000-4000-8000-000000000303",
+      "command": "redoWithLineage",
+      "input": {
+        "operation_id": "30000000-0000-4000-8000-000000000303"
+      },
+      "before_update_base64": "AwzEnayrDgCHx6jk4wIAAwlwYXJhZ3JhcGgHAMSdrKsOAAYGAMSdrKsOAQRib2xkAnt9hMSdrKsOAg/wn4yNIGdlbmVyYXRlZCCGxJ2sqw4PBGJvbGQEbnVsbIbEnayrDhAGaXRhbGljAnt9hMSdrKsOEQrkurrwn4yN5Lq6hsSdrKsOFQZpdGFsaWMEbnVsbMTHqOTjAgnHqOTjAgoP8J+MjSBnZW5lcmF0ZWQgxseo5OMCF83v7oUMAAZpdGFsaWMCe33Eze/uhQwAze/uhQwBCuS6uvCfjI3kurrGze/uhQwEze/uhQwFBml0YWxpYwRudWxsA83v7oUMAIbHqOTjAhcGaXRhbGljAnt9hM3v7oUMAArkurrwn4yN5Lq6hs3v7oUMBAZpdGFsaWMEbnVsbAbHqOTjAgAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHAMeo5OMCAAYGAMeo5OMCAQRib2xkAnt9hMeo5OMCAgdQUkVGSVgghMeo5OMCCQ/wn4yNIGdlbmVyYXRlZCCGx6jk4wIWBGJvbGQEbnVsbAPEnayrDgEAF83v7oUMAQAGx6jk4wIBCg0=",
+      "after_update_base64": "AxTEnayrDgCHx6jk4wIAAwlwYXJhZ3JhcGgHAMSdrKsOAAYGAMSdrKsOAQRib2xkAnt9hMSdrKsOAg/wn4yNIGdlbmVyYXRlZCCGxJ2sqw4PBGJvbGQEbnVsbIbEnayrDhAGaXRhbGljAnt9hMSdrKsOEQrkurrwn4yN5Lq6hsSdrKsOFQZpdGFsaWMEbnVsbMTHqOTjAgnHqOTjAgoP8J+MjSBnZW5lcmF0ZWQgxseo5OMCF83v7oUMAAZpdGFsaWMCe33Eze/uhQwAze/uhQwBCuS6uvCfjI3kurrGze/uhQwEze/uhQwFBml0YWxpYwRudWxsx8eo5OMCAMSdrKsOAAMJcGFyYWdyYXBoBwDEnayrDioGBgDEnayrDisEYm9sZAJ7fYTEnayrDiwP8J+MjSBnZW5lcmF0ZWQghsSdrKsOOQRib2xkBG51bGyGxJ2sqw46Bml0YWxpYwJ7fYTEnayrDjsK5Lq68J+MjeS6uobEnayrDj8GaXRhbGljBG51bGwDze/uhQwAhseo5OMCFwZpdGFsaWMCe32Eze/uhQwACuS6uvCfjI3kurqGze/uhQwEBml0YWxpYwRudWxsBseo5OMCAAcBB2RlZmF1bHQDCXBhcmFncmFwaAcAx6jk4wIABgYAx6jk4wIBBGJvbGQCe32Ex6jk4wICB1BSRUZJWCCEx6jk4wIJD/CfjI0gZ2VuZXJhdGVkIIbHqOTjAhYEYm9sZARudWxsA8SdrKsOAQAqze/uhQwBAAbHqOTjAgEKDQ==",
+      "operation_updates_base64": [
+        "AQjEnayrDirHx6jk4wIAxJ2sqw4AAwlwYXJhZ3JhcGgHAMSdrKsOKgYGAMSdrKsOKwRib2xkAnt9hMSdrKsOLA/wn4yNIGdlbmVyYXRlZCCGxJ2sqw45BGJvbGQEbnVsbIbEnayrDjoGaXRhbGljAnt9hMSdrKsOOwrkurrwn4yN5Lq6hsSdrKsOPwZpdGFsaWMEbnVsbAHEnayrDgEXEw=="
+      ],
+      "inserted_text_items": {
+        "version": 1,
+        "runs": []
+      },
+      "lineage": {
+        "version": 1,
+        "operation": {
+          "kind": "redo",
+          "transaction_id": "30000000-0000-4000-8000-000000000302"
+        },
+        "copies": [
+          {
+            "source": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 3
+                  },
+                  "type": {
+                    "client": 3848998596,
+                    "clock": 1
+                  },
+                  "count": 13
+                }
+              ]
+            },
+            "destination": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 45
+                  },
+                  "type": {
+                    "client": 3848998596,
+                    "clock": 43
+                  },
+                  "count": 13
+                }
+              ]
+            }
+          },
+          {
+            "source": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 18
+                  },
+                  "type": {
+                    "client": 3848998596,
+                    "clock": 1
+                  },
+                  "count": 4
+                }
+              ]
+            },
+            "destination": {
+              "version": 1,
+              "runs": [
+                {
+                  "item": {
+                    "client": 3848998596,
+                    "clock": 60
+                  },
+                  "type": {
+                    "client": 3848998596,
+                    "clock": 43
+                  },
+                  "count": 4
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expected_paragraphs": [
+        {
+          "plain": "PREFIX ",
+          "leaves": [
+            [
+              {
+                "insert": "PREFIX ",
+                "attributes": {
+                  "bold": {}
+                }
+              }
+            ]
+          ]
+        },
+        {
+          "plain": "\ud83c\udf0d generated \u4eba\ud83c\udf0d\u4eba",
+          "leaves": [
+            [
+              {
+                "insert": "\ud83c\udf0d generated ",
+                "attributes": {
+                  "bold": {}
+                }
+              },
+              {
+                "insert": "\u4eba\ud83c\udf0d\u4eba",
+                "attributes": {
+                  "italic": {}
+                }
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

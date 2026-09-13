@@ -447,7 +447,7 @@ export function call(command, input) {
             placementJSON(r?.operation) !== placementJSON(proof.operation) || placementJSON(r?.copies) !== placementJSON(proof.copies)) throw Error('Local placement receipt is not runtime-proven')
       }
       const state=preparePlacementReceipt(placementState || createPlacementState(input.expected_binding),input)
-      placementCandidate={version:1,base_sha256:placementBase(),state}
+      placementCandidate={version:1,base_sha256:placementBase(),state,receipt:state.receipts.find(row=>row.receipt.operation_id===input.receipt.operation_id).receipt}
       return JSON.parse(JSON.stringify(placementCandidate))
     }
     case 'commitPlacementReceipt': {
