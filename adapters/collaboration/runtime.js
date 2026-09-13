@@ -1,7 +1,7 @@
 import * as Y from 'yjs'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage } from './prose-lineage.js'
-import { prepareHistoryLineage, preserveHistoryDescendants, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
+import { prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -601,6 +601,15 @@ export function call(command, input) {
     case 'nativeParagraphPaste': return nativeParagraphPaste(input)
     case 'beginUndoGroup': undo.stopCapturing(); undo.captureTimeout = Number.MAX_SAFE_INTEGER; return null
     case 'endUndoGroup': undo.stopCapturing(); undo.captureTimeout = 0; return null
+    case 'undoWithEvidence':
+    case 'redoWithEvidence': {
+      if (formattingCapture || historyCapture || lineageCapture) throw Error('Nested history evidence')
+      const redo = command === 'redoWithEvidence'
+      const prepared = prepareHistoryEvidence(doc, undo, redo, input, lineageKey)
+      const result = history(redo, prepared)
+      return { kind: prepared.kind, updates: result.updates, insertedTextItems: prepared.insertedTextItems,
+        lineage: prepared.kind === 'prose' ? prepared.lineage : null, formattingMark: result.formattingMark }
+    }
     case 'undoWithLineage':
     case 'redoWithLineage': {
       if (formattingCapture || historyCapture || lineageCapture) throw Error('Nested history evidence')

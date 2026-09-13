@@ -133,6 +133,30 @@ public final class RelayMarkCollaborationDocument {
     /// Restores only into a pristine document, before journal suffix or remote updates.
     /// Mark validates the complete snapshot and requires every stack operation to occur
     /// in the host's exact retained transaction whitelist. Failure leaves the owner pristine.
+    public struct SnapshotExport: Sendable {
+        public let bytes: Data
+        public let transactionIDs: [UUID]
+    }
+
+    /// Library-owned receipt closure; callers need not decode private stack metadata.
+    public func exportHistoryState(scopeToken: String) throws -> SnapshotExport {
+        let bytes = try exportHistorySnapshot(scopeToken: scopeToken)
+        struct Stack: Decodable { let operation_id: String }
+        struct Wire: Decodable { let undo: [Stack]; let redo: [Stack] }
+        let wire = try JSONDecoder().decode(Wire.self, from: bytes)
+        let values = wire.undo + wire.redo
+        guard values.count <= 16384 else { throw Failure.runtime("History reference limit") }
+        var seen = Set<UUID>()
+        let ids = try values.map { value -> UUID in
+            guard let id = UUID(uuidString: value.operation_id),
+                  id.uuidString.lowercased() == value.operation_id, seen.insert(id).inserted else {
+                throw Failure.runtime("Invalid history reference")
+            }
+            return id
+        }
+        return SnapshotExport(bytes: bytes, transactionIDs: ids)
+    }
+
     public func restoreHistorySnapshot(_ snapshot: Data, scopeToken: String, transactionIDs: [UUID]) throws {
         guard snapshot.count <= 64 * 1024 * 1024, transactionIDs.count <= 16384 else {
             throw Failure.runtime("History snapshot limit")
@@ -214,6 +238,52 @@ public final class RelayMarkCollaborationDocument {
     /// marker is local operation evidence; it never establishes text authorship.
     public func editNativeFormatting(_ operation: Data) throws -> [Data] {
         try updates("nativeFormatting", input: JSONSerialization.jsonObject(with: operation))
+    }
+
+    public func editNativeFormatting(_ operation: Data, operationID: UUID) throws -> [Data] {
+        guard var value = try JSONSerialization.jsonObject(with: operation) as? [String: Any],
+              value["operation_id"] == nil else { throw Failure.runtime("Invalid formatting operation") }
+        value["operation_id"] = operationID.uuidString.lowercased()
+        return try updates("nativeFormatting", input: value)
+    }
+
+    public struct HistoryEvidenceResult: Sendable {
+        public enum Kind: String, Decodable, Sendable { case prose, formatting }
+        public let kind: Kind
+        public let updates: [Data]
+        public let insertedTextItems: Data
+        public let proseLineage: Data?
+        public let formattingMark: RelayMarkLocalTransaction.NativeFormatting.Mark?
+    }
+
+    /// Resolves evidence from the actually performed tracked item. Unsupported,
+    /// mixed or ineffective history refuses during preflight without mutation.
+    public func undoWithEvidence(operationID: UUID) throws -> HistoryEvidenceResult {
+        try historyEvidence(redo: false, operationID: operationID)
+    }
+    public func redoWithEvidence(operationID: UUID) throws -> HistoryEvidenceResult {
+        try historyEvidence(redo: true, operationID: operationID)
+    }
+    private func historyEvidence(redo: Bool, operationID: UUID) throws -> HistoryEvidenceResult {
+        struct Wire: Decodable {
+            let kind: HistoryEvidenceResult.Kind
+            let updates: [[UInt8]]
+            let insertedTextItems: [UInt8]
+            let formattingMark: RelayMarkLocalTransaction.NativeFormatting.Mark?
+        }
+        let data = try call(redo ? "redoWithEvidence" : "undoWithEvidence",
+            input: ["operation_id": operationID.uuidString.lowercased()])
+        let wire = try JSONDecoder().decode(Wire.self, from: data)
+        let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let lineage = object?["lineage"] as? [String: Any]
+        guard (wire.kind == .prose && lineage != nil && wire.formattingMark == nil) ||
+              (wire.kind == .formatting && lineage == nil && wire.formattingMark != nil) else {
+            throw Failure.runtime("Inconsistent history evidence")
+        }
+        return HistoryEvidenceResult(kind: wire.kind, updates: wire.updates.map { Data($0) },
+            insertedTextItems: Data(wire.insertedTextItems),
+            proseLineage: try lineage.map { try JSONSerialization.data(withJSONObject: $0, options: [.sortedKeys]) },
+            formattingMark: wire.formattingMark)
     }
 
     public struct FormattingHistoryResult: Sendable {

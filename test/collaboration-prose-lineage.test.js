@@ -407,3 +407,18 @@ test('tracked inline replacement retains exact typed item evidence in its durabl
   assert.deepEqual(restored('exportHistorySnapshot', { scope_token: snapshot.scope_token }).undo[0].inserted_text_items, typed)
   empty.destroy(); original.destroy()
 })
+
+test('unified history dispatch preserves actual prose and formatting evidence modes', () => {
+  const original = seed(), call = runtime(original)
+  call('replaceProseWithLineage', { start: 6, end: 6, text: '!', operation_id: operationID(120) })
+  call('nativeFormatting', { kind: 'formatText', path: [0, 0], index: 0, length: 6,
+    attributes: { bold: null }, operation_id: operationID(121) })
+  const format = call('undoWithEvidence', { operation_id: operationID(122) })
+  assert.equal(format.kind, 'formatting'); assert.equal(format.formattingMark, 'bold'); assert.equal(format.lineage, null)
+  const prose = call('undoWithEvidence', { operation_id: operationID(123) })
+  assert.equal(prose.kind, 'prose'); assert.equal(prose.formattingMark, null)
+  assert.equal(prose.lineage.operation.transaction_id, operationID(120))
+  assert.equal(call('redoWithEvidence', { operation_id: operationID(124) }).kind, 'prose')
+  assert.equal(call('redoWithEvidence', { operation_id: operationID(125) }).kind, 'formatting')
+  original.destroy()
+})

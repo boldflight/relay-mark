@@ -222,6 +222,16 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
   } finally { manager.beforeHistoryTransactionCommit = null }
 }
 
+// Select a typed route from the exact tracked stack item, then prove that the
+// same item is performed. Ineffective tops refuse rather than choosing evidence
+// from an earlier item after mutation.
+export function prepareHistoryEvidence(live, owner, redo, input, lineageKey) {
+  const metadata = (redo ? owner.redoStack : owner.undoStack).at(-1)?.meta.get(lineageKey)
+  const formatting = metadata?.formattingMark != null
+  return { ...prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting),
+    kind: formatting ? 'formatting' : 'prose' }
+}
+
 // Version-pinned access to nonserialized UndoManager/Item metadata lives ONLY
 // here. No custom inverse algorithm: both preflight and live use Y.UndoManager.
 export function prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting = false) {

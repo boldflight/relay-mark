@@ -131,3 +131,26 @@ Final focused snapshot/format validation passed 31 tests; the full JavaScript
 suite passed 81 tests. This includes invalid import atomic refusal, lossy-GC
 refusal, exact typed evidence retention, and formatting undo/redo restart with
 host-assigned inverse IDs. Earlier 29-test snapshot artifacts remain preserved.
+
+## Unified tracked history evidence
+
+`undoWithEvidence` / `redoWithEvidence` accept `{operation_id}` and return the
+actual performed kind (`prose` or `formatting`), updates, typed item selection,
+and either prose lineage or formatting mark evidence. Dispatch selects the exact
+tracked item before the shared UndoManager preflight; it does not retry a second
+history route after an error. Ineffective top items currently refuse instead of
+silently skipping to an earlier operation. Legacy unqualified history APIs retain
+their prior behavior.
+
+The additive Swift bridge exposes `HistoryEvidenceResult` and an explicit
+`editNativeFormatting(_:operationID:)` overload. `exportHistoryState(scopeToken:)`
+returns `SnapshotExport(bytes, transactionIDs)` so hosts receive the validated
+canonical unique reference closure without parsing private stack fields. The
+existing Data export API is unchanged.
+
+Focused dispatcher JavaScript tests passed 18/18. The matched native fixture
+`/private/tmp/relay-native-history-v18-v3-20260913` passed 41 tests including five
+opt-in editor tests: split/join reference identity, exact failed-save retries with
+peer arrival after structural forward/undo, mixed-mark refusal/default-off
+compatibility, and ordinary formatting undo/redo with the typed snapshot closure.
+App activation remains separate from this library/editor capability.
