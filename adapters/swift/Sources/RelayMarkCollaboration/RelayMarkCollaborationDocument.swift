@@ -114,6 +114,16 @@ public final class RelayMarkCollaborationDocument {
             "operation_id": operationID.uuidString.lowercased()])
     }
 
+    /// Uniform bold/italic insertion marks; mixed runs and other rich text stay unsupported.
+    public func replaceProseWithLineage(start: Int, end: Int, text: String,
+                                       insertedMarks: [RelayMarkLocalTransaction.NativeFormatting.Mark],
+                                       operationID: UUID) throws -> ProseLineageResult {
+        var attributes: [String: [String: String]] = [:]
+        for mark in insertedMarks { attributes[mark.rawValue] = [:] }
+        return try proseLineage("replaceProseWithLineage", input: ["start": start, "end": end, "text": text,
+            "attributes": attributes, "operation_id": operationID.uuidString.lowercased()])
+    }
+
     /// Restores through the actual tracked history item with copied-identity evidence.
     /// Empty, untracked or mixed history refuses before mutation. Restored text is not new human input.
     public func undoWithLineage(operationID: UUID) throws -> ProseLineageResult {

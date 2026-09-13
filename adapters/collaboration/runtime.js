@@ -106,7 +106,7 @@ function history(redo, prepared = null) {
           capture.performed.length !== 1 || capture.performed[0] !== item || capture.inverse.length !== 1) {
         throw Error('History execution diverged from preflight')
       }
-      capture.inverse[0].meta.set(lineageKey, { operationID: prepared.operationID, copies: execution.inverseCopies, formattingMark: proven ? mark : null })
+      capture.inverse[0].meta.set(lineageKey, { operationID: prepared.operationID, copies: execution.inverseCopies, formattingMark: proven ? mark : null, formattingTextItems: execution.formattingTextItems || null })
       const actual = Y.encodeStateAsUpdate(doc)
       if (actual.length !== prepared.expectedState.length || actual.some((byte, i) => byte !== prepared.expectedState[i])) {
         throw Error('History state diverged from preflight')
@@ -127,7 +127,8 @@ function nativeFormatting(operation) {
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(operation.operation_id))) throw Error('Invalid host operation identity')
   if (lineageCapture || historyCapture) throw Error('Nested formatting operation')
   undo.stopCapturing()
-  lineageCapture = operation.operation_id ? { operationID: operation.operation_id, copies: [], formattingMark: keys[0] } : null
+  lineageCapture = operation.operation_id ? { operationID: operation.operation_id, copies: [], formattingMark: keys[0],
+    formattingTextItems: captureTextItems(root, { path: operation.path, index: operation.index, length: operation.length }) } : null
   formattingCapture = keys[0]
   localUpdates = []
   try { edit(operation); return localUpdates }
@@ -394,8 +395,8 @@ export function call(command, input) {
       if (formattingCapture || historyCapture || lineageCapture || awareness.getStates().size ||
           awarenessOrigins.size || awarenessUpdates.length) throw Error('History restore requires an inactive host')
       restoreHistorySnapshot(doc, undo, input, lineageKey)
-      // Restore happens before presence starts. Keep its client identity aligned
-      // with the restored document rather than the discarded pristine identity.
+      // Historical item IDs stay in the snapshot, but this owner keeps a fresh
+      // session ID. Align awareness if Yjs rotated a colliding pristine ID.
       awareness.clientID = doc.clientID; awareness.meta.clear()
       awareness.setLocalState(null)
       return null

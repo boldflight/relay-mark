@@ -74,7 +74,7 @@ test('join preserves exact copied provenance and repeated operations keep one lo
 test('unsupported structural evidence and invalid scalar boundaries leave live bytes and history untouched', () => {
   const original = seed(), call = runtime(original), before = call('state')
   for (const input of [{ start: 8, end: 8, text: '' }, { start: 8, end: 8, text: '\n' }, { start: 7, end: 7, text: '\u2028' },
-    { start: 7, end: 7, text: '\n', attributes: { bold: {} } }]) {
+    { start: 7, end: 7, text: '\n', attributes: { strike: {} } }]) {
     assert.throws(() => call('replaceProseWithLineage', input))
     assert.deepEqual(call('state'), before)
   }
@@ -166,7 +166,7 @@ test('untracked and mixed history refuse before mutation and leave the actual hi
   original.destroy()
 })
 
-test('ineffective tracked top item cannot silently consume an earlier operation during preflight', () => {
+test('ineffective tracked top item skips to the actual earlier operation with its exact reference', () => {
   const original = seed(), call = runtime(original)
   call('replaceProseWithLineage', { start: 0, end: 0, text: 'A', operation_id: operationID(30) })
   call('replaceProseWithLineage', { start: 0, end: 0, text: 'B', operation_id: operationID(31) })
@@ -174,11 +174,9 @@ test('ineffective tracked top item cannot silently consume an earlier operation 
   const vector = Y.encodeStateVector(peer)
   peer.getXmlFragment('default').get(0).get(0).delete(0, 1)
   call('apply', [...Y.encodeStateAsUpdate(peer, vector)])
-  const before = call('state')
-  assert.throws(() => call('undoWithLineage', { operation_id: operationID(32) }))
-  assert.deepEqual(call('state'), before)
-  // The ordinary API still sees both original stack entries and skips B to undo A.
-  assert.ok(call('undo').length)
+  const result = call('undoWithLineage', { operation_id: operationID(32) })
+  assert.equal(result.lineage.operation.transaction_id, operationID(30))
+  assert.equal(result.updates.length, 1)
   const value = new Y.Doc(); Y.applyUpdate(value, Uint8Array.from(call('state')))
   assert.equal(value.getXmlFragment('default').get(0).toArray().flatMap(t => t.toDelta()).map(run => run.insert).join(''),
     'PREFIX 🌍 generated 人🌍人')
@@ -315,7 +313,7 @@ test('qualified durable history survives pristine restart, peer updates and a se
     ['PREFIX-PEER PREFIX 🌍 generated 人🌍人', 'PEER'])
   assert.deepEqual(paragraphAttributes(undoneDoc, 0, 19), { bold: {}, italic: {} })
   const second = resumed('exportHistorySnapshot', { scope_token: 'account/doc/incarnation|cut:81' })
-  assert.equal(second.client_id, first.client_id)
+  assert.notEqual(second.client_id, first.client_id)
   const again = runtime(pristine)
   again('restoreHistorySnapshot', { snapshot: second, scope_token: second.scope_token, transaction_ids: [operationID(81)] })
   const redone = again('redoWithLineage', { operation_id: operationID(82) })
@@ -421,4 +419,88 @@ test('unified history dispatch preserves actual prose and formatting evidence mo
   assert.equal(call('redoWithEvidence', { operation_id: operationID(124) }).kind, 'prose')
   assert.equal(call('redoWithEvidence', { operation_id: operationID(125) }).kind, 'formatting')
   original.destroy()
+})
+
+
+test('unified history skips obsolete prose to formatting and leaves peer text untouched', () => {
+  const original = seed(), call = runtime(original)
+  call('nativeFormatting', { kind: 'formatText', path: [0, 0], index: 0, length: 6,
+    attributes: { bold: null }, operation_id: operationID(130) })
+  call('replaceProseWithLineage', { start: 0, end: 0, text: 'X', operation_id: operationID(131) })
+  const peer = new Y.Doc(); Y.applyUpdate(peer, Uint8Array.from(call('state')))
+  const vector = Y.encodeStateVector(peer), leaf = peer.getXmlFragment('default').get(0).get(0)
+  leaf.delete(0, 1); leaf.insert(6, 'PEER', { italic: {} })
+  call('apply', [...Y.encodeStateAsUpdate(peer, vector)])
+  const result = call('undoWithEvidence', { operation_id: operationID(132) })
+  assert.equal(result.kind, 'formatting'); assert.equal(result.formattingMark, 'bold')
+  const value = new Y.Doc(); Y.applyUpdate(value, Uint8Array.from(call('state')))
+  assert.equal(value.getXmlFragment('default').get(0).get(0).toDelta().map(run => run.insert).join(''), 'PREFIXPEER 🌍 generated 人🌍人')
+  assert.deepEqual(paragraphAttributes(value, 0, 6), { italic: {} })
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'skip|132' })
+  assert.equal(snapshot.redo[0].operation_id, operationID(132))
+  assert.equal(call('redoWithEvidence', { operation_id: operationID(133) }).kind, 'formatting')
+  value.destroy(); peer.destroy(); original.destroy()
+})
+
+test('skipping to an actionable untracked item refuses before changing live history', () => {
+  const original = seed(), call = runtime(original)
+  call('replaceProse', { start: 0, end: 0, text: 'A' })
+  call('replaceProseWithLineage', { start: 0, end: 0, text: 'B', operation_id: operationID(140) })
+  const peer = new Y.Doc(); Y.applyUpdate(peer, Uint8Array.from(call('state')))
+  const vector = Y.encodeStateVector(peer)
+  peer.getXmlFragment('default').get(0).get(0).delete(0, 1)
+  call('apply', [...Y.encodeStateAsUpdate(peer, vector)])
+  const before = call('state')
+  assert.throws(() => call('undoWithEvidence', { operation_id: operationID(141) }))
+  assert.deepEqual(call('state'), before)
+  assert.ok(call('undo').length)
+  peer.destroy(); original.destroy()
+})
+
+test('legacy formatting snapshots without exact target identities cannot authorize a broad mark reversal', () => {
+  const original = seed(), call = runtime(original)
+  call('nativeFormatting', { kind: 'formatText', path: [0, 0], index: 0, length: 6,
+    attributes: { bold: null }, operation_id: operationID(150) })
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'format|150' })
+  delete snapshot.undo[0].formatting_text_items
+  const empty = new Y.Doc(), restored = runtime(empty), before = restored('state')
+  assert.throws(() => restored('restoreHistorySnapshot', { snapshot, scope_token: snapshot.scope_token, transaction_ids: [operationID(150)] }))
+  assert.deepEqual(restored('state'), before)
+  empty.destroy(); original.destroy()
+})
+
+
+test('two pristine restores keep distinct session IDs and concurrent edits and selective undo converge', () => {
+  const original = seed(), call = runtime(original)
+  call('replaceProseWithLineage', { start: 0, end: 0, text: 'OLD', operation_id: operationID(160) })
+  const snapshot = call('exportHistorySnapshot', { scope_token: 'owner|160' }), empty = new Y.Doc()
+  const a = runtime(empty), b = runtime(empty)
+  const canonical = owner => {
+    const copy = new Y.Doc(); Y.applyUpdate(copy, Uint8Array.from(owner('state')))
+    const bytes = [...Y.encodeStateAsUpdate(copy)]; copy.destroy(); return bytes
+  }
+  for (const owner of [a, b]) owner('restoreHistorySnapshot', { snapshot, scope_token: snapshot.scope_token, transaction_ids: [operationID(160)] })
+  const aID = a('exportHistorySnapshot', { scope_token: 'a' }).client_id
+  const bID = b('exportHistorySnapshot', { scope_token: 'b' }).client_id
+  assert.notEqual(aID, bID); assert.notEqual(aID, snapshot.client_id); assert.notEqual(bID, snapshot.client_id)
+  const left = a('replaceProseWithLineage', { start: 0, end: 0, text: 'A', operation_id: operationID(161) })
+  const right = b('replaceProseWithLineage', { start: 0, end: 0, text: 'B', operation_id: operationID(162) })
+  for (const update of left.updates) b('apply', update)
+  for (const update of right.updates) a('apply', update)
+  assert.deepEqual(canonical(a), canonical(b))
+  const undoA = a('undoWithEvidence', { operation_id: operationID(163) })
+  for (const update of undoA.updates) b('apply', update)
+  assert.deepEqual(canonical(a), canonical(b))
+  const undoB = b('undoWithEvidence', { operation_id: operationID(164) })
+  for (const update of undoB.updates) a('apply', update)
+  assert.deepEqual(canonical(a), canonical(b))
+  const value = new Y.Doc(); Y.applyUpdate(value, Uint8Array.from(a('state')))
+  assert.equal(value.getXmlFragment('default').get(0).get(0).toDelta().map(run => run.insert).join(''), 'OLDPREFIX 🌍 generated 人🌍人')
+  // An old high awareness clock must not suppress the new session's first state.
+  const receiver = runtime(empty)
+  for (let i = 0; i < 20; i++) for (const data of call('presenceSet', { name: `Old ${i}` })) receiver('presenceApply', { data, origin: 'old' })
+  for (const data of call('presenceSet', null)) receiver('presenceApply', { data, origin: 'old' })
+  for (const data of a('presenceSet', { name: 'Restored' })) receiver('presenceApply', { data, origin: 'new' })
+  assert.deepEqual(receiver('presenceStates').map(value => value.name), ['Restored'])
+  value.destroy(); empty.destroy(); original.destroy()
 })

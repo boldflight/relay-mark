@@ -76,7 +76,7 @@ by SHA-256 of sorted-key JSON for the full source cut (scope ID, generation,
 local sequence, remote epoch). Mark checks exact equality, not authorization.
 
 The envelope contains `version:1`, `yjs_version:"13.6.32"`, `hook_version:1`,
-`scope_token`, `client_id`, `state_update` (complete standard Yjs update bytes),
+`scope_token`, `client_id` (exporter session identity), `state_update` (complete standard Yjs update bytes),
 `state_vector`, `undo`, `redo`, `redone`, and `retained`. Stack entries contain
 `insertions` and `deletions` as canonical client/clock/length intervals,
 `operation_id`, `counterparts` (exact source/destination selection pairs),
@@ -97,7 +97,9 @@ The live document's normal GC setting is restored immediately. Applying ordinary
 updates first and then importing history is unsupported: deleted text may already
 be irreversibly garbage collected. No blanket disabling of GC is required.
 After bootstrap, normal peer updates can arrive before undo/redo; restart tests
-preserve peer text, marks and original local client identity across two restores.
+preserve peer text, marks and historical item identities across two restores.
+Each restored runtime keeps its freshly allocated client/awareness identity; the
+snapshot client_id records the exporter and is never assigned to the new owner.
 
 Limits are 64 MiB serialized envelope, 8 MiB state update, 2,048 UTF-8 token bytes,
 4,096 entries per stack, 65,536 retained/redone structs, and 16,384 allowlisted
@@ -136,11 +138,12 @@ host-assigned inverse IDs. Earlier 29-test snapshot artifacts remain preserved.
 
 `undoWithEvidence` / `redoWithEvidence` accept `{operation_id}` and return the
 actual performed kind (`prose` or `formatting`), updates, typed item selection,
-and either prose lineage or formatting mark evidence. Dispatch selects the exact
-tracked item before the shared UndoManager preflight; it does not retry a second
-history route after an error. Ineffective top items currently refuse instead of
-silently skipping to an earlier operation. Legacy unqualified history APIs retain
-their prior behavior.
+and either prose lineage or formatting mark evidence. The shared scratch UndoManager performs its normal skipping and identifies the
+actual actionable item before live execution. Dispatch does not retry a second
+history route after an error. Evidence references the performed item, including
+when its kind differs from an obsolete top entry. An actionable untracked item
+still refuses before live mutation; no effective item remains a no-evidence
+refusal. Legacy unqualified history APIs retain their prior behavior.
 
 The additive Swift bridge exposes `HistoryEvidenceResult` and an explicit
 `editNativeFormatting(_:operationID:)` overload. `exportHistoryState(scopeToken:)`
@@ -154,3 +157,35 @@ opt-in editor tests: split/join reference identity, exact failed-save retries wi
 peer arrival after structural forward/undo, mixed-mark refusal/default-off
 compatibility, and ordinary formatting undo/redo with the typed snapshot closure.
 App activation remains separate from this library/editor capability.
+
+
+Formatting snapshot metadata additionally retains `formatting_text_items`, the
+exact selected identities captured before the forward operation. The same inverse
+hook preserves current peer marks outside that set and allows the intended mark
+reversal only on selected identities; unrelated marks remain current. Old
+formatting snapshots lacking this field refuse rather than authorizing a broad
+mark reversal. Older prose-only entries may omit it.
+
+Uniform bold/italic insertion attributes are explicit in the existing
+`inserted_attributes` operation field. The native caller passes the same exact
+inserted marks to preflight and live execution. Empty attributes retain the old
+API behavior; mixed runs, links and other rich formatting remain unsupported by
+this narrow insertion contract. The canonical operation copies caller attributes
+before passing them to Yjs, whose insert implementation may mutate its input.
+
+
+Stable scene history ownership is distinct from ephemeral Yjs client identity.
+[Yjs documents clientID as session-specific](https://docs.yjs.dev/api/y.doc), and
+[its FAQ warns against concurrent reuse](https://docs.yjs.dev/api/faq). Restoration
+therefore reinstates only historical structs, stack intervals and redone metadata,
+never the exporting runtime's active client ID. This also gives restarted
+awareness a fresh clock namespace rather than competing with old tombstones.
+
+The final fresh-identity/skip/styled runtime passed 31 focused tests and all 91
+JavaScript tests. Matched native fixture
+`/private/tmp/relay-owned-session-v1-20260913` passed 44 tests, including all seven
+editor lineage tests (styled Unicode typing, final IME, formatting history and
+structural failed-save peer arrivals). Concurrent restores use distinct active
+client IDs, converge after independent edits/undo, and publish fresh awareness
+despite an old session's higher-clock tombstone. These focused package checks do
+not claim a browser or live-server acceptance gate.

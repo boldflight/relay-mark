@@ -143,17 +143,24 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
   if (manager.relayHistoryTransactionHookVersion !== 1 || manager.beforeHistoryTransactionCommit !== null) {
     throw Error('History transaction hook unavailable')
   }
-  const top = (redo ? manager.redoStack : manager.undoStack).at(-1), metadata = top?.meta.get(lineageKey)
-  if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies) || metadata.copies.length > 4096) {
-    throw Error('Untracked history formatting counterpart')
-  }
-  if (metadata.formattingMark) {
-    if (!['bold', 'italic'].includes(metadata.formattingMark) || metadata.copies.length) throw Error('Invalid isolated formatting history')
-    // Native formatting history must retain the UndoManager's mark reversal.
-    // The prose-only peer mark overlay would otherwise undo that reversal.
-    return { item: redo ? manager.redo() : manager.undo(), copies: [], inverseCopies: [] }
-  }
-  const current = visibleAttributes(doc), counterparts = new Map()
+  const current = visibleAttributes(doc)
+  const prior = Y.decodeStateVector(Y.encodeStateVector(doc))
+  const links = new Map(structs(doc).filter(item => item instanceof Y.Item).map(item => [key(item.id), item.redone && key(item.redone)]))
+  let execution = null
+  manager.beforeHistoryTransactionCommit = ({ stackItem }) => {
+    if (execution) throw Error('History hook performed multiple items')
+    const metadata = stackItem.meta.get(lineageKey)
+    if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies) || metadata.copies.length > 4096) {
+      throw Error('Untracked history formatting counterpart')
+    }
+    let formattingTargets = null
+    if (metadata.formattingMark) {
+      if (!['bold', 'italic'].includes(metadata.formattingMark) || metadata.copies.length || !metadata.formattingTextItems) {
+        throw Error('Unproven formatting history targets')
+      }
+      formattingTargets = identities(metadata.formattingTextItems)
+    }
+    const counterparts = new Map()
   for (const pair of metadata.copies) {
     const source = expanded(pair.source), destination = expanded(pair.destination)
     if (source.length !== destination.length) throw Error('History counterpart length mismatch')
@@ -164,11 +171,6 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
       counterparts.set(key(unit.item), { source: unit, counterpart: destination[i], attributes: live?.attributes })
     })
   }
-  const prior = Y.decodeStateVector(Y.encodeStateVector(doc))
-  const links = new Map(structs(doc).filter(item => item instanceof Y.Item).map(item => [key(item.id), item.redone && key(item.redone)]))
-  let execution = null
-  manager.beforeHistoryTransactionCommit = ({ stackItem }) => {
-    if (stackItem !== top || execution) throw Error('History hook selected a different item')
     const copies = restoredCopies(doc, prior, links), after = visibleAttributes(doc), inverseCopies = [], plans = []
     // Removing local formatting markers can otherwise change surviving peer
     // text even when its identity remains. Preserve its current attributes too.
@@ -176,7 +178,12 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
       const previous = current.get(identity)
       if (previous && key(previous.unit.type) === key(target.unit.type) &&
           canonicalAttributes(previous.attributes) !== canonicalAttributes(target.attributes)) {
-        plans.push({ ...target, desired: previous.attributes })
+        const desired = { ...previous.attributes }
+        if (formattingTargets?.has(identity)) {
+          if (Object.hasOwn(target.attributes, metadata.formattingMark)) desired[metadata.formattingMark] = target.attributes[metadata.formattingMark]
+          else delete desired[metadata.formattingMark]
+        }
+        plans.push({ ...target, desired })
       }
     }
     for (const copy of copies) {
@@ -213,7 +220,7 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
             canonicalAttributes(row.attributes) !== canonicalAttributes(first.desired))) leaf.format(first.offset, length, changes)
       }
     }
-    execution = { copies, inverseCopies }
+    execution = { copies, inverseCopies, formattingTextItems: metadata.formattingTextItems || null }
   }
   try {
     const item = redo ? manager.redo() : manager.undo()
@@ -222,14 +229,10 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
   } finally { manager.beforeHistoryTransactionCommit = null }
 }
 
-// Select a typed route from the exact tracked stack item, then prove that the
-// same item is performed. Ineffective tops refuse rather than choosing evidence
-// from an earlier item after mutation.
+// The scratch UndoManager performs its normal skipping. Select evidence from
+// the actual actionable item, never from a top entry that a peer made obsolete.
 export function prepareHistoryEvidence(live, owner, redo, input, lineageKey) {
-  const metadata = (redo ? owner.redoStack : owner.undoStack).at(-1)?.meta.get(lineageKey)
-  const formatting = metadata?.formattingMark != null
-  return { ...prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting),
-    kind: formatting ? 'formatting' : 'prose' }
+  return prepareHistoryLineage(live, owner, redo, input, lineageKey, null)
 }
 
 // Version-pinned access to nonserialized UndoManager/Item metadata lives ONLY
@@ -244,10 +247,9 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
   const before = Y.encodeStateAsUpdate(live), clientID = live.clientID
   const prior = Y.decodeStateVector(Y.encodeStateVector(live)), oldStructs = structs(live)
   const undoStack = cloneStack(owner.undoStack), redoStack = cloneStack(owner.redoStack)
-  const stack = redo ? redoStack : undoStack, top = stack.at(-1), reference = top?.meta.get(lineageKey)?.operationID
-  const formattingMark = top?.meta.get(lineageKey)?.formattingMark
-  if (formatting ? !['bold', 'italic'].includes(formattingMark) : formattingMark) throw Error('History evidence mode mismatch')
-  if (!uuid(reference) || reference === input.operation_id) throw Error('History requires distinct durable operation identities')
+  if ([...undoStack, ...redoStack].some(item => item.meta.get(lineageKey)?.operationID === input.operation_id)) {
+    throw Error('History requires distinct durable operation identities')
+  }
   const staged = new Y.Doc({ gc: false }); let manager
   try {
     Y.applyUpdate(staged, before); staged.clientID = clientID
@@ -269,7 +271,10 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
     manager.on('stack-item-popped', ({ stackItem }) => popped.push(stackItem))
     const execution = performHistoryWithMarks(staged, manager, redo, lineageKey)
     const performed = execution.item
-    if (performed !== top || popped.length !== 1 || popped[0] !== top || inverse.length !== 1 || mixed) throw Error('Unproven effective history item')
+    if (!performed || popped.length !== 1 || popped[0] !== performed || inverse.length !== 1 || mixed) throw Error('Unproven effective history item')
+    const metadata = performed.meta.get(lineageKey), reference = metadata?.operationID
+    const isFormatting = metadata?.formattingMark != null
+    if (!uuid(reference) || (formatting !== null && formatting !== isFormatting)) throw Error('History evidence mode mismatch')
     const root = staged.getXmlFragment('default'), copies = execution.copies
     if (copies.length > 4096) throw Error('History copy limit')
     const accounted = identities({ runs: copies.flatMap(copy => copy.destination.runs) }), actual = { runs: [] }
@@ -287,7 +292,7 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
     const found = identities(actual)
     if (found.size !== accounted.size || [...found].some(value => !accounted.has(value))) throw Error('Unaccounted restored text')
     if (live.clientID !== clientID || !equal(before, Y.encodeStateAsUpdate(live))) throw Error('History prestate changed')
-    return { reference, operationID: input.operation_id, inverseCopies: execution.inverseCopies, expectedState: Y.encodeStateAsUpdate(staged),
+    return { kind: isFormatting ? 'formatting' : 'prose', reference, operationID: input.operation_id, inverseCopies: execution.inverseCopies, expectedState: Y.encodeStateAsUpdate(staged),
       insertedTextItems: Array.from(new TextEncoder().encode('{"version":1,"runs":[]}')),
       lineage: { version: 1, operation: { kind: redo ? 'redo' : 'undo', transaction_id: reference }, copies } }
   } finally { manager?.destroy(); staged.destroy() }
@@ -328,21 +333,26 @@ function snapshotStack(stack, lineageKey) {
     if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies)) throw Error('Untracked history cannot be persisted')
     return { insertions: intervalWire(item.insertions), deletions: intervalWire(item.deletions),
       operation_id: metadata.operationID, counterparts: JSON.parse(JSON.stringify(metadata.copies)),
-      inserted_text_items: metadata.insertedTextItems || { version: 1, runs: [] }, formatting_mark: metadata.formattingMark || null }
+      inserted_text_items: metadata.insertedTextItems || { version: 1, runs: [] }, formatting_mark: metadata.formattingMark || null,
+      formatting_text_items: metadata.formattingTextItems || null }
   })
 }
 function restoreStack(value, lineageKey, references) {
   if (!Array.isArray(value) || value.length > maximumStack) throw Error('History stack limit')
   return value.map(row => {
-    exactKeys(row, ['insertions', 'deletions', 'operation_id', 'counterparts', 'inserted_text_items', 'formatting_mark'])
+    exactKeys(row, ['insertions', 'deletions', 'operation_id', 'counterparts', 'inserted_text_items', 'formatting_mark',
+      ...(Object.hasOwn(row, 'formatting_text_items') ? ['formatting_text_items'] : [])])
+    if (row.formatting_mark && !row.formatting_text_items) throw Error('Missing formatting history targets')
     if (row.formatting_mark !== null && !['bold', 'italic'].includes(row.formatting_mark)) throw Error('Invalid history formatting evidence')
-    exactKeys(row.inserted_text_items, ['version', 'runs'])
-    if (row.inserted_text_items.version !== 1 || !Array.isArray(row.inserted_text_items.runs) || row.inserted_text_items.runs.length > 4096) throw Error('Invalid history typed evidence')
-    for (const run of row.inserted_text_items.runs) {
+    for (const selection of [row.inserted_text_items, ...(row.formatting_text_items ? [row.formatting_text_items] : [])]) {
+    exactKeys(selection, ['version', 'runs'])
+    if (selection.version !== 1 || !Array.isArray(selection.runs) || selection.runs.length > 4096) throw Error('Invalid history typed evidence')
+    for (const run of selection.runs) {
       exactKeys(run, ['item', 'type', 'count']); exactKeys(run.item, ['client', 'clock']); exactKeys(run.type, ['client', 'clock'])
       if (!id(run.item) || !id(run.type) || !Number.isSafeInteger(run.count) || run.count < 1 || run.item.clock + run.count > 4294967296) throw Error('Invalid history typed run')
     }
-    identities(row.inserted_text_items)
+    identities(selection)
+    }
     if (!uuid(row.operation_id) || references.has(row.operation_id) || !Array.isArray(row.counterparts) || row.counterparts.length > 4096) {
       throw Error('Invalid history transaction reference')
     }
@@ -365,7 +375,7 @@ function restoreStack(value, lineageKey, references) {
     }
     identities({ runs: source }); identities({ runs: destination })
     return { insertions: intervalSet(row.insertions), deletions: intervalSet(row.deletions),
-      meta: new Map([[lineageKey, { operationID: row.operation_id, copies: JSON.parse(JSON.stringify(row.counterparts)), insertedTextItems: JSON.parse(JSON.stringify(row.inserted_text_items)), formattingMark: row.formatting_mark }]]) }
+      meta: new Map([[lineageKey, { operationID: row.operation_id, copies: JSON.parse(JSON.stringify(row.counterparts)), insertedTextItems: JSON.parse(JSON.stringify(row.inserted_text_items)), formattingMark: row.formatting_mark, formattingTextItems: row.formatting_text_items || null }]]) }
   })
 }
 function cleanInterval(transaction, row) {
@@ -479,7 +489,7 @@ export function restoreHistorySnapshot(doc, owner, input, lineageKey) {
   if ([...references].some(value => !input.transaction_ids.includes(value))) throw Error('History transaction is not retained by host')
   const scratch = new Y.Doc({ gc: false })
   try {
-    Y.applyUpdate(scratch, state); scratch.clientID = snapshot.client_id
+    Y.applyUpdate(scratch, state)
     if (scratch.store.pendingStructs !== null || scratch.store.pendingDs !== null ||
         !equal(vector, Y.encodeStateVector(scratch)) || !equal(state, Y.encodeStateAsUpdate(scratch))) throw Error('Incomplete history checkpoint')
     installSnapshotMetadata(scratch, snapshot, undoStack, redoStack)
@@ -487,7 +497,7 @@ export function restoreHistorySnapshot(doc, owner, input, lineageKey) {
     // original parent has been deleted; history receipts supply host authority.
     for (const entry of [...undoStack, ...redoStack]) {
       const metadata = entry.meta.get(lineageKey)
-      for (const value of [metadata.insertedTextItems, ...metadata.copies.flatMap(pair => [pair.source, pair.destination])]) for (const run of value.runs) {
+      for (const value of [metadata.insertedTextItems, ...(metadata.formattingTextItems ? [metadata.formattingTextItems] : []), ...metadata.copies.flatMap(pair => [pair.source, pair.destination])]) for (const run of value.runs) {
         const parent = Y.getItem(scratch.store, run.type)
         if (!(parent instanceof Y.Item) || !(parent.content instanceof Y.ContentType) ||
             !(parent.content.type instanceof Y.XmlText) || key(parent.id) !== key(run.type) ||
@@ -505,7 +515,7 @@ export function restoreHistorySnapshot(doc, owner, input, lineageKey) {
     if (!pristineHistoryOwner(doc, owner)) throw Error('History owner changed during restore')
     const gc = doc.gc
     try {
-      doc.gc = false; Y.applyUpdate(doc, state, 'relay.history.restore'); doc.clientID = snapshot.client_id
+      doc.gc = false; Y.applyUpdate(doc, state, 'relay.history.restore')
       installSnapshotMetadata(doc, snapshot, undoStack, redoStack)
       owner.undoStack = undoStack; owner.redoStack = redoStack; owner.stopCapturing()
     } finally { doc.gc = gc }
