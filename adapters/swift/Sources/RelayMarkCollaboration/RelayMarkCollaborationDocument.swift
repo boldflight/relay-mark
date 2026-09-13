@@ -104,11 +104,32 @@ public final class RelayMarkCollaborationDocument {
     /// Returned copies describe new identities for moved text, not new human authorship.
     /// Persist updates and evidence together; this adapter does not authorize lineage.
     public func replaceProseWithLineage(start: Int, end: Int, text: String) throws -> ProseLineageResult {
+        try proseLineage("replaceProseWithLineage", input: ["start": start, "end": end, "text": text])
+    }
+
+    /// Binds the actual forward undo item to the host's durable transaction identity.
+    /// A no-op does not create a history binding. The host must persist before exposing history.
+    public func replaceProseWithLineage(start: Int, end: Int, text: String, operationID: UUID) throws -> ProseLineageResult {
+        try proseLineage("replaceProseWithLineage", input: ["start": start, "end": end, "text": text,
+            "operation_id": operationID.uuidString.lowercased()])
+    }
+
+    /// Restores through the actual tracked history item with copied-identity evidence.
+    /// Empty, untracked or mixed history refuses before mutation. Restored text is not new human input.
+    public func undoWithLineage(operationID: UUID) throws -> ProseLineageResult {
+        try proseLineage("undoWithLineage", input: ["operation_id": operationID.uuidString.lowercased()])
+    }
+
+    public func redoWithLineage(operationID: UUID) throws -> ProseLineageResult {
+        try proseLineage("redoWithLineage", input: ["operation_id": operationID.uuidString.lowercased()])
+    }
+
+    private func proseLineage(_ command: String, input: [String: Any]) throws -> ProseLineageResult {
         struct Wire: Decodable {
             let updates: [[UInt8]]
             let insertedTextItems: [UInt8]
         }
-        let data = try call("replaceProseWithLineage", input: ["start": start, "end": end, "text": text])
+        let data = try call(command, input: input)
         let wire = try JSONDecoder().decode(Wire.self, from: data)
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let lineage = object["lineage"] as? [String: Any] else {

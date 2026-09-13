@@ -108,6 +108,51 @@ struct RelayMarkProseLineageTests {
         #expect(oldRecord.update == update && oldRecord.insertedTextItems == result.insertedTextItems)
     }
 
+    @Test func trackedUndoRedoCarriesActualReferenceAndNeverAdmitsRestoredText() throws {
+        let document = try seed()
+        let checkpoint = try document.encodeUpdate()
+        var previousID = UUID()
+        let forward = try document.replaceProseWithLineage(start: 7, end: 20, text: "NEW🌍", operationID: previousID)
+        var updates = forward.updates
+        for cycle in 0..<4 {
+            let nextID = UUID()
+            let redo = cycle % 2 == 1
+            let result = try redo ? document.redoWithLineage(operationID: nextID) : document.undoWithLineage(operationID: nextID)
+            let operation = try #require(json(result.lineage)["operation"] as? [String: Any])
+            #expect(operation["kind"] as? String == (redo ? "redo" : "undo"))
+            #expect(operation["transaction_id"] as? String == previousID.uuidString.lowercased())
+            #expect(try canonical(result.insertedTextItems) == canonical(Data(#"{"version":1,"runs":[]}"#.utf8)))
+            let copies = try #require(json(result.lineage)["copies"] as? [[String: Any]])
+            let restoredText = try copies.map { try selected(document, encoded(#require($0["destination"]))) }.joined()
+            #expect(restoredText == (redo ? "NEW🌍" : "🌍 generated "))
+            updates += result.updates
+            let reopened = try RelayMarkCollaborationDocument()
+            try reopened.applyUpdate(checkpoint)
+            for update in updates + updates { try reopened.applyUpdate(update) }
+            #expect(try reopened.snapshot() == document.snapshot())
+            #expect(try String(RelayMarkCollaborativeProse(snapshot: document.snapshot()).text.characters) ==
+                (redo ? "PREFIX NEW🌍人🌍人" : "PREFIX 🌍 generated 人🌍人"))
+            previousID = nextID
+        }
+    }
+
+    @Test func refusedHistoryLeavesBytesAndTrackedStackUsable() throws {
+        let untracked = try seed()
+        let old = try untracked.encodeUpdate()
+        #expect(throws: (any Error).self) { try untracked.undoWithLineage(operationID: UUID()) }
+        #expect(try untracked.encodeUpdate() == old)
+        let id = UUID()
+        _ = try untracked.replaceProseWithLineage(start: 7, end: 7, text: "tracked", operationID: id)
+        let beforeRefusal = try untracked.encodeUpdate()
+        #expect(throws: (any Error).self) { try untracked.undoWithLineage(operationID: id) }
+        #expect(try untracked.encodeUpdate() == beforeRefusal)
+        let undone = try untracked.undoWithLineage(operationID: UUID())
+        #expect(!undone.updates.isEmpty)
+        #expect(try String(RelayMarkCollaborativeProse(snapshot: untracked.snapshot()).text.characters) == "PREFIX 🌍 generated 人🌍人")
+        let empty = try RelayMarkCollaborationDocument()
+        #expect(throws: (any Error).self) { try empty.redoWithLineage(operationID: UUID()) }
+    }
+
     @Test func unsupportedShapeAndStructuralInputFailBeforeMutation() throws {
         let document = try seed()
         let state = try document.encodeUpdate()
