@@ -91,6 +91,13 @@ public final class RelayMarkCollaborationDocument {
         try updates("replaceProse", input: ["start": start, "end": end, "text": text])
     }
 
+    /// Conservative current-document eligibility for native tracked prose history.
+    /// This is not authorization or a guarantee that every proposed operation is valid.
+    /// Unsupported existing marks/shapes return false without modifying the document.
+    public func supportsProseLineage() throws -> Bool {
+        try JSONDecoder().decode(Bool.self, from: call("supportsProseLineage"))
+    }
+
     public struct ProseLineageResult: Sendable {
         public let updates: [Data]
         public let insertedTextItems: Data

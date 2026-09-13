@@ -40,6 +40,38 @@ function identities(selection) {
   return result
 }
 
+// Shared structural admission, also used by the read-only host eligibility query.
+function proseStructure(root) {
+  const blocks = root.toArray()
+  if (!blocks.length || blocks.length > 4096) throw Error('Prose lineage block limit')
+  let total = blocks.length - 1, leaves = 0
+  for (const p of blocks) {
+    if (!(p instanceof Y.XmlElement) || p.nodeName !== 'paragraph' || Object.keys(p.getAttributes()).length) {
+      throw Error('Prose lineage requires top-level paragraphs')
+    }
+    for (const leaf of p.toArray()) {
+      if (!(leaf instanceof Y.XmlText) || ++leaves > 4096) throw Error('Unsupported prose lineage leaf')
+      for (const run of leaf.toDelta()) {
+        if (typeof run.insert !== 'string' || /[\n\r\u2028\u2029\ufffc]/u.test(run.insert)) throw Error('Unsupported prose lineage content')
+        unicode(run.insert)
+      }
+      total += leaf.length
+    }
+  }
+  if (total > 131072) throw Error('Prose lineage bounds')
+  return { blocks, total }
+}
+
+// Conservative host routing policy; existing operation APIs preserve arbitrary
+// existing marks, but ordinary native history supports only bold and italic.
+export function supportsProseLineage(doc) {
+  try {
+    const { blocks } = proseStructure(doc.getXmlFragment('default'))
+    return blocks.every(p => p.toArray().every(leaf => leaf.toDelta().every(run =>
+      validProseAttributes(run.attributes || {}))))
+  } catch { return false }
+}
+
 // This is an evidence observer, not a second prose mutation implementation.
 // The caller supplies the canonical replaceProse function for both executions.
 // No user callbacks/await may occur between this preflight and live execution.
@@ -63,23 +95,9 @@ export function prepareProseLineage(live, input, replace) {
   try {
     Y.applyUpdate(staged, state)
     staged.clientID = clientID
-    const root = staged.getXmlFragment('default'), blocks = root.toArray()
-    if (!blocks.length || blocks.length > 4096) throw Error('Prose lineage block limit')
-    let total = blocks.length - 1, leaves = 0
-    for (const p of blocks) {
-      if (!(p instanceof Y.XmlElement) || p.nodeName !== 'paragraph' || Object.keys(p.getAttributes()).length) {
-        throw Error('Prose lineage requires top-level paragraphs')
-      }
-      for (const leaf of p.toArray()) {
-        if (!(leaf instanceof Y.XmlText) || ++leaves > 4096) throw Error('Unsupported prose lineage leaf')
-        for (const run of leaf.toDelta()) {
-          if (typeof run.insert !== 'string' || /[\n\r\u2028\u2029\ufffc]/u.test(run.insert)) throw Error('Unsupported prose lineage content')
-          unicode(run.insert)
-        }
-        total += leaf.length
-      }
-    }
-    if (total > 131072 || input.end > total || input.text.split('\n').length + blocks.length > 4096) throw Error('Prose lineage bounds')
+    const root = staged.getXmlFragment('default')
+    const { blocks, total } = proseStructure(root)
+    if (input.end > total || input.text.split('\n').length + blocks.length > 4096) throw Error('Prose lineage bounds')
     function anchor(offset) {
       for (const p of blocks) {
         const length = p.toArray().reduce((sum, leaf) => sum + leaf.length, 0)

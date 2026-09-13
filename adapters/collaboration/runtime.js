@@ -1,7 +1,7 @@
 import * as Y from 'yjs'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
-import { prepareProseLineage } from './prose-lineage.js'
+import { prepareProseLineage, supportsProseLineage } from './prose-lineage.js'
 import { prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
@@ -428,6 +428,7 @@ export function call(command, input) {
     case 'vector': return Array.from(Y.encodeStateVector(doc))
     case 'snapshot': return snapshot(root)
     case 'replaceProse': localUpdates = []; replaceProse(input); return localUpdates
+    case 'supportsProseLineage': return supportsProseLineage(doc)
     case 'replaceProseWithLineage': {
       if (undo.captureTimeout !== 0 || formattingCapture || historyCapture || lineageCapture) throw Error('Expected isolated prose operation')
       const prepared = prepareProseLineage(doc, input, replaceProse)

@@ -200,3 +200,15 @@ The focused runtime checks passed 37 tests; all 92 JavaScript tests passed. The
 actual emitted two-paragraph Unicode update and formatting undo/redo are retained
 in `/private/tmp/relay-mark-multiline-format-interoperability-v1-20260913.json`;
 native host acceptance is recorded separately after the matched package check.
+
+The additive read-only `supportsProseLineage()` Swift query shares the operation's
+structural traversal and returns a conservative host routing decision. It accepts
+nonempty collections of attribute-free top-level paragraphs with text leaves and
+only existing bold/italic marks, within the same scalar and resource bounds. An
+empty paragraph is eligible; a pristine zero-block document is not. Unsupported
+existing marks return false here without narrowing the older mutation API. This
+query is neither authorization nor per-operation preflight. Hosts must not discard
+a retained history stack when a later remote shape becomes ineligible.
+
+Eligibility verification: 29 focused JavaScript tests and all eight Swift prose
+lineage bridge tests passed with the matching bundle on September 13, 2026.

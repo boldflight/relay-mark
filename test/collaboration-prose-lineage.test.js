@@ -531,3 +531,25 @@ test('multi-paragraph formatting is one tracked update and protects peer marks t
   assert.equal(call('redoWithEvidence', { operation_id: operationID(173) }).kind, 'formatting')
   after.destroy(); peer.destroy(); original.destroy()
 })
+
+
+test('read-only host eligibility shares structure checks and conservatively restricts marks', () => {
+  for (const [name, marks, expected] of [
+    ['paragraph', {}, true], ['paragraph', {bold: {}, italic: {}}, true],
+    ['paragraph', {link: {href: 'https://example.test'}}, false],
+    ['heading', {}, false], ['bulletList', {}, false], ['codeBlock', {}, false], ['entity', {}, false]
+  ]) {
+    const doc = new Y.Doc(), block = new Y.XmlElement(name), text = new Y.XmlText()
+    block.insert(0, [text]); doc.getXmlFragment('default').insert(0, [block]); text.insert(0, 'Unicode 🌍', marks)
+    const call = runtime(doc), before = call('state')
+    assert.equal(call('supportsProseLineage'), expected)
+    assert.deepEqual(call('state'), before); assert.deepEqual(call('undo'), [])
+    doc.destroy()
+  }
+  const empty = new Y.Doc(), call = runtime(empty)
+  assert.equal(call('supportsProseLineage'), false)
+  empty.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
+  const paragraph = runtime(empty)
+  assert.equal(paragraph('supportsProseLineage'), true)
+  empty.destroy()
+})

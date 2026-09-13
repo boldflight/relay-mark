@@ -4,6 +4,18 @@ import Testing
 
 @MainActor
 struct RelayMarkProseLineageTests {
+    @Test("Host eligibility is read-only and conservative")
+    func hostEligibility() throws {
+        let document = try RelayMarkCollaborationDocument()
+        #expect(try !document.supportsProseLineage())
+        _ = try document.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"paragraph","children":[]}]}"#.utf8))
+        let before = try document.encodeUpdate()
+        #expect(try document.supportsProseLineage())
+        #expect(try document.encodeUpdate() == before)
+        let marked = try seed()
+        #expect(try marked.supportsProseLineage())
+    }
+
     @Test("Durable tracked history restores only into a pristine matching owner")
     func durableSnapshotRoundTrip() throws {
         let baseline = try seed(), document = try RelayMarkCollaborationDocument()
