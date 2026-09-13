@@ -85,7 +85,7 @@ function rebuild(state, expected, allowed = null) {
   keys(state, ['version', 'binding', 'receipts'])
   if (state.version !== 1 || json(binding(state.binding)) !== json(expected) || !Array.isArray(state.receipts) || state.receipts.length > maxReceipts || new TextEncoder().encode(json(state)).length > maxBytes) throw Error('Invalid placement state')
   const known = new Map(), edges = new Map(), incoming = new Map(), canonical = []
-  const types = new Map(), components = new Map()
+  const types = new Map(), units = new Map(), components = new Map()
   let retainedUnits = 0
   function component(node) {
     const path=[]; let root=node
@@ -104,7 +104,7 @@ function rebuild(state, expected, allowed = null) {
     for (const pair of pairs) for (const unit of [pair.source,pair.destination]) {
       const item=`${unit.item.client}:${unit.item.clock}`, type=`${unit.type.client}:${unit.type.clock}`
       if (types.has(item) && types.get(item)!==type) throw Error('Conflicting placement item type')
-      types.set(item,type)
+      types.set(item,type); units.set(key(unit),unit)
     }
     const reference = value.operation.reference && known.get(value.operation.reference)
     if (value.operation.reference && !reference) throw Error('Unknown placement reference')
@@ -125,12 +125,47 @@ function rebuild(state, expected, allowed = null) {
     }
     known.set(value.operation_id,{value,effective}); canonical.push({trust:row.trust,receipt:value})
   }
-  return { state:{version:1,binding:expected,receipts:canonical}, known, edges }
+  return { state:{version:1,binding:expected,receipts:canonical}, known, edges, units, types }
 }
-export function restorePlacementState(snapshot, expectedBinding, receiptIDs) {
+function retainedProjection(snapshot, expectedBinding, receiptIDs) {
   const expected = binding(expectedBinding)
   if (!Array.isArray(receiptIDs) || receiptIDs.length > maxReceipts || receiptIDs.some(x=>!uuid(x)) || new Set(receiptIDs).size !== receiptIDs.length) throw Error('Invalid placement receipt whitelist')
-  return rebuild(snapshot,expected,new Set(receiptIDs)).state
+  return rebuild(snapshot,expected,new Set(receiptIDs))
+}
+export function restorePlacementState(snapshot, expectedBinding, receiptIDs) {
+  return retainedProjection(snapshot,expectedBinding,receiptIDs).state
+}
+
+// Read-only projections of the existing graph. The explicit host receipt
+// whitelist is required; these helpers do not authenticate receipts or raw bytes.
+export function placementReceiptCopies(state, expectedBinding, receiptIDs, operationID) {
+  const projection=retainedProjection(state,expectedBinding,receiptIDs)
+  if (!uuid(operationID) || !projection.known.has(operationID)) throw Error('Unknown placement operation')
+  return clone(projection.known.get(operationID).effective)
+}
+export function createPlacementResolver(state, expectedBinding, receiptIDs) {
+  const projection=retainedProjection(state,expectedBinding,receiptIDs)
+  const terminal=new Map()
+  function endpoint(start) {
+    const path=[]; let current=start
+    while (projection.edges.has(current) && !terminal.has(current)) {
+      path.push(current); current=projection.edges.get(current)
+    }
+    const result=terminal.get(current) || current
+    for (const unit of path) terminal.set(unit,result)
+    return result
+  }
+  return input=>{
+    const [source]=selection({version:1,runs:[{...input,count:1}]})
+    const item=`${source.item.client}:${source.item.clock}`, type=`${source.type.client}:${source.type.clock}`
+    if (projection.types.has(item) && projection.types.get(item)!==type) throw Error('Conflicting placement target type')
+    const destination=projection.units.get(endpoint(key(source))) || source
+    return clone(destination)
+  }
+}
+export function resolvePlacementUnits(state, expectedBinding, receiptIDs, selected) {
+  const resolve=createPlacementResolver(state,expectedBinding,receiptIDs)
+  return selection(selected).map(source=>({source,destination:resolve(source)}))
 }
 export function preparePlacementReceipt(state, input) {
   keys(input,['expected_binding','trust','update','receipt'])

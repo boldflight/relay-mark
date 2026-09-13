@@ -115,7 +115,7 @@ function history(redo, prepared = null) {
   historyCapture = capture
   localUpdates = []
   try {
-    const execution = prepared ? performHistoryWithMarks(doc, undo, redo, lineageKey) : null
+    const execution = prepared ? performHistoryWithMarks(doc, undo, redo, lineageKey, prepared.formattingPlan) : null
     const item = execution ? execution.item : (redo ? undo.redo() : undo.undo())
     const mark = item && (item.meta.get(formattingKey) || item.meta.get(lineageKey)?.formattingMark)
     const proven = (mark === 'bold' || mark === 'italic') && !capture.mixed &&

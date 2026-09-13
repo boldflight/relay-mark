@@ -444,3 +444,18 @@ Exact source hashes, logs and boundaries are recorded in `/private/tmp/relay-for
 ## Executable completion blocker
 
 The [peer-formatting-after-split-undo regression](peer-format-split-undo-regression.md) records the runnable two-owner blocker: after A splits `Hello`, B bolds both paragraphs, and A undoes the split, B's formatting undo still leaves the restored `llo` bold. The probe asserts the required entirely plain `Hello` result and currently exits nonzero. Library witness checks and publication receipts above do not establish this end-to-end undo behavior; remapping remains unactivated.
+
+## September 14 internal attributed undo checkpoint
+
+[Internal attribution and undo](format-attribution-internal.md) records the verified
+mechanism and its activation limits. The existing UndoManager now has an internal
+exact-plan path for restored placements and masked contributions; public command
+activation, durable receipt replay and native disjoint-intent acceptance remain
+open. The standalone public regression is still an integration gate.
+
+The generic dependency contributions are now published as draft
+[Yrs PR #657](https://github.com/y-crdt/y-crdt/pull/657), corrected head `c992eac30e5bf25a375db05987c397ad25b0e51b`,
+and [Yex PR #247](https://github.com/satoren/y_ex/pull/247), head `c8005e6d23a8403f0c411ba234bf826378534e17`.
+The latter's own upstream-based suite passed 614 tests/doctests and its formatting,
+Credo, Clippy and Rust test checks; its temporary compatible Yrs backport pin and
+upstream dependency remain explicit. Hosted CI was not yet reported at publication.

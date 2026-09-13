@@ -1,5 +1,6 @@
 import * as Y from 'yjs'
 import { placementUpdateHash } from './placement-lineage.js'
+import { formatAttributionCut } from './format-attribution-cut.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import yjsPackage from 'yjs/package.json' with { type: 'json' }
 
@@ -251,19 +252,49 @@ function canonicalAttributes(value) {
 
 // The local pinned hook runs after native inverse mutations but before cleanup.
 // Both owners execute this function. No inverse algorithm or flag manipulation.
-export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
-  if (manager.relayHistoryTransactionHookVersion !== 1 || manager.beforeHistoryTransactionCommit !== null) {
+// Optional internal plan comes from exact-cut verified attribution, not a client
+// selection or final-value guess. The staged execution validates it before live use.
+export function performHistoryWithMarks(doc, manager, redo, lineageKey, formattingPlan = null) {
+  if (manager.relayHistoryTransactionHookVersion !== 1 || manager.beforeHistoryTransactionCommit !== null || manager.beforeHistoryItemSkip != null) {
     throw Error('History transaction hook unavailable')
   }
+  let attributedTargets = null, attributedSelection = null
+  if (formattingPlan !== null) {
+    if (manager.relayHistoryItemSkipHookVersion !== 1 || manager.beforeHistoryItemSkip !== null) throw Error('Attributed history item hook unavailable')
+    if (formattingPlan.kind !== 'apply' || !uuid(formattingPlan.operationID) ||
+        !['bold','italic'].includes(formattingPlan.mark) ||
+        formattingPlan.prestate_sha256 !== formatAttributionCut(doc) ||
+        !Array.isArray(formattingPlan.targets) || !formattingPlan.targets.length || formattingPlan.targets.length > 131072) {
+      throw Error('Unavailable or stale formatting attribution plan')
+    }
+    attributedTargets = new Map(); attributedSelection = {version:1,runs:[]}
+    for (const target of formattingPlan.targets) {
+      if (!id(target.unit?.item) || !id(target.unit?.type) || target.mark !== formattingPlan.mark ||
+          typeof target.enabled !== 'boolean' || attributedTargets.has(key(target.unit.item))) throw Error('Invalid formatting attribution target')
+      attributedTargets.set(key(target.unit.item),target)
+      const last=attributedSelection.runs.at(-1), unit=target.unit
+      if (last && last.item.client===unit.item.client && last.item.clock+last.count===unit.item.clock && key(last.type)===key(unit.type)) last.count++
+      else {
+        if (attributedSelection.runs.length>=4096) throw Error('Formatting attribution selection limit')
+        attributedSelection.runs.push({item:{...unit.item},type:{...unit.type},count:1})
+      }
+    }
+  }
   const current = visibleAttributes(doc)
+  if (attributedTargets) for (const [identity,target] of attributedTargets) {
+    if (key(current.get(identity)?.unit.type || {}) !== key(target.unit.type)) throw Error('Unavailable formatting attribution target')
+  }
   const prior = Y.decodeStateVector(Y.encodeStateVector(doc))
   const links = new Map(structs(doc).filter(item => item instanceof Y.Item).map(item => [key(item.id), item.redone && key(item.redone)]))
-  let execution = null
-  manager.beforeHistoryTransactionCommit = ({ stackItem }) => {
+  let execution = null, skipExecutedItem = null
+  const applyHistoryMarks = ({ stackItem }) => {
     if (execution) throw Error('History hook performed multiple items')
     const metadata = stackItem.meta.get(lineageKey)
     if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies) || metadata.copies.length > 4096) {
       throw Error('Untracked history formatting counterpart')
+    }
+    if (formattingPlan && (metadata.operationID !== formattingPlan.operationID || metadata.formattingMark !== formattingPlan.mark)) {
+      throw Error('Formatting attribution references a different history item')
     }
     let formattingTargets = null
     if (metadata.formattingMark) {
@@ -289,13 +320,19 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
     for (const [identity, target] of after) {
       const previous = current.get(identity)
       if (previous && key(previous.unit.type) === key(target.unit.type) &&
-          canonicalAttributes(previous.attributes) !== canonicalAttributes(target.attributes)) {
+          (attributedTargets || canonicalAttributes(previous.attributes) !== canonicalAttributes(target.attributes))) {
         const desired = { ...previous.attributes }
-        if (formattingTargets?.has(identity)) {
+        if (attributedTargets) {
+          const attributed=attributedTargets.get(identity)
+          if (attributed) {
+            if (attributed.enabled) desired[formattingPlan.mark]={}
+            else delete desired[formattingPlan.mark]
+          }
+        } else if (formattingTargets?.has(identity)) {
           if (Object.hasOwn(target.attributes, metadata.formattingMark)) desired[metadata.formattingMark] = target.attributes[metadata.formattingMark]
           else delete desired[metadata.formattingMark]
         }
-        plans.push({ ...target, desired })
+        if (canonicalAttributes(desired)!==canonicalAttributes(target.attributes)) plans.push({ ...target, desired })
       }
     }
     for (const copy of copies) {
@@ -311,7 +348,7 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
         plans.push({ ...target, desired: mirror.attributes })
       })
     }
-    const grouped = new Map()
+    const grouped = new Map(); let didFormat = false
     for (const plan of plans) {
       const rows = grouped.get(plan.leaf) || []; rows.push(plan); grouped.set(plan.leaf, rows)
     }
@@ -329,29 +366,42 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey) {
         // Validate whole scalar boundaries before format() can split a Yjs string.
         captureTextItems(doc.getXmlFragment('default'), { path: first.path, index: first.offset, length })
         if (rows.slice(position - length, position).some(row =>
-            canonicalAttributes(row.attributes) !== canonicalAttributes(first.desired))) leaf.format(first.offset, length, changes)
+            canonicalAttributes(row.attributes) !== canonicalAttributes(first.desired))) { leaf.format(first.offset, length, changes); didFormat = true }
       }
     }
-    execution = { copies, inverseCopies, formattingTextItems: metadata.formattingTextItems || null }
+    execution = { copies, inverseCopies, formattingTextItems: attributedSelection || metadata.formattingTextItems || null }
+    return didFormat
+  }
+  manager.beforeHistoryTransactionCommit = input => {
+    if (skipExecutedItem === input.stackItem) return
+    applyHistoryMarks(input)
+  }
+  if (formattingPlan) manager.beforeHistoryItemSkip = input => {
+    const metadata=input.stackItem.meta.get(lineageKey)
+    if (metadata?.operationID !== formattingPlan.operationID || metadata.formattingMark !== formattingPlan.mark) return false
+    const changed=applyHistoryMarks(input)
+    if (!changed) throw Error('Attributed history made no effective formatting change')
+    skipExecutedItem=input.stackItem
+    return true
   }
   try {
     const item = redo ? manager.redo() : manager.undo()
     if (!execution) throw Error('History made no effective change')
     return { ...execution, item }
-  } finally { manager.beforeHistoryTransactionCommit = null }
+  } finally { manager.beforeHistoryTransactionCommit = null; if (formattingPlan) manager.beforeHistoryItemSkip = null }
 }
 
 // The scratch UndoManager performs its normal skipping. Select evidence from
 // the actual actionable item, never from a top entry that a peer made obsolete.
-export function prepareHistoryEvidence(live, owner, redo, input, lineageKey) {
-  return prepareHistoryLineage(live, owner, redo, input, lineageKey, null)
+export function prepareHistoryEvidence(live, owner, redo, input, lineageKey, formattingPlan = null) {
+  return prepareHistoryLineage(live, owner, redo, input, lineageKey, null, formattingPlan)
 }
 
 // Version-pinned access to nonserialized UndoManager/Item metadata lives ONLY
 // here. No custom inverse algorithm: both preflight and live use Y.UndoManager.
-export function prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting = false) {
+export function prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting = false, formattingPlan = null) {
   if (yjsPackage.version !== '13.6.32' || !input || Object.keys(input).join(',') !== 'operation_id' || !uuid(input.operation_id) ||
-      owner.relayHistoryTransactionHookVersion !== 1 || owner.beforeHistoryTransactionCommit !== null ||
+      owner.relayHistoryTransactionHookVersion !== 1 || owner.beforeHistoryTransactionCommit !== null || owner.beforeHistoryItemSkip != null ||
       owner.doc !== live || owner.captureTimeout !== 0 || owner.undoing || owner.redoing || owner.currStackItem !== null ||
       owner.scope.length !== 1 || owner.scope[0] !== live.getXmlFragment('default') || owner.ignoreRemoteMapChanges !== false) {
     throw Error('Unsupported isolated Yjs history owner')
@@ -381,7 +431,7 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
     manager.on('stack-item-added', ({ stackItem, origin }) => { if (origin === manager) inverse.push(stackItem) })
     manager.on('stack-item-updated', () => { mixed = true })
     manager.on('stack-item-popped', ({ stackItem }) => popped.push(stackItem))
-    const execution = performHistoryWithMarks(staged, manager, redo, lineageKey)
+    const execution = performHistoryWithMarks(staged, manager, redo, lineageKey, formattingPlan)
     const performed = execution.item
     if (!performed || popped.length !== 1 || popped[0] !== performed || inverse.length !== 1 || mixed) throw Error('Unproven effective history item')
     const metadata = performed.meta.get(lineageKey), reference = metadata?.operationID
@@ -404,7 +454,7 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
     const found = identities(actual)
     if (found.size !== accounted.size || [...found].some(value => !accounted.has(value))) throw Error('Unaccounted restored text')
     if (live.clientID !== clientID || !equal(before, Y.encodeStateAsUpdate(live))) throw Error('History prestate changed')
-    return { kind: isFormatting ? 'formatting' : 'prose', reference, operationID: input.operation_id, inverseCopies: execution.inverseCopies, expectedState: Y.encodeStateAsUpdate(staged),
+    return { kind: isFormatting ? 'formatting' : 'prose', reference, operationID: input.operation_id, formattingPlan, inverseCopies: execution.inverseCopies, expectedState: Y.encodeStateAsUpdate(staged),
       insertedTextItems: Array.from(new TextEncoder().encode('{"version":1,"runs":[]}')),
       lineage: { version: 1, operation: { kind: redo ? 'redo' : 'undo', transaction_id: reference }, copies } }
   } finally { manager?.destroy(); staged.destroy() }

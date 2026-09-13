@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { digest } from 'lib0/hash/sha256'
-import { createPlacementState, preparePlacementReceipt, restorePlacementState } from '../adapters/collaboration/placement-lineage.js'
+import { createPlacementState, preparePlacementReceipt, restorePlacementState, placementReceiptCopies, resolvePlacementUnits } from '../adapters/collaboration/placement-lineage.js'
 const id=n=>`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`
 const binding={document_id:id(1),incarnation:'incarnation-1'}, update=[0,0]
 const sha=Array.from(digest(Uint8Array.from(update)),b=>b.toString(16).padStart(2,'0')).join('')
@@ -122,4 +122,24 @@ test('actual local endpoint copies normalize identically to accepted server expo
   assert.deepEqual(preparePlacementReceipt(state,{expected_binding:expected,trust:'server',update,receipt:accepted}),state)
   assert.equal(JSON.stringify(step.lineage),original)
  }
+})
+
+
+test('retained projection resolves effective undo and redo successors without mutating receipts',()=>{
+ let state=add(createPlacementState(binding),receipt(10,[pair(2,3)]))
+ state=add(state,receipt(11,[pair(2,4)],'undo',id(10)))
+ state=add(state,receipt(12,[pair(3,5)],'redo',id(11)))
+ const before=JSON.stringify(state), retained=[10,11,12].map(id)
+ const unit=clock=>({item:{client:1,clock},type:{client:1,clock:0}})
+ assert.deepEqual(placementReceiptCopies(state,binding,retained,id(11)),[{source:unit(3),destination:unit(4)}])
+ assert.deepEqual(placementReceiptCopies(state,binding,retained,id(12)),[{source:unit(4),destination:unit(5)}])
+ for(const clock of [2,3,4,5]) assert.deepEqual(resolvePlacementUnits(state,binding,retained,selection(clock)),[{source:unit(clock),destination:unit(5)}])
+ assert.deepEqual(resolvePlacementUnits(state,binding,retained,selection(100)),[{source:unit(100),destination:unit(100)}])
+ const result=placementReceiptCopies(state,binding,retained,id(11));result[0].destination.item.clock=999
+ assert.equal(JSON.stringify(state),before)
+ assert.throws(()=>placementReceiptCopies(state,binding,[id(10)],id(11)),/not retained/)
+ assert.throws(()=>placementReceiptCopies(state,binding,retained,id(99)),/Unknown/)
+ const wrong=selection(3);wrong.runs[0].type.clock=99
+ assert.throws(()=>resolvePlacementUnits(state,binding,retained,wrong),/Conflicting/)
+ assert.equal(JSON.stringify(state),before)
 })
