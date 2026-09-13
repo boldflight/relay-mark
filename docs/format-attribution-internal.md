@@ -172,12 +172,50 @@ advances on duplicate echoes; timestamp/digest sorting therefore cannot recover
 attribution order. The head belongs in existing replica metadata. Duplicate echoes
 must preserve row ordinal and metadata. Legacy nil order remains unproven.
 
-Before the row migration, a Mark-owned codec should remove/reconstitute the update
-array against exact row bytes and digest so the app does not rewrite private step
-JSON or duplicate payloads. Extend the existing owned append and proposal-resolution
+The codec checkpoint below removes/reconstitutes the update array against exact
+row bytes and digest so the app does not rewrite private step JSON or duplicate
+payloads. Extend the existing owned append and proposal-resolution
 transactions with shared-cut and owner replay/snapshot CAS, preserve sibling entries,
 and deliver paired durable rows after saving. A trusted baseline must precede new
 attributed history; no missing legacy events may be invented. Required tests include
 migration, mixed order at equal timestamps, immutable retry/conflicts, save rollback,
 two-owner CAS, restart parity, and missing-proof refusal. Concurrent/offline branches
 and canonical server receipts still need their full cross-client acceptance gates.
+
+
+## September 14 attribution record codec checkpoint
+
+`packAttributionRecord` replaces the update array in an exact compact runtime
+record with null and binds the sidecar to the original record, update and operation
+ID. `unpackAttributionRecord` reconstructs the exact UTF-8 record using the existing
+row's bytes and independently supplied sidecar digest and operation ID. Swift
+exposes the same operations and immutable `AttributionRecordSidecar`; JSON is never
+parsed and re-encoded by the host. Noncompact serialization refuses. JSON is bounded
+to 64 MiB and update bytes to 8 MiB.
+
+This codec validates header shape and integrity, not full witness semantics,
+authorship or account authorization. The host must qualify the immutable row and
+persist its metadata atomically. Replay still rejects semantically invalid witnesses
+even when their sidecars pass integrity checks. No app migration, host activation,
+server transport, cross-client acceptance or publication is established here.
+
+Existing verification passed 127 collaboration JavaScript tests, 53 Swift adapter
+tests in nine suites, and portable contract consistency. Tests include exact Unicode
+and property-order reconstruction, placement and formatting records, forward and
+inverse native records, wrong row bytes/digest/operation refusal, large payload
+removal, and production replay/undo after reconstruction. No compiler or test rerun
+was performed while recording this checkpoint.
+
+Evidence logs (SHA-256):
+
+- `/private/tmp/relay-attribution-codec-js-final-20260914.log`:
+  `4d0d82e3bd14de62ecc8f6abb01217f0e53a0fdc18e658610dd715de0fcef425`.
+- `/private/tmp/relay-attribution-codec-swift-v1-20260914.log`:
+  `d363456219a268a1f0c70fe9772b44b7efe200bd60ab0b04b34b62a5670ba4ad`.
+- `/private/tmp/relay-attribution-codec-contract-20260914.log`:
+  `8c977b4ff0d4dc423faf0e654da9dd6160f2b7c3d62d3713aaebd43646247934`.
+
+The source codec and packaged Elixir module are byte-identical, SHA-256
+`e6abdf9cedd8abc15b4233ca12ac0e725a72afd16a1a0ec66c95cc9526850b93`.
+The generated Swift runtime resource is SHA-256
+`7036a7b7d682f65d0eeb0c4a6d48fb5d5778ca5b373fd68611af432d7f105b82`.

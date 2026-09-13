@@ -379,20 +379,91 @@ public final class RelayMarkCollaborationDocument {
 
         public init(bytes: Data, scopeToken: String, binding: PlacementBinding,
                     digest: String, cut: String) throws {
-            let isSHA256: (String) -> Bool = { value in
-                value.utf8.count == 64 && value.utf8.allSatisfy {
-                    (48...57).contains($0) || (97...102).contains($0)
-                }
-            }
             guard !bytes.isEmpty, bytes.count <= 64 * 1024 * 1024,
                   let json = String(data: bytes, encoding: .utf8), Data(json.utf8) == bytes,
                   !scopeToken.isEmpty, scopeToken.utf8.count <= 2048,
                   !binding.incarnation.isEmpty, binding.incarnation.utf8.count <= 256,
-                  isSHA256(digest), isSHA256(cut) else {
+                  RelayMarkCollaborationDocument.isAttributionSHA256(digest),
+                  RelayMarkCollaborationDocument.isAttributionSHA256(cut) else {
                 throw Failure.runtime("Invalid attributed history replay assertions")
             }
             self.bytes = bytes; self.scopeToken = scopeToken; self.binding = binding
             self.digest = digest; self.cut = cut
+        }
+    }
+
+    /// Compact exact-record integrity envelope. It is not authorship, authentication,
+    /// or full formatting-witness validation; the host qualifies the associated row.
+    public struct AttributionRecordSidecar: Sendable {
+        public let bytes: Data
+        public let digest: String
+        public let recordDigest: String
+        public let updateDigest: String
+        public let operationID: UUID
+    }
+
+    /// Packs only compact JSON.stringify-produced runtime records. Whitespace
+    /// variants refuse rather than changing the original record's exact bytes.
+    public func packAttributionRecord(_ record: Data, update: Data) throws -> AttributionRecordSidecar {
+        let json = try Self.attributionJSONString(record)
+        try Self.validateAttributionUpdate(update)
+        struct Wire: Decodable {
+            let sidecar_json: String
+            let sidecar_sha256: String
+            let record_sha256: String
+            let update_sha256: String
+            let operation_id: String
+        }
+        let wire = try JSONDecoder().decode(Wire.self, from: call("packAttributionRecord", input: [
+            "record_json": json, "update": Array(update)
+        ]))
+        guard Self.isAttributionSHA256(wire.sidecar_sha256), Self.isAttributionSHA256(wire.record_sha256),
+              Self.isAttributionSHA256(wire.update_sha256), let operationID = UUID(uuidString: wire.operation_id),
+              operationID.uuidString.lowercased() == wire.operation_id,
+              !wire.sidecar_json.isEmpty, wire.sidecar_json.utf8.count <= 64 * 1024 * 1024 else {
+            throw Failure.runtime("Invalid attribution record sidecar")
+        }
+        return AttributionRecordSidecar(bytes: Data(wire.sidecar_json.utf8), digest: wire.sidecar_sha256,
+            recordDigest: wire.record_sha256, updateDigest: wire.update_sha256, operationID: operationID)
+    }
+
+    /// The digest must come independently from the host's qualified durable row.
+    /// This checks exact reconstruction/integrity, not authority or witness semantics.
+    public func unpackAttributionRecord(_ sidecar: Data, update: Data, expectedDigest: String,
+                                         operationID: UUID) throws -> Data {
+        let json = try Self.attributionJSONString(sidecar)
+        try Self.validateAttributionUpdate(update)
+        guard Self.isAttributionSHA256(expectedDigest) else {
+            throw Failure.runtime("Invalid attribution sidecar digest")
+        }
+        struct Wire: Decodable { let record_json: String }
+        let wire = try JSONDecoder().decode(Wire.self, from: call("unpackAttributionRecord", input: [
+            "sidecar_json": json, "update": Array(update),
+            "expected": ["sidecar_sha256": expectedDigest, "operation_id": operationID.uuidString.lowercased()]
+        ]))
+        guard !wire.record_json.isEmpty, wire.record_json.utf8.count <= 64 * 1024 * 1024 else {
+            throw Failure.runtime("Missing or oversized attribution record")
+        }
+        return Data(wire.record_json.utf8)
+    }
+
+    private nonisolated static func isAttributionSHA256(_ value: String) -> Bool {
+        value.utf8.count == 64 && value.utf8.allSatisfy {
+            (48...57).contains($0) || (97...102).contains($0)
+        }
+    }
+
+    private nonisolated static func attributionJSONString(_ bytes: Data) throws -> String {
+        guard !bytes.isEmpty, bytes.count <= 64 * 1024 * 1024,
+              let json = String(data: bytes, encoding: .utf8), Data(json.utf8) == bytes else {
+            throw Failure.runtime("Invalid attribution JSON UTF-8 or size")
+        }
+        return json
+    }
+
+    private nonisolated static func validateAttributionUpdate(_ update: Data) throws {
+        guard !update.isEmpty, update.count <= 8 * 1024 * 1024 else {
+            throw Failure.runtime("Invalid attribution update size")
         }
     }
 

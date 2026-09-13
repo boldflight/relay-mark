@@ -139,4 +139,43 @@ struct RelayMarkAttributedHistoryTests {
         #expect(try document.exportHistorySnapshot(scopeToken: replay.scopeToken) == before)
     }
 
+
+    @Test("Native sidecars omit duplicate update bytes and reconstruct the exact emitted record")
+    func nativeRecordSidecarRoundTrip() throws {
+        let (document, reader) = try freshOwners()
+        let replay = try document.createAttributionReplay(scopeToken: "native-sidecar", binding: .init(documentID: UUID(), incarnation: "one"))
+        let operationID = UUID()
+        let formatted = try document.editNativeFormattingWithAttribution(Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":5,"attributes":{"bold":{}}}"#.utf8), operationID: operationID, replay: replay)
+        let update = try document.mergeUpdates(formatted.updates)
+        let before = try document.exportHistorySnapshot(scopeToken: replay.scopeToken)
+        let sidecar = try document.packAttributionRecord(formatted.record, update: update)
+        #expect(sidecar.operationID == operationID)
+        let envelope = try #require(JSONSerialization.jsonObject(with: sidecar.bytes) as? [String: Any])
+        let record = try #require(envelope["record"] as? [String: Any])
+        #expect(record["update"] is NSNull)
+        let recovered = try reader.unpackAttributionRecord(sidecar.bytes, update: update, expectedDigest: sidecar.digest, operationID: operationID)
+        #expect(recovered == formatted.record)
+        #expect(try document.exportHistorySnapshot(scopeToken: replay.scopeToken) == before)
+        let inverse = try document.undoWithAttributedEvidence(operationID: UUID(), referenceID: operationID, replay: formatted.replay)
+        let inverseUpdate = try document.mergeUpdates(inverse.evidence.updates)
+        let inverseSidecar = try document.packAttributionRecord(inverse.record, update: inverseUpdate)
+        #expect(try reader.unpackAttributionRecord(inverseSidecar.bytes, update: inverseUpdate,
+            expectedDigest: inverseSidecar.digest, operationID: inverseSidecar.operationID) == inverse.record)
+    }
+
+    @Test("Native codec rejects mismatched sidecar, row bytes and noncompact records")
+    func nativeRecordSidecarRefusals() throws {
+        let (document, _) = try freshOwners()
+        let replay = try document.createAttributionReplay(scopeToken: "native-sidecar", binding: .init(documentID: UUID(), incarnation: "one"))
+        let operationID = UUID()
+        let result = try document.editNativeFormattingWithAttribution(Data(#"{"kind":"formatText","path":[0,0],"index":0,"length":5,"attributes":{"italic":{}}}"#.utf8), operationID: operationID, replay: replay)
+        let update = try document.mergeUpdates(result.updates), sidecar = try document.packAttributionRecord(result.record, update: update)
+        let before = try document.exportHistorySnapshot(scopeToken: replay.scopeToken)
+        #expect(throws: (any Error).self) { try document.packAttributionRecord(result.record + Data(" ".utf8), update: update) }
+        #expect(throws: (any Error).self) { try document.unpackAttributionRecord(sidecar.bytes, update: Data([0, 0]), expectedDigest: sidecar.digest, operationID: operationID) }
+        #expect(throws: (any Error).self) { try document.unpackAttributionRecord(sidecar.bytes, update: update, expectedDigest: sidecar.digest, operationID: UUID()) }
+        #expect(throws: (any Error).self) { try document.unpackAttributionRecord(sidecar.bytes + Data(" ".utf8), update: update, expectedDigest: sidecar.digest, operationID: operationID) }
+        #expect(try document.exportHistorySnapshot(scopeToken: replay.scopeToken) == before)
+    }
+
 }

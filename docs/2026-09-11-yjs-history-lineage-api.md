@@ -500,7 +500,12 @@ production Swift/JavaScriptCore. Forward and inverse results carry exact single-
 record JSON for the existing journal. Verification passed 121 collaboration
 JavaScript tests, 51 Swift adapter tests and contract consistency.
 
-Next: Mark-owned sidecar codec, then additive V20 immutable row metadata and mixed
+The [record codec](format-attribution-internal.md#september-14-attribution-record-codec-checkpoint)
+now reconstructs exact runtime records from hash-bound sidecars and existing update
+bytes. Verification passed 127 JavaScript tests, 53 Swift tests in nine suites and
+contract consistency; this establishes integrity, not host authorization or storage.
+
+Next: additive V20 immutable row metadata and mixed
 append order, owner replay CAS in the existing snapshot envelope, and paired
 post-save sibling delivery. Do not derive ordering from remoteEpoch or timestamps,
 or move the update journal into the owner envelope. Structural record integration,

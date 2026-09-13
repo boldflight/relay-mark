@@ -1,3 +1,4 @@
+import {packAttributionRecord,unpackAttributionRecord} from './attribution-record-codec.js'
 import { createPlacementState, preparePlacementReceipt, restorePlacementState, placementUpdateHash, createPlacementResolver } from './placement-lineage.js'
 import * as Y from 'yjs'
 import {replayFormatAttribution} from './format-attribution-replay.js'
@@ -591,6 +592,14 @@ export function call(command, input) {
       return { updates: localUpdates, insertedTextItems: prepared.insertedTextItems, lineage: prepared.lineage }
     }
     case 'edit': localUpdates = []; edit(input); return localUpdates
+    case 'packAttributionRecord': {
+      if (!input || Object.keys(input).sort().join(',') !== 'record_json,update') throw Error('Invalid attribution pack request')
+      return packAttributionRecord(input.record_json,input.update)
+    }
+    case 'unpackAttributionRecord': {
+      if (!input || Object.keys(input).sort().join(',') !== 'expected,sidecar_json,update') throw Error('Invalid attribution unpack request')
+      return {record_json:unpackAttributionRecord(input.sidecar_json,input.update,input.expected)}
+    }
     case 'createAttributionReplay': return initialAttributionReplay(input)
     case 'nativeFormattingWithAttribution': return attributedNativeFormatting(input)
     case 'nativeFormatting': return nativeFormatting(input)
