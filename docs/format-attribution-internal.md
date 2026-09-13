@@ -440,3 +440,31 @@ Yjs state vector, since it advances without changing document bytes. Corrective
 updates must be separately identified and linked, never substituted into the
 original candidate or counted as a fresh human contribution. The strict current
 replay APIs must not be silently relaxed to accept visibly inconsistent state.
+
+
+### Pure inverse reconciliation preparation
+
+`prepareFormatInverseReconciliation` validates the immutable authored inverse
+against an independently supplied observed basis, then derives its effect against
+current contribution state. It integrates original Yjs bytes before creating a
+separate correction on a private document. Caller documents and undo managers are
+not mutated. The host must authenticate the basis and persist the first prepared
+correction for exact retry; this helper is not an admission or delivery API.
+
+Internal authored-record identity is retained separately from derived effect.
+This permits an accepted local undo to have a different materialized effect while
+still serving as the authenticated parent of its already-authored redo. A
+different authored record sharing a UUID is rejected. External receipt JSON and
+original update bytes remain unchanged.
+
+Both arrival orders of the captured independent-undo fixture converge to plain
+text in the new primitive. Tests also cover a pending local undo/redo chain,
+unrelated peer text and marks, original owner undo managers, and independent
+original-plus-correction replay. All 159 collaboration JavaScript tests, 59 Swift
+tests across ten suites, and the portable contract check passed. Receipt:
+`/private/tmp/relay-format-reconciliation-RESULT-20260914.json`.
+
+The strict runtime acceptance reproduction above still fails intentionally.
+Negotiated basis capture, durable linked reconciliation receipts, and paired
+runtime replay remain unfinished; these tests do not establish multiplayer
+activation or server-generated correction interoperability.

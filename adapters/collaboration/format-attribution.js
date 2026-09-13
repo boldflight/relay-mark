@@ -16,6 +16,9 @@ const key = u => `${u.item.client}:${u.item.clock}@${u.type.client}:${u.type.clo
 const equal = (a,b) => JSON.stringify(a) === JSON.stringify(b)
 const canonical = x => Array.isArray(x) ? x.map(canonical) : x && typeof x==='object' ? Object.fromEntries(Object.keys(x).sort().map(k=>[k,canonical(x[k])])) : x
 const digest = formatAttributionCut
+// Canonical internal authored identity, distinct from the host's exact JSON
+// receipt hash. Derived effects may differ after reconciliation; intent may not.
+const authoredIdentity = record => placementUpdateHash(new TextEncoder().encode(JSON.stringify(canonical(record))))
 
 function observe(doc) {
  const markers=captureHistoryMarkerState(doc), result=new Map();let nodes=0
@@ -91,7 +94,7 @@ export function prepareNoEffectFormatAttribution(state,{beforeDoc,event,operatio
  const next={...old,events:new Map(old.events),dispositions:new Map(old.dispositions),consumedReferences:new Set(old.consumedReferences),retainedChanges}
  next.consumedReferences.add(operation.reference)
  next.dispositions.set(disposition.contributionID,disposition.afterActive)
- next.events.set(event.operation_id,{disposition,kind:operation.kind,reference:operation.reference,mark:event.mark,changes:[],scopeChanges:clone(plan.logicalScope)})
+ next.events.set(event.operation_id,{authoredRecordSHA256:authoredIdentity({kind:"format_noop",event,operation}),disposition,kind:operation.kind,reference:operation.reference,mark:event.mark,changes:[],scopeChanges:clone(plan.logicalScope)})
  return publish(next)
 }
 export function prepareFormatAttribution(state,{beforeDoc,update,event,operation=null,resolveSuccessor}) {
@@ -134,7 +137,7 @@ export function prepareFormatAttribution(state,{beforeDoc,update,event,operation
   next.retainedChanges+=changes.length+scopeChanges.length
   if(operation!==null)next.consumedReferences.add(operation.reference)
   next.dispositions.set(disposition.contributionID,disposition.afterActive)
-  next.events.set(verified.operation_id,{disposition,kind:operation?.kind||'format',reference:operation?.reference||null,mark:verified.mark,changes,scopeChanges})
+  next.events.set(verified.operation_id,{authoredRecordSHA256:authoredIdentity({kind:'format',update:Array.from(update),event:verified,operation}),disposition,kind:operation?.kind||'format',reference:operation?.reference||null,mark:verified.mark,changes,scopeChanges})
  })
 }
 export function prepareCopyAttribution(state,{beforeDoc,update,effectiveCopies}) {
@@ -213,4 +216,104 @@ export function queryFormatInverse(state,{operationID,resolveSuccessor}) {
   targets.push({unit:clone(destination),mark:event.mark,enabled:restored.enabled,restoreToken:restored.token})
  }
  return {kind:targets.length?'apply':'noop',operationID,mark:event.mark,prestate_sha256:data.cut,targets,protected:protectedUnits,logicalScope}
+}
+
+// Internal pure preparation only. The host independently authenticates the
+// original observed basis and receipt order. No caller document/manager is
+// mutated, and authored bytes are never rewritten into the correction.
+export function prepareFormatInverseReconciliation(state,{beforeDoc,basis,recordJSON,resolveSuccessor}) {
+ const old=read(state)
+ if(old.fenced||digest(beforeDoc)!==old.cut||!basis||typeof basis.resolveSuccessor!=='function'||typeof resolveSuccessor!=='function')throw Error('Invalid reconciliation context')
+ if(typeof recordJSON!=='string'||!recordJSON.length||new TextEncoder().encode(recordJSON).length>64*1024*1024)throw Error('Invalid reconciliation record')
+ const record=JSON.parse(recordJSON)
+ if(JSON.stringify(record)!==recordJSON)throw Error('Reconciliation requires exact compact record')
+ const names=record.kind==='format_noop'?['event','kind','operation']:['event','kind','operation','update']
+ if(!['format','format_noop'].includes(record.kind)||Object.keys(record).sort().join(',')!==names.sort().join(',')||!record.operation)throw Error('Invalid reconciliation inverse')
+ const authored=record.kind==='format'?record.update:null
+ if(authored&&(!Array.isArray(authored)||!authored.length||authored.length>maximumBytes||authored.some(n=>!Number.isInteger(n)||n<0||n>255)))throw Error('Invalid reconciliation authored bytes')
+ const basisData=read(basis.state)
+ // Existing strict admission proves exactly what the author observed and did.
+ const validated=record.kind==='format_noop'
+  ?prepareNoEffectFormatAttribution(basis.state,{beforeDoc:basis.doc,event:record.event,operation:record.operation,resolveSuccessor:basis.resolveSuccessor})
+  :prepareFormatAttribution(basis.state,{beforeDoc:basis.doc,update:Uint8Array.from(authored),event:record.event,operation:record.operation,resolveSuccessor:basis.resolveSuccessor})
+ const authoredRecordSHA256=read(validated).events.get(record.event.operation_id).authoredRecordSHA256
+ for(const [id,event] of basisData.events) {
+  const current=old.events.get(id)
+  if(!current||current.authoredRecordSHA256!==event.authoredRecordSHA256||
+    ['kind','reference','mark'].some(field=>current[field]!==event[field])||
+    !equal(canonical(current.disposition),canonical(event.disposition))||
+    (event.kind==='format'&&!equal(canonical(current.scopeChanges),canonical(event.scopeChanges))))throw Error('Incompatible reconciliation event basis')
+ }
+ if(old.events.has(record.event.operation_id))throw Error('Duplicate reconciliation operation')
+ const reference=inverseReference(old,record.operation,record.event.operation_id)
+ const plan=queryFormatInverse(state,{operationID:record.operation.reference,resolveSuccessor})
+ if(!['apply','noop'].includes(plan.kind)||plan.mark!==record.event.mark)throw Error('Invalid reconciliation plan')
+ const scratch=new Y.Doc({gc:false}),replica=new Y.Doc({gc:false})
+ try {
+  const before=Y.encodeStateAsUpdate(beforeDoc)
+  Y.applyUpdate(scratch,before);Y.applyUpdate(scratch,Y.encodeStateAsUpdate(basis.doc))
+  if(digest(scratch)!==old.cut)throw Error('Reconciliation basis is not observed by current document')
+  if(authored)Y.applyUpdate(scratch,Uint8Array.from(authored))
+  const integrated=observe(scratch),desired=new Map([...old.current].map(([k,row])=>[k,{...row,attributes:clone(row.attributes)}]))
+  if(integrated.size!==old.current.size)throw Error('Reconciliation changed text identities')
+  const mark=plan.mark
+  for(const [k,row] of integrated) {
+   const previous=old.current.get(k)
+   if(!previous||previous.character!==row.character)throw Error('Reconciliation changed text identities')
+   const other=attrs=>Object.fromEntries(Object.entries(attrs).filter(([name])=>name!==mark))
+   if(!equal(other(previous.attributes),other(row.attributes)))throw Error('Reconciliation changed unrelated attributes')
+  }
+  for(const target of plan.targets) {
+   const row=desired.get(key(target.unit))
+   if(!row)throw Error('Unavailable reconciliation target')
+   if(target.enabled)row.attributes[mark]={};else delete row.attributes[mark]
+  }
+  const updates=[];scratch.on('update',update=>updates.push(update.slice()))
+  scratch.transact(()=>materializeReconciliation(scratch,desired,mark))
+  const correction=updates.length?Y.mergeUpdates(updates):null
+  if(correction&&correction.length>maximumBytes)throw Error('Reconciliation correction limit')
+  const cut=digest(scratch),current=observe(scratch)
+  for(const [k,row] of current)if(!equal(row.attributes,canonical(desired.get(k).attributes)))throw Error('Reconciliation projection mismatch')
+  // The exact recorded pair must reproduce the full cut independently, including
+  // remote Yjs formatting cleanup. Visible equality alone is insufficient.
+  Y.applyUpdate(replica,before)
+  if(authored)Y.applyUpdate(replica,Uint8Array.from(authored))
+  if(correction)Y.applyUpdate(replica,correction)
+  if(digest(replica)!==cut)throw Error('Reconciliation bytes are not independently replayable')
+  const next={...old,cut,current,entries:new Map(old.entries),events:new Map(old.events),
+   dispositions:new Map(old.dispositions),consumedReferences:new Set(old.consumedReferences)}
+  for(const [k,row] of current)next.entries.set(k,{...row,tokens:clone(old.entries.get(k).tokens)})
+  const changes=plan.targets.map(target=>{
+   const k=key(target.unit),previous=old.entries.get(k)
+   next.entries.get(k).tokens[mark]=target.restoreToken
+   return {unit:clone(target.unit),beforeToken:previous.tokens[mark],afterToken:target.restoreToken,beforeEnabled:previous[mark],afterEnabled:target.enabled}
+  })
+  next.retainedChanges+=changes.length+plan.logicalScope.length
+  if(next.retainedChanges>maximumUnits||next.events.size>=maximumEvents)throw Error('Reconciliation attribution limit')
+  const disposition={contributionID:reference.disposition.contributionID,beforeActive:reference.disposition.afterActive,afterActive:reference.disposition.beforeActive}
+  next.dispositions.set(disposition.contributionID,disposition.afterActive);next.consumedReferences.add(record.operation.reference)
+  next.events.set(record.event.operation_id,{authoredRecordSHA256,disposition,kind:record.operation.kind,reference:record.operation.reference,mark,changes,scopeChanges:clone(plan.logicalScope)})
+  return Object.freeze({recordJSON,authoredUpdate:authored?Object.freeze([...authored]):null,
+   correctionUpdate:correction?Object.freeze([...correction]):null,cut,state:publish(next)})
+ }finally{scratch.destroy();replica.destroy()}
+}
+function materializeReconciliation(doc,desired,mark) {
+ function walk(type,path) {
+  if(type instanceof Y.XmlText) {
+   const selection=captureTextItems(doc.getXmlFragment('default'),{path,index:0,length:type.length})
+   const units=selection.runs.flatMap(run=>Array.from({length:run.count},(_,i)=>({type:run.type,item:{client:run.item.client,clock:run.item.clock+i}})))
+   const current=[]
+   for(const delta of type.toDelta())for(let i=0;i<delta.insert.length;i++)current.push(Object.hasOwn(delta.attributes||{},mark))
+   const ranges=[]
+   for(let i=0;i<units.length;i++) {
+    const enabled=Object.hasOwn(desired.get(key(units[i])).attributes,mark)
+    if(enabled===current[i])continue
+    const last=ranges.at(-1)
+    if(last&&last.index+last.length===i&&last.enabled===enabled)last.length++
+    else ranges.push({index:i,length:1,enabled})
+   }
+   for(const range of ranges)type.format(range.index,range.length,{[mark]:range.enabled?{}:null})
+  }else type.toArray().forEach((child,i)=>walk(child,[...path,i]))
+ }
+ walk(doc.getXmlFragment('default'),[])
 }
