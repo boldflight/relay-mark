@@ -402,3 +402,17 @@ providers still leave it disabled: operation-based durable journals, server
 admission/receipts, negotiated capabilities and full cross-client acceptance are
 unfinished. Library snapshot restoration and a test persistence callback are not
 proof of production durable metadata delivery.
+
+
+### Native host metadata candidate
+
+`RelayMarkLocalMetadataOperation` carries the operation UUID, undo/redo intent and
+existing exact attribution candidate without changing
+`RelayMarkLocalTransaction.update`. Hosts can opt into a distinct metadata save
+callback and retain that same candidate while persistence fails. The native host
+editor's 62-test focused gate verifies failed-save/lost-return retry, pending edit
+and peer-delivery guards, unchanged Yjs bytes/vector and later effective redo.
+Receipt: `/private/tmp/relay-attribution-schema-v20-v1-20260914/metadata-editor-RESULT.json`.
+This host candidate does not itself authorize storage, enable Session integration
+or establish negotiated network delivery. The collaboration runtime bundle is
+unchanged by this additive Swift type.
