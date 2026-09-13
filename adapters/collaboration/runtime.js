@@ -1,9 +1,12 @@
-import { createPlacementState, preparePlacementReceipt, restorePlacementState, placementUpdateHash } from './placement-lineage.js'
+import { createPlacementState, preparePlacementReceipt, restorePlacementState, placementUpdateHash, createPlacementResolver } from './placement-lineage.js'
 import * as Y from 'yjs'
+import {replayFormatAttribution} from './format-attribution-replay.js'
+import {queryFormatInverse, prepareFormatAttribution} from './format-attribution.js'
+import {formatAttributionCut} from './format-attribution-cut.js'
 import { node, snapshot, range, proseBlocks as ownedProseBlocks, replaceProse as replaceOwnedProse } from './prose-operation.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import { prepareProseLineage, supportsProseLineage } from './prose-lineage.js'
-import { prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
+import { prepareHistoryEvidence, prepareHistoryLineage, preserveHistoryDescendants, installHistoryCounterpartRetention, captureHistoryFormatEvent, performHistoryWithMarks, exportHistorySnapshot, restoreHistorySnapshot } from './history-lineage.js'
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness'
 
 // One context owns one document. Transport, authorization and persistence belong to the host.
@@ -141,6 +144,40 @@ function history(redo, prepared = null) {
     return { updates: localUpdates, formattingMark: proven ? mark : null }
   } finally { historyCapture = null }
 }
+// The host supplies an independently retained, qualified recipe expectation.
+// Replay is deliberate here: keep one UndoManager and no second runtime history
+// store until measured restoration cost warrants a validated checkpoint cache.
+function attributedHistory(redo, input) {
+  if (!input || Object.keys(input).sort().join(',') !== 'expected,operation_id,reference_id,replay_json' ||
+      formattingCapture || historyCapture || lineageCapture) throw Error('Invalid attributed history request')
+  if (input.expected?.cut !== formatAttributionCut(doc)) throw Error('Stale attributed history cut')
+  const restored = replayFormatAttribution(input.replay_json, input.expected)
+  const resolver = createPlacementResolver(restored.placementState, input.expected.binding, restored.placementReceiptIDs)
+  const plan = queryFormatInverse(restored.state, {operationID:input.reference_id, resolveSuccessor:resolver})
+  const prepared = prepareHistoryEvidence(doc, undo, redo, {operation_id:input.operation_id}, lineageKey, plan)
+  if (prepared.kind !== 'formatting' || prepared.reference !== input.reference_id) throw Error('Attributed history owner reference mismatch')
+  const update = Y.mergeUpdates(prepared.expectedUpdates)
+  const event = captureHistoryFormatEvent(doc, update, {operation_id:input.operation_id,
+    mark:plan.mark, text_items:prepared.formattingTextItems})
+  const operation = {kind:redo ? 'redo' : 'undo', reference:input.reference_id}
+  const next = prepareFormatAttribution(restored.state, {beforeDoc:doc, update, event, operation, resolveSuccessor:resolver})
+  if (next.cut !== prepared.expectedCut) throw Error('Attributed history cut diverged from preflight')
+  const recipe = JSON.parse(input.replay_json)
+  if (recipe.steps.some(step => (step.kind === 'format' ? step.event.operation_id : step.receipt.operation_id) === input.operation_id)) throw Error('Duplicate attribution replay operation')
+  if (recipe.steps.length >= 16384) throw Error('Attribution replay step limit')
+  recipe.steps.push({kind:'format', update:Array.from(update), event, operation})
+  const replayJSON = JSON.stringify(recipe), encoded = new TextEncoder().encode(replayJSON)
+  if (encoded.length > 64*1024*1024) throw Error('Attribution replay byte limit')
+  const result = history(redo, prepared)
+  if (placementUpdateHash(Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))) !== placementUpdateHash(update)) {
+    throw Error('Attributed history update diverged from preflight')
+  }
+  rememberPlacement(input.operation_id, operation.kind, prepared.reference, prepared.lineage.copies, result.updates)
+  return {kind:prepared.kind, updates:result.updates, insertedTextItems:prepared.insertedTextItems,
+    lineage:null, formattingMark:result.formattingMark,
+    replay_json:replayJSON, replay_sha256:placementUpdateHash(encoded), cut:next.cut}
+}
+
 function nativeFormatting(operation) {
   const keys = Object.keys(operation.attributes || {})
   if (operation.kind !== 'formatText' || keys.length !== 1 || !['bold', 'italic'].includes(keys[0]) ||
@@ -503,6 +540,8 @@ export function call(command, input) {
     case 'nativeParagraphPaste': return nativeParagraphPaste(input)
     case 'beginUndoGroup': undo.stopCapturing(); undo.captureTimeout = Number.MAX_SAFE_INTEGER; return null
     case 'endUndoGroup': undo.stopCapturing(); undo.captureTimeout = 0; return null
+    case 'undoWithAttributedEvidence': return attributedHistory(false, input)
+    case 'redoWithAttributedEvidence': return attributedHistory(true, input)
     case 'undoWithEvidence':
     case 'redoWithEvidence': {
       if (formattingCapture || historyCapture || lineageCapture) throw Error('Nested history evidence')

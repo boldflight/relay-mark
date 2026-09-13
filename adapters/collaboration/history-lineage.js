@@ -517,7 +517,8 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
     }, 'relay.history.preflight')
     manager = new Y.UndoManager(staged.getXmlFragment('default'), { trackedOrigins: new Set(['relay.local.editor']), captureTimeout: 0, deleteFilter: preserveHistoryDescendants })
     manager.undoStack = undoStack; manager.redoStack = redoStack
-    const inverse = [], popped = []; let mixed = false
+    const inverse = [], popped = [], expectedUpdates = []; let mixed = false
+    staged.on('update', (update, origin) => { if (origin === manager) expectedUpdates.push(update.slice()) })
     manager.on('stack-item-added', ({ stackItem, origin }) => { if (origin === manager) inverse.push(stackItem) })
     manager.on('stack-item-updated', () => { mixed = true })
     manager.on('stack-item-popped', ({ stackItem }) => popped.push(stackItem))
@@ -544,7 +545,7 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
     const found = identities(actual)
     if (found.size !== accounted.size || [...found].some(value => !accounted.has(value))) throw Error('Unaccounted restored text')
     if (live.clientID !== clientID || !equal(before, Y.encodeStateAsUpdate(live))) throw Error('History prestate changed')
-    return { kind: isFormatting ? 'formatting' : 'prose', reference, operationID: input.operation_id, formattingPlan, inverseCopies: execution.inverseCopies, expectedState: Y.encodeStateAsUpdate(staged),
+    return { kind: isFormatting ? 'formatting' : 'prose', reference, operationID: input.operation_id, formattingPlan, formattingTextItems: execution.formattingTextItems, expectedUpdates, expectedCut: formattingPlan ? formatAttributionCut(staged) : null, inverseCopies: execution.inverseCopies, expectedState: Y.encodeStateAsUpdate(staged),
       insertedTextItems: Array.from(new TextEncoder().encode('{"version":1,"runs":[]}')),
       lineage: { version: 1, operation: { kind: redo ? 'redo' : 'undo', transaction_id: reference }, copies } }
   } finally { manager?.destroy(); staged.destroy() }

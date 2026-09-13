@@ -20,12 +20,13 @@ const privateEntry={name:'test-attribution-entry',setup(build){build.onLoad({fil
  return {contents:source.replace(needle,'prepareHistoryEvidence(doc, undo, redo, input, lineageKey, globalThis.testFormattingPlan || null)'),loader:'js'}
 })}}
 const built=await build({entryPoints:['adapters/collaboration/runtime.js'],plugins:[privateEntry,historyHookPlugin],bundle:true,write:false,format:'iife',platform:'browser',target:'es2020'})
+const publicBuilt=await build({entryPoints:['adapters/collaboration/runtime.js'],plugins:[historyHookPlugin],bundle:true,write:false,format:'iife',platform:'browser',target:'es2020'})
 const uuid=n=>`60000000-0000-4000-8000-${String(n).padStart(12,'0')}`
 const key=u=>`${u.item.client}:${u.item.clock}@${u.type.client}:${u.type.clock}`
-function setup(bold=false,extra=false){
+function setup(bold=false,extra=false,publicBridge=false){
  const doc=new Y.Doc({gc:false}),p=new Y.XmlElement('paragraph'),t=new Y.XmlText();p.insert(0,[t]);doc.getXmlFragment('default').insert(0,[p]);t.insert(0,'Hello',bold?{bold:{}}:{});if(extra){t.insert(5,' ');t.insert(6,'X',{bold:{}})}
  const baseline=[...Y.encodeStateAsUpdate(doc)],steps=[]
- function client(initialize=true){const context={crypto:globalThis.crypto,TextEncoder,TextDecoder,console,setTimeout:()=>0,clearTimeout:()=>{},setInterval:()=>0,clearInterval:()=>{}};runInNewContext(built.outputFiles[0].text,context)
+ function client(initialize=true){const context={crypto:globalThis.crypto,TextEncoder,TextDecoder,console,setTimeout:()=>0,clearTimeout:()=>{},setInterval:()=>0,clearInterval:()=>{}};runInNewContext((publicBridge?publicBuilt:built).outputFiles[0].text,context)
  const call=(cmd,input=null)=>JSON.parse(context.relayCollaborationCall(cmd,JSON.stringify(input)));if(initialize)call('apply',[...Y.encodeStateAsUpdate(doc)]);return {call,plan:value=>{context.testFormattingPlan=value}}
  }
  const a=client(),b=client(),binding={document_id:uuid(90),incarnation:'test'}
@@ -62,9 +63,20 @@ function setup(bold=false,extra=false){
    state=restored.state;graph=restored.placementState;ids.splice(0,ids.length,...restored.placementReceiptIDs)
   },
   inverse(owner,peer,n,newID,redo=false){const p=plan(n);owner.plan(p);const selected={version:1,runs:p.targets.map(t=>({...t.unit,count:1}))}
-   try {const result=owner.call(redo?'redoWithEvidence':'undoWithEvidence',{operation_id:uuid(newID)}),update=bytes(result)
+   try {const saved=checkpoint(),result=publicBridge?owner.call(redo?'redoWithAttributedEvidence':'undoWithAttributedEvidence',{operation_id:uuid(newID),reference_id:uuid(n),replay_json:saved.replayJSON,expected:saved.expected}):owner.call(redo?'redoWithEvidence':'undoWithEvidence',{operation_id:uuid(newID)}),update=bytes(result)
     const event=captureHistoryFormatEvent(doc,update,{operation_id:uuid(newID),mark:'bold',text_items:selected}),operation={kind:redo?'redo':'undo',reference:uuid(n)}
-    state=prepareFormatAttribution(state,{beforeDoc:doc,update,event,operation,resolveSuccessor:successor(n)});steps.push({kind:'format',update:[...update],event,operation});apply(update,peer);return result
+    state=prepareFormatAttribution(state,{beforeDoc:doc,update,event,operation,resolveSuccessor:successor(n)});steps.push({kind:'format',update:[...update],event,operation});apply(update,peer);
+    if(publicBridge){
+     const rebuilt=replayFormatAttribution(result.replay_json,{...saved.expected,replay_sha256:result.replay_sha256,cut:result.cut}),recipe=JSON.parse(result.replay_json),last=recipe.steps.at(-1)
+     assert.equal(rebuilt.state.cut,state.cut);assert.deepEqual(recipe.steps.slice(0,-1),steps.slice(0,-1))
+     assert.deepEqual(last.update,[...update]);assert.deepEqual(last.operation,operation)
+     assert.deepEqual({...last.event,text_items:null},{...event,text_items:null})
+     assert.deepEqual(queryFormatInverse(rebuilt.state,{operationID:uuid(newID),resolveSuccessor:successor()}),plan(newID))
+     // Runtime coalesces adjacent selected units into bounded exact runs.
+     // Persist its exact emitted JSON, not an independently re-encoded witness.
+     steps[steps.length-1]=last;assert.equal(result.replay_json,checkpoint().replayJSON)
+    }
+    return result
    }finally{owner.plan(null)}
   },delta:()=>doc.getXmlFragment('default').toArray().map(p=>p.get(0).toDelta()),close:()=>doc.destroy()}
 }
@@ -217,5 +229,45 @@ test('replay refuses altered ordering, missing ABA evidence, malformed witnesses
   }finally{reversed.destroy()}
   assert.deepEqual(h.a.call('exportHistorySnapshot',{scope_token:'refusal'}),before)
   h.restart();assert.equal(h.plan(100).kind,'noop')
+ }finally{h.close()}
+})
+
+
+test('public attributed history bridge undoes and redoes restored peer formatting across fresh owners',()=>{
+ const h=setup(false,false,true);try{
+  h.structural(h.a,h.b,'replaceProseWithLineage',{start:2,end:2,text:'\n',operation_id:uuid(110)},'replace_prose',null)
+  h.formatting(h.b,h.a,{},111)
+  h.structural(h.a,h.b,'undoWithEvidence',{operation_id:uuid(112)},'undo',uuid(110))
+  h.restart();h.inverse(h.b,h.a,111,113);assert.deepEqual(h.delta(),[[{insert:'Hello'}]])
+  h.restart();h.inverse(h.b,h.a,113,114,true);assert.deepEqual(h.delta(),[[{insert:'Hello',attributes:{bold:{}}}]])
+ }finally{h.close()}
+})
+
+test('public attributed history preserves disjoint peer islands and refuses fully masked noops',()=>{
+ const h=setup(false,false,true);try{
+  h.formatting(h.a,h.b,{},120);h.formatting(h.b,h.a,null,121,{index:2,length:1});h.formatting(h.b,h.a,{},122,{index:2,length:1})
+  h.inverse(h.a,h.b,120,123);assert.deepEqual(h.delta(),[[{insert:'He'},{insert:'l',attributes:{bold:{}}},{insert:'lo'}]])
+  h.restart();h.inverse(h.a,h.b,123,124,true)
+  assert.deepEqual(h.delta(),[[{insert:'Hello',attributes:{bold:{}}}]])
+  h.formatting(h.b,h.a,null,125);h.formatting(h.b,h.a,{},126)
+  const before=h.a.call('exportHistorySnapshot',{scope_token:'no-effect'}),saved=h.checkpoint()
+  assert.throws(()=>h.inverse(h.a,h.b,124,127),/Unavailable or stale formatting attribution plan/)
+  assert.deepEqual(h.a.call('exportHistorySnapshot',{scope_token:'no-effect'}),before)
+  assert.deepEqual(h.checkpoint(),saved)
+ }finally{h.close()}
+})
+
+test('public attributed history rejects foreign references, stale cuts and cross-kind duplicate operation IDs before mutation',()=>{
+ const h=setup(false,false,true);try{
+  h.structural(h.a,h.b,'replaceProseWithLineage',{start:2,end:2,text:'\n',operation_id:uuid(130)},'replace_prose',null)
+  h.formatting(h.b,h.a,{},131)
+  const saved=h.checkpoint(),input={operation_id:uuid(132),reference_id:uuid(131),replay_json:saved.replayJSON,expected:saved.expected}
+  const before=h.b.call('exportHistorySnapshot',{scope_token:'refusal'})
+  for(const bad of [{...input,operation_id:uuid(130)},{...input,reference_id:uuid(130)},
+   {...input,expected:{...input.expected,cut:'0'.repeat(64)}},{...input,replay_json:input.replay_json+' '}]) {
+   assert.throws(()=>h.b.call('undoWithAttributedEvidence',bad))
+   assert.deepEqual(h.b.call('exportHistorySnapshot',{scope_token:'refusal'}),before)
+  }
+  h.inverse(h.b,h.a,131,133);assert.deepEqual(h.delta(),[[{insert:'He'}],[{insert:'llo'}]])
  }finally{h.close()}
 })

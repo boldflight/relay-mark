@@ -367,6 +367,79 @@ public final class RelayMarkCollaborationDocument {
         public let formattingMark: RelayMarkLocalTransaction.NativeFormatting.Mark?
     }
 
+    /// Exact replay bytes with assertions independently authenticated by the host.
+    /// These values do not establish app/account authorization. The host must persist
+    /// a returned candidate atomically with its original update rows and owner snapshot.
+    public struct AttributionReplay: Sendable {
+        public let bytes: Data
+        public let scopeToken: String
+        public let binding: PlacementBinding
+        public let digest: String
+        public let cut: String
+
+        public init(bytes: Data, scopeToken: String, binding: PlacementBinding,
+                    digest: String, cut: String) throws {
+            let isSHA256: (String) -> Bool = { value in
+                value.utf8.count == 64 && value.utf8.allSatisfy {
+                    (48...57).contains($0) || (97...102).contains($0)
+                }
+            }
+            guard !bytes.isEmpty, bytes.count <= 64 * 1024 * 1024,
+                  let json = String(data: bytes, encoding: .utf8), Data(json.utf8) == bytes,
+                  !scopeToken.isEmpty, scopeToken.utf8.count <= 2048,
+                  !binding.incarnation.isEmpty, binding.incarnation.utf8.count <= 256,
+                  isSHA256(digest), isSHA256(cut) else {
+                throw Failure.runtime("Invalid attributed history replay assertions")
+            }
+            self.bytes = bytes; self.scopeToken = scopeToken; self.binding = binding
+            self.digest = digest; self.cut = cut
+        }
+    }
+
+    /// Candidate evidence and exact successor replay; not yet a durable host save.
+    public struct AttributedHistoryResult: Sendable {
+        public let evidence: HistoryEvidenceResult
+        public let replay: AttributionReplay
+    }
+
+    /// The host supplies independently verified replay assertions for this owner.
+    /// Persist the returned replay with the updates and snapshot before claiming save.
+    public func undoWithAttributedEvidence(operationID: UUID, referenceID: UUID,
+                                           replay: AttributionReplay) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: false, operationID: operationID, referenceID: referenceID, replay: replay)
+    }
+
+    public func redoWithAttributedEvidence(operationID: UUID, referenceID: UUID,
+                                           replay: AttributionReplay) throws -> AttributedHistoryResult {
+        try attributedHistoryEvidence(redo: true, operationID: operationID, referenceID: referenceID, replay: replay)
+    }
+
+    private func attributedHistoryEvidence(redo: Bool, operationID: UUID, referenceID: UUID,
+                                           replay: AttributionReplay) throws -> AttributedHistoryResult {
+        guard let json = String(data: replay.bytes, encoding: .utf8) else {
+            throw Failure.runtime("Invalid attributed history replay UTF-8")
+        }
+        let data = try call(redo ? "redoWithAttributedEvidence" : "undoWithAttributedEvidence", input: [
+            "operation_id": operationID.uuidString.lowercased(),
+            "reference_id": referenceID.uuidString.lowercased(),
+            "replay_json": json,
+            "expected": ["scope_token": replay.scopeToken, "binding": replay.binding.wire,
+                         "replay_sha256": replay.digest, "cut": replay.cut]
+        ])
+        struct Wire: Decodable {
+            let replay_json: String
+            let replay_sha256: String
+            let cut: String
+        }
+        let wire = try JSONDecoder().decode(Wire.self, from: data)
+        guard wire.replay_json.utf8.count <= 64 * 1024 * 1024 else {
+            throw Failure.runtime("Attributed history replay limit")
+        }
+        let candidate = try AttributionReplay(bytes: Data(wire.replay_json.utf8),
+            scopeToken: replay.scopeToken, binding: replay.binding, digest: wire.replay_sha256, cut: wire.cut)
+        return AttributedHistoryResult(evidence: try decodeHistoryEvidence(data), replay: candidate)
+    }
+
     /// Resolves evidence from the actually performed tracked item. Unsupported,
     /// mixed or ineffective history refuses during preflight without mutation.
     public func undoWithEvidence(operationID: UUID) throws -> HistoryEvidenceResult {
@@ -376,14 +449,17 @@ public final class RelayMarkCollaborationDocument {
         try historyEvidence(redo: true, operationID: operationID)
     }
     private func historyEvidence(redo: Bool, operationID: UUID) throws -> HistoryEvidenceResult {
+        try decodeHistoryEvidence(call(redo ? "redoWithEvidence" : "undoWithEvidence",
+            input: ["operation_id": operationID.uuidString.lowercased()]))
+    }
+
+    private func decodeHistoryEvidence(_ data: Data) throws -> HistoryEvidenceResult {
         struct Wire: Decodable {
             let kind: HistoryEvidenceResult.Kind
             let updates: [[UInt8]]
             let insertedTextItems: [UInt8]
             let formattingMark: RelayMarkLocalTransaction.NativeFormatting.Mark?
         }
-        let data = try call(redo ? "redoWithEvidence" : "undoWithEvidence",
-            input: ["operation_id": operationID.uuidString.lowercased()])
         let wire = try JSONDecoder().decode(Wire.self, from: data)
         let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         let lineage = object?["lineage"] as? [String: Any]

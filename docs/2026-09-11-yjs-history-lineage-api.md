@@ -474,3 +474,19 @@ cannot establish contribution order. Unknown remote suffixes remain fenced.
 Server channel output remains unchanged pending the already-requested direct
 confirmation. Native/app host activation and cross-client acceptance are still
 required before the working-branch goal is complete; no deployment is required.
+
+
+## September 14 native replay bridge checkpoint
+
+The [attributed-history API](format-attribution-internal.md#september-14-native-attributed-history-api)
+is now available in the production runtime and Swift adapter. Verified exact
+replay drives the existing UndoManager and returns a validated successor recipe
+for atomic host persistence. Its recorded peer-formatting sequence passes native
+undo, owner restart and redo. Verification: 118 collaboration JavaScript tests,
+49 Swift adapter tests in nine suites, and contract-version consistency.
+
+The next app integration requires forward witness capture and exact, ordered
+receipt metadata on existing journal rows. Swift's current raw hydration accessor
+is still insufficient for that ordered evidence. Session/provider activation,
+server receipts/backfill, no-effect history acceptance and cross-client gates
+remain open. The previously rejected backend channel-output edit is unchanged.

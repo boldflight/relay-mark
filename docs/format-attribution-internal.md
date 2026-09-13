@@ -1,9 +1,9 @@
 # Internal formatting attribution and undo checkpoint
 
-This is an internal preflight mechanism, not an activated client capability or a
-new history store. Yjs UndoManager still owns the undo/redo stacks and performs
-all mutations in its normal transaction. The public runtime commands do not yet
-accept attribution plans. The standalone public restored-tail regression remains
+These are library preflight and replay mechanisms; app-session activation and
+server-authorized delivery remain incomplete. They do not add a history store. Yjs UndoManager still owns the undo/redo stacks and performs
+all mutations in its normal transaction. Public runtime commands accept independently trusted replay evidence, never
+arbitrary caller-computed attribution plans. The standalone public restored-tail regression remains
 an open integration gate until authenticated host delivery is wired.
 
 The ephemeral reducer consumes an immutable document cut and exact update bytes.
@@ -97,3 +97,43 @@ server-authorized format receipts/backfill and cross-client acceptance remain op
 The public standalone restored-tail undo probe is still an integration gate. This
 checkpoint does not claim complete offline multiplayer, final repository gates,
 backup of these Relay commits, deployment, or staging merge.
+
+
+## September 14 native attributed-history API
+
+`undoWithAttributedEvidence` and `redoWithAttributedEvidence` now expose the
+verified mechanism through both the runtime and Swift adapter. The caller supplies
+the new operation UUID, exact referenced operation UUID, and an `AttributionReplay`
+containing exact UTF-8 recipe bytes plus independently retained owner scope,
+document/incarnation binding, digest and final cut. Mark cannot authenticate an
+account or receipt solely from these supplied values; that remains the host's job.
+
+Each invocation replays the evidence, checks the current owner cut, and prepares
+the ordinary UndoManager inverse. It captures the staged transaction's actual
+update bytes, validates its format witness and contribution transition, and checks
+the complete successor recipe's bounds and operation-ID uniqueness before live
+mutation. A collision with a remote structural operation also refuses. The live
+state and emitted update must match preflight. The returned `AttributedHistoryResult`
+contains ordinary evidence plus exact successor replay bytes/digest/cut for atomic
+host persistence. There is no parallel runtime history store or different inverse
+engine. Entirely ineffective operations still refuse without changing state or
+advancing their recipe.
+
+Production-command tests cover restored-tail undo/redo after fresh-owner restore,
+disjoint peer-owned islands, fully masked no-ops, stale cut, altered recipe,
+foreign reference and cross-kind UUID collision. A recorded actual two-client Yjs
+fixture also passes Swift/JavaScriptCore undo, fresh-owner snapshot restore, and
+redo using the returned replay. This now exercises the library API, not just a
+test-only injected plan. The fixture can be regenerated with
+`node scripts/generate-attribution-history-fixture.mjs adapters/swift/Tests/RelayMarkCollaborationTests/Fixtures/attributed-history-v1.json`.
+
+Verification passed 118 collaboration JavaScript tests, 49 Swift adapter tests in
+nine suites, and contract-version consistency. Exact source/resource/log hashes
+are in `/private/tmp/relay-native-attribution-checkpoint-20260914.json`.
+
+Still required: native forward-operation witness capture; ordered, atomic evidence
+on existing app journal rows; pairing sibling/remote update delivery; owner snapshot
+and replay persistence; negotiated server receipts/backfill; no-effect history
+acceptance and cross-client/session acceptance. The old raw-evidence standalone
+probe remains a migration gate until app callers move to the attributed API.
+These adapter results are not final app/platform gates or complete offline sync.
