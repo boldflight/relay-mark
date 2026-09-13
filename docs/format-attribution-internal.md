@@ -468,3 +468,21 @@ The strict runtime acceptance reproduction above still fails intentionally.
 Negotiated basis capture, durable linked reconciliation receipts, and paired
 runtime replay remain unfinished; these tests do not establish multiplayer
 activation or server-generated correction interoperability.
+
+
+### Server-generated correction interoperability
+
+`collaboration-server-format-reconciliation.test.js` replays five synthetic
+server-generated packet sequences with both garbage-collection policies. Ten
+tests verify each normalized cut, unrelated text/marks, duplicate and reordered
+bytes, and snapshot restoration. The checked-in fixture records the generating
+server source hash and Yrs revision; it does not simulate server corrections in
+JavaScript. The final gate passed:
+`/private/tmp/relay-server-packets-regression-final-20260914.log`.
+
+The same regression first failed four cases against the prior Yrs build. Decoded
+structures and deletion ranges were identical; only delete-set client ordering
+differed. Yrs commit `142153e734eb5a218537176e8e7bd7402e98c829` encodes those
+clients in Yjs's descending order. Exact original receipt/update hashes are never
+replaced with re-encoded hashes. These are pure packet interoperability tests,
+not authenticated delivery, persistence, or owner acceptance replay.
