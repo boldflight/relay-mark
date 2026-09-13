@@ -14,7 +14,7 @@ import {createFormatAttribution,prepareFormatAttribution,prepareCopyAttribution,
 
 // Exercise the real staged/live UndoManager hook with a private test-only entry.
 // Public commands still cannot accept a plan until host receipt delivery is wired.
-const privateEntry={name:'test-attribution-entry',setup(build){build.onLoad({filter:/[/\\]collaboration[/\\]runtime\.js$/},({path})=>{
+const privateEntry={name:'test-attribution-entry',setup(build){build.onLoad({filter:/[/\\]collaboration[/\\]collaboration-runtime\.js$/},({path})=>{
  const source=readFileSync(path,'utf8'),needle='prepareHistoryEvidence(doc, undo, redo, input, lineageKey)'
  assert.equal(source.split(needle).length,2)
  return {contents:source.replace(needle,'prepareHistoryEvidence(doc, undo, redo, input, lineageKey, globalThis.testFormattingPlan || null)'),loader:'js'}

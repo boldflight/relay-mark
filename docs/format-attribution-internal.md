@@ -288,3 +288,22 @@ Focused verification: 136 collaboration JavaScript tests, 16 Swift bridge/carrie
 local receipt: `/private/tmp/relay-structural-batch-checkpoint-20260914.json`. These tests
 do not establish app-session activation, authenticated remote evidence delivery, or
 cross-client acceptance. Publication and platform gates remain pending.
+
+### 2026-09-14: one runtime for native and caller-owned browser documents
+
+`createCollaborationRuntime` now runs the existing command implementation against
+a supplied document, root, patched UndoManager, local origin and Awareness object.
+It creates no second live owner; importing the module creates no live resources.
+The native JSON entry lazily creates its normal owned context. Both paths therefore
+use identical preflight, attribution, copy retention and history execution.
+
+One runtime may attach to a document/manager at a time. Supplied pristine owners
+are validated before installation, and disposal releases listeners and retention
+without destroying caller resources. The same module ships with the Elixir adapter
+for the browser's single patched Yjs dependency.
+
+Verification: 139 collaboration JavaScript tests, 58 native Swift tests and the
+portable contract check passed. The factory tests exercise two caller-owned contexts,
+paired prose/history/format replay, duplicate ownership refusal, and cleanup/reuse.
+Exact source/log hashes are in `/private/tmp/relay-shared-runtime-checkpoint-20260914.json`.
+This extraction alone does not wire TipTap persistence or activate network evidence.

@@ -5,7 +5,7 @@ await build({ plugins: [historyHookPlugin], entryPoints: ['adapters/collaboratio
 
 // Ship caller-owned adapters as modules importing the host's single Yjs instance.
 await mkdir('adapters/elixir/priv/collaboration', { recursive: true })
-for (const name of ['text-items.js', 'prose-operation.js', 'prose-lineage.js', 'history-lineage.js', 'placement-lineage.js', 'format-attribution-cut.js', 'format-attribution.js', 'format-attribution-replay.js', 'attribution-record-codec.js']) {
+for (const name of ['text-items.js', 'prose-operation.js', 'prose-lineage.js', 'history-lineage.js', 'placement-lineage.js', 'format-attribution-cut.js', 'format-attribution.js', 'format-attribution-replay.js', 'attribution-record-codec.js', 'collaboration-runtime.js']) {
   await copyFile(`adapters/collaboration/${name}`, `adapters/elixir/priv/collaboration/${name}`)
 }
 // Browser build tools must apply this same exact-version hook to host Yjs.
