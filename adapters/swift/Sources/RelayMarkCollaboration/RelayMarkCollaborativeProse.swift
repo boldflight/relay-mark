@@ -168,13 +168,18 @@ public struct RelayMarkCollaborativeProse {
     }
 
     public func offset(for position: RelayMarkCollaborationDocument.Position) -> Int? {
-        guard position.index >= 0 else { return nil }
-        if let span = spans.first(where: { $0.text && $0.path == position.path }) {
-            guard position.index <= span.range.length else { return nil }
-            return span.range.location + position.index
+        offset(path: position.path, index: position.index)
+    }
+
+    /// Resolve a current XML position without coupling a native binding to one replica type.
+    public func offset(path: [Int], index: Int) -> Int? {
+        guard index >= 0 else { return nil }
+        if let span = spans.first(where: { $0.text && $0.path == path }) {
+            guard index <= span.range.length else { return nil }
+            return span.range.location + index
         }
-        guard let offsets = containerOffsets[position.path], position.index < offsets.count else { return nil }
-        return offsets[position.index]
+        guard let offsets = containerOffsets[path], index < offsets.count else { return nil }
+        return offsets[index]
     }
 
     /// A single contiguous replacement at grapheme boundaries; unchanged runs retain CRDT identity.
