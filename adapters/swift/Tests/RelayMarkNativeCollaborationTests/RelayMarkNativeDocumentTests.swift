@@ -5,6 +5,72 @@ import RelayMarkCollaboration
 
 @MainActor
 final class RelayMarkNativeDocumentTests: XCTestCase {
+    func testProseFormattingIsOnePortableMarkOnlyTransactionAcrossParagraphs() throws {
+        let native = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        let seed = try native.replaceProse(start: 0, end: 0, text: "Hello\nWorld")
+        try browser.applyUpdate(seed)
+        let beforeText = String(try native.proseProjection().text.characters)
+        let anchor = try native.anchor(path: [1, 0], index: 2)
+
+        let mark = try native.formatProse(start: 3, end: 8, attributes: ["bold": [:]])
+        try browser.applyUpdate(mark)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        XCTAssertEqual(String(try native.proseProjection().text.characters), beforeText)
+        XCTAssertEqual(try native.resolve(anchor: anchor)?.path, [1, 0])
+        XCTAssertEqual(try native.resolve(anchor: anchor)?.index, 2)
+        let blocks = try XCTUnwrap((JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])?["children"] as? [[String: Any]])
+        for block in blocks {
+            let children = try XCTUnwrap(block["children"] as? [[String: Any]])
+            let runs = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+            XCTAssertTrue(runs.contains { ($0["attributes"] as? [String: Any])?["bold"] != nil })
+        }
+
+        let remote = try browser.edit(Data(#"{"kind":"insertText","path":[1,0],"index":5,"text":"!"}"#.utf8))
+        for update in remote { try native.applyUpdate(update) }
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        let undo = try XCTUnwrap(native.undo())
+        try browser.applyUpdate(undo)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "Hello\nWorld!")
+        let after = try XCTUnwrap((JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])?["children"] as? [[String: Any]])
+        for block in after {
+            let children = try XCTUnwrap(block["children"] as? [[String: Any]])
+            let runs = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+            XCTAssertFalse(runs.contains { ($0["attributes"] as? [String: Any])?["bold"] != nil })
+        }
+    }
+
+    func testProseFormattingRejectsInvalidRangeWithoutMutation() throws {
+        let document = RelayMarkNativeDocument()
+        _ = try document.replaceProse(start: 0, end: 0, text: "A😀\nB")
+        let before = try document.encodeUpdate()
+        XCTAssertThrowsError(try document.formatProse(start: 2, end: 3, attributes: ["italic": [:]]))
+        XCTAssertThrowsError(try document.formatProse(start: 3, end: 4, attributes: ["italic": [:]]))
+        XCTAssertThrowsError(try document.formatProse(start: 0, end: 1, attributes: ["unknown": [:]]))
+        XCTAssertEqual(try document.encodeUpdate(), before)
+    }
+
+    func testProseFormattingCanClearOneMarkWithoutRemovingAnother() throws {
+        let native = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        try browser.applyUpdate(native.replaceProse(start: 0, end: 0, text: "Marked"))
+        try browser.applyUpdate(native.formatProse(start: 0, end: 6,
+                                                    attributes: ["bold": [:], "italic": [:]]))
+        try browser.applyUpdate(native.formatProse(start: 1, end: 5, attributes: ["bold": NSNull()]))
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        let blocks = try XCTUnwrap((JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])?["children"] as? [[String: Any]])
+        let children = try XCTUnwrap(blocks[0]["children"] as? [[String: Any]])
+        let runs = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+        XCTAssertEqual(runs.map { $0["insert"] as? String }, ["M", "arke", "d"])
+        XCTAssertNil((runs[1]["attributes"] as? [String: Any])?["bold"])
+        XCTAssertNotNil((runs[1]["attributes"] as? [String: Any])?["italic"])
+    }
+
     func testAwarenessInteroperatesWithJavaScriptYjsAndStaysEphemeral() throws {
         let native = RelayMarkNativeDocument()
         let browser = try RelayMarkCollaborationDocument()

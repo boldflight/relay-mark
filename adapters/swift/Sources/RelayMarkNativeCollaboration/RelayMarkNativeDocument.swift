@@ -355,6 +355,46 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Format ordinary prose by its projected UTF-16 offsets. Paragraph separators
+    /// are skipped; every intersecting XML text leaf is formatted in one Yrs
+    /// transaction, preserving the text's CRDT item identities.
+    public func formatProse(start: Int, end: Int, attributes: [String: Any]) throws -> Data {
+        let blocks = try paragraphs()
+        let prose = blocks.map(\.text).joined(separator: "\n")
+        guard start >= 0, end > start, end <= prose.utf16.count,
+              Self.split(prose, at: start) != nil, Self.split(prose, at: end) != nil,
+              !attributes.isEmpty,
+              attributes.allSatisfy({ key, value in
+                  ["bold", "italic"].contains(key) &&
+                  (value is NSNull || (value as? [String: Any])?.isEmpty == true)
+              }) else { throw Failure.unsupportedProseEdit }
+
+        var slices: [(leaf: YXmlNode, index: UInt32, length: UInt32)] = []
+        var offset = 0
+        for block in blocks {
+            let length = block.text.utf16.count
+            let lower = max(start, offset), upper = min(end, offset + length)
+            if upper > lower {
+                guard let localIndex = UInt32(exactly: lower - offset),
+                      let localLength = UInt32(exactly: upper - lower) else {
+                    throw Failure.unsupportedProseEdit
+                }
+                slices.append((block.leaf, localIndex, localLength))
+            }
+            offset += length + 1
+        }
+        guard !slices.isEmpty else { throw Failure.unsupportedProseEdit }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            for slice in slices {
+                try slice.leaf.format(at: slice.index, length: slice.length,
+                                      attributes: attributes, in: transaction)
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     private func snapshot(_ node: YXmlNode) throws -> [String: Any] {
         switch node.kind() {
         case "fragment":
