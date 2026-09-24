@@ -4,6 +4,83 @@ import XCTest
 
 @MainActor
 final class RelayMarkNativeDocumentTests: XCTestCase {
+    func testAtomicParagraphSplitJoinAndFormattedSuffixConverge() throws {
+        let local = RelayMarkNativeDocument()
+        let peer = RelayMarkNativeDocument()
+        XCTAssertTrue(local.supportsOrdinaryProseEditing())
+        let seed = try local.replaceProse(start: 0, end: 0, text: "Hello World")
+        try peer.applyUpdate(seed)
+        let mark = try local.formatText(at: 6, length: 5, attributes: ["bold": [:]], path: [0, 0])
+        try peer.applyUpdate(mark)
+
+        let split = try local.replaceProse(start: 6, end: 6, text: "\nNew ")
+        try peer.applyUpdate(split)
+        XCTAssertEqual(String(try local.proseProjection().text.characters), "Hello \nNew World")
+        XCTAssertEqual(try local.snapshot(), try peer.snapshot())
+        let snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: local.snapshot()) as? [String: Any])
+        let blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+        let secondChildren = try XCTUnwrap(blocks[1]["children"] as? [[String: Any]])
+        let runs = try XCTUnwrap(secondChildren[0]["delta"] as? [[String: Any]])
+        XCTAssertEqual(runs.last?["insert"] as? String, "World")
+        XCTAssertNotNil((runs.last?["attributes"] as? [String: Any])?["bold"])
+
+        let join = try local.replaceProse(start: 6, end: 11, text: "")
+        try peer.applyUpdate(join)
+        XCTAssertEqual(String(try local.proseProjection().text.characters), "Hello World")
+        XCTAssertEqual(try local.snapshot(), try peer.snapshot())
+        let undo = try XCTUnwrap(local.undo())
+        try peer.applyUpdate(undo)
+        XCTAssertEqual(try local.snapshot(), try peer.snapshot())
+    }
+
+    func testCrossParagraphReplacementAndInvalidEditAreAtomic() throws {
+        let local = RelayMarkNativeDocument()
+        let peer = RelayMarkNativeDocument()
+        let seed = try local.replaceProse(start: 0, end: 0, text: "A😀B\nSecond\nThird")
+        try peer.applyUpdate(seed)
+        let before = try local.snapshot()
+        XCTAssertThrowsError(try local.replaceProse(start: 2, end: 3, text: "broken"))
+        XCTAssertThrowsError(try local.replaceProse(start: 1, end: 1, text: "\r"))
+        XCTAssertEqual(try local.snapshot(), before)
+
+        let update = try local.replaceProse(start: 1, end: 13, text: "X\nY")
+        try peer.applyUpdate(update)
+        XCTAssertEqual(String(try local.proseProjection().text.characters), "AX\nYhird")
+        XCTAssertEqual(try local.snapshot(), try peer.snapshot())
+    }
+
+    func testConcurrentParagraphSplitAndIndependentPeerEditConverge() throws {
+        let local = RelayMarkNativeDocument()
+        let peer = RelayMarkNativeDocument()
+        let seed = try local.replaceProse(start: 0, end: 0, text: "Hello World")
+        try peer.applyUpdate(seed)
+
+        let split = try local.replaceProse(start: 6, end: 6, text: "\n")
+        let peerEdit = try peer.replaceProse(start: 0, end: 0, text: "Peer ")
+        try local.applyUpdate(peerEdit)
+        try peer.applyUpdate(split)
+
+        XCTAssertEqual(try local.snapshot(), try peer.snapshot())
+        let content = String(try local.proseProjection().text.characters)
+        XCTAssertTrue(content.contains("Peer "))
+        XCTAssertTrue(content.contains("World"))
+    }
+
+    func testConcurrentEditAtSplitSuffixRetainsBothContributions() throws {
+        let local = RelayMarkNativeDocument()
+        let peer = RelayMarkNativeDocument()
+        let seed = try local.replaceProse(start: 0, end: 0, text: "Hello World")
+        try peer.applyUpdate(seed)
+
+        let split = try local.replaceProse(start: 6, end: 6, text: "\n")
+        let peerEdit = try peer.replaceProse(start: 8, end: 8, text: "X")
+        try local.applyUpdate(peerEdit)
+        try peer.applyUpdate(split)
+
+        XCTAssertEqual(try local.snapshot(), try peer.snapshot())
+        XCTAssertTrue(String(try local.proseProjection().text.characters).contains("X"))
+    }
+
     func testPortableAnchorsMatchYjsRelativePositionFixture() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "relative-ranges-v1", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

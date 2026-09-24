@@ -15,6 +15,13 @@ lifecycle, and Phoenix transport. JavaScriptCore remains a reference and
 migration fallback until the native binding and app pass the cross-runtime and
 macOS/iOS/visionOS gates.
 
+The native adapter's ordinary prose edit scope is top-level, attribute-free
+paragraphs with one XML text leaf each. It supports UTF-16 replacements, LF
+splits/joins, inline formatting on a leaf, relative anchors and local session
+undo through Yrs. Admission must check this shape before mounting an editor;
+unsupported structured documents remain on the existing adapter. A host must
+persist each returned update before reporting local save.
+
 The server/browser direction keeps Phoenix, Yex, Yjs, and y-protocols. Hocuspocus
 and y-websocket are reference implementations for provider behavior, not new
 transport or service dependencies. Ordinary prose uses standard session undo;

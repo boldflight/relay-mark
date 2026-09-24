@@ -23,6 +23,7 @@ public final class RelayMarkNativeDocument {
         case invalidTextPath
         case invalidUTF16Range
         case invalidAnchor
+        case unsupportedProseEdit
     }
 
     private let document: YDocument
@@ -74,6 +75,157 @@ public final class RelayMarkNativeDocument {
 
     public func proseProjection() throws -> RelayMarkCollaborativeProse {
         try RelayMarkCollaborativeProse(snapshot: snapshot())
+    }
+
+    /// Ordinary editor scope. More complex RelayMark shapes remain available for
+    /// read-only projection or the legacy adapter until their native operations
+    /// have explicit parity tests.
+    public func supportsOrdinaryProseEditing() -> Bool {
+        (try? paragraphs()) != nil
+    }
+
+    /// Replace a UTF-16 range in top-level prose using one Yrs transaction.
+    /// Paragraph breaks are represented as XML siblings, never text newlines.
+    /// Unchanged text stays in place; only a suffix moved by a split/join is
+    /// copied with its existing inline attributes.
+    public func replaceProse(start: Int, end: Int, text: String) throws -> Data {
+        let blocks = try paragraphs()
+        let old = blocks.map(\.text).joined(separator: "\n")
+        guard start >= 0, end >= start, end <= old.utf16.count,
+              Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
+              !text.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }),
+              text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072 else {
+            throw Failure.unsupportedProseEdit
+        }
+        let lines = text.components(separatedBy: "\n")
+        guard lines.count <= 4096 else { throw Failure.unsupportedProseEdit }
+        if blocks.isEmpty {
+            guard start == 0, end == 0 else { throw Failure.unsupportedProseEdit }
+            let update = try document.transactSync(origin: localOrigin) { transaction in
+                for (index, line) in lines.enumerated() {
+                    let paragraph = try self.root.insertElement(named: "paragraph", at: UInt32(index), in: transaction)
+                    let leaf = try paragraph.insertText(at: 0, in: transaction)
+                    if !line.isEmpty { try leaf.insert(line, at: 0, in: transaction) }
+                }
+                return Data(transaction.transactionEncodeUpdate())
+            }
+            undoManager.wrap()
+            return update
+        }
+        guard let first = Self.location(at: start, in: blocks),
+              let last = Self.location(at: end, in: blocks),
+              Self.split(blocks[first.block].text, at: first.index) != nil,
+              Self.split(blocks[last.block].text, at: last.index) != nil else {
+            throw Failure.unsupportedProseEdit
+        }
+        if first.block == last.block && lines.count == 1 {
+            return try replaceText(at: first.index, length: end - start, with: text,
+                                   path: [first.block, 0])
+        }
+        let suffix = try Self.suffixRuns(of: blocks[last.block].leaf, after: last.index)
+        let firstLength = blocks[first.block].text.utf16.count
+        let removedBlockCount = last.block - first.block
+        guard blocks.count - removedBlockCount + lines.count - 1 <= 4096 else {
+            throw Failure.unsupportedProseEdit
+        }
+        // All bounds, Unicode boundaries, node kinds and JSON attributes were
+        // validated above. The mutation itself is one local Yrs transaction.
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            let leaf = blocks[first.block].leaf
+            if firstLength > first.index {
+                try leaf.removeText(start: UInt32(first.index), length: UInt32(firstLength - first.index), in: transaction)
+            }
+            if removedBlockCount > 0 {
+                try self.root.removeChildren(start: UInt32(first.block + 1), length: UInt32(removedBlockCount), in: transaction)
+            }
+            if !lines[0].isEmpty { try leaf.insert(lines[0], at: UInt32(first.index), in: transaction) }
+            var destination = leaf
+            var offset = first.index + lines[0].utf16.count
+            for (lineIndex, line) in lines.enumerated() where lineIndex > 0 {
+                let paragraph = try self.root.insertElement(named: "paragraph", at: UInt32(first.block + lineIndex), in: transaction)
+                destination = try paragraph.insertText(at: 0, in: transaction)
+                offset = 0
+                if !line.isEmpty {
+                    try destination.insert(line, at: 0, in: transaction)
+                    offset = line.utf16.count
+                }
+            }
+            for run in suffix where !run.text.isEmpty {
+                try destination.insert(run.text, attributes: run.attributes, at: UInt32(offset), in: transaction)
+                offset += run.text.utf16.count
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    private struct Paragraph {
+        let leaf: YXmlNode
+        let text: String
+    }
+
+    private struct TextRun {
+        let text: String
+        let attributes: [String: Any]
+    }
+
+    private func paragraphs() throws -> [Paragraph] {
+        var blocks: [Paragraph] = []
+        for paragraph in root.children() {
+            guard paragraph.kind() == "element", paragraph.tag() == "paragraph",
+                  try paragraph.attributes().isEmpty, paragraph.length() == 1,
+                  let leaf = paragraph.child(at: 0), leaf.kind() == "text" else {
+                throw Failure.unsupportedProseEdit
+            }
+            let text = try leaf.delta().map(\.text).joined()
+            guard !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
+                throw Failure.unsupportedProseEdit
+            }
+            blocks.append(Paragraph(leaf: leaf, text: text))
+        }
+        return blocks
+    }
+
+    private static func location(at offset: Int, in blocks: [Paragraph]) -> (block: Int, index: Int)? {
+        var base = 0
+        for (index, block) in blocks.enumerated() {
+            let end = base + block.text.utf16.count
+            if offset <= end { return (index, offset - base) }
+            base = end + 1
+        }
+        return nil
+    }
+
+    /// Split only at Swift Character boundaries, which are also valid UTF-16
+    /// boundaries. Native text proposals cannot tear a grapheme in half.
+    private static func split(_ value: String, at utf16Offset: Int) -> (String, String)? {
+        guard utf16Offset >= 0 else { return nil }
+        var offset = 0
+        var index = value.startIndex
+        while index < value.endIndex {
+            if offset == utf16Offset { return (String(value[..<index]), String(value[index...])) }
+            let next = value.index(after: index)
+            offset += value[index..<next].utf16.count
+            index = next
+        }
+        return offset == utf16Offset ? (value, "") : nil
+    }
+
+    private static func suffixRuns(of leaf: YXmlNode, after offset: Int) throws -> [TextRun] {
+        var result: [TextRun] = []
+        var base = 0
+        for run in try leaf.delta() {
+            let end = base + run.text.utf16.count
+            if offset < end {
+                guard let (_, suffix) = split(run.text, at: max(0, offset - base)) else {
+                    throw Failure.unsupportedProseEdit
+                }
+                if !suffix.isEmpty { result.append(TextRun(text: suffix, attributes: run.attributes)) }
+            }
+            base = end
+        }
+        return result
     }
 
     /// Standard in-memory Yrs undo, scoped to this document's local edit origin.
