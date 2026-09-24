@@ -30,6 +30,7 @@ public final class RelayMarkNativeDocument {
     private let root: YXmlNode
     private let localOrigin: Origin
     private let undoManager: YUndoManager<NSObject>
+    public let presence: RelayMarkNativePresence
 
     public init() {
         let document = YDocument()
@@ -41,6 +42,7 @@ public final class RelayMarkNativeDocument {
         self.root = root
         localOrigin = origin
         self.undoManager = undoManager
+        presence = RelayMarkNativePresence(awareness: document.makeAwareness())
     }
 
     public func applyUpdate(_ update: Data) throws {

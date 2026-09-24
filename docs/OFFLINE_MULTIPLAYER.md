@@ -18,7 +18,9 @@ macOS/iOS/visionOS gates.
 The native adapter's ordinary prose edit scope is top-level, attribute-free
 paragraphs with one XML text leaf each. It supports UTF-16 replacements, LF
 splits/joins, inline formatting on a leaf, relative anchors and local session
-undo through Yrs. Admission must check this shape before mounting an editor;
+undo through Yrs. `RelayMarkNativePresence` uses Yrs awareness, including
+Yjs-compatible cursor JSON, origin-scoped removal, snapshots and expiry; those
+bytes never enter document updates. Admission must check this shape before mounting an editor;
 unsupported structured documents remain on the existing adapter. A host must
 persist each returned update before reporting local save.
 

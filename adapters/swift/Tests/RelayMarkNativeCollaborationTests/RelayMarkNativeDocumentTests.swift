@@ -1,9 +1,61 @@
 import Foundation
 import XCTest
+import RelayMarkCollaboration
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
 final class RelayMarkNativeDocumentTests: XCTestCase {
+    func testAwarenessInteroperatesWithJavaScriptYjsAndStaysEphemeral() throws {
+        let native = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        let seed = try native.replaceProse(start: 0, end: 0, text: "Hello")
+        try browser.applyUpdate(seed)
+        let documentBefore = try native.encodeUpdate()
+        let nativeAnchor = try native.anchor(path: [0, 0], index: 2)
+
+        let nativePresence = try native.presence.setPresence(name: "Native", anchor: nativeAnchor, head: nativeAnchor)
+        try browser.applyPresence(nativePresence, origin: "native-channel")
+        let browserView = try XCTUnwrap(browser.collaborators().first)
+        XCTAssertEqual(browserView.name, "Native")
+        XCTAssertEqual(browserView.anchor, nativeAnchor)
+        let browserSnapshot = try browser.presenceSnapshot()
+        let nativeMirror = RelayMarkNativeDocument()
+        try nativeMirror.presence.apply(snapshot: .init(update: browserSnapshot.update, origins: browserSnapshot.origins))
+        XCTAssertEqual(try nativeMirror.presence.collaborators().first?.name, "Native")
+
+        let browserAnchor = try browser.anchor(path: [0, 0], index: 3)
+        for bytes in try browser.setPresence(name: "Browser", anchor: browserAnchor, head: browserAnchor) {
+            try native.presence.applyPresence(bytes, origin: "browser-channel")
+        }
+        let nativeView = try XCTUnwrap(native.presence.collaborators().first)
+        XCTAssertEqual(nativeView.name, "Browser")
+        XCTAssertEqual(nativeView.anchor, browserAnchor)
+
+        let mounted = RelayMarkNativeDocument()
+        try mounted.applyUpdate(documentBefore)
+        try mounted.presence.apply(snapshot: native.presence.snapshot())
+        XCTAssertEqual(try mounted.presence.collaborators().first?.name, "Browser")
+        let invalid = RelayMarkNativePresence.Snapshot(update: try native.presence.snapshot().update,
+                                                       origins: ["browser-channel": [native.presence.clientID]])
+        XCTAssertThrowsError(try mounted.presence.apply(snapshot: invalid))
+        try native.presence.removePresence(origin: "browser-channel")
+        XCTAssertTrue(try native.presence.collaborators().isEmpty)
+        try browser.applyPresence(native.presence.setPresence(name: nil), origin: "native-channel")
+        XCTAssertTrue(try browser.collaborators().isEmpty)
+        XCTAssertEqual(try native.encodeUpdate(), documentBefore)
+    }
+
+    func testRemoteAwarenessExpiresWithoutChangingDocument() throws {
+        let sender = RelayMarkNativeDocument()
+        let receiver = RelayMarkNativeDocument()
+        let before = try receiver.encodeUpdate()
+        try receiver.presence.applyPresence(sender.presence.setPresence(name: "Gone"), origin: "socket")
+        XCTAssertEqual(try receiver.presence.collaborators().count, 1)
+        XCTAssertTrue(try receiver.presence.advancePresenceClock(nowMillis: .max).isEmpty)
+        XCTAssertTrue(try receiver.presence.collaborators().isEmpty)
+        XCTAssertEqual(try receiver.encodeUpdate(), before)
+    }
+
     func testAtomicParagraphSplitJoinAndFormattedSuffixConverge() throws {
         let local = RelayMarkNativeDocument()
         let peer = RelayMarkNativeDocument()

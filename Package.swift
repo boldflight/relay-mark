@@ -16,7 +16,7 @@ let package = Package(
         .library(name: "RelayMarkNativeCollaboration", targets: ["RelayMarkNativeCollaboration"])
     ],
     dependencies: [
-        .package(url: "https://github.com/boldflight/yswift.git", revision: "5765ce7c22afb920fa9e8652d4308b0fa866b556")
+        .package(url: "https://github.com/boldflight/yswift.git", revision: "7e35259f08d626a2a5cd480b4af1824f76851cfc")
     ],
     targets: [
         .target(
@@ -42,7 +42,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RelayMarkNativeCollaborationTests",
-            dependencies: ["RelayMarkNativeCollaboration"],
+            dependencies: ["RelayMarkNativeCollaboration", "RelayMarkCollaboration"],
             path: "adapters/swift/Tests/RelayMarkNativeCollaborationTests",
             resources: [.process("Fixtures")]
         ),
