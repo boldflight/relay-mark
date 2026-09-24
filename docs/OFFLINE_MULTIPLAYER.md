@@ -20,9 +20,11 @@ paragraphs with one XML text leaf each. It supports UTF-16 replacements, LF
 splits/joins, inline formatting on a leaf, relative anchors and local session
 undo through Yrs. `RelayMarkNativePresence` uses Yrs awareness, including
 Yjs-compatible cursor JSON, origin-scoped removal, snapshots and expiry; those
-bytes never enter document updates. Admission must check this shape before mounting an editor;
-unsupported structured documents remain on the existing adapter. A host must
-persist each returned update before reporting local save.
+bytes never enter document updates. Admission must check this shape before
+mounting an editor and require `integrationStatus().isComplete` after replaying stored
+updates, because an ordinary-looking snapshot can still have unresolved Yrs
+structs or deletes. Unsupported structured documents remain on the existing
+adapter. A host must persist each returned update before reporting local save.
 
 The server/browser direction keeps Phoenix, Yex, Yjs, and y-protocols. Hocuspocus
 and y-websocket are reference implementations for provider behavior, not new

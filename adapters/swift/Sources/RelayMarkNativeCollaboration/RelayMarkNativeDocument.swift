@@ -55,6 +55,20 @@ public final class RelayMarkNativeDocument {
         Data(document.transactSync { $0.transactionStateVector() })
     }
 
+    /// Yrs can retain updates or deletes whose predecessors have not arrived.
+    /// A usable-looking XML snapshot alone does not prove replay completeness.
+    public struct IntegrationStatus: Equatable, Sendable {
+        public let hasPendingStructs: Bool
+        public let hasPendingDeletes: Bool
+        public var isComplete: Bool { !hasPendingStructs && !hasPendingDeletes }
+    }
+
+    public func integrationStatus() -> IntegrationStatus {
+        let status = document.integrationStatus()
+        return IntegrationStatus(hasPendingStructs: status.hasPendingStructs,
+                                 hasPendingDeletes: status.hasPendingDeletes)
+    }
+
     /// A complete Yjs update when `vector` is nil, otherwise the missing diff.
     public func encodeUpdate(since vector: Data? = nil) throws -> Data {
         try Data(document.transactSync { transaction in

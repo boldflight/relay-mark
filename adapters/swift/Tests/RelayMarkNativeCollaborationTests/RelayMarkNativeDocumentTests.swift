@@ -275,4 +275,21 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
             }
         }
     }
+
+    func testPendingOutOfOrderUpdatesMustNotPassNativeAdmission() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "convergence-v1", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let cases = try XCTUnwrap(fixture["cases"] as? [[String: Any]])
+        let testCase = try XCTUnwrap(cases.first { $0["id"] as? String == "unicode-delete-only" })
+        let updates = try XCTUnwrap(testCase["updates"] as? [String]).map {
+            try XCTUnwrap(Data(base64Encoded: $0))
+        }
+        let document = RelayMarkNativeDocument()
+        XCTAssertTrue(document.integrationStatus().isComplete)
+        try document.applyUpdate(updates[2])
+        XCTAssertFalse(document.integrationStatus().isComplete)
+        try document.applyUpdate(updates[1])
+        try document.applyUpdate(updates[0])
+        XCTAssertTrue(document.integrationStatus().isComplete)
+    }
 }
