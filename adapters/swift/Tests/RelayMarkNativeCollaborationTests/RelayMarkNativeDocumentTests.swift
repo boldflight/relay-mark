@@ -215,28 +215,34 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
         let documentBefore = try native.encodeUpdate()
         let nativeAnchor = try native.anchor(path: [0, 0], index: 2)
 
-        let nativePresence = try native.presence.setPresence(name: "Native", anchor: nativeAnchor, head: nativeAnchor)
+        let nativePresence = try native.presence.setPresence(name: "Native", anchor: nativeAnchor, head: nativeAnchor,
+                                                             userID: "native-user-123")
         try browser.applyPresence(nativePresence, origin: "native-channel")
         let browserView = try XCTUnwrap(browser.collaborators().first)
         XCTAssertEqual(browserView.name, "Native")
+        XCTAssertEqual(browserView.userID, "native-user-123")
         XCTAssertEqual(browserView.anchor, nativeAnchor)
         let browserSnapshot = try browser.presenceSnapshot()
         let nativeMirror = RelayMarkNativeDocument()
         try nativeMirror.presence.apply(snapshot: .init(update: browserSnapshot.update, origins: browserSnapshot.origins))
         XCTAssertEqual(try nativeMirror.presence.collaborators().first?.name, "Native")
+        XCTAssertEqual(try nativeMirror.presence.collaborators().first?.userID, "native-user-123")
 
         let browserAnchor = try browser.anchor(path: [0, 0], index: 3)
-        for bytes in try browser.setPresence(name: "Browser", anchor: browserAnchor, head: browserAnchor) {
+        for bytes in try browser.setPresence(name: "Browser", anchor: browserAnchor, head: browserAnchor,
+                                             userID: "browser-user-456") {
             try native.presence.applyPresence(bytes, origin: "browser-channel")
         }
         let nativeView = try XCTUnwrap(native.presence.collaborators().first)
         XCTAssertEqual(nativeView.name, "Browser")
+        XCTAssertEqual(nativeView.userID, "browser-user-456")
         XCTAssertEqual(nativeView.anchor, browserAnchor)
 
         let mounted = RelayMarkNativeDocument()
         try mounted.applyUpdate(documentBefore)
         try mounted.presence.apply(snapshot: native.presence.snapshot())
         XCTAssertEqual(try mounted.presence.collaborators().first?.name, "Browser")
+        XCTAssertEqual(try mounted.presence.collaborators().first?.userID, "browser-user-456")
         let invalid = RelayMarkNativePresence.Snapshot(update: try native.presence.snapshot().update,
                                                        origins: ["browser-channel": [native.presence.clientID]])
         XCTAssertThrowsError(try mounted.presence.apply(snapshot: invalid))

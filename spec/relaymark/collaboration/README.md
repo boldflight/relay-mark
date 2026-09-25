@@ -82,7 +82,7 @@ RelayMark owns no socket, account, grant, database, retry scheduler, or receipt 
 
 ## Presence
 
-Presence uses standard y-protocols awareness binary updates, not a custom cursor wire codec. States contain `user: {name, color}` and optional `cursor: {anchor, head}` relative-position JSON compatible with the matching Yjs/TipTap binding. Awareness clocks/client IDs are separate from server channel origins and authenticated identities. Presence is ephemeral and must never enter the durable text journal. The host removes peers when their connection origin disappears and drives standard renewal/expiry while connected. Presence failure must not corrupt or acknowledge document updates.
+Presence uses standard y-protocols awareness binary updates, not a custom cursor wire codec. States contain `user: {name, color}` with optional `id`, plus optional `cursor: {anchor, head}` relative-position JSON compatible with the matching Yjs/TipTap binding. The host supplies `user.id` from its authenticated principal; the awareness payload itself is not proof of identity and receivers must not authorize actions from it. Awareness clocks/client IDs are separate from server channel origins and authenticated identities. Presence is ephemeral and must never enter the durable text journal. The host removes peers when their connection origin disappears and drives standard renewal/expiry while connected. Presence failure must not corrupt or acknowledge document updates.
 
 ## Editing coverage and evidence
 

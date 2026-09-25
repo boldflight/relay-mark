@@ -638,7 +638,10 @@ function call(command, input) {
         anchor: Y.relativePositionToJSON(Y.decodeRelativePosition(Uint8Array.from(input.anchor))),
         head: Y.relativePositionToJSON(Y.decodeRelativePosition(Uint8Array.from(input.head)))
       } : null
-      awareness.setLocalState(input === null ? null : { user: { name: input.name, color: input.color }, cursor })
+      awareness.setLocalState(input === null ? null : {
+        user: { name: input.name, color: input.color, ...(input.userID === undefined ? {} : { id: input.userID }) },
+        cursor
+      })
       return awarenessUpdates
     }
     case 'presenceSnapshot': return presenceSnapshot()
@@ -649,6 +652,7 @@ function call(command, input) {
     case 'presenceClearRemote': removeAwarenessStates(awareness, [...awareness.getStates().keys()].filter(id => id !== awareness.clientID), 'remote'); return null
     case 'presenceStates': return [...awareness.getStates()].filter(([id]) => id !== awareness.clientID).map(([id, state]) => ({
       id, name: typeof state.user?.name === 'string' ? state.user.name.slice(0, 100) : 'Collaborator',
+      userID: typeof state.user?.id === 'string' ? state.user.id : null,
       color: typeof state.user?.color === 'string' ? state.user.color : '#666666',
       anchor: state.cursor?.anchor ? safeAnchor(state.cursor.anchor) : null,
       head: state.cursor?.head ? safeAnchor(state.cursor.head) : null

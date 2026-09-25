@@ -839,9 +839,11 @@ public final class RelayMarkCollaborationDocument {
     }
 
     /// Standard y-protocols awareness; ephemeral data must never enter the durable update journal.
-    public func setPresence(name: String?, color: String = "#666666", anchor: Data? = nil, head: Data? = nil) throws -> [Data] {
+    public func setPresence(name: String?, color: String = "#666666", anchor: Data? = nil, head: Data? = nil,
+                            userID: String? = nil) throws -> [Data] {
         guard let name else { return try updates("presenceSet") }
         var input: [String: Any] = ["name": String(name.prefix(100)), "color": color]
+        if let userID { input["userID"] = userID }
         if let anchor, let head { input["anchor"] = Array(anchor); input["head"] = Array(head) }
         return try updates("presenceSet", input: input)
     }
@@ -880,6 +882,7 @@ public final class RelayMarkCollaborationDocument {
 
     public struct Collaborator: Identifiable, Equatable, Sendable {
         public let id: UInt64
+        public let userID: String?
         public let name: String
         public let color: String
         public let anchor: Data?
@@ -889,13 +892,14 @@ public final class RelayMarkCollaborationDocument {
     public func collaborators() throws -> [Collaborator] {
         struct State: Decodable {
             let id: UInt64
+            let userID: String?
             let name: String
             let color: String
             let anchor: [UInt8]?
             let head: [UInt8]?
         }
         return try JSONDecoder().decode([State].self, from: call("presenceStates")).map {
-            Collaborator(id: $0.id, name: $0.name, color: $0.color,
+            Collaborator(id: $0.id, userID: $0.userID, name: $0.name, color: $0.color,
                          anchor: $0.anchor.map { Data($0) }, head: $0.head.map { Data($0) })
         }
     }

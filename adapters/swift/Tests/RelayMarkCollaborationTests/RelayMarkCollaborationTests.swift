@@ -210,6 +210,7 @@ struct RelayMarkCollaborationTests {
         let collaborators = try doc.collaborators()
         #expect(collaborators.count == 1)
         #expect(collaborators.first?.name == "Browser")
+        #expect(collaborators.first?.userID == nil)
         #expect(try doc.resolve(anchor: collaborators[0].anchor!)?.index == 6)
         #expect(try doc.encodeUpdate() == before)
         try doc.removePresence(origin: "browser-socket")

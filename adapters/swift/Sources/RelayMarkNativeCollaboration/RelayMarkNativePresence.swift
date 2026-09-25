@@ -24,6 +24,7 @@ public final class RelayMarkNativePresence {
 
     public struct Collaborator: Identifiable, Equatable, Sendable {
         public let id: UInt64
+        public let userID: String?
         public let name: String
         public let color: String
         public let anchor: Data?
@@ -41,12 +42,15 @@ public final class RelayMarkNativePresence {
 
     /// Returns the exact y-protocols update to broadcast, including a null
     /// state when leaving. Cursor positions use Yjs's standard JSON shape.
-    public func setPresence(name: String?, color: String = "#666666", anchor: Data? = nil, head: Data? = nil) throws -> Data {
+    public func setPresence(name: String?, color: String = "#666666", anchor: Data? = nil, head: Data? = nil,
+                            userID: String? = nil) throws -> Data {
         guard let name else {
             awareness.clearLocalState()
             return try awareness.encodeUpdate(for: [clientID])
         }
-        var state: [String: Any] = ["user": ["name": String(name.prefix(100)), "color": color]]
+        var user: [String: Any] = ["name": String(name.prefix(100)), "color": color]
+        if let userID { user["id"] = userID }
+        var state: [String: Any] = ["user": user]
         if let anchor, let head {
             state["cursor"] = [
                 "anchor": try YDocument.relativePositionJSON(from: anchor),
@@ -156,7 +160,8 @@ public final class RelayMarkNativePresence {
             let cursor = state["cursor"] as? [String: Any]
             let anchor = (cursor?["anchor"] as? [String: Any]).flatMap { try? YDocument.relativePositionBytes(fromJSON: $0) }
             let head = (cursor?["head"] as? [String: Any]).flatMap { try? YDocument.relativePositionBytes(fromJSON: $0) }
-            return Collaborator(id: record.clientID, name: String((user?["name"] as? String ?? "Collaborator").prefix(100)),
+            return Collaborator(id: record.clientID, userID: user?["id"] as? String,
+                                name: String((user?["name"] as? String ?? "Collaborator").prefix(100)),
                                 color: user?["color"] as? String ?? "#666666", anchor: anchor, head: head)
         }.sorted { $0.id < $1.id }
     }
