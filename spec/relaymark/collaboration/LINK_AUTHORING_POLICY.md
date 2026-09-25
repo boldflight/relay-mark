@@ -9,7 +9,7 @@ New destinations retain their exact input bytes and must satisfy:
 
 - At most 2048 UTF-8 bytes, no raw whitespace, control characters, angle brackets or
   backslash. Every percent escape has two hex digits; decoded text must be UTF-8
-  and contain no control characters.
+  and contain no Unicode control or format characters (categories Cc and Cf).
 - Absolute HTTP/HTTPS with literal `://`, nonempty host/authority, no userinfo
   (including empty userinfo), and any explicit port in 0...65535. Scheme matching
   is case-insensitive. Encoded spaces and Unicode paths are permitted.

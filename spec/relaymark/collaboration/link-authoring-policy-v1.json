@@ -276,6 +276,26 @@
       "name": "mail-query-encoded-ampersand",
       "input": "mailto:a@example.org?body=a%26b",
       "accepted": true
+    },
+    {
+      "name": "raw-c1-control",
+      "input": "https://example.org/",
+      "accepted": false
+    },
+    {
+      "name": "encoded-c1-control",
+      "input": "https://example.org/%C2%85",
+      "accepted": false
+    },
+    {
+      "name": "raw-format-control",
+      "input": "https://example.org/​",
+      "accepted": false
+    },
+    {
+      "name": "encoded-format-control",
+      "input": "https://example.org/%E2%80%8B",
+      "accepted": false
     }
   ]
 }
