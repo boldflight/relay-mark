@@ -160,3 +160,18 @@ RelayMark; labels are authored text, never hydrated server titles.
 Community Link currently declares a nullable title attribute. The strict v1/v2
 profile excludes that attribute, so the fixture uses Relay's narrow collaborative
 extension that omits it. It does not strip unknown metadata from stored documents.
+
+### Existing ordered-list start command
+
+`RelayMarkNativeDocument.setOrderedListStart(anchor:expectedStart:start:)` changes
+only the `start` attribute of an existing top-level or one-level nested ordered
+list. Its authoring bound is 1...1,000,000; the stored v1 grammar is unchanged.
+The command validates the current anchored list and expected effective start
+(default 1), uses Yrs's existing attribute transaction, and preserves every child
+XML identity. It does not convert lists, indent, reorder, split or join text.
+
+`bun scripts/collaboration-list-start-probe.mjs /absolute/path/to/web/assets`
+produces the real Chromium TipTap Collaboration `updateAttributes('orderedList',
+{start:7})` fixture. `RelayMarkNativeListStartTests` checks semantic browser parity,
+unchanged Unicode text anchors, concurrent peer text convergence, undo/redo,
+encoded-state reopen, and nonmutating invalid/stale/foreign commands.

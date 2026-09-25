@@ -618,6 +618,25 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Change only an existing ordered-list start attribute. The command bound
+    /// does not restrict otherwise valid stored lists. Child XML identities stay intact.
+    public func setOrderedListStart(anchor: Data, expectedStart: Int, start: Int) throws -> Data {
+        guard (1...1_000_000).contains(start), integrationStatus().isComplete,
+              try proseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (list, path) = try anchoredElement(anchor)
+        guard (path.count == 1 || path.count == 3), list.tag() == "orderedList",
+              let top = root.child(at: UInt32(path[0])) else { throw Failure.invalidAnchor }
+        try validateEditableList(top, depth: 0)
+        let current = try list.attributes()["start"] as? Int ?? 1
+        guard current == expectedStart else { throw Failure.invalidAnchor }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try list.setAttribute("start", value: start, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Replace UTF-16 text in one existing list paragraph without rebuilding
     /// list/item nodes. Bounded scope: a list item starts with one paragraph
     /// containing one XmlText leaf and may have one nested bullet/ordered list.
