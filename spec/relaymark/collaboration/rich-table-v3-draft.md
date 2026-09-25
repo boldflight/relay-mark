@@ -35,6 +35,11 @@ slice. Rows must form a complete non-overlapping rectangle, including cells
 spanning later rows. Unknown attributes, marks, node types, or AST fields fail
 projection; they are never silently omitted.
 
+This draft bounds each table to 256 rows, 256 columns, and 4,096 explicit
+cells before building its span grid. Larger tables require a separately
+reviewed resource limit rather than allowing an untrusted span to amplify
+allocation.
+
 The [test](../../../test/collaboration-rich-table-v3-draft.test.js) enriches
 the existing real TipTap/Yjs table cases with explicit v3 IDs and proves
 ProseMirror JSON → AST → ProseMirror JSON equality for rectangular, colspan,

@@ -2,6 +2,9 @@
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
+const maxRows = 256;
+const maxColumns = 256;
+const maxCells = 4096;
 
 export function tableProseMirrorToRelayMark(prosemirror) {
   assertObject(prosemirror, "doc");
@@ -168,6 +171,9 @@ function inlineChildren(node, label) {
 
 function validateGrid(table) {
   const rows = table.content;
+  if (rows.length > maxRows || rows.reduce((count, row) => count + row.content.length, 0) > maxCells) {
+    throw new TypeError("Table exceeds the draft row/cell limit");
+  }
   const occupied = [];
   let expectedWidth;
   for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
@@ -176,6 +182,9 @@ function validateGrid(table) {
     for (const cell of rows[rowIndex].content) {
       while (slots[column]) column++;
       const { colspan, rowspan } = cell.props;
+      if (colspan > maxColumns || column + colspan > maxColumns) {
+        throw new TypeError("Table exceeds the draft column limit");
+      }
       if (rowIndex + rowspan > rows.length) throw new TypeError("Cell rowspan exceeds table rows");
       for (let r = rowIndex; r < rowIndex + rowspan; r++) {
         occupied[r] ||= [];

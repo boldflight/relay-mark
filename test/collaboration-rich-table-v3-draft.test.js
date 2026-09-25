@@ -90,4 +90,9 @@ test('v3 table mapping rejects missing IDs, duplicate IDs, unknown attrs and uns
   const badGrid = base();
   badGrid.content[0].content[1].content.pop();
   assert.throws(() => tableProseMirrorToRelayMark(badGrid), /rectangle/);
+
+  const hugeSpan = base();
+  header(hugeSpan).attrs.colspan = Number.MAX_SAFE_INTEGER;
+  header(hugeSpan).attrs.colwidth = null;
+  assert.throws(() => tableProseMirrorToRelayMark(hugeSpan), /column limit/);
 });
