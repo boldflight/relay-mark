@@ -81,3 +81,18 @@ YSwift's `insert` default passes an empty attributes map rather than inheriting
 marks. The adapter supplies the existing attributes to that community operation;
 no CRDT behavior is reimplemented. Mixed-run replacements and exact insertion
 boundaries still require host candidate validation and are not newly promised.
+
+### Formatting existing headings and bounded list paragraphs
+
+`supportsInlineFormatting()` admits the same validated basic paragraph/heading
+blocks or bounded bullet/ordered-list items as native editing. `formatProse`
+uses the shared projection's text-leaf intersections and formats them in one Yrs
+transaction, retaining XML paths, heading IDs/levels, ordered starts and anchors.
+It does not admit mixed top-level list/prose documents or arbitrary containers.
+Native hosts may further restrict structured selections to one block/item.
+
+Within-leaf heading and list text replacement now delegates to the same existing
+mark-preserving `replaceText` operation as ordinary prose. The browser-generated
+`structured-v1.json` fixtures cover both list directions and all heading levels;
+focused tests assert structure and anchors, code/strike, marked replacement and
+undo. Structural edits and unhandled mixed-run styling remain separately gated.

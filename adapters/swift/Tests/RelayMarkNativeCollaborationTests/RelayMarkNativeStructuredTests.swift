@@ -23,6 +23,56 @@ final class RelayMarkNativeStructuredTests: XCTestCase {
                        try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
     }
 
+    private func structure(_ document: RelayMarkNativeDocument) throws -> Data {
+        func strip(_ node: [String: Any]) -> [String: Any] {
+            var copy = node; copy.removeValue(forKey: "delta")
+            if let children = node["children"] as? [[String: Any]] { copy["children"] = children.map(strip) }
+            return copy
+        }
+        let tree = try XCTUnwrap(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any])
+        return try JSONSerialization.data(withJSONObject: strip(tree), options: [.sortedKeys])
+    }
+
+    func testHeadingAndNestedListFormattingPreservesStructureAnchorsAndIMEStyle() throws {
+        for name in ["headings", "bullet-ordered", "ordered-bullet"] {
+            let (native, browser) = try pair(name)
+            XCTAssertTrue(native.supportsInlineFormatting())
+            let projection = try native.proseProjection()
+            let index = name == "headings" ? 0 : 1
+            let range = projection.blockRanges[index], paragraphPath = projection.blockPaths[index]
+            let leafPath = paragraphPath + [0]
+            let anchor = try native.anchor(path: leafPath, index: 4)
+            let structuralBefore = try structure(native)
+            try browser.applyUpdate(native.formatProse(start: range.location, end: NSMaxRange(range), attributes: ["strike": [:]]))
+            try browser.applyUpdate(native.formatProse(start: range.location, end: NSMaxRange(range), attributes: ["code": [:], "strike": NSNull()]))
+            let beforeReplacement = try native.snapshot()
+            let replacement: Data
+            if name == "headings" {
+                replacement = try native.replaceBasicMarkdownProse(start: range.location + 1, end: range.location + 2, text: "あ")
+            } else {
+                replacement = try native.replaceListParagraphText(anchor: native.anchor(path: paragraphPath, index: 0), start: 1, end: 2, text: "あ")
+            }
+            try browser.applyUpdate(replacement)
+            let marked = try native.proseProjection().text
+            let plain = String(marked.characters)
+            let selected = try XCTUnwrap(Range(range, in: plain))
+            let lower = try XCTUnwrap(AttributedString.Index(selected.lowerBound, within: marked))
+            let upper = try XCTUnwrap(AttributedString.Index(selected.upperBound, within: marked))
+            XCTAssertTrue(marked[lower..<upper].runs.allSatisfy { $0.inlinePresentationIntent == .code })
+            XCTAssertEqual(try native.resolve(anchor: anchor)?.path, leafPath)
+            XCTAssertEqual(try native.resolve(anchor: anchor)?.index, 4)
+            XCTAssertEqual(try structure(native), structuralBefore)
+            try equal(native, browser)
+            try browser.applyUpdate(XCTUnwrap(native.undo()))
+            XCTAssertEqual(try native.snapshot(), beforeReplacement)
+            try browser.applyUpdate(XCTUnwrap(native.redo()))
+            try equal(native, browser)
+            let bytes = try native.encodeUpdate()
+            XCTAssertThrowsError(try native.formatProse(start: range.location, end: NSMaxRange(range), attributes: ["unknown": [:]]))
+            XCTAssertEqual(try native.encodeUpdate(), bytes)
+        }
+    }
+
     func testAllHeadingLevelsPreserveIdentityAndUndo() throws {
         for level in 1...6 {
             let (native, browser) = try pair("headings")

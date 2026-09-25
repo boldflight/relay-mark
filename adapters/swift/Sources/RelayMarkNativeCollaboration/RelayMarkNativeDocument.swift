@@ -267,6 +267,9 @@ public final class RelayMarkNativeDocument {
             undoManager.wrap()
             return update
         }
+        if end <= target.end, let path = path(to: target.node, from: root) {
+            return try replaceText(at: Int(insertionIndex), length: end - start, with: text, path: path)
+        }
         // Remove from right to left so original child indices stay valid. A
         // selected hardBreak is removed as an XML node; untouched siblings and
         // heading identity remain integrated in Yrs.
@@ -513,30 +516,41 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Format ordinary prose by its projected UTF-16 offsets. Paragraph separators
-    /// are skipped; every intersecting XML text leaf is formatted in one Yrs
-    /// transaction, preserving the text's CRDT item identities.
+    /// The same bounded basic blocks or list items as native text editing.
+    /// This does not admit arbitrary containers just because they contain text.
+    public func supportsInlineFormatting() -> Bool { (try? formattingProjection()) != nil }
+
+    private func formattingProjection() throws -> RelayMarkCollaborativeProse {
+        guard integrationStatus().isComplete else { throw Failure.unsupportedProseEdit }
+        let projection = try proseProjection()
+        guard projection.isEditable else { throw Failure.unsupportedProseEdit }
+        if (try? basicBlocks()) == nil {
+            guard !root.children().isEmpty else { throw Failure.unsupportedProseEdit }
+            for list in root.children() { try validateEditableList(list, depth: 0) }
+        }
+        return projection
+    }
+
+    /// Format existing editable text leaves by their canonical UTF-16 offsets.
+    /// Separators and atoms are skipped; one Yrs transaction preserves every
+    /// XML element, its attributes and the text's CRDT item identities.
     public func formatProse(start: Int, end: Int, attributes: [String: Any]) throws -> Data {
-        let blocks = try paragraphs()
-        let prose = blocks.map(\.text).joined(separator: "\n")
+        let projection = try formattingProjection()
+        let prose = String(projection.text.characters)
         guard start >= 0, end > start, end <= prose.utf16.count,
               Self.split(prose, at: start) != nil, Self.split(prose, at: end) != nil,
               !attributes.isEmpty,
               Self.validFormatting(attributes) else { throw Failure.unsupportedProseEdit }
-
         var slices: [(leaf: YXmlNode, index: UInt32, length: UInt32)] = []
-        var offset = 0
-        for block in blocks {
-            let length = block.text.utf16.count
-            let lower = max(start, offset), upper = min(end, offset + length)
-            if upper > lower {
-                guard let localIndex = UInt32(exactly: lower - offset),
-                      let localLength = UInt32(exactly: upper - lower) else {
-                    throw Failure.unsupportedProseEdit
-                }
-                slices.append((block.leaf, localIndex, localLength))
+        for range in projection.textRanges(in: NSRange(location: start, length: end - start)) {
+            var leaf = root
+            for component in range.path {
+                guard let next = leaf.child(at: UInt32(component)) else { throw Failure.invalidTextPath }
+                leaf = next
             }
-            offset += length + 1
+            guard leaf.kind() == "text", let index = UInt32(exactly: range.index),
+                  let length = UInt32(exactly: range.length) else { throw Failure.unsupportedProseEdit }
+            slices.append((leaf, index, length))
         }
         guard !slices.isEmpty else { throw Failure.unsupportedProseEdit }
         let enablingCode = attributes["code"] != nil && !(attributes["code"] is NSNull)
@@ -633,13 +647,7 @@ public final class RelayMarkNativeDocument {
               text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072 else {
             throw Failure.unsupportedProseEdit
         }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            if end > start { try leaf.removeText(start: UInt32(start), length: UInt32(end - start), in: transaction) }
-            if !text.isEmpty { try leaf.insert(text, at: UInt32(start), in: transaction) }
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        undoManager.wrap()
-        return update
+        return try replaceText(at: start, length: end - start, with: text, path: path + [0])
     }
 
     private func anchoredElement(_ anchor: Data) throws -> (YXmlNode, [Int]) {
