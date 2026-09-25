@@ -507,10 +507,7 @@ public final class RelayMarkNativeDocument {
         guard start >= 0, end > start, end <= prose.utf16.count,
               Self.split(prose, at: start) != nil, Self.split(prose, at: end) != nil,
               !attributes.isEmpty,
-              attributes.allSatisfy({ key, value in
-                  ["bold", "italic"].contains(key) &&
-                  (value is NSNull || (value as? [String: Any])?.isEmpty == true)
-              }) else { throw Failure.unsupportedProseEdit }
+              Self.validFormatting(attributes) else { throw Failure.unsupportedProseEdit }
 
         var slices: [(leaf: YXmlNode, index: UInt32, length: UInt32)] = []
         var offset = 0
@@ -527,6 +524,24 @@ public final class RelayMarkNativeDocument {
             offset += length + 1
         }
         guard !slices.isEmpty else { throw Failure.unsupportedProseEdit }
+        let enablingCode = attributes["code"] != nil && !(attributes["code"] is NSNull)
+        let enablingOther = attributes.contains { key, value in key != "code" && !(value is NSNull) }
+        for slice in slices {
+            var offset = 0
+            for run in try slice.leaf.delta() {
+                let runEnd = offset + run.text.utf16.count
+                let overlaps = offset < Int(slice.index + slice.length) && runEnd > Int(slice.index)
+                if overlaps {
+                    if enablingCode && run.attributes.keys.contains(where: { $0 != "code" && !(attributes[$0] is NSNull) }) {
+                        throw Failure.unsupportedProseEdit
+                    }
+                    if enablingOther && run.attributes["code"] != nil && !(attributes["code"] is NSNull) {
+                        throw Failure.unsupportedProseEdit
+                    }
+                }
+                offset = runEnd
+            }
+        }
         let update = try document.transactSync(origin: localOrigin) { transaction in
             for slice in slices {
                 try slice.leaf.format(at: slice.index, length: slice.length,
@@ -536,6 +551,24 @@ public final class RelayMarkNativeDocument {
         }
         undoManager.wrap()
         return update
+    }
+
+    private static func validFormatting(_ attributes: [String: Any]) -> Bool {
+        let booleanMarks: Set<String> = ["bold", "italic", "strike", "code"]
+        for (key, value) in attributes {
+            if value is NSNull { continue }
+            if booleanMarks.contains(key) {
+                guard (value as? [String: Any])?.isEmpty == true else { return false }
+            } else if key == "link", let link = value as? [String: Any],
+                      let href = link["href"] as? String, !href.isEmpty,
+                      !href.contains("\n"), !href.contains("<"), !href.contains(">"),
+                      URL(string: href) != nil,
+                      Set(link.keys).isSubset(of: ["href", "target", "rel", "class"]),
+                      link.allSatisfy({ $0.key == "href" || $0.value is String }) {
+                continue
+            } else { return false }
+        }
+        return attributes.keys.allSatisfy { booleanMarks.contains($0) || $0 == "link" }
     }
 
     /// A task item in the negotiated collaborative XML. `anchor` is a Yjs

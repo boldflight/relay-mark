@@ -207,6 +207,33 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
         XCTAssertNotNil((runs[1]["attributes"] as? [String: Any])?["italic"])
     }
 
+    func testProseFormattingSupportsPortableStrikeLinkAndExclusiveCode() throws {
+        let native = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        try browser.applyUpdate(native.replaceProse(start: 0, end: 0, text: "Alpha"))
+        try browser.applyUpdate(native.formatProse(start: 0, end: 5, attributes: ["strike": [:]]))
+        try browser.applyUpdate(native.formatProse(start: 0, end: 5,
+                                                    attributes: ["link": ["href": "relay:entity/123"]]))
+        let before = try native.encodeUpdate()
+        XCTAssertThrowsError(try native.formatProse(start: 0, end: 5, attributes: ["code": [:]]))
+        XCTAssertThrowsError(try native.formatProse(start: 0, end: 5,
+                                                    attributes: ["link": ["href": "bad\nurl"]]))
+        XCTAssertEqual(try native.encodeUpdate(), before)
+        try browser.applyUpdate(native.formatProse(start: 0, end: 5,
+                                                    attributes: ["code": [:], "strike": NSNull(),
+                                                                 "link": NSNull()]))
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        let blocks = try XCTUnwrap((JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])?["children"] as? [[String: Any]])
+        let children = try XCTUnwrap(blocks[0]["children"] as? [[String: Any]])
+        let runs = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+        let marks = try XCTUnwrap(runs[0]["attributes"] as? [String: Any])
+        XCTAssertNotNil(marks["code"])
+        XCTAssertNil(marks["strike"])
+        XCTAssertNil(marks["link"])
+        XCTAssertTrue(try native.proseProjection().isEditable)
+    }
+
     func testAwarenessInteroperatesWithJavaScriptYjsAndStaysEphemeral() throws {
         let native = RelayMarkNativeDocument()
         let browser = try RelayMarkCollaborationDocument()
