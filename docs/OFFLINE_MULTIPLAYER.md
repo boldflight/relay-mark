@@ -74,3 +74,10 @@ using `scripts/collaboration-inline-mark-fixture.mjs <web-assets-path>`. Its nat
 conformance test checks portable updates, a Unicode boundary, paragraph text
 anchors, concurrent peer insertion and local undo/redo. Host UI and IME acceptance
 are separate Swift app gates.
+
+Native `replaceText` explicitly carries an existing run's attributes when the
+replacement lies wholly in that run, or insertion lies strictly inside it.
+YSwift's `insert` default passes an empty attributes map rather than inheriting
+marks. The adapter supplies the existing attributes to that community operation;
+no CRDT behavior is reimplemented. Mixed-run replacements and exact insertion
+boundaries still require host candidate validation and are not newly promised.

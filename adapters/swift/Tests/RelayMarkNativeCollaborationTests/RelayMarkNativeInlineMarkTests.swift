@@ -35,6 +35,26 @@ final class RelayMarkNativeInlineMarkTests: XCTestCase {
         XCTAssertEqual(try native.encodeUpdate(), before)
     }
 
+    func testReplacementAndInteriorTypingPreserveCodeInOneUndoItem() throws {
+        let native = RelayMarkNativeDocument(), peer = try RelayMarkCollaborationDocument()
+        _ = try native.replaceProse(start: 0, end: 0, text: "code")
+        _ = try native.formatProse(start: 0, end: 4, attributes: ["code": [:]])
+        try peer.applyUpdate(native.encodeUpdate())
+        let anchor = try native.anchor(path: [0, 0], index: 3)
+        try peer.applyUpdate(native.replaceProse(start: 1, end: 2, text: "あ"))
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "cあde")
+        XCTAssertTrue(try native.proseProjection().text.runs.allSatisfy { $0.inlinePresentationIntent == .code })
+        XCTAssertEqual(try native.resolve(anchor: anchor)?.index, 3)
+        try peer.applyUpdate(native.replaceProse(start: 2, end: 2, text: "🌍"))
+        XCTAssertTrue(try native.proseProjection().text.runs.allSatisfy { $0.inlinePresentationIntent == .code })
+        try peer.applyUpdate(XCTUnwrap(native.undo()))
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "cあde")
+        try peer.applyUpdate(XCTUnwrap(native.undo()))
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "code")
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: peer.snapshot()) as? NSDictionary)
+    }
+
     func testAdditiveFormattingMetadataRoundtrip() throws {
         for mark in [RelayMarkLocalTransaction.NativeFormatting.Mark.strike, .code] {
             let value = RelayMarkLocalTransaction.NativeFormatting(startUTF16: 1, lengthUTF16: 2, mark: mark, enabled: true)

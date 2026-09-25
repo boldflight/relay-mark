@@ -467,8 +467,23 @@ public final class RelayMarkNativeDocument {
             guard index >= 0, length >= 0, index <= total, length <= total - index else {
                 throw Failure.invalidUTF16Range
             }
+            // YSwift's insert default is explicit empty attributes, not Yjs's
+            // inherited typing marks. Preserve a replacement wholly within one
+            // existing run (or an insertion strictly inside it). Boundary and
+            // mixed-run styling remain the host's candidate-validation decision.
+            var attributes: [String: Any] = [:]
+            var offset = 0
+            for run in try node.delta(in: transaction) {
+                let end = offset + run.text.utf16.count
+                if index >= offset && index < end && index + length <= end &&
+                    (length > 0 || index > offset) {
+                    attributes = run.attributes
+                    break
+                }
+                offset = end
+            }
             if length > 0 { try node.removeText(start: UInt32(index), length: UInt32(length), in: transaction) }
-            if !text.isEmpty { try node.insert(text, at: UInt32(index), in: transaction) }
+            if !text.isEmpty { try node.insert(text, attributes: attributes, at: UInt32(index), in: transaction) }
             return Data(transaction.transactionEncodeUpdate())
         }
         undoManager.wrap()
