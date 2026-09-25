@@ -61,22 +61,34 @@ public enum RelayMarkAttributedTextCodec {
 
     /// Returns each unique canonical entity reference in source order.
     public static func entityReferences(in source: String) -> [RelayMarkSourceEntityReference] {
-        let pattern = #"\[([^\]]+)\]\(relay:entity/([^\)]+)\)"#
-        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
-        let range = NSRange(source.startIndex..., in: source)
+        let text = attributedString(from: source)
         var seen = Set<String>()
-        return expression.matches(in: source, range: range).compactMap { match in
-            guard
-                let labelRange = Range(match.range(at: 1), in: source),
-                let idRange = Range(match.range(at: 2), in: source)
-            else { return nil }
-            let id = String(source[idRange])
-            guard seen.insert(id).inserted else { return nil }
-            return RelayMarkSourceEntityReference(
-                id: id,
-                label: plainEntityLabel(String(source[labelRange]))
-            )
+        var references: [RelayMarkSourceEntityReference] = []
+        var currentID: String?
+        var currentLabel = ""
+
+        func finishReference() {
+            if let currentID, seen.insert(currentID).inserted {
+                references.append(RelayMarkSourceEntityReference(id: currentID, label: currentLabel))
+            }
+            currentID = nil
+            currentLabel = ""
         }
+
+        for run in text.runs {
+            let id: String?
+            if let url = run.link?.absoluteString, url.hasPrefix("relay:entity/") {
+                let candidate = String(url.dropFirst("relay:entity/".count))
+                id = candidate.isEmpty ? nil : candidate
+            } else {
+                id = nil
+            }
+            if id != currentID { finishReference() }
+            currentID = id
+            if id != nil { currentLabel += String(text[run.range].characters) }
+        }
+        finishReference()
+        return references
     }
 
     /// Creates the canonical Markdown source form for an entity reference.
@@ -136,16 +148,6 @@ public enum RelayMarkAttributedTextCodec {
 
     private static func escapedLabel(_ value: String) -> String {
         value.replacingOccurrences(of: "]", with: #"\]"#)
-    }
-
-    private static func plainEntityLabel(_ value: String) -> String {
-        value
-            .replacingOccurrences(
-                of: #"(\*\*|__|~~|`|\*|_)"#,
-                with: "",
-                options: .regularExpression
-            )
-            .replacingOccurrences(of: #"\]"#, with: "]")
     }
 
     private struct Block {

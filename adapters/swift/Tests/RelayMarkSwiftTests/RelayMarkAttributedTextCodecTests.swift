@@ -39,4 +39,15 @@ struct RelayMarkAttributedTextCodecTests {
                 == "[Jordan Hale](relay:entity/person-42)"
         )
     }
+
+    @Test("server-canonical angle destinations retain the link ID and formatted label")
+    func extractsServerCanonicalEntityLink() {
+        let id = "9f815b37-67b3-4101-868c-5335351feb6a"
+        let source = "Meet [Ada **Lovelace**](<relay:entity/\(id)>). " +
+            "[Ada again](relay:entity/\(id)) also appears."
+
+        #expect(RelayMarkAttributedTextCodec.entityReferences(in: source) == [
+            RelayMarkSourceEntityReference(id: id, label: "Ada Lovelace")
+        ])
+    }
 }
