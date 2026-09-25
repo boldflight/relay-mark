@@ -1,0 +1,346 @@
+{
+  "source": "Chromium TipTap3.30.2 + Collaboration, y-tiptap3.0.9, Yjs13.6.32",
+  "seed": "AQ/Lg9nuAQAHAQdkZWZhdWx0AwpidWxsZXRMaXN0BwDLg9nuAQADCGxpc3RJdGVtBwDLg9nuAQEDCXBhcmFncmFwaAcAy4PZ7gECBgQAy4PZ7gEDBU91dGVyh8uD2e4BAgMLb3JkZXJlZExpc3QHAMuD2e4BCQMIbGlzdEl0ZW0HAMuD2e4BCgMJcGFyYWdyYXBoBwDLg9nuAQsGBADLg9nuAQwQTmVzdGVkIPCfjI0gdGV4dCgAy4PZ7gEJBXN0YXJ0AX0Dh8uD2e4BAQMIbGlzdEl0ZW0HAMuD2e4BHAMJcGFyYWdyYXBoBwDLg9nuAR0GBADLg9nuAR4HU2libGluZwA=",
+  "update": "AQTLg9nuASaHy4PZ7gEKAwhsaXN0SXRlbQcAy4PZ7gEmAwlwYXJhZ3JhcGgHAMuD2e4BJwYEAMuD2e4BKA10ZWQg8J+MjSB0ZXh0AcuD2e4BARAL",
+  "before": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "bulletList",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Outer"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "element",
+                "name": "orderedList",
+                "attributes": {
+                  "start": 3
+                },
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "listItem",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "paragraph",
+                        "attributes": {},
+                        "children": [
+                          {
+                            "kind": "text",
+                            "delta": [
+                              {
+                                "insert": "Nested 🌍 text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Sibling"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "bulletList",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Outer"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "element",
+                "name": "orderedList",
+                "attributes": {
+                  "start": 3
+                },
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "listItem",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "paragraph",
+                        "attributes": {},
+                        "children": [
+                          {
+                            "kind": "text",
+                            "delta": [
+                              {
+                                "insert": "Nes"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "element",
+                    "name": "listItem",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "paragraph",
+                        "attributes": {},
+                        "children": [
+                          {
+                            "kind": "text",
+                            "delta": [
+                              {
+                                "insert": "ted 🌍 text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Sibling"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "anchors": [
+    {
+      "name": "prefix",
+      "path": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "index": 1,
+      "anchor": "AMuD2e4BDgA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "suffix",
+      "path": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "index": 10,
+      "anchor": "AMuD2e4BFwA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "index": 3
+      }
+    },
+    {
+      "name": "sibling",
+      "path": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "index": 3,
+      "anchor": "AMuD2e4BIgA=",
+      "resolved": {
+        "path": [
+          0,
+          1,
+          0,
+          0
+        ],
+        "index": 3
+      }
+    }
+  ],
+  "prosemirror": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Outer"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "attrs": {
+                  "start": 3,
+                  "type": null
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Nes"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "ted 🌍 text"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Sibling"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

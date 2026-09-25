@@ -96,3 +96,27 @@ mark-preserving `replaceText` operation as ordinary prose. The browser-generated
 `structured-v1.json` fixtures cover both list directions and all heading levels;
 focused tests assert structure and anchors, code/strike, marked replacement and
 undo. Structural edits and unhandled mixed-run styling remain separately gated.
+
+### Interior list Return anchor gate (September 26, 2026)
+
+The experimental `scripts/collaboration-list-split-probe.mjs <web-assets-path>`
+creates a fresh Chromium TipTap editor with its community Collaboration extension
+and invokes `splitListItem` inside a nested ordered item. It records the real
+Yjs seed/update and preexisting relative anchors in `list-split-probe-v1.json`.
+No live server or application document is involved.
+
+Splitting `Nested 🌍 text` at UTF-16 offset 3 produces `Nes` and a new sibling
+containing `ted 🌍 text`, retaining the ordered start of 3. Prefix and unrelated
+sibling anchors retain their positions. However, the old suffix anchor at offset
+10 resolves to offset 3 in the old XML text leaf; it does not follow the suffix
+to offset 7 in the new leaf. `RelayMarkNativeListSplitProbeTests` proves Yrs
+replays the browser update and resolves these anchors identically.
+
+This is a standard split/copy identity limitation, not a missing XML insertion
+binding. Native Return/split remains gated: we do not silently relocate durable
+anchors or add a custom CRDT move algorithm. Backspace/join has the same moved-text
+question and is not admitted by this experiment. A safer next independent step
+is faithful empty-item presentation, permitting end-of-item Return to add an
+empty sibling without moving existing text. Durable anchors across moved text
+require a separately reviewed identity/remapping contract or community engine
+capability before interior split/join can claim preservation.
