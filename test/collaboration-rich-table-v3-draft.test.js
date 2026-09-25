@@ -153,9 +153,8 @@ test('mixed projection rejects unsupported prose nodes, marks, attributes and cr
   duplicate.content[0].attrs.relaymarkId = duplicate.content[1].attrs.relaymarkId;
   assert.throws(() => proseMirrorV3ToRelayMark(duplicate), /Duplicate/);
   const unsupported = base();
-  unsupported.content.push({ type: 'heading', attrs: { relaymarkId: proseID(2) },
-    content: [{ type: 'text', text: 'Not yet admitted' }] });
-  assert.throws(() => proseMirrorV3ToRelayMark(unsupported), /table/);
+  unsupported.content.push({ type: 'image', attrs: { relaymarkId: proseID(2), src: 'https://example.org/image' } });
+  assert.throws(() => proseMirrorV3ToRelayMark(unsupported), /Unsupported v3 block/);
   const invalidAst = proseMirrorV3ToRelayMark(base());
   invalidAst.blocks[0].props = { style: 'unexpected' };
   assert.throws(() => relayMarkV3ToProseMirror(invalidAst), /Unsupported/);
@@ -179,6 +178,10 @@ test('v3 table mapping rejects missing IDs, duplicate IDs, unknown attrs and uns
   const mark = base();
   header(mark).content[0].content[0].marks = [{ type: 'bold' }];
   assert.throws(() => tableProseMirrorToRelayMark(mark), /Unsupported/);
+
+  const breakInCell = base();
+  header(breakInCell).content[0].content.push({ type: 'hardBreak' });
+  assert.throws(() => tableProseMirrorToRelayMark(breakInCell), /table cell inline/);
 
   const badWidth = base();
   header(badWidth).attrs.colwidth = [120];

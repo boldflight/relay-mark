@@ -1,10 +1,11 @@
-/** Optional relaymark-prosemirror-v3 prose/table projection; no live profile admits it. */
+/** Optional relaymark-prosemirror-v3 Markdown-block/table projection; no live profile admits it. */
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
 const maxRows = 256;
 const maxColumns = 256;
 const maxCells = 4096;
+const headingId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
 
 export function tableProseMirrorToRelayMark(prosemirror) {
   const document = proseMirrorV3ToRelayMark(prosemirror);
@@ -19,12 +20,7 @@ export function proseMirrorV3ToRelayMark(prosemirror) {
   onlyKeys(prosemirror, ["type", "content"], "doc");
   requireType(prosemirror, "doc");
   const seen = new Set();
-  const blocks = children(prosemirror, "doc", 1).map(node => {
-    if (node?.type === "paragraph") return mapParagraph(node, seen);
-    const table = mapTable(node, seen);
-    validateGrid(table);
-    return table;
-  });
+  const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen));
   return { type: "relaymark.document", version: 1, blocks };
 }
 
@@ -44,11 +40,164 @@ export function relayMarkV3ToProseMirror(document) {
   }
   const seen = new Set();
   const blocks = children({ content: document.blocks }, "document", 1);
-  return { type: "doc", content: blocks.map(block => {
-    if (block?.type === "paragraph") return unmapParagraph(block, seen);
-    validateGrid(block);
-    return unmapTable(block, seen);
-  }) };
+  return { type: "doc", content: blocks.map(block => unmapBlock(block, seen)) };
+}
+
+function mapBlock(node, seen) {
+  switch (node?.type) {
+    case "paragraph": return mapParagraph(node, seen);
+    case "heading": return mapHeading(node, seen);
+    case "blockquote": return mapQuote(node, seen);
+    case "bulletList": return mapList(node, seen, false, 0);
+    case "orderedList": return mapList(node, seen, true, 0);
+    case "codeBlock": return mapCode(node, seen);
+    case "horizontalRule": return mapRule(node, seen);
+    case "table": {
+      const table = mapTable(node, seen);
+      validateGrid(table);
+      return table;
+    }
+    default: throw new TypeError(`Unsupported v3 block: ${String(node?.type)}`);
+  }
+}
+
+function unmapBlock(block, seen) {
+  switch (block?.type) {
+    case "paragraph": return unmapParagraph(block, seen);
+    case "heading": return unmapHeading(block, seen);
+    case "quote": return unmapQuote(block, seen);
+    case "list": return unmapList(block, seen, 0);
+    case "code": return unmapCode(block, seen);
+    case "horizontal_rule": return unmapRule(block, seen);
+    case "table": validateGrid(block); return unmapTable(block, seen);
+    default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
+  }
+}
+
+function mapHeading(node, seen) {
+  checkNode(node, "heading", seen, ["level", "headingId"]);
+  const { level, headingId: anchor } = node.attrs;
+  checkHeading(level, anchor);
+  return { id: node.attrs.relaymarkId, type: "heading", props: { level, headingId: anchor },
+    content: inlineChildren(node, "heading").map(mapInline) };
+}
+
+function unmapHeading(block, seen) {
+  checkBlock(block, "heading", seen, true);
+  assertObject(block.props, "heading.props");
+  onlyKeys(block.props, ["level", "headingId"], "heading.props");
+  const { level, headingId: anchor } = block.props;
+  checkHeading(level, anchor);
+  return { type: "heading", attrs: { relaymarkId: block.id, level, headingId: anchor },
+    content: inlineChildren(block, "heading").map(unmapInline) };
+}
+
+function checkHeading(level, anchor) {
+  if (!Number.isInteger(level) || level < 1 || level > 6 ||
+      (anchor !== null && (typeof anchor !== "string" || !headingId.test(anchor)))) {
+    throw new TypeError("Invalid heading level or headingId");
+  }
+}
+
+function mapQuote(node, seen) {
+  checkNode(node, "blockquote", seen);
+  return { id: node.attrs.relaymarkId, type: "quote", content: children(node, "blockquote", 1)
+    .map(child => mapParagraph(child, seen)) };
+}
+
+function unmapQuote(block, seen) {
+  checkBlock(block, "quote", seen);
+  return { type: "blockquote", attrs: { relaymarkId: block.id },
+    content: children(block, "quote", 1).map(child => unmapParagraph(child, seen)) };
+}
+
+function mapList(node, seen, ordered, depth) {
+  if (depth > 1) throw new TypeError("Unsupported nested list depth");
+  checkNode(node, ordered ? "orderedList" : "bulletList", seen, ordered ? ["start", "type"] : []);
+  if (ordered && node.attrs.type !== null) throw new TypeError("Unsupported ordered-list type");
+  const props = ordered ? { kind: "ordered", start: node.attrs.start } : { kind: "bullet" };
+  if (ordered) checkListStart(props.start);
+  return { id: node.attrs.relaymarkId, type: "list", props,
+    content: children(node, node.type, 1).map(child => mapListItem(child, seen, depth)) };
+}
+
+function unmapList(block, seen, depth) {
+  if (depth > 1) throw new TypeError("Unsupported nested list depth");
+  checkBlock(block, "list", seen, true);
+  assertObject(block.props, "list.props");
+  onlyKeys(block.props, ["kind", "start"], "list.props");
+  const ordered = block.props.kind === "ordered";
+  if (!ordered && block.props.kind !== "bullet") throw new TypeError("Invalid list kind");
+  if (ordered) checkListStart(block.props.start);
+  else if (Object.hasOwn(block.props, "start")) throw new TypeError("Bullet list has a start");
+  return { type: ordered ? "orderedList" : "bulletList",
+    attrs: { relaymarkId: block.id, ...(ordered ? { start: block.props.start, type: null } : {}) },
+    content: children(block, "list", 1).map(child => unmapListItem(child, seen, depth)) };
+}
+
+function checkListStart(start) {
+  if (!Number.isSafeInteger(start) || start < 1) throw new TypeError("Invalid ordered-list start");
+}
+
+function mapListItem(node, seen, depth) {
+  checkNode(node, "listItem", seen);
+  const items = children(node, "listItem", 1);
+  if (items.length > 2 || items[0]?.type !== "paragraph" ||
+      (items.length === 2 && !["bulletList", "orderedList"].includes(items[1]?.type))) {
+    throw new TypeError("Unsupported list item children");
+  }
+  return { id: node.attrs.relaymarkId, type: "list_item",
+    content: [mapParagraph(items[0], seen), ...(items[1] ?
+      [mapList(items[1], seen, items[1].type === "orderedList", depth + 1)] : [])] };
+}
+
+function unmapListItem(block, seen, depth) {
+  checkBlock(block, "list_item", seen);
+  const items = children(block, "list_item", 1);
+  if (items.length > 2 || items[0]?.type !== "paragraph" ||
+      (items.length === 2 && items[1]?.type !== "list")) {
+    throw new TypeError("Unsupported list item children");
+  }
+  return { type: "listItem", attrs: { relaymarkId: block.id },
+    content: [unmapParagraph(items[0], seen), ...(items[1] ? [unmapList(items[1], seen, depth + 1)] : [])] };
+}
+
+function mapCode(node, seen) {
+  checkNode(node, "codeBlock", seen, ["language"]);
+  checkLanguage(node.attrs.language);
+  return { id: node.attrs.relaymarkId, type: "code", props: { language: node.attrs.language },
+    content: inlineChildren(node, "codeBlock").map(mapText) };
+}
+
+function unmapCode(block, seen) {
+  checkBlock(block, "code", seen, true);
+  assertObject(block.props, "code.props");
+  onlyKeys(block.props, ["language"], "code.props");
+  checkLanguage(block.props.language);
+  return { type: "codeBlock", attrs: { relaymarkId: block.id, language: block.props.language },
+    content: inlineChildren(block, "code").map(unmapText) };
+}
+
+function checkLanguage(language) {
+  if (language !== null && (typeof language !== "string" || /[\r\n]/u.test(language))) {
+    throw new TypeError("Invalid code language");
+  }
+}
+
+function mapRule(node, seen) {
+  checkNode(node, "horizontalRule", seen);
+  if (node.content !== undefined && children(node, "horizontalRule").length !== 0) {
+    throw new TypeError("Horizontal rule cannot have children");
+  }
+  return { id: node.attrs.relaymarkId, type: "horizontal_rule", content: [] };
+}
+
+function unmapRule(block, seen) {
+  checkBlock(block, "horizontal_rule", seen);
+  if (block.content !== undefined && children(block, "horizontal_rule").length !== 0) {
+    throw new TypeError("Horizontal rule cannot have children");
+  }
+  return { type: "horizontalRule", attrs: { relaymarkId: block.id } };
 }
 
 function mapTable(node, seen) {
@@ -75,14 +224,30 @@ function mapCell(node, seen) {
     id: node.attrs.relaymarkId,
     type: "table_cell",
     props: { header: node.type === "tableHeader", colspan, rowspan, colwidth, align },
-    content: children(node, node.type, 1).map(paragraph => mapParagraph(paragraph, seen))
+    content: children(node, node.type, 1).map(paragraph => mapCellParagraph(paragraph, seen))
   };
+}
+
+function mapCellParagraph(node, seen) {
+  const paragraph = mapParagraph(node, seen);
+  if (paragraph.content.some(child => child.type !== "text")) {
+    throw new TypeError("Unsupported table cell inline node");
+  }
+  return paragraph;
 }
 
 function mapParagraph(node, seen) {
   checkNode(node, "paragraph", seen);
   return { id: node.attrs.relaymarkId, type: "paragraph", content: inlineChildren(node, "paragraph")
-    .map(child => mapText(child)) };
+    .map(mapInline) };
+}
+
+function mapInline(node) {
+  if (node?.type === "text") return mapText(node);
+  assertObject(node, "inline");
+  onlyKeys(node, ["type"], "hardBreak");
+  requireType(node, "hardBreak");
+  return { type: "hard_break" };
 }
 
 function mapText(node) {
@@ -123,14 +288,30 @@ function unmapCell(block, seen) {
       colwidth: props.colwidth,
       align: props.align
     },
-    content: children(block, "table_cell", 1).map(paragraph => unmapParagraph(paragraph, seen))
+    content: children(block, "table_cell", 1).map(paragraph => unmapCellParagraph(paragraph, seen))
   };
+}
+
+function unmapCellParagraph(block, seen) {
+  const paragraph = unmapParagraph(block, seen);
+  if (paragraph.content.some(child => child.type !== "text")) {
+    throw new TypeError("Unsupported table cell inline node");
+  }
+  return paragraph;
 }
 
 function unmapParagraph(block, seen) {
   checkBlock(block, "paragraph", seen);
   return { type: "paragraph", attrs: { relaymarkId: block.id },
-    content: inlineChildren(block, "paragraph").map(text => unmapText(text)) };
+    content: inlineChildren(block, "paragraph").map(unmapInline) };
+}
+
+function unmapInline(node) {
+  if (node?.type === "text") return unmapText(node);
+  assertObject(node, "inline");
+  onlyKeys(node, ["type"], "hard_break");
+  requireType(node, "hard_break");
+  return { type: "hardBreak" };
 }
 
 function unmapText(node) {

@@ -6,6 +6,33 @@ portable AST version, v1/v2 Yjs admission, or the authored Markdown source
 contract. Tables must remain gated until a lossless, safe source/export path and
 browser, server, and native editing are separately proven.
 
+The pure JavaScript v3 mapper also has a separate Markdown-block fixture at
+[`markdown-blocks-v3-draft.json`](fixtures/markdown-blocks-v3-draft.json).
+It is generated with community TipTap StarterKit, Relay PaperHeading, UniqueID,
+y-tiptap and Yjs by
+[`collaboration-markdown-block-v3-fixture.mjs`](../../../scripts/collaboration-markdown-block-v3-fixture.mjs).
+The fixture carries an actual Yjs update, schema-normalized ProseMirror JSON,
+and the exact expected portable AST. The additive block mappings are:
+
+| ProseMirror/XML | Portable AST |
+| --- | --- |
+| `heading` (`level`, nullable `headingId`) | `heading`, `props: {level, headingId}` |
+| `blockquote` with paragraphs | `quote` with paragraph blocks |
+| `bulletList` | `list`, `props: {kind: "bullet"}` |
+| `orderedList` (`start`, `type: null`) | `list`, `props: {kind: "ordered", start}` |
+| `listItem` (paragraph, optional nested list) | `list_item` with the same blocks |
+| `codeBlock` (nullable `language`, unmarked text) | `code`, `props: {language}` with text |
+| `horizontalRule` | `horizontal_rule`, empty content |
+| `hardBreak` (inline; no block ID) | inline `hard_break` |
+
+All block XML elements require stable `relaymarkId` values. An ordered list's
+nullable TipTap `type` attribute must be null for this slice; non-null list
+numbering variants fail. Only one nested list level, one paragraph per list item,
+paragraph-only quotes, and unmarked text are admitted. Inline marks, links,
+other RelayMark elements and all product admission remain separate work. Table
+cell paragraphs stay plain-text-only; this expansion does not silently broaden
+the existing table source contract.
+
 The canonical collaborative structure is the community TipTap/ProseMirror
 `table → tableRow → tableHeader | tableCell → paragraph → text` hierarchy in
 Yjs XML. The [pure mapping](../../../src/collaboration-table-v3.js) translates
