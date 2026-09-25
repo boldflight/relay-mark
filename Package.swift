@@ -33,7 +33,7 @@ let package = Package(
         ),
         .target(
             name: "RelayMarkNativeCollaboration",
-            dependencies: ["RelayMarkProseProjection", .product(name: "YSwift", package: "yswift")],
+            dependencies: ["RelayMarkProseProjection", "RelayMarkSwift", .product(name: "YSwift", package: "yswift")],
             path: "adapters/swift/Sources/RelayMarkNativeCollaboration"
         ),
         .target(
