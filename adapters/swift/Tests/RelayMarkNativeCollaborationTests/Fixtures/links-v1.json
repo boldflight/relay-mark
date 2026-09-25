@@ -1,0 +1,443 @@
+{
+  "source": "Chromium TipTap3.30.2 Editor + Relay CollaborativeLink (title omitted), y-tiptap3.0.9, Yjs13.6.32",
+  "cases": [
+    {
+      "name": "paragraph",
+      "href": "https://example.org/path?q=relay#part",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "https://example.org/path?q=relay#part",
+                      "target": "_blank",
+                      "rel": "noopener noreferrer nofollow",
+                      "class": "tiptap-link"
+                    }
+                  },
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Linked 🌍 text"
+              }
+            ]
+          }
+        ]
+      },
+      "before": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Linked 🌍 text",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Linked 🌍 text",
+                    "attributes": {
+                      "link": {
+                        "href": "https://example.org/path?q=relay#part",
+                        "target": "_blank",
+                        "rel": "noopener noreferrer nofollow",
+                        "class": "tiptap-link"
+                      },
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "seed": "AQXN38nrDAAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHAM3fyesMAAYGAM3fyesMAQRib2xkAnt9hM3fyesMAhBMaW5rZWQg8J+MjSB0ZXh0hs3fyesMEARib2xkBG51bGwA",
+      "update": "AQfbndGFDAAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHANud0YUMAAYGANud0YUMAQRsaW5rfXsiaHJlZiI6Imh0dHBzOi8vZXhhbXBsZS5vcmcvcGF0aD9xPXJlbGF5I3BhcnQiLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOiJ0aXB0YXAtbGluayJ9htud0YUMAgRib2xkAnt9hNud0YUMAxBMaW5rZWQg8J+MjSB0ZXh0htud0YUMEQRsaW5rBG51bGyG253RhQwSBGJvbGQEbnVsbAA="
+    },
+    {
+      "name": "heading",
+      "href": "relay:entity/12345678-1234-4234-8234-123456789abc",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2,
+              "headingId": "stable-link-heading"
+            },
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "relay:entity/12345678-1234-4234-8234-123456789abc",
+                      "target": "_blank",
+                      "rel": "noopener noreferrer nofollow",
+                      "class": "tiptap-link"
+                    }
+                  },
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Linked 🌍 text"
+              }
+            ]
+          }
+        ]
+      },
+      "before": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 2,
+              "headingId": "stable-link-heading"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Linked 🌍 text",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 2,
+              "headingId": "stable-link-heading"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Linked 🌍 text",
+                    "attributes": {
+                      "link": {
+                        "href": "relay:entity/12345678-1234-4234-8234-123456789abc",
+                        "target": "_blank",
+                        "rel": "noopener noreferrer nofollow",
+                        "class": "tiptap-link"
+                      },
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "seed": "AQfW/LyJAwAHAQdkZWZhdWx0AwdoZWFkaW5nBwDW/LyJAwAGBgDW/LyJAwEEYm9sZAJ7fYTW/LyJAwIQTGlua2VkIPCfjI0gdGV4dIbW/LyJAxAEYm9sZARudWxsKADW/LyJAwAFbGV2ZWwBfQIoANb8vIkDAAloZWFkaW5nSWQBdxNzdGFibGUtbGluay1oZWFkaW5nAA==",
+      "update": "AQmprZigDgAHAQdkZWZhdWx0AwdoZWFkaW5nBwCprZigDgAGBgCprZigDgEEbGlua4kBeyJocmVmIjoicmVsYXk6ZW50aXR5LzEyMzQ1Njc4LTEyMzQtNDIzNC04MjM0LTEyMzQ1Njc4OWFiYyIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6InRpcHRhcC1saW5rIn2Gqa2YoA4CBGJvbGQCe32Eqa2YoA4DEExpbmtlZCDwn4yNIHRleHSGqa2YoA4RBGxpbmsEbnVsbIaprZigDhIEYm9sZARudWxsKACprZigDgAFbGV2ZWwBfQIoAKmtmKAOAAloZWFkaW5nSWQBdxNzdGFibGUtbGluay1oZWFkaW5nAA=="
+    },
+    {
+      "name": "bullet",
+      "href": "mailto:person@example.org",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "marks": [
+                          {
+                            "type": "link",
+                            "attrs": {
+                              "href": "mailto:person@example.org",
+                              "target": "_blank",
+                              "rel": "noopener noreferrer nofollow",
+                              "class": "tiptap-link"
+                            }
+                          },
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Linked 🌍 text"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "before": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "bulletList",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Linked 🌍 text",
+                            "attributes": {
+                              "bold": {}
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "bulletList",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Linked 🌍 text",
+                            "attributes": {
+                              "link": {
+                                "href": "mailto:person@example.org",
+                                "target": "_blank",
+                                "rel": "noopener noreferrer nofollow",
+                                "class": "tiptap-link"
+                              },
+                              "bold": {}
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "seed": "AQeV7PvXCQAHAQdkZWZhdWx0AwpidWxsZXRMaXN0BwCV7PvXCQADCGxpc3RJdGVtBwCV7PvXCQEDCXBhcmFncmFwaAcAlez71wkCBgYAlez71wkDBGJvbGQCe32Elez71wkEEExpbmtlZCDwn4yNIHRleHSGlez71wkSBGJvbGQEbnVsbAA=",
+      "update": "AQmztrTCAQAHAQdkZWZhdWx0AwpidWxsZXRMaXN0BwCztrTCAQADCGxpc3RJdGVtBwCztrTCAQEDCXBhcmFncmFwaAcAs7a0wgECBgYAs7a0wgEDBGxpbmtxeyJocmVmIjoibWFpbHRvOnBlcnNvbkBleGFtcGxlLm9yZyIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6InRpcHRhcC1saW5rIn2Gs7a0wgEEBGJvbGQCe32Es7a0wgEFEExpbmtlZCDwn4yNIHRleHSGs7a0wgETBGxpbmsEbnVsbIaztrTCARQEYm9sZARudWxsAA=="
+    },
+    {
+      "name": "ordered",
+      "href": "http://example.org/path",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "orderedList",
+            "attrs": {
+              "start": 3,
+              "type": null
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "marks": [
+                          {
+                            "type": "link",
+                            "attrs": {
+                              "href": "http://example.org/path",
+                              "target": "_blank",
+                              "rel": "noopener noreferrer nofollow",
+                              "class": "tiptap-link"
+                            }
+                          },
+                          {
+                            "type": "bold"
+                          }
+                        ],
+                        "text": "Linked 🌍 text"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "before": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "orderedList",
+            "attributes": {
+              "start": 3
+            },
+            "children": [
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Linked 🌍 text",
+                            "attributes": {
+                              "bold": {}
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "orderedList",
+            "attributes": {
+              "start": 3
+            },
+            "children": [
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Linked 🌍 text",
+                            "attributes": {
+                              "link": {
+                                "href": "http://example.org/path",
+                                "target": "_blank",
+                                "rel": "noopener noreferrer nofollow",
+                                "class": "tiptap-link"
+                              },
+                              "bold": {}
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "seed": "AQiIqvwvAAcBB2RlZmF1bHQDC29yZGVyZWRMaXN0BwCIqvwvAAMIbGlzdEl0ZW0HAIiq/C8BAwlwYXJhZ3JhcGgHAIiq/C8CBgYAiKr8LwMEYm9sZAJ7fYSIqvwvBBBMaW5rZWQg8J+MjSB0ZXh0hoiq/C8SBGJvbGQEbnVsbCgAiKr8LwAFc3RhcnQBfQMA",
+      "update": "AQqzmbTmCAAHAQdkZWZhdWx0AwtvcmRlcmVkTGlzdAcAs5m05ggAAwhsaXN0SXRlbQcAs5m05ggBAwlwYXJhZ3JhcGgHALOZtOYIAgYGALOZtOYIAwRsaW5rb3siaHJlZiI6Imh0dHA6Ly9leGFtcGxlLm9yZy9wYXRoIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjoidGlwdGFwLWxpbmsifYazmbTmCAQEYm9sZAJ7fYSzmbTmCAUQTGlua2VkIPCfjI0gdGV4dIazmbTmCBMEbGluawRudWxshrOZtOYIFARib2xkBG51bGwoALOZtOYIAAVzdGFydAF9AwA="
+    }
+  ]
+}

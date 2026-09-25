@@ -143,3 +143,20 @@ unchanged original anchors, nested ordered start/ordinal, trailing empty rows,
 typing, undo/redo, and nonmutating malformed/foreign/unsupported anchors. These
 adapter tests do not by themselves establish native host rendering, Return routing
 or durable application journaling; those remain a separate host gate.
+
+
+### Existing authored link marks (September 26, 2026)
+
+`scripts/collaboration-link-fixture.mjs <web-assets-path>` uses the actual Relay
+collaborative Link and PaperHeading extensions in a Chromium TipTap editor.
+The fixture covers HTTP, HTTPS, mailto and canonical `relay:entity/UUID` in
+paragraph, stable-ID heading, bullet and ordered-list text. Native `formatProse`
+already supports these marks; no new CRDT operation or mark grammar is introduced.
+The cross-runtime test matches browser snapshots, preserves bold text and original
+relative anchors, removes/undoes links, and rejects unsupported title metadata
+without mutation. Host destination policy and authorized navigation stay outside
+RelayMark; labels are authored text, never hydrated server titles.
+
+Community Link currently declares a nullable title attribute. The strict v1/v2
+profile excludes that attribute, so the fixture uses Relay's narrow collaborative
+extension that omits it. It does not strip unknown metadata from stored documents.
