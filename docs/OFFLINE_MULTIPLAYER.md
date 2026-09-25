@@ -194,3 +194,18 @@ unchanged anchors, undo/reopen and invalid shapes. The generic Elixir codec test
 checks its four-backtick Markdown fence. Independent server validation on
 September 26 confirmed `DocumentProse.source → seed → source` preserves exact
 code text, language `swift` and the one-leaf shape; no live server was changed.
+
+### Existing single-paragraph quote
+
+`supportsQuoteEditing()` and `replaceQuoteText(start:end:text:)` admit only a v1
+quote-only root with one paragraph and one XmlText. The operation changes text
+inside that same leaf using existing Yrs replacement semantics. Existing grammar
+marks are read/preserved; callers still validate mixed-run typing presentation.
+Quote/paragraph/leaf identities are retained. LF, hard breaks, wrapping/unwrapping,
+multiple paragraphs, nested/mixed blocks and unsupported attributes stay gated.
+
+The actual Chromium TipTap Collaboration fixture `quote-v1.json` proves Unicode
+insertion inside bold text, unchanged prefix anchor and correctly shifted suffix
+anchor. Native tests cover replay, origin undo, peer convergence, reopen, empty
+leaf typing and invalid shapes. The generic Elixir source fixture preserves the
+quote and bold Markdown rather than flattening it to ordinary prose.

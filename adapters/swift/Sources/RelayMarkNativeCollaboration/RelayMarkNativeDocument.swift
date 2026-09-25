@@ -94,6 +94,38 @@ public final class RelayMarkNativeDocument {
         try RelayMarkCollaborativeProse(snapshot: snapshot())
     }
 
+    /// One existing quote with one paragraph/XmlText; no wrapping or splitting.
+    public func supportsQuoteEditing() -> Bool { (try? quoteText()) != nil }
+
+    private func quoteText() throws -> String {
+        guard integrationStatus().isComplete, root.length() == 1,
+              let quote = root.child(at: 0), quote.kind() == "element", quote.tag() == "blockquote",
+              quote.length() == 1, let paragraph = quote.child(at: 0), paragraph.kind() == "element",
+              paragraph.tag() == "paragraph", paragraph.length() == 1,
+              let leaf = paragraph.child(at: 0), leaf.kind() == "text",
+              try proseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let text = try leaf.delta().map(\.text).joined()
+        guard text.utf16.count <= 131_072,
+              !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
+            throw Failure.unsupportedProseEdit
+        }
+        return text
+    }
+
+    /// Replace only text in the integrated quote leaf. Existing run marks use
+    /// the same Yrs replacement semantics as headings/lists; hosts validate the
+    /// proposed presentation before committing a mixed-run change.
+    public func replaceQuoteText(start: Int, end: Int, text: String) throws -> Data {
+        let old = try quoteText()
+        guard start >= 0, end >= start, end <= old.utf16.count,
+              Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
+              text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072,
+              !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
+            throw Failure.unsupportedProseEdit
+        }
+        return try replaceText(at: start, length: end - start, with: text, path: [0, 0, 0])
+    }
+
     /// One existing v1 fenced-code block with one unmarked XmlText leaf.
     /// Admission is deliberately separate from paragraph/structural editing.
     public func supportsCodeBlockEditing() -> Bool { (try? codeBlockText()) != nil }

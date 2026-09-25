@@ -1,0 +1,130 @@
+{
+  "initial": "Quoted 🌍 text",
+  "inserted": "Ω ",
+  "index": 3,
+  "source": "Chromium TipTap3.30.2 + Collaboration, y-tiptap3.0.9, Yjs13.6.32",
+  "seed": "AQbA7++2AgAHAQdkZWZhdWx0AwpibG9ja3F1b3RlBwDA7++2AgADCXBhcmFncmFwaAcAwO/vtgIBBgYAwO/vtgICBGJvbGQCe32EwO/vtgIDEFF1b3RlZCDwn4yNIHRleHSGwO/vtgIRBGJvbGQEbnVsbAA=",
+  "update": "AQHA7++2AhPEwO/vtgIGwO/vtgIHA86pIAA=",
+  "before": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "blockquote",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Quoted 🌍 text",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "blockquote",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "QuoΩ ted 🌍 text",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "anchors": [
+    {
+      "name": "prefix",
+      "path": [
+        0,
+        0,
+        0
+      ],
+      "index": 1,
+      "anchor": "AMDv77YCBQA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          0
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "unicodeSuffix",
+      "path": [
+        0,
+        0,
+        0
+      ],
+      "index": 12,
+      "anchor": "AMDv77YCEAA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          0
+        ],
+        "index": 14
+      }
+    }
+  ],
+  "prosemirror": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "QuoΩ ted 🌍 text"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
