@@ -1,0 +1,281 @@
+{
+  "version": 1,
+  "scope": "host-authoring-only; stored portable links remain preserved",
+  "cases": [
+    {
+      "name": "http",
+      "input": "http://example.org/path",
+      "accepted": true
+    },
+    {
+      "name": "https",
+      "input": "https://example.org/path?q=x#part",
+      "accepted": true
+    },
+    {
+      "name": "uppercase-http",
+      "input": "HTTPS://example.org/path",
+      "accepted": true
+    },
+    {
+      "name": "encoded-space",
+      "input": "https://example.org/a%20b",
+      "accepted": true
+    },
+    {
+      "name": "unicode-path",
+      "input": "https://example.org/日本語",
+      "accepted": true
+    },
+    {
+      "name": "ipv6",
+      "input": "https://[::1]:4287/path",
+      "accepted": true
+    },
+    {
+      "name": "mail",
+      "input": "mailto:person@example.org",
+      "accepted": true
+    },
+    {
+      "name": "mail-subject",
+      "input": "mailto:person+tag@example.org?subject=Hello%20Relay",
+      "accepted": true
+    },
+    {
+      "name": "mail-body",
+      "input": "mailto:person@example.org?subject=Hi&body=Hello%20world",
+      "accepted": true
+    },
+    {
+      "name": "entity",
+      "input": "relay:entity/12345678-1234-4234-8234-123456789abc",
+      "accepted": true
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "accepted": false
+    },
+    {
+      "name": "relative",
+      "input": "/paper",
+      "accepted": false
+    },
+    {
+      "name": "protocol-relative",
+      "input": "//example.org",
+      "accepted": false
+    },
+    {
+      "name": "javascript",
+      "input": "javascript:alert(1)",
+      "accepted": false
+    },
+    {
+      "name": "data",
+      "input": "data:text/html,x",
+      "accepted": false
+    },
+    {
+      "name": "ftp",
+      "input": "ftp://example.org",
+      "accepted": false
+    },
+    {
+      "name": "space",
+      "input": "https://example.org/a b",
+      "accepted": false
+    },
+    {
+      "name": "newline",
+      "input": "https://example.org/\n",
+      "accepted": false
+    },
+    {
+      "name": "angle",
+      "input": "https://example.org/<x>",
+      "accepted": false
+    },
+    {
+      "name": "encoded-control",
+      "input": "https://example.org/%0a",
+      "accepted": false
+    },
+    {
+      "name": "malformed-percent",
+      "input": "https://example.org/%Q1",
+      "accepted": false
+    },
+    {
+      "name": "backslash",
+      "input": "https://example.org\\evil",
+      "accepted": false
+    },
+    {
+      "name": "repaired-http",
+      "input": "https:example.org",
+      "accepted": false
+    },
+    {
+      "name": "empty-authority",
+      "input": "https:///example.org",
+      "accepted": false
+    },
+    {
+      "name": "credentials",
+      "input": "https://person:secret@example.org",
+      "accepted": false
+    },
+    {
+      "name": "empty-credentials",
+      "input": "https://@example.org",
+      "accepted": false
+    },
+    {
+      "name": "invalid-port",
+      "input": "https://example.org:99999",
+      "accepted": false
+    },
+    {
+      "name": "mail-local-empty",
+      "input": "mailto:@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-domain-empty",
+      "input": "mailto:person@",
+      "accepted": false
+    },
+    {
+      "name": "mail-domain-dots",
+      "input": "mailto:person@..",
+      "accepted": false
+    },
+    {
+      "name": "mail-domain-hyphen",
+      "input": "mailto:person@-example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-domain-trailing-hyphen",
+      "input": "mailto:person@example-.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-local-dots",
+      "input": "mailto:per..son@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-local-leading-dot",
+      "input": "mailto:.person@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-local-trailing-dot",
+      "input": "mailto:person.@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-multiple",
+      "input": "mailto:a@example.org,b@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-extra-at",
+      "input": "mailto:a@b@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-uppercase-scheme",
+      "input": "MAILTO:person@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-fragment",
+      "input": "mailto:person@example.org#x",
+      "accepted": false
+    },
+    {
+      "name": "mail-control-query",
+      "input": "mailto:person@example.org?body=Hi%0D%0AThere",
+      "accepted": false
+    },
+    {
+      "name": "mail-recipient-query",
+      "input": "mailto:person@example.org?cc=other@example.org",
+      "accepted": false
+    },
+    {
+      "name": "mail-duplicate-query",
+      "input": "mailto:person@example.org?subject=a&subject=b",
+      "accepted": false
+    },
+    {
+      "name": "mail-empty-segment",
+      "input": "mailto:person@example.org?subject=a&",
+      "accepted": false
+    },
+    {
+      "name": "mail-query-without-value",
+      "input": "mailto:person@example.org?subject",
+      "accepted": false
+    },
+    {
+      "name": "mail-unicode-address",
+      "input": "mailto:日本@example.org",
+      "accepted": false
+    },
+    {
+      "name": "entity-short",
+      "input": "relay:entity/123",
+      "accepted": false
+    },
+    {
+      "name": "entity-uppercase",
+      "input": "relay:entity/12345678-1234-4234-8234-123456789ABC",
+      "accepted": false
+    },
+    {
+      "name": "entity-prefix-case",
+      "input": "Relay:entity/12345678-1234-4234-8234-123456789abc",
+      "accepted": false
+    },
+    {
+      "name": "entity-query",
+      "input": "relay:entity/12345678-1234-4234-8234-123456789abc?q=x",
+      "accepted": false
+    },
+    {
+      "name": "ascii-exact-byte-limit",
+      "input": "https://example.org/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "accepted": true
+    },
+    {
+      "name": "ascii-over-byte-limit",
+      "input": "https://example.org/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "accepted": false
+    },
+    {
+      "name": "unicode-exact-byte-limit",
+      "input": "https://example.org/aééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+      "accepted": true
+    },
+    {
+      "name": "unicode-over-byte-limit",
+      "input": "https://example.org/ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+      "accepted": false
+    },
+    {
+      "name": "mail-query-equals",
+      "input": "mailto:a@example.org?subject=a=b",
+      "accepted": true
+    },
+    {
+      "name": "mail-query-encoded-ampersand",
+      "input": "mailto:a@example.org?body=a%26b",
+      "accepted": true
+    }
+  ]
+}
