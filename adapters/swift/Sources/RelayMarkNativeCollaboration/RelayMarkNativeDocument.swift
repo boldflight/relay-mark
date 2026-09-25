@@ -134,12 +134,15 @@ public final class RelayMarkNativeDocument {
                   paragraphs.reduce(0, { $0 + $1.text.utf16.count + 1 }) - (end - start) + text.utf16.count <= 131_072 else {
                 throw Failure.unsupportedProseEdit
             }
-            if paragraph.node.length() == 0 {
-                guard index == 1, start == end, !text.isEmpty else { throw Failure.unsupportedProseEdit }
-                let attributes = try paragraphs[0].node.child(at: 0)?.delta().last?.attributes ?? [:]
+            if start == end, localStart == length, !text.isEmpty {
+                // End typing keeps the existing last-run marks. A newly appended
+                // empty paragraph inherits the preceding paragraph's last run.
+                let existing = paragraph.node.child(at: 0)
+                let attributes = try existing?.delta().last?.attributes ??
+                    (index == 1 ? paragraphs[0].node.child(at: 0)?.delta().last?.attributes : nil) ?? [:]
                 let update = try document.transactSync(origin: localOrigin) { transaction in
-                    let leaf = try paragraph.node.insertText(at: 0, in: transaction)
-                    try leaf.insert(text, attributes: attributes, at: 0, in: transaction)
+                    let leaf = try existing ?? paragraph.node.insertText(at: 0, in: transaction)
+                    try leaf.insert(text, attributes: attributes, at: UInt32(localStart), in: transaction)
                     return Data(transaction.transactionEncodeUpdate())
                 }
                 undoManager.wrap()
