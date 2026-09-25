@@ -94,6 +94,37 @@ public final class RelayMarkNativeDocument {
         try RelayMarkCollaborativeProse(snapshot: snapshot())
     }
 
+    /// One existing v1 fenced-code block with one unmarked XmlText leaf.
+    /// Admission is deliberately separate from paragraph/structural editing.
+    public func supportsCodeBlockEditing() -> Bool { (try? codeBlockText()) != nil }
+
+    private func codeBlockText() throws -> String {
+        guard integrationStatus().isComplete, root.length() == 1,
+              let block = root.child(at: 0), block.kind() == "element", block.tag() == "codeBlock",
+              block.length() == 1, let leaf = block.child(at: 0), leaf.kind() == "text",
+              try proseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let delta = try leaf.delta()
+        guard delta.allSatisfy({ $0.attributes.isEmpty }) else { throw Failure.unsupportedProseEdit }
+        let text = delta.map(\.text).joined()
+        guard text.utf16.count <= 131_072,
+              !text.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
+            throw Failure.unsupportedProseEdit
+        }
+        return text
+    }
+
+    /// Newlines stay inside the original XmlText; no block is split or rebuilt.
+    public func replaceCodeBlockText(start: Int, end: Int, text: String) throws -> Data {
+        let old = try codeBlockText()
+        guard start >= 0, end >= start, end <= old.utf16.count,
+              Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
+              text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072,
+              !text.unicodeScalars.contains(where: { $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
+            throw Failure.unsupportedProseEdit
+        }
+        return try replaceText(at: start, length: end - start, with: text, path: [0, 0])
+    }
+
     /// Ordinary editor scope. More complex RelayMark shapes remain available for
     /// read-only projection or the legacy adapter until their native operations
     /// have explicit parity tests.

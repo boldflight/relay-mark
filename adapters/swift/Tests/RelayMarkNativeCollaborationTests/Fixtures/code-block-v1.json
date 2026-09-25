@@ -1,0 +1,103 @@
+{
+  "initial": "let 🌍 = \"```\"\nprint(🌍)\n// tail",
+  "inserted": "\n// browser Ω",
+  "index": 32,
+  "source": "Chromium TipTap3.30.2 + Collaboration, y-tiptap3.0.9, Yjs13.6.32",
+  "seed": "AQTP+PjPCQAHAQdkZWZhdWx0Awljb2RlQmxvY2sHAM/4+M8JAAYEAM/4+M8JASRsZXQg8J+MjSA9ICJgYGAiCnByaW50KPCfjI0pCi8vIHRhaWwoAM/4+M8JAAhsYW5ndWFnZQF3BXN3aWZ0AA==",
+  "update": "AQHP+PjPCSOEz/j4zwkhDgovLyBicm93c2VyIM6pAA==",
+  "before": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "codeBlock",
+        "attributes": {
+          "language": "swift"
+        },
+        "children": [
+          {
+            "kind": "text",
+            "delta": [
+              {
+                "insert": "let 🌍 = \"```\"\nprint(🌍)\n// tail"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "codeBlock",
+        "attributes": {
+          "language": "swift"
+        },
+        "children": [
+          {
+            "kind": "text",
+            "delta": [
+              {
+                "insert": "let 🌍 = \"```\"\nprint(🌍)\n// tail\n// browser Ω"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "anchors": [
+    {
+      "name": "prefix",
+      "path": [
+        0,
+        0
+      ],
+      "index": 1,
+      "anchor": "AM/4+M8JAwA=",
+      "resolved": {
+        "path": [
+          0,
+          0
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "unicodeSuffix",
+      "path": [
+        0,
+        0
+      ],
+      "index": 12,
+      "anchor": "AM/4+M8JDgA=",
+      "resolved": {
+        "path": [
+          0,
+          0
+        ],
+        "index": 12
+      }
+    }
+  ],
+  "prosemirror": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "language": "swift"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "let 🌍 = \"```\"\nprint(🌍)\n// tail\n// browser Ω"
+          }
+        ]
+      }
+    ]
+  }
+}
