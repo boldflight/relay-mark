@@ -209,3 +209,19 @@ insertion inside bold text, unchanged prefix anchor and correctly shifted suffix
 anchor. Native tests cover replay, origin undo, peer convergence, reopen, empty
 leaf typing and invalid shapes. The generic Elixir source fixture preserves the
 quote and bold Markdown rather than flattening it to ordinary prose.
+
+### Bounded native quote end Return
+
+The native Yrs adapter can append one empty second paragraph to an existing
+single-paragraph quote. Existing quote/paragraph/text objects are retained.
+Within-paragraph typing admits this exact flat one-or-two-paragraph shape; the
+second paragraph may initially have no text child. Its first typed text creates
+one XmlText and inherits the preceding last-run marks, matching the real TipTap
+fixture. This does not implement interior splits, joins, third paragraphs,
+wrapping, unwrapping, mixed blocks or arbitrary quote nesting. Hosts must require
+a collapsed end caret for append and persist the returned update normally.
+
+`collaboration-quote-return-probe.mjs` captures actual community `splitBlock` and
+subsequent typing. Focused tests compare XML and marks against that fixture,
+original anchors, undo/redo and cross-runtime replay/reopen. Native UI admission
+and actual input remain a separate consumer gate.

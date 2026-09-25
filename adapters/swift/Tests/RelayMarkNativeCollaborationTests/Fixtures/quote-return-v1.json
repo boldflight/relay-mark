@@ -1,0 +1,200 @@
+{
+  "afterReturn": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "blockquote",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Quoted 🌍 text",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "returnUpdate": "AQG6ivXHChOHuor1xwoBAwlwYXJhZ3JhcGgA",
+  "typed": "Next Ω",
+  "initial": "Quoted 🌍 text",
+  "inserted": "Ω ",
+  "index": 3,
+  "source": "Chromium TipTap3.30.2 + Collaboration, y-tiptap3.0.9, Yjs13.6.32",
+  "seed": "AQa6ivXHCgAHAQdkZWZhdWx0AwpibG9ja3F1b3RlBwC6ivXHCgADCXBhcmFncmFwaAcAuor1xwoBBgYAuor1xwoCBGJvbGQCe32Euor1xwoDEFF1b3RlZCDwn4yNIHRleHSGuor1xwoRBGJvbGQEbnVsbAA=",
+  "update": "AQW6ivXHChOHuor1xwoBAwlwYXJhZ3JhcGgHALqK9ccKEwYGALqK9ccKFARib2xkAnt9hLqK9ccKFQdOZXh0IM6phrqK9ccKGwRib2xkBG51bGwA",
+  "before": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "blockquote",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Quoted 🌍 text",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "blockquote",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Quoted 🌍 text",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Next Ω",
+                    "attributes": {
+                      "bold": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "anchors": [
+    {
+      "name": "prefix",
+      "path": [
+        0,
+        0,
+        0
+      ],
+      "index": 1,
+      "anchor": "ALqK9ccKBQA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          0
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "unicodeSuffix",
+      "path": [
+        0,
+        0,
+        0
+      ],
+      "index": 12,
+      "anchor": "ALqK9ccKEAA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          0
+        ],
+        "index": 12
+      }
+    }
+  ],
+  "prosemirror": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Quoted 🌍 text"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Next Ω"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

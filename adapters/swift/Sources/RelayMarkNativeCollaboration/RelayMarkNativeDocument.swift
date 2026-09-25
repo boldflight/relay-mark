@@ -94,36 +94,60 @@ public final class RelayMarkNativeDocument {
         try RelayMarkCollaborativeProse(snapshot: snapshot())
     }
 
-    /// One existing quote with one paragraph/XmlText; no wrapping or splitting.
-    public func supportsQuoteEditing() -> Bool { (try? quoteText()) != nil }
+    /// One quote with one or two flat paragraphs; no wrapping, splitting or joins.
+    public func supportsQuoteEditing() -> Bool { (try? quoteParagraphs()) != nil }
 
-    private func quoteText() throws -> String {
-        guard integrationStatus().isComplete, root.length() == 1,
-              let quote = root.child(at: 0), quote.kind() == "element", quote.tag() == "blockquote",
-              quote.length() == 1, let paragraph = quote.child(at: 0), paragraph.kind() == "element",
-              paragraph.tag() == "paragraph", paragraph.length() == 1,
-              let leaf = paragraph.child(at: 0), leaf.kind() == "text",
-              try proseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let text = try leaf.delta().map(\.text).joined()
-        guard text.utf16.count <= 131_072,
-              !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
-            throw Failure.unsupportedProseEdit
-        }
-        return text
+    private func quoteParagraphs() throws -> [(node: YXmlNode, text: String)] {
+        guard integrationStatus().isComplete else { throw Failure.unsupportedProseEdit }
+        return try RelayMarkNativeQuote.paragraphs(root: root, projection: proseProjection())
     }
 
-    /// Replace only text in the integrated quote leaf. Existing run marks use
-    /// the same Yrs replacement semantics as headings/lists; hosts validate the
-    /// proposed presentation before committing a mixed-run change.
+    /// Insert a second empty paragraph without relocating any existing content.
+    /// The host must require a collapsed caret at the end of the first paragraph.
+    public func appendEmptyQuoteParagraph(after paragraphAnchor: Data) throws -> Data {
+        let paragraphs = try quoteParagraphs()
+        let (_, path) = try anchoredElement(paragraphAnchor)
+        guard paragraphs.count == 1, !paragraphs[0].text.isEmpty, path == [0, 0],
+              let quote = root.child(at: 0) else { throw Failure.unsupportedProseEdit }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            _ = try quote.insertElement(named: "paragraph", at: 1, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    /// Replace within one paragraph only; the separator is never editable text.
     public func replaceQuoteText(start: Int, end: Int, text: String) throws -> Data {
-        let old = try quoteText()
-        guard start >= 0, end >= start, end <= old.utf16.count,
-              Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
-              text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072,
+        let paragraphs = try quoteParagraphs()
+        guard start >= 0, end >= start, text.utf16.count <= 131_072,
               !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
             throw Failure.unsupportedProseEdit
         }
-        return try replaceText(at: start, length: end - start, with: text, path: [0, 0, 0])
+        var offset = 0
+        for (index, paragraph) in paragraphs.enumerated() {
+            let length = paragraph.text.utf16.count
+            defer { offset += length + 1 }
+            guard start >= offset, end <= offset + length else { continue }
+            let localStart = start - offset, localEnd = end - offset
+            guard Self.split(paragraph.text, at: localStart) != nil, Self.split(paragraph.text, at: localEnd) != nil,
+                  paragraphs.reduce(0, { $0 + $1.text.utf16.count + 1 }) - (end - start) + text.utf16.count <= 131_072 else {
+                throw Failure.unsupportedProseEdit
+            }
+            if paragraph.node.length() == 0 {
+                guard index == 1, start == end, !text.isEmpty else { throw Failure.unsupportedProseEdit }
+                let attributes = try paragraphs[0].node.child(at: 0)?.delta().last?.attributes ?? [:]
+                let update = try document.transactSync(origin: localOrigin) { transaction in
+                    let leaf = try paragraph.node.insertText(at: 0, in: transaction)
+                    try leaf.insert(text, attributes: attributes, at: 0, in: transaction)
+                    return Data(transaction.transactionEncodeUpdate())
+                }
+                undoManager.wrap()
+                return update
+            }
+            return try replaceText(at: localStart, length: localEnd - localStart, with: text, path: [0, index, 0])
+        }
+        throw Failure.unsupportedProseEdit
     }
 
     /// One existing v1 fenced-code block with one unmarked XmlText leaf.

@@ -48,10 +48,10 @@ final class RelayMarkNativeQuoteTests: XCTestCase {
         _ = try doc.replaceQuoteText(start: 0, end: initial.utf16.count, text: "")
         XCTAssertTrue(doc.supportsQuoteEditing())
         _ = try doc.replaceQuoteText(start: 0, end: 0, text: "あ 🌍")
-        for mutation in ["mixed", "nested", "twoParagraphs", "noLeaf", "attributes", "unknownMark"] {
+        for mutation in ["mixed", "nested", "threeParagraphs", "noLeaf", "attributes", "unknownMark"] {
             var quote = try XCTUnwrap((fixture["before"] as? [String: Any])?["children"] as? [[String: Any]])[0]
             var paragraphs = try XCTUnwrap(quote["children"] as? [[String: Any]])
-            if mutation == "twoParagraphs" { quote["children"] = paragraphs + paragraphs }
+            if mutation == "threeParagraphs" { quote["children"] = paragraphs + paragraphs + paragraphs }
             if mutation == "noLeaf" { paragraphs[0]["children"] = [] as [Any]; quote["children"] = paragraphs }
             if mutation == "attributes" { quote["attributes"] = ["unknown": 1] }
             if mutation == "unknownMark" { paragraphs[0]["children"] = [["kind": "text", "delta": [["insert": "text", "attributes": ["unknown": [:]]]]]]; quote["children"] = paragraphs }
