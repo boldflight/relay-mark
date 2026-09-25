@@ -1,0 +1,41 @@
+{
+  "fixture_version": 1,
+  "status": "draft_not_live",
+  "schema": "relaymark-prosemirror-v3",
+  "root": "default",
+  "attribute": "relaymarkId",
+  "tree": {
+    "tag": "table",
+    "relaymarkId": "b015f847ce7bd4a78a3e430e8b1e22101",
+    "children": [
+      {
+        "tag": "tableRow",
+        "relaymarkId": "bd229772bbc2e42fc8927456eb43c9851",
+        "children": [
+          {
+            "tag": "tableHeader",
+            "relaymarkId": "bacdf49a796744114b68e2062cced2c2b",
+            "children": [
+              {"tag": "paragraph", "relaymarkId": "bbd2c2c1a377446c4a84c389326c2c0a9", "children": [{"text": "Name"}]}
+            ]
+          },
+          {
+            "tag": "tableCell",
+            "relaymarkId": "b26b1844934304aa880378c40a5e20d84",
+            "children": [
+              {"tag": "paragraph", "relaymarkId": "b8d30a01344e54faaa1fcbb3ab05db294", "children": [{"text": "Value"}]}
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_preorder_ids": [
+    "b015f847ce7bd4a78a3e430e8b1e22101",
+    "bd229772bbc2e42fc8927456eb43c9851",
+    "bacdf49a796744114b68e2062cced2c2b",
+    "bbd2c2c1a377446c4a84c389326c2c0a9",
+    "b26b1844934304aa880378c40a5e20d84",
+    "b8d30a01344e54faaa1fcbb3ab05db294"
+  ]
+}
