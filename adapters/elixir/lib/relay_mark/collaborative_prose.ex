@@ -1,6 +1,9 @@
 defmodule RelayMark.CollaborativeProse do
   @moduledoc """
-  A conservative Markdown projection of the version-one collaborative XML tree.
+  A conservative Markdown projection of collaborative XML trees.
+
+  Task-list serialization is prepared for a future negotiated profile; the
+  host's live v1 admission must continue to reject task-list nodes.
 
   Input nodes have `tag`, `attributes`, and `children` string keys; text leaves
   have `delta` entries with `insert` and `attributes`. Unknown nodes, marks and
@@ -43,6 +46,10 @@ defmodule RelayMark.CollaborativeProse do
       "bulletList" ->
         exact_attrs(attrs, [])
         list(children, fn _ -> "- " end)
+
+      "taskList" ->
+        exact_attrs(attrs, [])
+        task_list(children)
 
       "orderedList" ->
         exact_attrs(attrs, ["start"])
@@ -101,6 +108,52 @@ defmodule RelayMark.CollaborativeProse do
         unsupported(:list_item)
     end)
   end
+
+  defp task_list(children) do
+    Enum.map_join(children, "\n", fn
+      %{
+        "tag" => "taskItem",
+        "attributes" => attrs,
+        "children" => [%{"tag" => "paragraph"} = first_item | rest_items]
+      } ->
+        exact_attrs(attrs, ["checked", "entityId"])
+
+        checked =
+          case attrs["checked"] do
+            true -> "x"
+            value when value in [false, nil] -> " "
+            _ -> unsupported(:task_checked)
+          end
+
+        entity_id = task_entity_suffix(attrs["entityId"])
+        prefix = "- [#{checked}] "
+
+        body =
+          Enum.join([block(first_item) <> entity_id | Enum.map(rest_items, &block/1)], "\n\n")
+
+        [first | rest] = String.split(body, "\n")
+
+        prefix <>
+          first <>
+          Enum.map_join(rest, "", &("\n" <> String.duplicate(" ", String.length(prefix)) <> &1))
+
+      _ ->
+        unsupported(:task_item)
+    end)
+  end
+
+  defp task_entity_suffix(nil), do: ""
+
+  defp task_entity_suffix(id) when is_binary(id) do
+    if Regex.match?(
+         ~r/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/,
+         id
+       ),
+       do: " [[Task: #{id}]]",
+       else: unsupported(:task_entity_id)
+  end
+
+  defp task_entity_suffix(_), do: unsupported(:task_entity_id)
 
   defp inline(children), do: Enum.map_join(children, "", &inline_node/1)
   defp inline_node(%{"delta" => delta}), do: Enum.map_join(delta, "", &span/1)

@@ -59,6 +59,48 @@ defmodule RelayMark.CollaborativeProseTest do
              ])
   end
 
+  test "task items project checked state and Task identity without accepting unknown attributes" do
+    id = "123e4567-e89b-12d3-a456-426614174000"
+
+    paragraph = %{
+      "tag" => "paragraph",
+      "attributes" => %{},
+      "children" => [%{"delta" => [%{"insert" => "Done"}]}]
+    }
+
+    task_list = %{
+      "tag" => "taskList",
+      "attributes" => %{},
+      "children" => [
+        %{
+          "tag" => "taskItem",
+          "attributes" => %{"checked" => true, "entityId" => id},
+          "children" => [paragraph]
+        },
+        %{
+          "tag" => "taskItem",
+          "attributes" => %{"checked" => false},
+          "children" => [
+            put_in(paragraph, ["children", Access.at(0), "delta", Access.at(0), "insert"], "Next")
+          ]
+        }
+      ]
+    }
+
+    expected = "- [x] Done [[Task: #{id}]]\n- [ ] Next"
+    assert {:ok, ^expected} = CollaborativeProse.to_markdown([task_list])
+
+    invalid = put_in(task_list, ["children", Access.at(0), "attributes", "entityId"], "bad")
+
+    assert {:error, {:unsupported_collaboration_content, :task_entity_id}} =
+             CollaborativeProse.to_markdown([invalid])
+
+    extra = put_in(task_list, ["children", Access.at(0), "attributes", "lastText"], "stale")
+
+    assert {:error, {:unsupported_collaboration_content, :attributes}} =
+             CollaborativeProse.to_markdown([extra])
+  end
+
   test "code fences preserve content" do
     node = %{
       "tag" => "codeBlock",
