@@ -1,4 +1,4 @@
-/** Optional relaymark-prosemirror-v3 table projection; no live profile admits it. */
+/** Optional relaymark-prosemirror-v3 prose/table projection; no live profile admits it. */
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
@@ -7,16 +7,36 @@ const maxColumns = 256;
 const maxCells = 4096;
 
 export function tableProseMirrorToRelayMark(prosemirror) {
+  const document = proseMirrorV3ToRelayMark(prosemirror);
+  if (document.blocks.some(block => block.type !== "table")) {
+    throw new TypeError("Table-only projection requires table blocks");
+  }
+  return document;
+}
+
+export function proseMirrorV3ToRelayMark(prosemirror) {
   assertObject(prosemirror, "doc");
   onlyKeys(prosemirror, ["type", "content"], "doc");
   requireType(prosemirror, "doc");
   const seen = new Set();
-  const blocks = children(prosemirror, "doc", 1).map(node => mapTable(node, seen));
-  for (const block of blocks) validateGrid(block);
+  const blocks = children(prosemirror, "doc", 1).map(node => {
+    if (node?.type === "paragraph") return mapParagraph(node, seen);
+    const table = mapTable(node, seen);
+    validateGrid(table);
+    return table;
+  });
   return { type: "relaymark.document", version: 1, blocks };
 }
 
 export function relayMarkTableToProseMirror(document) {
+  const prosemirror = relayMarkV3ToProseMirror(document);
+  if (document.blocks.some(block => block.type !== "table")) {
+    throw new TypeError("Table-only projection requires table blocks");
+  }
+  return prosemirror;
+}
+
+export function relayMarkV3ToProseMirror(document) {
   assertObject(document, "document");
   onlyKeys(document, ["type", "version", "blocks"], "document");
   if (document.type !== "relaymark.document" || document.version !== 1) {
@@ -24,8 +44,11 @@ export function relayMarkTableToProseMirror(document) {
   }
   const seen = new Set();
   const blocks = children({ content: document.blocks }, "document", 1);
-  for (const block of blocks) validateGrid(block);
-  return { type: "doc", content: blocks.map(block => unmapTable(block, seen)) };
+  return { type: "doc", content: blocks.map(block => {
+    if (block?.type === "paragraph") return unmapParagraph(block, seen);
+    validateGrid(block);
+    return unmapTable(block, seen);
+  }) };
 }
 
 function mapTable(node, seen) {

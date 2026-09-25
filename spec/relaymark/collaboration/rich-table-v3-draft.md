@@ -9,7 +9,9 @@ browser, server, and native editing are separately proven.
 The canonical collaborative structure is the community TipTap/ProseMirror
 `table → tableRow → tableHeader | tableCell → paragraph → text` hierarchy in
 Yjs XML. The [pure mapping](../../../src/collaboration-table-v3.js) translates
-only this admitted subset to existing RelayMark AST block types:
+this admitted subset to existing RelayMark AST block types. Its mixed-document
+entry points also accept plain top-level paragraphs before or after tables;
+the existing table-only entry points retain their stricter contract:
 
 | ProseMirror type | RelayMark AST type | Required AST properties |
 | --- | --- | --- |
@@ -59,3 +61,14 @@ schema before comparing or rendering. Neither boundary changes stored IDs,
 spans, column widths or text. The official static renderer can display the
 normalized table and existing `relaymarkId` attributes, but it is a view path,
 not source validation or live v3 admission.
+
+The [mixed update fixture](fixtures/table-mixed-v3-draft.json) is reproducibly
+built from that real concurrent table Yjs update by inserting ID-bearing Yjs
+paragraphs before and after the table, including one empty paragraph. The
+[generator](../../../scripts/collaboration-mixed-table-v3-fixture.mjs) projects
+the resulting update through the installed community y-tiptap binding and
+normalizes it with TipTap's schema. The test verifies block order, IDs, empty
+content, text, spans and widths through AST and inverse ProseMirror JSON.
+This is a mixed-document Yjs projection proof, not live v3 admission or a
+browser/native editing acceptance test for surrounding prose. Unsupported
+top-level nodes, inline marks, attributes and duplicate IDs fail closed.
