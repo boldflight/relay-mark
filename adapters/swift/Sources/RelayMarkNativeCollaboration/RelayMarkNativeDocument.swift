@@ -639,15 +639,58 @@ public final class RelayMarkNativeDocument {
                   expected == nil || child.tag() == expected else { throw Failure.invalidAnchor }
             ancestor = child
         }
-        guard let leaf = paragraph.child(at: 0), leaf.kind() == "text" else { throw Failure.unsupportedProseEdit }
-        let old = try leaf.delta().map(\.text).joined()
+        let leaf = paragraph.child(at: 0)
+        guard leaf == nil || leaf?.kind() == "text" else { throw Failure.unsupportedProseEdit }
+        let old = try leaf?.delta().map(\.text).joined() ?? ""
         guard start >= 0, end >= start, end <= old.utf16.count,
               Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
               !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }),
               text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072 else {
             throw Failure.unsupportedProseEdit
         }
+        if leaf == nil {
+            guard start == 0, end == 0, !text.isEmpty else { throw Failure.unsupportedProseEdit }
+            let update = try document.transactSync(origin: localOrigin) { transaction in
+                let newText = try paragraph.insertText(at: 0, in: transaction)
+                try newText.insert(text, at: 0, in: transaction)
+                return Data(transaction.transactionEncodeUpdate())
+            }
+            undoManager.wrap()
+            return update
+        }
         return try replaceText(at: start, length: end - start, with: text, path: path + [0])
+    }
+
+    /// End-of-item Return only: insert an empty sibling without relocating any
+    /// existing text or descendants. Interior splits and empty-item exit are not
+    /// represented by this command.
+    public func appendEmptyListItem(after paragraphAnchor: Data) throws -> Data {
+        guard integrationStatus().isComplete, try proseProjection().isEditable else {
+            throw Failure.unsupportedProseEdit
+        }
+        let (paragraph, path) = try anchoredElement(paragraphAnchor)
+        guard path.count == 3 || path.count == 5, paragraph.tag() == "paragraph",
+              let top = root.child(at: UInt32(path[0])) else { throw Failure.invalidAnchor }
+        try validateEditableList(top, depth: 0)
+        var list = root
+        for index in path.dropLast(2) {
+            guard let child = list.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            list = child
+        }
+        let itemIndex = path[path.count - 2]
+        guard path.last == 0, let item = list.child(at: UInt32(itemIndex)),
+              item.tag() == "listItem", item.length() == 1,
+              let leaf = paragraph.child(at: 0), leaf.kind() == "text",
+              try !leaf.delta().map(\.text).joined().isEmpty,
+              list.length() < 4096,
+              try String(proseProjection().text.characters).utf16.count < 131_072 else { throw Failure.unsupportedProseEdit }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            let next = try list.insertElement(named: "listItem", at: UInt32(itemIndex + 1), in: transaction)
+            _ = try next.insertElement(named: "paragraph", at: 0, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
     }
 
     private func anchoredElement(_ anchor: Data) throws -> (YXmlNode, [Int]) {
@@ -665,9 +708,10 @@ public final class RelayMarkNativeDocument {
         for item in list.children() {
             guard item.kind() == "element", item.tag() == "listItem", try item.attributes().isEmpty,
                   (1...2).contains(item.length()), let paragraph = item.child(at: 0),
-                  paragraph.tag() == "paragraph", try paragraph.attributes().isEmpty, paragraph.length() == 1,
-                  let text = paragraph.child(at: 0), text.kind() == "text" else { throw Failure.unsupportedProseEdit }
-            let value = try text.delta().map(\.text).joined()
+                  paragraph.tag() == "paragraph", try paragraph.attributes().isEmpty, paragraph.length() <= 1 else { throw Failure.unsupportedProseEdit }
+            let text = paragraph.child(at: 0)
+            guard text == nil || text?.kind() == "text" else { throw Failure.unsupportedProseEdit }
+            let value = try text?.delta().map(\.text).joined() ?? ""
             guard !value.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
                 throw Failure.unsupportedProseEdit
             }

@@ -7,6 +7,8 @@ public struct RelayMarkCollaborativeProse {
     public let isEditable: Bool
     public let blockRanges: [NSRange]
 
+    /// Block metadata remains available when an empty paragraph has no text run.
+    public let blockIntents: [PresentationIntent]
     public let blockPaths: [[Int]]
     public struct TextRange: Equatable, Sendable {
         public let path: [Int]
@@ -27,6 +29,7 @@ public struct RelayMarkCollaborativeProse {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
         var value = AttributedString()
         var ranges: [NSRange] = [], paths: [[Int]] = []
+        var intents: [PresentationIntent] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         var supported = root?["kind"] as? String == "fragment"
@@ -133,7 +136,7 @@ public struct RelayMarkCollaborativeProse {
                     }
                     boundaries[blockPath] = inlineOffsets
                     value[attributedStart..<value.endIndex].presentationIntent = intent
-                    ranges.append(NSRange(location: start, length: length() - start)); paths.append(blockPath)
+                    ranges.append(NSRange(location: start, length: length() - start)); paths.append(blockPath); intents.append(intent)
                 }
                 offsets.append(ranges.count > previousCount ? ranges[previousCount].location : length())
                 // An XML boundary immediately after a rule maps to the atom's end.
@@ -145,7 +148,7 @@ public struct RelayMarkCollaborativeProse {
             offsets.append(length()); boundaries[path] = offsets
         }
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
-        text = value; blockRanges = ranges; blockPaths = paths
+        text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }

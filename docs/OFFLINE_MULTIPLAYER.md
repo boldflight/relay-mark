@@ -120,3 +120,26 @@ is faithful empty-item presentation, permitting end-of-item Return to add an
 empty sibling without moving existing text. Durable anchors across moved text
 require a separately reviewed identity/remapping contract or community engine
 capability before interior split/join can claim preservation.
+
+
+### Empty list items and end-of-item insertion (September 26, 2026)
+
+`scripts/collaboration-list-end-return-probe.mjs <web-assets-path>` records
+community TipTap end-of-item Return in Chromium. The new sibling is a listItem
+containing an empty paragraph with no XmlText child. No existing text is moved;
+prefix, suffix and unrelated sibling anchors retain their original positions.
+
+The additive native `appendEmptyListItem(after:)` uses existing YSwift/Yrs XML
+insertion in one local undo transaction and matches that browser shape. It accepts
+only a nonempty paragraph in an admitted list item with no nested descendants.
+The host must establish an exact end caret before invoking it. Empty-item exit,
+interior split, joins, reordering and deeper/mixed structures remain unsupported.
+`replaceListParagraphText` can subsequently create the first XmlText in an empty
+paragraph. Projection `blockIntents` carries each block's presentation even when
+its text range is empty; it adds no sentinel or placeholder characters.
+
+`RelayMarkNativeEmptyListTests` covers browser-update replay, native-to-Yjs replay,
+unchanged original anchors, nested ordered start/ordinal, trailing empty rows,
+typing, undo/redo, and nonmutating malformed/foreign/unsupported anchors. These
+adapter tests do not by themselves establish native host rendering, Return routing
+or durable application journaling; those remain a separate host gate.

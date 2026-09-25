@@ -1,0 +1,331 @@
+{
+  "source": "Chromium TipTap3.30.2 + Collaboration, y-tiptap3.0.9, Yjs13.6.32",
+  "seed": "AQ+3jISyCAAHAQdkZWZhdWx0AwpidWxsZXRMaXN0BwC3jISyCAADCGxpc3RJdGVtBwC3jISyCAEDCXBhcmFncmFwaAcAt4yEsggCBgQAt4yEsggDBU91dGVyh7eMhLIIAgMLb3JkZXJlZExpc3QHALeMhLIICQMIbGlzdEl0ZW0HALeMhLIICgMJcGFyYWdyYXBoBwC3jISyCAsGBAC3jISyCAwQTmVzdGVkIPCfjI0gdGV4dCgAt4yEsggJBXN0YXJ0AX0Dh7eMhLIIAQMIbGlzdEl0ZW0HALeMhLIIHAMJcGFyYWdyYXBoBwC3jISyCB0GBAC3jISyCB4HU2libGluZwA=",
+  "update": "AQK3jISyCCaHt4yEsggKAwhsaXN0SXRlbQcAt4yEsggmAwlwYXJhZ3JhcGgA",
+  "before": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "bulletList",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Outer"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "element",
+                "name": "orderedList",
+                "attributes": {
+                  "start": 3
+                },
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "listItem",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "paragraph",
+                        "attributes": {},
+                        "children": [
+                          {
+                            "kind": "text",
+                            "delta": [
+                              {
+                                "insert": "Nested 🌍 text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Sibling"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "bulletList",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Outer"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "element",
+                "name": "orderedList",
+                "attributes": {
+                  "start": 3
+                },
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "listItem",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "paragraph",
+                        "attributes": {},
+                        "children": [
+                          {
+                            "kind": "text",
+                            "delta": [
+                              {
+                                "insert": "Nested 🌍 text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "element",
+                    "name": "listItem",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "paragraph",
+                        "attributes": {},
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "listItem",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "paragraph",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "text",
+                    "delta": [
+                      {
+                        "insert": "Sibling"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "anchors": [
+    {
+      "name": "prefix",
+      "path": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "index": 1,
+      "anchor": "ALeMhLIIDgA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "suffix",
+      "path": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "index": 10,
+      "anchor": "ALeMhLIIFwA=",
+      "resolved": {
+        "path": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "index": 10
+      }
+    },
+    {
+      "name": "sibling",
+      "path": [
+        0,
+        1,
+        0,
+        0
+      ],
+      "index": 3,
+      "anchor": "ALeMhLIIIgA=",
+      "resolved": {
+        "path": [
+          0,
+          1,
+          0,
+          0
+        ],
+        "index": 3
+      }
+    }
+  ],
+  "prosemirror": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Outer"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "attrs": {
+                  "start": 3,
+                  "type": null
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Nested 🌍 text"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "content": [
+                      {
+                        "type": "paragraph"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Sibling"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
