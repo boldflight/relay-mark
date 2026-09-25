@@ -1,0 +1,22 @@
+{
+  "fixture_version": 1,
+  "enabled": false,
+  "reason": "No negotiated RelayMark table AST/source contract preserves the community ProseMirror table attributes or stable block identity yet.",
+  "input": {
+    "fixture": "../../../../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/table-experimental.json",
+    "case": "colspan"
+  },
+  "must_preserve": {
+    "header": true,
+    "colspan": 2,
+    "rowspan": 1,
+    "colwidth": [120, 180],
+    "cell_text": ["Merged 🌍", "Left", "Right"]
+  },
+  "missing_contract": [
+    "A versioned portable definition for table, row, header and cell children and properties, including spans and widths",
+    "A stable AST block-ID mapping from collaborative XML that survives edits and migration",
+    "A lossless authored-source encoding and exact browser, server and Swift round-trip fixtures"
+  ],
+  "expected_ast": null
+}
