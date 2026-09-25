@@ -1,0 +1,8 @@
+{
+  "source": "Relay Tiptap opt-in collaborativeTaskLists with Yjs update for experimental task-list profile",
+  "update": "AQ2jpcXqBgAHAQdkZWZhdWx0Awh0YXNrTGlzdAcAo6XF6gYAAwh0YXNrSXRlbQcAo6XF6gYBAwlwYXJhZ3JhcGgHAKOlxeoGAgYEAKOlxeoGAwREb25lKACjpcXqBgEHY2hlY2tlZAF4KACjpcXqBgEIZW50aXR5SWQBdyQxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTGHo6XF6gYBAwh0YXNrSXRlbQcAo6XF6gYKAwlwYXJhZ3JhcGgHAKOlxeoGCwYEAKOlxeoGDAROZXh0KACjpcXqBgoHY2hlY2tlZAF5h6OlxeoGAAMJcGFyYWdyYXBoAA==",
+  "linkedEntityId": "11111111-1111-4111-8111-111111111111",
+  "linkedText": "Done",
+  "unlinkedText": "Next",
+  "markdown": "- [x] Done [[Task: 11111111-1111-4111-8111-111111111111]]\n\n- [ ] Next"
+}

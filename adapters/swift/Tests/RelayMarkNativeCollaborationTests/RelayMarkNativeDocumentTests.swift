@@ -5,6 +5,78 @@ import RelayMarkCollaboration
 
 @MainActor
 final class RelayMarkNativeDocumentTests: XCTestCase {
+    func testRealBrowserTaskListFixtureNativeReadToggleAndTextConverge() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-experimental", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"])))
+        let native = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        try native.applyUpdate(seed)
+        try browser.applyUpdate(seed)
+        XCTAssertFalse(native.supportsOrdinaryProseEditing())
+        let items = try native.taskItems()
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(items[0].entityID, fixture["linkedEntityId"])
+        XCTAssertEqual(items[0].checked, true)
+        XCTAssertEqual(items[0].paragraphs, [fixture["linkedText"]])
+        XCTAssertEqual(items[1].entityID, nil)
+        XCTAssertEqual(items[1].checked, false)
+        XCTAssertEqual(items[1].paragraphs, [fixture["unlinkedText"]])
+        XCTAssertEqual(items[1].anchor, try browser.anchor(path: [0, 1], index: 0))
+
+        let toggle = try native.setTaskItemChecked(anchor: items[0].anchor,
+                                                    expectedEntityID: items[0].entityID, checked: false)
+        try browser.applyUpdate(toggle)
+        let text = try native.replaceTaskItemText(anchor: items[0].anchor,
+                                                   expectedEntityID: items[0].entityID,
+                                                   start: 0, end: 4, text: "Done today")
+        try browser.applyUpdate(text)
+        XCTAssertEqual(try native.taskItems()[0].entityID, fixture["linkedEntityId"])
+        XCTAssertEqual(try native.taskItems()[0].paragraphs, ["Done today"])
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        let before = try native.encodeUpdate()
+        XCTAssertThrowsError(try native.setTaskItemChecked(anchor: items[0].anchor,
+                                                             expectedEntityID: nil, checked: true))
+        XCTAssertEqual(try native.encodeUpdate(), before)
+    }
+
+    func testUnlinkedTaskAnchorSurvivesSiblingInsertionAndFailsAfterDeletion() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-experimental", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"])))
+        let native = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        try native.applyUpdate(seed)
+        try browser.applyUpdate(seed)
+        let unlinked = try native.taskItems()[1]
+        let insertion = try browser.edit(Data(#"{"kind":"insertNodes","path":[0],"index":1,"nodes":[{"kind":"element","name":"taskItem","attributes":{"checked":false},"children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Inserted"}]}]}]}]}"#.utf8))
+        for update in insertion { try native.applyUpdate(update) }
+        XCTAssertEqual(try native.taskItems().map { $0.paragraphs[0] }, ["Done", "Inserted", "Next"])
+        let toggle = try native.setTaskItemChecked(anchor: unlinked.anchor, expectedEntityID: nil, checked: true)
+        try browser.applyUpdate(toggle)
+        XCTAssertEqual(try native.taskItems().map(\.checked), [true, false, true])
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+
+        let deletion = try browser.edit(Data(#"{"kind":"deleteNodes","path":[0],"index":2,"length":1}"#.utf8))
+        for update in deletion { try native.applyUpdate(update) }
+        let before = try native.encodeUpdate()
+        XCTAssertThrowsError(try native.setTaskItemChecked(anchor: unlinked.anchor,
+                                                             expectedEntityID: nil, checked: false))
+        XCTAssertEqual(try native.encodeUpdate(), before)
+    }
+
+    func testTaskListRejectsUnsupportedMetadataWithoutMutatingReplica() throws {
+        let browser = try RelayMarkCollaborationDocument()
+        _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"taskList","children":[{"kind":"element","name":"taskItem","attributes":{"checked":true,"lastText":"shadow"},"children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"No"}]}]}]}]}]}"#.utf8))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(browser.encodeUpdate())
+        let before = try native.encodeUpdate()
+        XCTAssertThrowsError(try native.taskItems())
+        XCTAssertEqual(try native.encodeUpdate(), before)
+    }
+
     func testBasicMarkdownHeadingEditPreservesTagAndHeadingID() throws {
         let browser = try RelayMarkCollaborationDocument()
         _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":2,"headingId":"agenda"},"children":[{"kind":"text","delta":[{"insert":"Agenda"}]}]},{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Notes"}]}]}]}"#.utf8))

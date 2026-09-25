@@ -36,3 +36,11 @@ The server/browser direction keeps Phoenix, Yex, Yjs, and y-protocols. Hocuspocu
 and y-websocket are reference implementations for provider behavior, not new
 transport or service dependencies. Ordinary prose uses standard session undo;
 advanced contribution-history work is outside this milestone.
+
+An opt-in task-list experiment uses the browser's real Yjs XML shape:
+`taskList` → `taskItem` (`checked`, optional `entityId`) → paragraph. The native
+adapter can read these items and make narrow checked/text updates against a
+Yjs relative item anchor while preserving the task UUID. It rejects unknown
+metadata and nested shapes it cannot edit. Neither browser nor native live
+admission enables this extension yet; task actions and native task UI remain
+host-owned work after schema negotiation.

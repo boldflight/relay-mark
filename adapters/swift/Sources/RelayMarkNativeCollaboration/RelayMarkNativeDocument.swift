@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import RelayMarkProseProjection
 import YSwift
 
@@ -535,6 +536,138 @@ public final class RelayMarkNativeDocument {
         }
         undoManager.wrap()
         return update
+    }
+
+    /// A task item in the negotiated collaborative XML. `anchor` is a Yjs
+    /// relative position tied to the XML item identity, including unlinked
+    /// checklist items. The host still binds it to an authorized document.
+    public struct TaskItem: Equatable, Sendable {
+        public let anchor: Data
+        public let entityID: String?
+        public let checked: Bool
+        public let paragraphs: [String]
+    }
+
+    private struct TaskRecord {
+        let node: YXmlNode
+        let item: TaskItem
+    }
+
+    /// Read task lists without making them eligible for the ordinary prose
+    /// editor. Unknown task/item metadata and unsupported nested content fail
+    /// closed; no XML is flattened or rewritten.
+    public func taskItems() throws -> [TaskItem] {
+        try taskRecords().map(\.item)
+    }
+
+    /// Toggle a specific existing XML item. Resolve its relative position and
+    /// revalidate its UUID immediately before mutation, so sibling insertion
+    /// cannot retarget an unlinked item through a stale numeric path.
+    public func setTaskItemChecked(anchor: Data, expectedEntityID: String?, checked: Bool) throws -> Data {
+        let record = try taskRecord(anchor: anchor, expectedEntityID: expectedEntityID)
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try record.node.setAttribute("checked", value: checked, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    /// Edit a one-paragraph, one-text-leaf item without replacing the task
+    /// container or its UUID. More complex nested content remains read-only.
+    public func replaceTaskItemText(anchor: Data, expectedEntityID: String?,
+                                    start: Int, end: Int, text: String) throws -> Data {
+        let record = try taskRecord(anchor: anchor, expectedEntityID: expectedEntityID)
+        guard record.node.length() == 1,
+              let paragraph = record.node.child(at: 0), paragraph.tag() == "paragraph",
+              try paragraph.attributes().isEmpty, paragraph.length() == 1,
+              let leaf = paragraph.child(at: 0), leaf.kind() == "text",
+              let old = record.item.paragraphs.first,
+              start >= 0, end >= start, end <= old.utf16.count,
+              Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
+              !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }),
+              text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072 else {
+            throw Failure.unsupportedProseEdit
+        }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            if end > start {
+                try leaf.removeText(start: UInt32(start), length: UInt32(end - start), in: transaction)
+            }
+            if !text.isEmpty { try leaf.insert(text, at: UInt32(start), in: transaction) }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    private func taskRecord(anchor: Data, expectedEntityID: String?) throws -> TaskRecord {
+        guard let resolved = try document.resolveXmlRelativePosition(anchor), resolved.index == 0,
+              let record = try taskRecords().first(where: { $0.node.isSameNode(as: resolved.node) }),
+              record.item.entityID == expectedEntityID else { throw Failure.invalidAnchor }
+        return record
+    }
+
+    private func taskRecords() throws -> [TaskRecord] {
+        guard integrationStatus().isComplete else { throw Failure.unsupportedProseEdit }
+        var result: [TaskRecord] = []
+        for list in root.children() {
+            guard list.tag() == "taskList" else {
+                if containsTaskNode(list) { throw Failure.unsupportedProseEdit }
+                continue
+            }
+            guard list.kind() == "element", try list.attributes().isEmpty else { throw Failure.unsupportedProseEdit }
+            for item in list.children() {
+                guard item.kind() == "element", item.tag() == "taskItem" else { throw Failure.unsupportedProseEdit }
+                let attributes = try item.attributes()
+                guard Set(attributes.keys).isSubset(of: ["checked", "entityId"]), item.length() > 0 else {
+                    throw Failure.unsupportedProseEdit
+                }
+                let checked: Bool
+                if let value = attributes["checked"] {
+                    guard let number = value as? NSNumber,
+                          CFGetTypeID(number) == CFBooleanGetTypeID() else { throw Failure.unsupportedProseEdit }
+                    checked = number.boolValue
+                } else { checked = false }
+                let entityID: String?
+                if let value = attributes["entityId"], !(value is NSNull) {
+                    guard let id = value as? String,
+                          id.range(of: #"\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z"#,
+                                   options: .regularExpression) != nil else { throw Failure.unsupportedProseEdit }
+                    entityID = id
+                } else { entityID = nil }
+                var paragraphs: [String] = []
+                for paragraph in item.children() {
+                    guard paragraph.kind() == "element", paragraph.tag() == "paragraph",
+                          try paragraph.attributes().isEmpty else { throw Failure.unsupportedProseEdit }
+                    var content = ""
+                    for inline in paragraph.children() {
+                        if inline.kind() == "text" {
+                            let runs = try inline.delta()
+                            guard runs.allSatisfy({ run in
+                                run.attributes.isEmpty && !run.text.unicodeScalars.contains(where: {
+                                    $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}"
+                                })
+                            }) else { throw Failure.unsupportedProseEdit }
+                            content += runs.map(\.text).joined()
+                        } else if inline.kind() == "element", inline.tag() == "hardBreak",
+                                  try inline.attributes().isEmpty, inline.length() == 0 {
+                            content += "\u{2028}"
+                        } else { throw Failure.unsupportedProseEdit }
+                    }
+                    paragraphs.append(content)
+                }
+                result.append(TaskRecord(node: item,
+                    item: TaskItem(anchor: try item.relativePosition(at: 0), entityID: entityID,
+                                   checked: checked, paragraphs: paragraphs)))
+            }
+        }
+        return result
+    }
+
+    private func containsTaskNode(_ node: YXmlNode) -> Bool {
+        if node.tag() == "taskList" || node.tag() == "taskItem" { return true }
+        guard node.kind() == "element" || node.kind() == "fragment" else { return false }
+        return node.children().contains(where: containsTaskNode)
     }
 
     private func snapshot(_ node: YXmlNode) throws -> [String: Any] {
