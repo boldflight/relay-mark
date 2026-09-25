@@ -18,6 +18,8 @@ Both native prose admission methods and the native prose projection continue to 
 
 Do not enable table enrollment until the source roundtrip is explicit and tested in every consumer. GFM pipe tables cannot encode row/column spans or column widths. Even a rectangular table is not automatically lossless: multiple blocks inside a cell, header placement and formatting need separate checks.
 
+One narrow source case is now proven. The committed 2×2 unmerged Yjs/ProseMirror fixture passes through the installed `tiptap-markdown` 0.9.0 serializer to `| Name | Value |` / `| --- | --- |` / `| Hello 🌍 | 二 |` and back to the same ProseMirror JSON, with TipTap's optional trailing empty paragraph disabled for the probe. Relay's MDEx parser reads exactly two rows, two columns, and the same four cell texts. Both live server profiles still reject that Markdown table; this is evidence for a future negotiated subset, not enabled table collaboration. The merged-cell fixtures remain Yjs-only because pipe Markdown cannot represent their spans or widths.
+
 The installed `tiptap-markdown` table serializer checks spans, header placement and multiple cell blocks, falling back to its HTML serializer for incompatible tables. The current server `Relay.Markdown` uses MDEx with `unsafe: false`; the parent investigation found that this omits raw table HTML. Therefore that fallback is currently unsafe as a *content-preservation* path. Do not merely turn on global unsafe HTML.
 
 TipTap 3.30.2's newer built-in `renderTableToMarkdown` is not a merged-cell escape hatch: its implementation builds rows of `{text, isHeader, align}` and does not preserve `colspan`, `rowspan` or `colwidth`. A dependency switch alone would silently change meaning.
@@ -34,9 +36,12 @@ RELAY_TABLE_NATIVE_OUTPUT=/tmp/relay-table-native-output.json \
   swift test --filter RelayMarkNativeTableProbeTests
 node scripts/collaboration-table-probe.mjs /absolute/path/to/web/assets \
   /tmp/relay-table-native-output.json
+node scripts/collaboration-table-probe.mjs /absolute/path/to/web/assets --source-only
 ```
 
-The first command regenerates experimental binary fixtures (Yjs replica IDs may differ). The last reads the committed fixtures and verifies native re-encoded updates; it does not overwrite fixtures. The focused Elixir test is `adapters/elixir/test/relay_mark/collaborative_table_probe_test.exs`; it consumes the exact same snapshot fixture. In the probe environment it passed via `elixir -pa <existing-jason-ebin> -r adapters/elixir/lib/relay_mark/collaborative_prose.ex -e 'ExUnit.start(); Code.require_file("adapters/elixir/test/relay_mark/collaborative_table_probe_test.exs")'`, without starting a server or database.
+The first command regenerates experimental binary fixtures (Yjs replica IDs may differ). The second reads the committed fixtures and verifies native re-encoded updates; it does not overwrite fixtures. The focused Elixir test is `adapters/elixir/test/relay_mark/collaborative_table_probe_test.exs`; it consumes the exact same snapshot fixture. In the probe environment it passed via `elixir -pa <existing-jason-ebin> -r adapters/elixir/lib/relay_mark/collaborative_prose.ex -e 'ExUnit.start(); Code.require_file("adapters/elixir/test/relay_mark/collaborative_table_probe_test.exs")'`, without starting a server or database.
+
+The `--source-only` command reads the committed rectangle fixture and verifies the community serializer/parse roundtrip without rewriting its Yjs update. Relay Elixir's `test/relay/sync/document_prose_enrollment_test.exs` separately checks the MDEx table shape and continued v1/v2 seed rejection.
 
 Verified with installed Swift 6.4/Xcode.app: one native XCTest over three fixtures, one Elixir test over three fixtures, and three native-to-community-Yjs roundtrips. No platform app build, Yex persistence test, interactive table UI, or live schema change was performed.
 

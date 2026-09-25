@@ -231,7 +231,8 @@
             ]
           }
         ]
-      }
+      },
+      "markdown": "| Name | Value |\n| --- | --- |\n| Hello 🌍 | 二 |\n"
     },
     {
       "name": "colspan",
