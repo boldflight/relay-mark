@@ -83,6 +83,8 @@ public struct RelayMarkCollaborativeProse {
                 case "paragraph": kind = .paragraph
                 case "heading":
                     if !validInteger(attributes["level"], minimum: 1, maximum: 6) { supported = false }
+                    if let headingID = attributes["headingId"],
+                       (headingID as? String)?.isEmpty != false { supported = false }
                     kind = .header(level: min(6, max(1, attributes["level"] as? Int ?? 1)))
                 case "codeBlock":
                     if let language = attributes["language"], !(language is NSNull), !(language is String) { supported = false }
@@ -97,7 +99,7 @@ public struct RelayMarkCollaborativeProse {
                 case "listItem": kind = .listItem(ordinal: ordinal + index)
                 default: supported = false; kind = .paragraph
                 }
-                let allowed: Set<String> = name == "heading" ? ["level"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
+                let allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
                 if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
                 let previousCount = ranges.count

@@ -44,6 +44,21 @@ defmodule RelayMark.CollaborativeProseTest do
              ])
   end
 
+  test "heading IDs project as RelayMark suffixes and invalid IDs fail closed" do
+    heading = %{
+      "tag" => "heading",
+      "attributes" => %{"level" => 2, "headingId" => "h-stable"},
+      "children" => [%{"delta" => [%{"insert" => "Shared heading"}]}]
+    }
+
+    assert {:ok, "## Shared heading {#h-stable}"} = CollaborativeProse.to_markdown([heading])
+
+    assert {:error, {:unsupported_collaboration_content, :heading_id}} =
+             CollaborativeProse.to_markdown([
+               put_in(heading, ["attributes", "headingId"], "bad space")
+             ])
+  end
+
   test "code fences preserve content" do
     node = %{
       "tag" => "codeBlock",

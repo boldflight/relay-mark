@@ -26,6 +26,12 @@ updates, because an ordinary-looking snapshot can still have unresolved Yrs
 structs or deletes. Unsupported structured documents remain on the existing
 adapter. A host must persist each returned update before reporting local save.
 
+The first basic-Markdown operation also admits top-level paragraphs and
+headings (including stable `headingId`) containing text leaves and hard breaks.
+It edits within one block and can insert/delete a hard break without changing
+the heading element. This is adapter capability, not yet app-session admission;
+the host must use it in the same editor path only after its own gates pass.
+
 The server/browser direction keeps Phoenix, Yex, Yjs, and y-protocols. Hocuspocus
 and y-websocket are reference implementations for provider behavior, not new
 transport or service dependencies. Ordinary prose uses standard session undo;

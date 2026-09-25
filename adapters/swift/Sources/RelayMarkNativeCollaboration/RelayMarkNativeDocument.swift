@@ -186,6 +186,148 @@ public final class RelayMarkNativeDocument {
         let attributes: [String: Any]
     }
 
+    private struct BasicPart {
+        let node: YXmlNode
+        let childIndex: Int
+        let start: Int
+        let end: Int
+        let isText: Bool
+    }
+
+    private struct BasicBlock {
+        let node: YXmlNode
+        let start: Int
+        let end: Int
+        let parts: [BasicPart]
+    }
+
+    /// The next native editing scope: top-level paragraphs and headings with
+    /// text leaves and hard breaks. More complex XML stays intact and read-only.
+    public func supportsBasicMarkdownEditing() -> Bool {
+        guard let blocks = try? basicBlocks() else { return false }
+        return !blocks.isEmpty
+    }
+
+    /// Edit one basic Markdown block without changing its tag or attributes.
+    /// This feeds the same host editor path after admission; it is not a second
+    /// document model. LF/structural block changes remain on the paragraph path.
+    public func replaceBasicMarkdownProse(start: Int, end: Int, text: String) throws -> Data {
+        let blocks = try basicBlocks()
+        let projected = try proseProjection()
+        let old = String(projected.text.characters)
+        guard projected.isEditable, start >= 0, end >= start, end <= old.utf16.count,
+              Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
+              !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }),
+              text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072,
+              let block = blocks.first(where: { start >= $0.start && end <= $0.end }) else {
+            throw Failure.unsupportedProseEdit
+        }
+        // A hard break is one atom. A caller may delete it or insert exactly
+        // one new break; arbitrary mixed structural replacement is rejected.
+        let insertBreak = text == "\u{2028}" && start == end
+        guard !text.contains("\u{2028}") || insertBreak else { throw Failure.unsupportedProseEdit }
+        if block.parts.isEmpty {
+            guard start == end, start == block.start, !text.isEmpty else { throw Failure.unsupportedProseEdit }
+            let update = try document.transactSync(origin: localOrigin) { transaction in
+                let leaf = try block.node.insertText(at: 0, in: transaction)
+                if insertBreak {
+                    _ = try block.node.insertElement(named: "hardBreak", at: 1, in: transaction)
+                    _ = try block.node.insertText(at: 2, in: transaction)
+                } else {
+                    try leaf.insert(text, at: 0, in: transaction)
+                }
+                return Data(transaction.transactionEncodeUpdate())
+            }
+            undoManager.wrap()
+            return update
+        }
+        guard let target = block.parts.first(where: { $0.isText && start >= $0.start && start <= $0.end }),
+              let insertionIndex = UInt32(exactly: start - target.start) else {
+            throw Failure.unsupportedProseEdit
+        }
+        let affected = block.parts.filter { $0.start < end && $0.end > start }
+        guard insertBreak || !affected.isEmpty || !text.isEmpty else { throw Failure.unsupportedProseEdit }
+        if insertBreak {
+            let suffix = try Self.suffixRuns(of: target.node, after: Int(insertionIndex))
+            let suffixLength = target.end - start
+            let update = try document.transactSync(origin: localOrigin) { transaction in
+                if suffixLength > 0 {
+                    try target.node.removeText(start: insertionIndex, length: UInt32(suffixLength), in: transaction)
+                }
+                _ = try block.node.insertElement(named: "hardBreak", at: UInt32(target.childIndex + 1), in: transaction)
+                let right = try block.node.insertText(at: UInt32(target.childIndex + 2), in: transaction)
+                var offset = 0
+                for run in suffix where !run.text.isEmpty {
+                    try right.insert(run.text, attributes: run.attributes, at: UInt32(offset), in: transaction)
+                    offset += run.text.utf16.count
+                }
+                return Data(transaction.transactionEncodeUpdate())
+            }
+            undoManager.wrap()
+            return update
+        }
+        // Remove from right to left so original child indices stay valid. A
+        // selected hardBreak is removed as an XML node; untouched siblings and
+        // heading identity remain integrated in Yrs.
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            for part in affected.reversed() {
+                if part.isText {
+                    let lower = max(start, part.start), upper = min(end, part.end)
+                    if upper > lower {
+                        try part.node.removeText(start: UInt32(lower - part.start),
+                                                 length: UInt32(upper - lower), in: transaction)
+                    }
+                } else {
+                    try block.node.removeChildren(start: UInt32(part.childIndex), length: 1, in: transaction)
+                }
+            }
+            if !text.isEmpty { try target.node.insert(text, at: insertionIndex, in: transaction) }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    private func basicBlocks() throws -> [BasicBlock] {
+        var blocks: [BasicBlock] = []
+        var offset = 0
+        for node in root.children() {
+            guard node.kind() == "element", let tag = node.tag(),
+                  tag == "paragraph" || tag == "heading" else { throw Failure.unsupportedProseEdit }
+            let attributes = try node.attributes()
+            if tag == "paragraph" {
+                guard attributes.isEmpty else { throw Failure.unsupportedProseEdit }
+            } else {
+                guard Set(attributes.keys).isSubset(of: ["level", "headingId"]),
+                      (attributes["level"] == nil || (attributes["level"] as? Int).map({ (1...6).contains($0) }) == true),
+                      (attributes["headingId"] == nil || (attributes["headingId"] as? String)?.isEmpty == false) else {
+                    throw Failure.unsupportedProseEdit
+                }
+            }
+            if !blocks.isEmpty { offset += 1 }
+            let blockStart = offset
+            var parts: [BasicPart] = []
+            for (index, child) in node.children().enumerated() {
+                let kind = child.kind()
+                if kind == "text" {
+                    let value = try child.delta().map(\.text).joined()
+                    guard !value.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
+                        throw Failure.unsupportedProseEdit
+                    }
+                    let end = offset + value.utf16.count
+                    parts.append(BasicPart(node: child, childIndex: index, start: offset, end: end, isText: true))
+                    offset = end
+                } else if kind == "element", child.tag() == "hardBreak", try child.attributes().isEmpty, child.length() == 0 {
+                    parts.append(BasicPart(node: child, childIndex: index, start: offset, end: offset + 1, isText: false))
+                    offset += 1
+                } else { throw Failure.unsupportedProseEdit }
+            }
+            guard parts.isEmpty || parts.contains(where: \.isText) else { throw Failure.unsupportedProseEdit }
+            blocks.append(BasicBlock(node: node, start: blockStart, end: offset, parts: parts))
+        }
+        return blocks
+    }
+
     private func paragraphs() throws -> [Paragraph] {
         var blocks: [Paragraph] = []
         for paragraph in root.children() {

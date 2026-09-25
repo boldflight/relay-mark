@@ -5,6 +5,70 @@ import RelayMarkCollaboration
 
 @MainActor
 final class RelayMarkNativeDocumentTests: XCTestCase {
+    func testBasicMarkdownHeadingEditPreservesTagAndHeadingID() throws {
+        let browser = try RelayMarkCollaborationDocument()
+        _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":2,"headingId":"agenda"},"children":[{"kind":"text","delta":[{"insert":"Agenda"}]}]},{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Notes"}]}]}]}"#.utf8))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(browser.encodeUpdate())
+        XCTAssertTrue(native.supportsBasicMarkdownEditing())
+        XCTAssertFalse(native.supportsOrdinaryProseEditing())
+        let anchor = try native.anchor(path: [0, 0], index: 4)
+        let edit = try native.replaceBasicMarkdownProse(start: 0, end: 6, text: "Plan")
+        try browser.applyUpdate(edit)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "Plan\nNotes")
+        XCTAssertEqual(try native.resolve(anchor: anchor)?.path, [0, 0])
+        let blocks = try XCTUnwrap((JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])?["children"] as? [[String: Any]])
+        XCTAssertEqual(blocks[0]["name"] as? String, "heading")
+        XCTAssertEqual((blocks[0]["attributes"] as? [String: Any])?["headingId"] as? String, "agenda")
+        XCTAssertEqual((blocks[0]["attributes"] as? [String: Any])?["level"] as? Int, 2)
+        let before = try native.encodeUpdate()
+        XCTAssertThrowsError(try native.replaceBasicMarkdownProse(start: 2, end: 7, text: "flatten"))
+        XCTAssertEqual(try native.encodeUpdate(), before)
+    }
+
+    func testBasicMarkdownEmptyHeadingAcceptsFirstTextWithoutReplacingElement() throws {
+        let browser = try RelayMarkCollaborationDocument()
+        _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":1,"headingId":"empty"},"children":[]}]}"#.utf8))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(browser.encodeUpdate())
+        XCTAssertTrue(native.supportsBasicMarkdownEditing())
+        try browser.applyUpdate(native.replaceBasicMarkdownProse(start: 0, end: 0, text: "Title"))
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "Title")
+    }
+
+    func testBasicMarkdownHardBreakEditPreservesSurroundingTextAndBrowserParity() throws {
+        let browser = try RelayMarkCollaborationDocument()
+        _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":3,"headingId":"two-lines"},"children":[{"kind":"text","delta":[{"insert":"One"}]},{"kind":"element","name":"hardBreak","children":[]},{"kind":"text","delta":[{"insert":"Two"}]}]}]}"#.utf8))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(browser.encodeUpdate())
+        XCTAssertTrue(native.supportsBasicMarkdownEditing())
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "One\u{2028}Two")
+        let otherLeafAnchor = try native.anchor(path: [0, 2], index: 2)
+
+        let edit = try native.replaceBasicMarkdownProse(start: 4, end: 7, text: "Three")
+        try browser.applyUpdate(edit)
+        XCTAssertEqual(try native.resolve(anchor: otherLeafAnchor)?.path, [0, 2])
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "One\u{2028}Three")
+        let insertion = try native.replaceBasicMarkdownProse(start: 6, end: 6, text: "\u{2028}")
+        try browser.applyUpdate(insertion)
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "One\u{2028}Th\u{2028}ree")
+        let deletion = try native.replaceBasicMarkdownProse(start: 3, end: 4, text: "")
+        try browser.applyUpdate(deletion)
+        XCTAssertEqual(String(try native.proseProjection().text.characters), "OneTh\u{2028}ree")
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+        let blocks = try XCTUnwrap((JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])?["children"] as? [[String: Any]])
+        XCTAssertEqual((blocks[0]["attributes"] as? [String: Any])?["headingId"] as? String, "two-lines")
+        let undo = try XCTUnwrap(native.undo())
+        try browser.applyUpdate(undo)
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
+    }
+
     func testProseFormattingIsOnePortableMarkOnlyTransactionAcrossParagraphs() throws {
         let native = RelayMarkNativeDocument()
         let browser = try RelayMarkCollaborationDocument()

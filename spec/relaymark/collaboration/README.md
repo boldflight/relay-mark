@@ -24,7 +24,7 @@ The root is `Y.XmlFragment('default')`. Elements use ProseMirror node names, not
 | Element | Attributes | Children and meaning |
 | --- | --- | --- |
 | `paragraph` | none | Inline content |
-| `heading` | `level`: integer 1 through 6; default 1 | Inline content |
+| `heading` | `level`: integer 1 through 6; default 1; optional nonempty `headingId` | Inline content |
 | `blockquote` | none | Block children |
 | `bulletList` | none | `listItem` children |
 | `orderedList` | `start`: positive integer; default 1 | `listItem` children |
@@ -34,6 +34,10 @@ The root is `Y.XmlFragment('default')`. Elements use ProseMirror node names, not
 | `hardBreak` | none | No children; inline line break |
 
 An ordinary empty editable document is a paragraph with empty inline content. An empty binary update is a valid transport update and is not evidence that initial hydration completed. A fragment without supported text blocks may remain read-only in a bounded native projection.
+
+`headingId` is the stable author-facing heading anchor carried by the host's
+Markdown heading syntax (`{#id}`). Editors preserve it when editing heading
+text; it is not derived from or replaced by a Yjs XML position.
 
 Allowed text marks are `bold`, `italic`, `strike`, `code`, and `link`. Boolean-style formatting uses an attribute object (normally `{}`). `null` removes a mark in an edit operation; it is not an enabled style. `link` contains `href` plus optional `target`, `rel`, and `class` presentation attributes. Unknown non-null attributes fail closed for canonical source serialization. Link titles are not yet in this profile; replicas preserve them, but native editing/source projection must not discard them to obtain acceptance.
 
@@ -84,10 +88,10 @@ Presence uses standard y-protocols awareness binary updates, not a custom cursor
 
 | Capability | Browser v1 profile | Native prose projection | Elixir source codec |
 | --- | --- | --- | --- |
-| Paragraph/heading/list/quote/code block | Editable | Editable with structural intents | Serialized |
-| Five v1 marks and entity links | Editable | Editable, preserving supported metadata | Serialized |
-| Horizontal rule / hard break | Editable | Editable atomic rule / inline break | Serialized |
-| Multiple text/hard-break children in one block | ProseMirror binding | Editable with per-leaf UTF-16 mapping | Supported text/hard-break sequence |
+| Paragraph/heading/list/quote/code block | Editable | Projected; native editing currently covers ordinary paragraphs and one-block heading/text edits | Serialized |
+| Five v1 marks and entity links | Editable | Projected; native prose-range edit currently covers bold/italic | Serialized |
+| Horizontal rule / hard break | Editable | Projected; native one-block edit inserts/deletes hard breaks, rules remain read-only | Serialized |
+| Multiple text/hard-break children in one block | ProseMirror binding | Projected; native one-block text replacement and hard-break operations | Supported text/hard-break sequence |
 | Unknown schema or unsupported attributes | Reject before binding/authoring | Preserve and refuse editing | Refuse lossy serialization |
 | Rich noncollaborative editor extensions | Legacy editor only | Outside this adapter | Outside v1 |
 

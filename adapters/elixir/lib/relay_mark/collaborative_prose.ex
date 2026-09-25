@@ -25,10 +25,12 @@ defmodule RelayMark.CollaborativeProse do
         inline(children)
 
       "heading" ->
-        exact_attrs(attrs, ["level"])
+        exact_attrs(attrs, ["level", "headingId"])
         level = attrs["level"] || 1
         if level not in 1..6, do: unsupported(:heading_level)
-        String.duplicate("#", level) <> " " <> inline(children)
+
+        String.duplicate("#", level) <>
+          " " <> inline(children) <> heading_id_suffix(attrs["headingId"])
 
       "blockquote" ->
         exact_attrs(attrs, [])
@@ -71,6 +73,16 @@ defmodule RelayMark.CollaborativeProse do
   end
 
   defp block(_), do: unsupported(:block)
+
+  defp heading_id_suffix(nil), do: ""
+
+  defp heading_id_suffix(id) when is_binary(id) and byte_size(id) in 1..128 do
+    if Regex.match?(~r/\A[A-Za-z0-9][A-Za-z0-9_-]*\z/, id),
+      do: " {##{id}}",
+      else: unsupported(:heading_id)
+  end
+
+  defp heading_id_suffix(_), do: unsupported(:heading_id)
 
   defp list(children, marker) do
     children
