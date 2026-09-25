@@ -1,0 +1,92 @@
+import Foundation
+import XCTest
+import RelayMarkSwift
+@testable import RelayMarkNativeCollaboration
+
+@MainActor
+final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
+    private func fixture() throws -> (update: Data, expected: RelayMarkDocument) {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "markdown-blocks-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        XCTAssertEqual(fixture["root"] as? String, "default")
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let expected = try RelayMarkDocument.decodeJSON(JSONSerialization.data(
+            withJSONObject: try XCTUnwrap(fixture["expected_ast"])))
+        return (update, expected)
+    }
+
+    func testCommunityYjsFixtureProjectsToExactPortableASTAfterReplayAndReopen() throws {
+        let (update, expected) = try fixture()
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try native.applyUpdate(update)
+        XCTAssertTrue(native.integrationStatus().isComplete)
+        let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(ast, expected)
+        XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "heading", "quote", "list", "list", "code", "horizontal_rule", "paragraph"])
+        XCTAssertFalse(try native.proseProjection().isEditable)
+
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(try native.encodeUpdate())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+    }
+
+    func testMixedTableFixtureKeepsExistingTableProjection() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "table-mixed-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native),
+                       try RelayMarkNativeMixedTableProjection.project(snapshot: native.snapshot()))
+    }
+
+    func testRejectsUnknownMetadataMarksDuplicateIDsAndDeeperLists() throws {
+        let (update, _) = try fixture()
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        func changed(_ edit: (inout [[String: Any]]) -> Void) throws -> Data {
+            var snapshot = original
+            var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+            edit(&blocks)
+            snapshot["children"] = blocks
+            return try JSONSerialization.data(withJSONObject: snapshot)
+        }
+        let unknown = try changed { blocks in
+            var attrs = blocks[0]["attributes"] as! [String: Any]
+            attrs["style"] = "unexpected"
+            blocks[0]["attributes"] = attrs
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: unknown))
+
+        let duplicate = try changed { blocks in
+            var attrs = blocks[1]["attributes"] as! [String: Any]
+            attrs["relaymarkId"] = (blocks[0]["attributes"] as! [String: Any])["relaymarkId"]
+            blocks[1]["attributes"] = attrs
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: duplicate))
+
+        let marked = try changed { blocks in
+            var leaves = blocks[0]["children"] as! [[String: Any]]
+            var runs = leaves[0]["delta"] as! [[String: Any]]
+            runs[0]["attributes"] = ["bold": [:]]
+            leaves[0]["delta"] = runs
+            blocks[0]["children"] = leaves
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: marked))
+
+        let deeper = try changed { blocks in
+            var items = blocks[3]["children"] as! [[String: Any]]
+            var firstChildren = items[0]["children"] as! [[String: Any]]
+            var nestedItems = firstChildren[1]["children"] as! [[String: Any]]
+            var nestedChildren = nestedItems[0]["children"] as! [[String: Any]]
+            nestedChildren.append(firstChildren[1])
+            nestedItems[0]["children"] = nestedChildren
+            firstChildren[1]["children"] = nestedItems
+            items[0]["children"] = firstChildren
+            blocks[3]["children"] = items
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: deeper))
+    }
+}

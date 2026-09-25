@@ -1,0 +1,400 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91503,
+  "source": "Community TipTap StarterKit/PaperHeading/UniqueID + y-tiptap + Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before 🌍"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "second line"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000002",
+          "level": 2,
+          "headingId": "shared-heading"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Shared heading"
+          }
+        ]
+      },
+      {
+        "type": "blockquote",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000003"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000004"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "First quote"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000005"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Second quote"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "attrs": {
+          "relaymarkId": "b0000000000004000800000000000000d"
+        },
+        "content": [
+          {
+            "type": "listItem",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000009"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b0000000000004000800000000000000a"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Outer"
+                  }
+                ]
+              },
+              {
+                "type": "orderedList",
+                "attrs": {
+                  "relaymarkId": "b00000000000040008000000000000008",
+                  "start": 3,
+                  "type": null
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "relaymarkId": "b00000000000040008000000000000006"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "relaymarkId": "b00000000000040008000000000000007"
+                        },
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Nested Ω"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "attrs": {
+              "relaymarkId": "b0000000000004000800000000000000b"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b0000000000004000800000000000000c"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Sibling"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "orderedList",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000010",
+          "start": 7,
+          "type": null
+        },
+        "content": [
+          {
+            "type": "listItem",
+            "attrs": {
+              "relaymarkId": "b0000000000004000800000000000000e"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b0000000000004000800000000000000f"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Numbered"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "codeBlock",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000011",
+          "language": "swift"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "let earth = \"🌍\"\nprint(earth)"
+          }
+        ]
+      },
+      {
+        "type": "horizontalRule",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000012"
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000013"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000001",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before 🌍"
+          },
+          {
+            "type": "hard_break"
+          },
+          {
+            "type": "text",
+            "text": "second line"
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000002",
+        "type": "heading",
+        "props": {
+          "level": 2,
+          "headingId": "shared-heading"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Shared heading"
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000003",
+        "type": "quote",
+        "content": [
+          {
+            "id": "b00000000000040008000000000000004",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "First quote"
+              }
+            ]
+          },
+          {
+            "id": "b00000000000040008000000000000005",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Second quote"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b0000000000004000800000000000000d",
+        "type": "list",
+        "props": {
+          "kind": "bullet"
+        },
+        "content": [
+          {
+            "id": "b00000000000040008000000000000009",
+            "type": "list_item",
+            "content": [
+              {
+                "id": "b0000000000004000800000000000000a",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Outer"
+                  }
+                ]
+              },
+              {
+                "id": "b00000000000040008000000000000008",
+                "type": "list",
+                "props": {
+                  "kind": "ordered",
+                  "start": 3
+                },
+                "content": [
+                  {
+                    "id": "b00000000000040008000000000000006",
+                    "type": "list_item",
+                    "content": [
+                      {
+                        "id": "b00000000000040008000000000000007",
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Nested Ω"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "b0000000000004000800000000000000b",
+            "type": "list_item",
+            "content": [
+              {
+                "id": "b0000000000004000800000000000000c",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Sibling"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000010",
+        "type": "list",
+        "props": {
+          "kind": "ordered",
+          "start": 7
+        },
+        "content": [
+          {
+            "id": "b0000000000004000800000000000000e",
+            "type": "list_item",
+            "content": [
+              {
+                "id": "b0000000000004000800000000000000f",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Numbered"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000011",
+        "type": "code",
+        "props": {
+          "language": "swift"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "let earth = \"🌍\"\nprint(earth)"
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000012",
+        "type": "horizontal_rule",
+        "content": []
+      },
+      {
+        "id": "b00000000000040008000000000000013",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "update": "AULvygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDvygUABgQA78oFAQtCZWZvcmUg8J+MjYfvygUBAwloYXJkQnJlYWuH78oFCwYEAO/KBQwLc2Vjb25kIGxpbmUoAO/KBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDGH78oFAAMHaGVhZGluZwcA78oFGQYEAO/KBRoOU2hhcmVkIGhlYWRpbmcoAO/KBRkLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDIoAO/KBRkFbGV2ZWwBfQIoAO/KBRkJaGVhZGluZ0lkAXcOc2hhcmVkLWhlYWRpbmeH78oFGQMKYmxvY2txdW90ZQcA78oFLAMJcGFyYWdyYXBoBwDvygUtBgQA78oFLgtGaXJzdCBxdW90ZSgA78oFLQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNIfvygUtAwlwYXJhZ3JhcGgHAO/KBTsGBADvygU8DFNlY29uZCBxdW90ZSgA78oFOwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNSgA78oFLAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwM4fvygUsAwpidWxsZXRMaXN0BwDvygVLAwhsaXN0SXRlbQcA78oFTAMJcGFyYWdyYXBoBwDvygVNBgQA78oFTgVPdXRlcigA78oFTQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwYYfvygVNAwtvcmRlcmVkTGlzdAcA78oFVQMIbGlzdEl0ZW0HAO/KBVYDCXBhcmFncmFwaAcA78oFVwYEAO/KBVgJTmVzdGVkIM6pKADvygVXC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDA3KADvygVWC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDA2KADvygVVC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDA4KADvygVVBXN0YXJ0AX0DKADvygVMC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDA5h+/KBUwDCGxpc3RJdGVtBwDvygVmAwlwYXJhZ3JhcGgHAO/KBWcGBADvygVoB1NpYmxpbmcoAO/KBWcLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGMoAO/KBWYLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGIoAO/KBUsLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGSH78oFSwMLb3JkZXJlZExpc3QHAO/KBXMDCGxpc3RJdGVtBwDvygV0AwlwYXJhZ3JhcGgHAO/KBXUGBADvygV2CE51bWJlcmVkKADvygV1C3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDBmKADvygV0C3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDBlKADvygVzC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEwKADvygVzBXN0YXJ0AX0Hh+/KBXMDCWNvZGVCbG9jawcA78oFgwEGBADvygWEAR9sZXQgZWFydGggPSAi8J+MjSIKcHJpbnQoZWFydGgpKADvygWDAQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAxMSgA78oFgwEIbGFuZ3VhZ2UBdwVzd2lmdIfvygWDAQMOaG9yaXpvbnRhbFJ1bGUoAO/KBaQBC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEyh+/KBaQBAwlwYXJhZ3JhcGgHAO/KBaYBBgQA78oFpwEFQWZ0ZXIoAO/KBaYBC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEzAA=="
+}
