@@ -59,3 +59,18 @@ still bind anchors to an authorized document/incarnation and persist returned
 updates before reporting save. Reproduce the browser fixtures with
 `bun scripts/collaboration-structured-fixtures.mjs /absolute/path/to/web/assets`
 and run `swift test --filter RelayMarkNativeStructuredTests`.
+
+### Native inline mark command metadata
+
+`RelayMarkLocalTransaction.NativeFormatting.Mark` also represents `strike` and
+`code`; existing `bold`/`italic` encoded values are unchanged. The existing Yrs
+`formatProse` operation accepts both marks, rejects incompatible combinations
+before mutation, and accepts clearing other marks in the same transaction when
+code is enabled. It remains scoped to ordinary paragraphs. This metadata change
+does not enable link authoring or expand host admission to structured formatting.
+
+`inline-marks-v1.json` is produced by an actual Chromium TipTap StarterKit editor
+using `scripts/collaboration-inline-mark-fixture.mjs <web-assets-path>`. Its native
+conformance test checks portable updates, a Unicode boundary, paragraph text
+anchors, concurrent peer insertion and local undo/redo. Host UI and IME acceptance
+are separate Swift app gates.

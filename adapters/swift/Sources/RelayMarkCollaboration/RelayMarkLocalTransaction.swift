@@ -83,7 +83,7 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     }
 
     public struct NativeFormatting: Codable, Equatable, Sendable {
-        public enum Mark: String, Codable, Sendable { case bold, italic }
+        public enum Mark: String, Codable, Sendable { case bold, italic, strike, code }
         public let startUTF16: Int
         public let lengthUTF16: Int
         public let mark: Mark

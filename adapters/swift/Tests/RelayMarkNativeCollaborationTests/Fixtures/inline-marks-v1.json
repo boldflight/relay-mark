@@ -1,0 +1,73 @@
+{
+  "source": "Chromium TipTap3.30.2 Editor, y-tiptap3.0.9, Yjs13.6.32",
+  "cases": [
+    {
+      "name": "inline-marks",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "strike"
+                  }
+                ],
+                "text": "Strike 🌍"
+              },
+              {
+                "type": "text",
+                "text": " plain "
+              },
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "code"
+                  }
+                ],
+                "text": "code ` value"
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "paragraph",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Strike 🌍",
+                    "attributes": {
+                      "strike": {}
+                    }
+                  },
+                  {
+                    "insert": " plain "
+                  },
+                  {
+                    "insert": "code ` value",
+                    "attributes": {
+                      "code": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "update": "AQmf99+bAQAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHAJ/335sBAAYGAJ/335sBAQZzdHJpa2UCe32En/ffmwECC1N0cmlrZSDwn4yNhp/335sBCwZzdHJpa2UEbnVsbISf99+bAQwHIHBsYWluIIaf99+bARMEY29kZQJ7fYSf99+bARQMY29kZSBgIHZhbHVlhp/335sBIARjb2RlBG51bGwA"
+    }
+  ]
+}
