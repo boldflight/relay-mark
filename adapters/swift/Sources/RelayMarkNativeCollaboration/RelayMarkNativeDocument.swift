@@ -571,6 +571,87 @@ public final class RelayMarkNativeDocument {
         return attributes.keys.allSatisfy { booleanMarks.contains($0) || $0 == "link" }
     }
 
+    /// Change only an existing top-level heading's level. Its XML identity,
+    /// headingId, inline marks and text are retained. The host binds the relative
+    /// anchor to its authorized document/incarnation before calling this method.
+    public func setHeadingLevel(anchor: Data, expectedHeadingID: String?, level: Int) throws -> Data {
+        guard (1...6).contains(level), integrationStatus().isComplete,
+              try proseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (heading, path) = try anchoredElement(anchor)
+        guard path.count == 1, heading.tag() == "heading" else { throw Failure.invalidAnchor }
+        let attributes = try heading.attributes()
+        guard attributes["headingId"] as? String == expectedHeadingID else { throw Failure.invalidAnchor }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try heading.setAttribute("level", value: level, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    /// Replace UTF-16 text in one existing list paragraph without rebuilding
+    /// list/item nodes. Bounded scope: a list item starts with one paragraph
+    /// containing one XmlText leaf and may have one nested bullet/ordered list.
+    /// List conversion, indentation, splitting and cross-item edits are excluded.
+    public func replaceListParagraphText(anchor: Data, start: Int, end: Int, text: String) throws -> Data {
+        guard integrationStatus().isComplete, try proseProjection().isEditable else {
+            throw Failure.unsupportedProseEdit
+        }
+        let (paragraph, path) = try anchoredElement(anchor)
+        guard path.count == 3 || path.count == 5, paragraph.tag() == "paragraph",
+              let top = root.child(at: UInt32(path[0])) else { throw Failure.invalidAnchor }
+        try validateEditableList(top, depth: 0)
+        // The target must be the first paragraph of a real list item, not an
+        // arbitrary same-depth paragraph in another container.
+        var ancestor = top
+        for index in 1..<path.count {
+            let expected = index % 2 == 1 ? "listItem" : (index == path.count - 1 ? "paragraph" : nil)
+            guard let child = ancestor.child(at: UInt32(path[index])),
+                  expected == nil || child.tag() == expected else { throw Failure.invalidAnchor }
+            ancestor = child
+        }
+        guard let leaf = paragraph.child(at: 0), leaf.kind() == "text" else { throw Failure.unsupportedProseEdit }
+        let old = try leaf.delta().map(\.text).joined()
+        guard start >= 0, end >= start, end <= old.utf16.count,
+              Self.split(old, at: start) != nil, Self.split(old, at: end) != nil,
+              !text.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }),
+              text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072 else {
+            throw Failure.unsupportedProseEdit
+        }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            if end > start { try leaf.removeText(start: UInt32(start), length: UInt32(end - start), in: transaction) }
+            if !text.isEmpty { try leaf.insert(text, at: UInt32(start), in: transaction) }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    private func anchoredElement(_ anchor: Data) throws -> (YXmlNode, [Int]) {
+        guard let resolved = try document.resolveXmlRelativePosition(anchor), resolved.index == 0,
+              resolved.node.kind() == "element", let path = path(to: resolved.node, from: root), !path.isEmpty else {
+            throw Failure.invalidAnchor
+        }
+        return (resolved.node, path)
+    }
+
+    private func validateEditableList(_ list: YXmlNode, depth: Int) throws {
+        guard depth <= 1, list.kind() == "element", let tag = list.tag(), ["bulletList", "orderedList"].contains(tag),
+              list.length() > 0 else { throw Failure.unsupportedProseEdit }
+        // proseProjection already validates v1 list attributes and text marks.
+        for item in list.children() {
+            guard item.kind() == "element", item.tag() == "listItem", try item.attributes().isEmpty,
+                  (1...2).contains(item.length()), let paragraph = item.child(at: 0),
+                  paragraph.tag() == "paragraph", try paragraph.attributes().isEmpty, paragraph.length() == 1,
+                  let text = paragraph.child(at: 0), text.kind() == "text" else { throw Failure.unsupportedProseEdit }
+            let value = try text.delta().map(\.text).joined()
+            guard !value.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }) else {
+                throw Failure.unsupportedProseEdit
+            }
+            if let nested = item.child(at: 1) { try validateEditableList(nested, depth: depth + 1) }
+        }
+    }
+
     /// A task item in the negotiated collaborative XML. `anchor` is a Yjs
     /// relative position tied to the XML item identity, including unlinked
     /// checklist items. The host still binds it to an authorized document.

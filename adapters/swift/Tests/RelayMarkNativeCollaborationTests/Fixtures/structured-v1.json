@@ -1,0 +1,509 @@
+{
+  "source": "Chromium TipTap3.30.2 Editor, Relay PaperHeading, y-tiptap3.0.9, Yjs13.6.32",
+  "cases": [
+    {
+      "name": "headings",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 1,
+              "headingId": "stable-1"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Heading 1 🌍"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2,
+              "headingId": "stable-2"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Heading 2 🌍"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 3,
+              "headingId": "stable-3"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Heading 3 🌍"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 4,
+              "headingId": "stable-4"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Heading 4 🌍"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 5,
+              "headingId": "stable-5"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Heading 5 🌍"
+              }
+            ]
+          },
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 6,
+              "headingId": "stable-6"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Heading 6 🌍"
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 1,
+              "headingId": "stable-1"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Heading 1 🌍"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 2,
+              "headingId": "stable-2"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Heading 2 🌍"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 3,
+              "headingId": "stable-3"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Heading 3 🌍"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 4,
+              "headingId": "stable-4"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Heading 4 🌍"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 5,
+              "headingId": "stable-5"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Heading 5 🌍"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "element",
+            "name": "heading",
+            "attributes": {
+              "level": 6,
+              "headingId": "stable-6"
+            },
+            "children": [
+              {
+                "kind": "text",
+                "delta": [
+                  {
+                    "insert": "Heading 6 🌍"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "update": "AR6lvbWuAwAHAQdkZWZhdWx0AwdoZWFkaW5nBwClvbWuAwAGBAClvbWuAwEOSGVhZGluZyAxIPCfjI0oAKW9ta4DAAVsZXZlbAF9ASgApb21rgMACWhlYWRpbmdJZAF3CHN0YWJsZS0xh6W9ta4DAAMHaGVhZGluZwcApb21rgMQBgQApb21rgMRDkhlYWRpbmcgMiDwn4yNKAClvbWuAxAFbGV2ZWwBfQIoAKW9ta4DEAloZWFkaW5nSWQBdwhzdGFibGUtMoelvbWuAxADB2hlYWRpbmcHAKW9ta4DIAYEAKW9ta4DIQ5IZWFkaW5nIDMg8J+MjSgApb21rgMgBWxldmVsAX0DKAClvbWuAyAJaGVhZGluZ0lkAXcIc3RhYmxlLTOHpb21rgMgAwdoZWFkaW5nBwClvbWuAzAGBAClvbWuAzEOSGVhZGluZyA0IPCfjI0oAKW9ta4DMAVsZXZlbAF9BCgApb21rgMwCWhlYWRpbmdJZAF3CHN0YWJsZS00h6W9ta4DMAMHaGVhZGluZwcApb21rgNABgQApb21rgNBDkhlYWRpbmcgNSDwn4yNKAClvbWuA0AFbGV2ZWwBfQUoAKW9ta4DQAloZWFkaW5nSWQBdwhzdGFibGUtNYelvbWuA0ADB2hlYWRpbmcHAKW9ta4DUAYEAKW9ta4DUQ5IZWFkaW5nIDYg8J+MjSgApb21rgNQBWxldmVsAX0GKAClvbWuA1AJaGVhZGluZ0lkAXcIc3RhYmxlLTYA"
+    },
+    {
+      "name": "bullet-ordered",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Outer"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "orderedList",
+                    "attrs": {
+                      "start": 3,
+                      "type": null
+                    },
+                    "content": [
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Nested 🌍 text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Sibling"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "bulletList",
+            "attributes": {},
+            "children": [
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Outer"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "element",
+                    "name": "orderedList",
+                    "attributes": {
+                      "start": 3
+                    },
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "listItem",
+                        "attributes": {},
+                        "children": [
+                          {
+                            "kind": "element",
+                            "name": "paragraph",
+                            "attributes": {},
+                            "children": [
+                              {
+                                "kind": "text",
+                                "delta": [
+                                  {
+                                    "insert": "Nested 🌍 text"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Sibling"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "update": "AQ+K5uD9AgAHAQdkZWZhdWx0AwpidWxsZXRMaXN0BwCK5uD9AgADCGxpc3RJdGVtBwCK5uD9AgEDCXBhcmFncmFwaAcAiubg/QICBgQAiubg/QIDBU91dGVyh4rm4P0CAgMLb3JkZXJlZExpc3QHAIrm4P0CCQMIbGlzdEl0ZW0HAIrm4P0CCgMJcGFyYWdyYXBoBwCK5uD9AgsGBACK5uD9AgwQTmVzdGVkIPCfjI0gdGV4dCgAiubg/QIJBXN0YXJ0AX0Dh4rm4P0CAQMIbGlzdEl0ZW0HAIrm4P0CHAMJcGFyYWdyYXBoBwCK5uD9Ah0GBACK5uD9Ah4HU2libGluZwA="
+    },
+    {
+      "name": "ordered-bullet",
+      "prosemirror": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "orderedList",
+            "attrs": {
+              "start": 7,
+              "type": null
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Outer"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "bulletList",
+                    "content": [
+                      {
+                        "type": "listItem",
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Nested 🌍 text"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Sibling"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "snapshot": {
+        "kind": "fragment",
+        "children": [
+          {
+            "kind": "element",
+            "name": "orderedList",
+            "attributes": {
+              "start": 7
+            },
+            "children": [
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Outer"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "element",
+                    "name": "bulletList",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "element",
+                        "name": "listItem",
+                        "attributes": {},
+                        "children": [
+                          {
+                            "kind": "element",
+                            "name": "paragraph",
+                            "attributes": {},
+                            "children": [
+                              {
+                                "kind": "text",
+                                "delta": [
+                                  {
+                                    "insert": "Nested 🌍 text"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "kind": "element",
+                "name": "listItem",
+                "attributes": {},
+                "children": [
+                  {
+                    "kind": "element",
+                    "name": "paragraph",
+                    "attributes": {},
+                    "children": [
+                      {
+                        "kind": "text",
+                        "delta": [
+                          {
+                            "insert": "Sibling"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "update": "AQ/xpb6KBAAHAQdkZWZhdWx0AwtvcmRlcmVkTGlzdAcA8aW+igQAAwhsaXN0SXRlbQcA8aW+igQBAwlwYXJhZ3JhcGgHAPGlvooEAgYEAPGlvooEAwVPdXRlcofxpb6KBAIDCmJ1bGxldExpc3QHAPGlvooECQMIbGlzdEl0ZW0HAPGlvooECgMJcGFyYWdyYXBoBwDxpb6KBAsGBADxpb6KBAwQTmVzdGVkIPCfjI0gdGV4dIfxpb6KBAEDCGxpc3RJdGVtBwDxpb6KBBsDCXBhcmFncmFwaAcA8aW+igQcBgQA8aW+igQdB1NpYmxpbmcoAPGlvooEAAVzdGFydAF9BwA="
+    }
+  ]
+}

@@ -44,3 +44,18 @@ Yjs relative item anchor while preserving the task UUID. It rejects unknown
 metadata and nested shapes it cannot edit. Neither browser nor native live
 admission enables this extension yet; task actions and native task UI remain
 host-owned work after schema negotiation.
+
+Two additional native operations are now covered by real Chromium TipTap/Yjs
+fixtures: `setHeadingLevel(anchor:expectedHeadingID:level:)` changes an existing
+top-level v1 heading to level 1–6 while retaining its XML identity and heading ID;
+`replaceListParagraphText(anchor:start:end:text:)` edits one existing paragraph's
+single text leaf in a bullet/ordered list with at most one nested list level.
+Ordered-list start values and all container nodes remain intact. These operations
+resolve Yjs relative anchors, reject invalid/foreign/deleted anchors and unsupported
+shapes before mutation, and use the existing Yrs local-origin session undo stack.
+They do not enable app admission, heading controls, list indentation/conversion,
+item splitting, cross-item edits, multiple text leaves, or a second editor. Hosts
+still bind anchors to an authorized document/incarnation and persist returned
+updates before reporting save. Reproduce the browser fixtures with
+`bun scripts/collaboration-structured-fixtures.mjs /absolute/path/to/web/assets`
+and run `swift test --filter RelayMarkNativeStructuredTests`.
