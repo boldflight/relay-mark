@@ -8,6 +8,7 @@ import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/table-experimental.json', import.meta.url), 'utf8'));
+const concurrent = JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/table-concurrent-v3-draft.json', import.meta.url), 'utf8'));
 const astSchemaURL = new URL('../spec/relaymark/schemas/relaymark-document.schema.json', import.meta.url);
 const astSchema = JSON.parse(readFileSync(astSchemaURL, 'utf8'));
 const clone = value => structuredClone(value);
@@ -62,6 +63,32 @@ test('alignment and multiple cell paragraphs remain explicit in both directions'
   assert.equal(ast.blocks[0].content[0].content[0].props.align, 'right');
   assert.equal(ast.blocks[0].content[0].content[0].content.length, 2);
   assert.deepEqual(relayMarkTableToProseMirror(ast), original);
+});
+
+test('real concurrent cell edits and addRowAfter require community schema defaults before the strict table mapping', () => {
+  assert.equal(concurrent.fixture_version, 1);
+  assert.equal(concurrent.root, 'default');
+  assert.equal(concurrent.raw.content[0].content.length, 3);
+  assert.equal(concurrent.raw.content[0].content[1].content[0].content[0].content[0].text, 'Alice');
+  assert.equal(concurrent.raw.content[0].content[1].content[1].content[0].content[0].text, 'Bob');
+  assert.equal('align' in concurrent.raw.content[0].content[1].content[0].attrs, false);
+  assert.deepEqual(concurrent.normalized.content[0].content[1].content[0].attrs.colwidth, [120]);
+  assert.equal(concurrent.normalized.content[0].content[1].content[0].attrs.align, null);
+  assert.equal(concurrent.normalized.content[0].content[0].content[0].attrs.colspan, 2);
+  assert.deepEqual(concurrent.normalized.content[0].content[0].content[0].attrs.colwidth, [120, 180]);
+  assert.throws(() => tableProseMirrorToRelayMark(concurrent.raw), /align/);
+
+  const ast = tableProseMirrorToRelayMark(concurrent.normalized);
+  assert.deepEqual(validateDocument(ast), []);
+  assert.deepEqual(validateJSONSchema(ast, astSchema, fileURLToPath(astSchemaURL)), []);
+  assert.deepEqual(relayMarkTableToProseMirror(ast), concurrent.inverse);
+  assert.equal(ast.blocks[0].content.length, 3);
+  const ids = [];
+  ast.blocks.forEach(block => eachBlock(block, node => ids.push(node.id)));
+  assert.equal(ids.length, new Set(ids).size);
+  assert.equal(ids.length, 14);
+  assert.deepEqual(concurrent.inverse.content[0].content[2].content[0].content[0].content, []);
+  assert.equal('content' in concurrent.normalized.content[0].content[2].content[0].content[0], false);
 });
 
 test('v3 table mapping rejects missing IDs, duplicate IDs, unknown attrs and unsupported content', () => {

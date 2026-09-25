@@ -47,3 +47,15 @@ and rowspan examples. It also exercises rejection boundaries. This proves a
 portable data projection, not a Markdown/HTML source round-trip, table UI,
 collaborative admission, or v1/v2 migration. Those remain separate release
 gates.
+
+The [concurrent table fixture](fixtures/table-concurrent-v3-draft.json) captures
+two independent cell edits followed by community `addRowAfter`. Raw
+`yDocToProsemirrorJSON` omits default cell attributes such as `align: null`;
+the strict mapper rejects that shape. Pass it through the negotiated TipTap
+schema's `nodeFromJSON(...).toJSON()` before mapping. The inverse mapper writes
+`content: []` on new empty cell paragraphs, while canonical ProseMirror JSON
+omits that empty property; normalize the inverse through the same community
+schema before comparing or rendering. Neither boundary changes stored IDs,
+spans, column widths or text. The official static renderer can display the
+normalized table and existing `relaymarkId` attributes, but it is a view path,
+not source validation or live v3 admission.
