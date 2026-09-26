@@ -66,6 +66,19 @@ public struct RelayMarkCollaborativeProse {
     }
     public let blockAtoms: [BlockAtom]
 
+    /// Authored v3 suggestion as one inert block unit; review actions remain host-owned.
+    public struct SuggestionAtom: Equatable, Sendable {
+        public let id: String
+        public let review: String
+        public let kind: String
+        public let confidence: Double?
+        public let evidence: [String]
+        public let content: String
+        public let range: NSRange
+        public let path: [Int]
+    }
+    public let suggestionAtoms: [SuggestionAtom]
+
     /// Block metadata remains available when an empty paragraph has no text run.
     public let blockIntents: [PresentationIntent]
     public let blockPaths: [[Int]]
@@ -94,6 +107,7 @@ public struct RelayMarkCollaborativeProse {
         var calloutRanges: [Callout] = []
         var atoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
+        var suggestionAtoms: [SuggestionAtom] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         var supported = root?["kind"] as? String == "fragment"
@@ -254,6 +268,7 @@ public struct RelayMarkCollaborativeProse {
                 let kind: PresentationIntent.Kind
                 var table: (width: Int, starts: [[Int]])?
                 var paperControl: RelayMarkPaperControlContract.Validated?
+                var suggestion: RelayMarkAgentSuggestionV3Contract.Validated?
                 switch name {
                 case "paragraph": kind = .paragraph
                 case "heading":
@@ -273,6 +288,13 @@ public struct RelayMarkCollaborativeProse {
                        let validated = try? RelayMarkPaperControlContract.validate(nodeName: name, attributes: attributes),
                        children.isEmpty {
                         paperControl = validated
+                    } else { supported = false }
+                case "agentSuggestion":
+                    kind = .thematicBreak
+                    if dialect == .markdownV3, path.isEmpty,
+                       let validated = try? RelayMarkAgentSuggestionV3Contract.validate(attributes: attributes),
+                       children.isEmpty {
+                        suggestion = validated
                     } else { supported = false }
                 case "blockquote": kind = .blockQuote
                 case "bulletList": kind = .unorderedList
@@ -302,7 +324,7 @@ public struct RelayMarkCollaborativeProse {
                         allowed.formUnion(["colspan", "rowspan", "colwidth", "align"])
                     }
                 }
-                if paperControl == nil && !Set(attributes.keys).isSubset(of: allowed) { supported = false }
+                if paperControl == nil && suggestion == nil && !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
                 let previousCount = ranges.count
                 if ["blockquote", "bulletList", "orderedList", "listItem"].contains(name) {
@@ -332,7 +354,7 @@ public struct RelayMarkCollaborativeProse {
                     if !ranges.isEmpty { value.append(AttributedString("\n")) }
                     let start = length(), attributedStart = value.endIndex
                     var inlineOffsets = [start]
-                    if name == "horizontalRule" || paperControl != nil {
+                    if name == "horizontalRule" || paperControl != nil || suggestion != nil {
                         if !children.isEmpty { supported = false }
                         value.append(AttributedString("\u{FFFC}"))
                         if let paperControl {
@@ -340,8 +362,15 @@ public struct RelayMarkCollaborativeProse {
                                 source: paperControl.source, displayLabel: paperControl.displayLabel,
                                 range: NSRange(location: start, length: 1), path: blockPath))
                         }
+                        if let suggestion {
+                            suggestionAtoms.append(SuggestionAtom(id: suggestion.id, review: suggestion.review,
+                                kind: suggestion.kind, confidence: suggestion.confidence,
+                                evidence: suggestion.evidence, content: suggestion.content,
+                                range: NSRange(location: start, length: 1), path: blockPath))
+                        }
                         mapped.append(Span(range: NSRange(location: start, length: 1), path: blockPath,
-                            text: false, afterPath: path, afterIndex: index + 1, atom: paperControl != nil))
+                            text: false, afterPath: path, afterIndex: index + 1,
+                            atom: paperControl != nil || suggestion != nil))
                     } else {
                         for (childIndex, child) in children.enumerated() {
                             let childPath = blockPath + [childIndex]
@@ -379,7 +408,7 @@ public struct RelayMarkCollaborativeProse {
                 offsets.append(ranges.count > previousCount ? ranges[previousCount].location : length())
                 // An XML boundary immediately after a rule maps to the atom's end.
                 // The next text leaf has its own unambiguous start position.
-                if index > 0, ["horizontalRule", "relayButton", "relayAnchor", "relayConnection"]
+                if index > 0, ["horizontalRule", "relayButton", "relayAnchor", "relayConnection", "agentSuggestion"]
                     .contains(nodes[index - 1]["name"] as? String ?? ""), previousCount > 0 {
                     offsets[offsets.count - 1] = NSMaxRange(ranges[previousCount - 1])
                 }
@@ -388,7 +417,8 @@ public struct RelayMarkCollaborativeProse {
         }
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
-        tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms; self.blockAtoms = blockAtoms
+        tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms
+        self.blockAtoms = blockAtoms; self.suggestionAtoms = suggestionAtoms
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }
@@ -406,7 +436,9 @@ public struct RelayMarkCollaborativeProse {
         // For identified atoms, both edges are XML sibling boundaries. Prefer
         // an adjacent text leaf when present so a caret edits that leaf.
         if let atom = spans.first(where: { $0.atom && ($0.range.location == offset || NSMaxRange($0.range) == offset) }) {
-            if atom.range.location == offset, blockAtoms.contains(where: { $0.path == atom.path }) {
+            if atom.range.location == offset,
+               blockAtoms.contains(where: { $0.path == atom.path }) ||
+               suggestionAtoms.contains(where: { $0.path == atom.path }) {
                 return (atom.path, 0)
             }
             if atom.range.location == offset,

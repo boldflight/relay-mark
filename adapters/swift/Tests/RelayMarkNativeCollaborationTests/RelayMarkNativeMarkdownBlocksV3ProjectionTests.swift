@@ -388,16 +388,70 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(suggestion.type, "relay.agent_suggestion")
         XCTAssertEqual(suggestion.props["review"], .string("ready"))
         XCTAssertNil(suggestion.props["proposalId"])
-        var snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
-        var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
-        var node = blocks[1]
-        var attributes = try XCTUnwrap(node["attributes"] as? [String: Any])
-        attributes["proposalId"] = "host-only"
-        node["attributes"] = attributes
-        blocks[1] = node
-        snapshot["children"] = blocks
-        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(
-            snapshot: JSONSerialization.data(withJSONObject: snapshot)))
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertEqual(String(prose.text.characters), "Before\n\u{FFFC}\nAfter")
+        XCTAssertEqual(prose.suggestionAtoms.count, 1)
+        let atom = try XCTUnwrap(prose.suggestionAtoms.first)
+        XCTAssertEqual(atom.id, "b00000000000040008000000000000082")
+        XCTAssertEqual(atom.review, "ready")
+        XCTAssertEqual(atom.kind, "note")
+        XCTAssertEqual(atom.confidence, 0.88)
+        XCTAssertEqual(atom.evidence, [])
+        XCTAssertEqual(atom.content, "Check **this** source.")
+        XCTAssertEqual(atom.range, NSRange(location: 7, length: 1))
+        XCTAssertEqual(atom.path, [1])
+        XCTAssertEqual(prose.textRanges(in: atom.range), [])
+        XCTAssertEqual(prose.textRanges(in: NSRange(location: 0, length: 13)).map(\.path), [[0, 0], [2, 0]])
+        for edge in [atom.range.location, NSMaxRange(atom.range)] {
+            let position = try XCTUnwrap(prose.position(atUTF16: edge))
+            XCTAssertEqual(prose.offset(path: position.path, index: position.index), edge)
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [1], start: 0, end: 1, text: "replacement"))
+        let peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(try native.encodeUpdate())
+        _ = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 6, end: 6, text: "!")
+        _ = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: peer, path: [2, 0], start: 0, end: 0, text: "?")
+        try native.applyUpdate(try peer.encodeUpdate())
+        try peer.applyUpdate(try native.encodeUpdate())
+        let edited = try native.markdownV3ProseProjection()
+        XCTAssertEqual(String(edited.text.characters), "Before!\n\u{FFFC}\n?After")
+        XCTAssertEqual(String(try peer.markdownV3ProseProjection().text.characters),
+                       String(edited.text.characters))
+        XCTAssertEqual(edited.suggestionAtoms.first?.id, atom.id)
+        XCTAssertEqual(edited.suggestionAtoms.first?.range, NSRange(location: 8, length: 1))
+        XCTAssertEqual(edited.suggestionAtoms.first?.content, atom.content)
+
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        func altered(_ edit: (inout [String: Any]) -> Void) throws -> Data {
+            var snapshot = original
+            var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+            var node = blocks[1]
+            edit(&node)
+            blocks[1] = node
+            snapshot["children"] = blocks
+            return try JSONSerialization.data(withJSONObject: snapshot)
+        }
+        for key in ["proposalId", "proposalStatus", "title", "undoable", "source"] {
+            let bad = try altered { node in
+                var attrs = node["attributes"] as! [String: Any]
+                attrs[key] = "host-only"
+                node["attributes"] = attrs
+            }
+            XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: bad))
+            XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: bad, dialect: .markdownV3).isEditable)
+        }
+        let rejected = try altered { node in
+            var attrs = node["attributes"] as! [String: Any]
+            attrs["review"] = "accepted"
+            node["attributes"] = attrs
+        }
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: rejected, dialect: .markdownV3).isEditable)
+        let child = try altered { $0["children"] = [["kind": "text", "delta": [["insert": "hidden"]]]] }
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: child, dialect: .markdownV3).isEditable)
     }
 
     func testCommunityVideoFixtureProjectsOnlyDurableIdentity() throws {
