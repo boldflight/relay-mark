@@ -1,0 +1,23 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "VideoEmbed",
+  "ast_type": "relay.video_embed",
+  "version": 1,
+  "category": "relay_kit",
+  "description": "An authored video reference whose playback details are resolved by the host.",
+  "attributes": {
+    "videoId": {
+      "type": "string",
+      "required": true,
+      "description": "Canonical lowercase video UUID; identifies media but grants no access."
+    }
+  },
+  "children": { "mode": "none" },
+  "validation": [
+    "videoId is a canonical lowercase UUID",
+    "Playback metadata and upload state are not authored source",
+    "The host authorizes and resolves media before playback"
+  ],
+  "projections": { "plain_text": "video reference" },
+  "policy": { "requires_review": false, "requires_evidence": false, "allows_agent_creation": false }
+}

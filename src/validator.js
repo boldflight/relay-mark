@@ -140,6 +140,16 @@ function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResour
     validateEntityReference(block, diagnostics);
   }
 
+  if (block.type === "relay.video_embed") {
+    if (typeof block.props?.videoId !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(block.props.videoId)) {
+      diagnostics.push(error("relaymark.video_embed.id", "relay.video_embed.videoId must be a canonical lowercase UUID."));
+    }
+    if ((block.content || []).length !== 0) {
+      diagnostics.push(error("relaymark.video_embed.children", "relay.video_embed cannot have children."));
+    }
+  }
+
   if (block.type === "relay.property_sheet") {
     validatePropertySheet(block, diagnostics);
   }

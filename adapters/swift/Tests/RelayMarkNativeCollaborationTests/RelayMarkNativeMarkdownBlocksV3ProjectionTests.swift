@@ -119,6 +119,54 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: hidden))
     }
 
+    func testCommunityVideoFixtureProjectsOnlyDurableIdentity() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-video-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let expected = try RelayMarkDocument.decodeJSON(JSONSerialization.data(
+            withJSONObject: try XCTUnwrap(fixture["expected_ast"])))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try native.applyUpdate(update)
+        XCTAssertTrue(native.integrationStatus().isComplete)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        XCTAssertEqual(expected.blocks.map(\.type), ["paragraph", "relay.video_embed", "paragraph"])
+        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(try native.encodeUpdate())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        func changed(_ edit: (inout [[String: Any]]) -> Void) throws -> Data {
+            var snapshot = original
+            var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+            edit(&blocks)
+            snapshot["children"] = blocks
+            return try JSONSerialization.data(withJSONObject: snapshot)
+        }
+        let hydrated = try changed { blocks in
+            var video = blocks[1]
+            var attrs = video["attributes"] as! [String: Any]
+            attrs["playbackId"] = "derived-playback"
+            video["attributes"] = attrs
+            blocks[1] = video
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: hydrated))
+        let malformed = try changed { blocks in
+            var video = blocks[1]
+            var attrs = video["attributes"] as! [String: Any]
+            attrs["videoId"] = "../private"
+            video["attributes"] = attrs
+            blocks[1] = video
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: malformed))
+        let hidden = try changed { blocks in
+            blocks[1]["children"] = [["kind": "text", "delta": [["insert": "hidden"]]]]
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: hidden))
+    }
+
     func testCommunityCalloutFixtureKeepsRichTitleAndEditsExistingBodyLeaf() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

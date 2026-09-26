@@ -240,6 +240,9 @@ defmodule RelayMark.SemanticValidator do
             "relay.entity_reference" ->
               validate_entity_reference(block, diagnostics)
 
+            "relay.video_embed" ->
+              validate_video_embed(block, diagnostics)
+
             "relay.property_sheet" ->
               validate_property_sheet(block, diagnostics)
 
@@ -313,6 +316,24 @@ defmodule RelayMark.SemanticValidator do
         "relaymark.entity_reference.id",
         "relay.entity_reference.id must be a non-empty host reference."
       )
+    end
+  end
+
+  defp validate_video_embed(block, diagnostics) do
+    id = get_in(block, ["props", "videoId"])
+
+    diagnostics =
+      if is_binary(id) and
+           Regex.match?(~r/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/, id) do
+        diagnostics
+      else
+        append_error(diagnostics, "relaymark.video_embed.id", "relay.video_embed.videoId must be a canonical lowercase UUID.")
+      end
+
+    if (block["content"] || []) == [] do
+      diagnostics
+    else
+      append_error(diagnostics, "relaymark.video_embed.children", "relay.video_embed cannot have children.")
     end
   end
 

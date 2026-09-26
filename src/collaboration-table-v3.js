@@ -54,6 +54,7 @@ function mapBlock(node, seen, calloutDepth) {
     case "codeBlock": return mapCode(node, seen);
     case "horizontalRule": return mapRule(node, seen);
     case "image": return mapImage(node, seen);
+    case "videoEmbed": return mapVideo(node, seen);
     case "callout": return mapCallout(node, seen, calloutDepth);
     case "table": {
       const table = mapTable(node, seen);
@@ -73,6 +74,7 @@ function unmapBlock(block, seen, calloutDepth) {
     case "code": return unmapCode(block, seen);
     case "horizontal_rule": return unmapRule(block, seen);
     case "image": return unmapImage(block, seen);
+    case "relay.video_embed": return unmapVideo(block, seen);
     case "relay.callout": return unmapCallout(block, seen, calloutDepth);
     case "table": validateGrid(block); return unmapTable(block, seen);
     default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
@@ -300,6 +302,45 @@ function checkImageProps({ src, alt, title }) {
       throw new TypeError(`Invalid image ${name}`);
     }
   }
+}
+
+const videoId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const videoDefaults = {
+  playbackId: null, title: null, source: "mux", thumbnailUrl: null,
+  status: "ready", youtubeId: null, uploadPercent: null
+};
+
+function checkVideoId(value) {
+  if (typeof value !== "string" || !videoId.test(value)) {
+    throw new TypeError("Video ID must be a canonical lowercase UUID");
+  }
+}
+
+function mapVideo(node, seen) {
+  checkNode(node, "videoEmbed", seen, ["videoId", ...Object.keys(videoDefaults)]);
+  if (node.content !== undefined && children(node, "videoEmbed").length !== 0) {
+    throw new TypeError("Video cannot have children");
+  }
+  checkVideoId(node.attrs.videoId);
+  for (const [key, value] of Object.entries(videoDefaults)) {
+    if (node.attrs[key] !== undefined && node.attrs[key] !== value) {
+      throw new TypeError(`Video ${key} is presentation metadata`);
+    }
+  }
+  return { id: node.attrs.relaymarkId, type: "relay.video_embed",
+    props: { videoId: node.attrs.videoId }, content: [] };
+}
+
+function unmapVideo(block, seen) {
+  checkBlock(block, "relay.video_embed", seen, true);
+  assertObject(block.props, "relay.video_embed.props");
+  onlyKeys(block.props, ["videoId"], "relay.video_embed.props");
+  if (block.content !== undefined && children(block, "relay.video_embed").length !== 0) {
+    throw new TypeError("Video cannot have children");
+  }
+  checkVideoId(block.props.videoId);
+  return { type: "videoEmbed", attrs: { relaymarkId: block.id,
+    videoId: block.props.videoId, ...videoDefaults } };
 }
 
 function mapTable(node, seen) {

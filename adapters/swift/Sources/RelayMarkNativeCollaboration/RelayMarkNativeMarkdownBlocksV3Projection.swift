@@ -87,6 +87,23 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
                     "props": ["src": src, "alt": try imageText(attrs["alt"], label: "image alt"),
                               "title": try imageText(attrs["title"], label: "image title")],
                     "content": [[String: Any]]()]
+        case "videoEmbed":
+            let id = try blockID(attrs, allowed: ["relaymarkId", "videoId", "playbackId", "title",
+                                                   "source", "thumbnailUrl", "status", "youtubeId",
+                                                   "uploadPercent"], ids: &ids)
+            try require(children.isEmpty, "video children")
+            guard let videoId = attrs["videoId"] as? String,
+                  videoId.range(of: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                                options: .regularExpression) != nil else {
+                throw Failure.unsupported("video ID")
+            }
+            for key in ["playbackId", "title", "thumbnailUrl", "youtubeId", "uploadPercent"] {
+                try require(attrs[key] == nil || attrs[key] is NSNull, "video presentation metadata")
+            }
+            try require(attrs["source"] == nil || attrs["source"] as? String == "mux", "video source")
+            try require(attrs["status"] == nil || attrs["status"] as? String == "ready", "video status")
+            return ["id": id, "type": "relay.video_embed", "props": ["videoId": videoId],
+                    "content": [[String: Any]]()]
         case "callout":
             try require(calloutDepth < 8, "callout depth")
             let id = try blockID(attrs, allowed: ["relaymarkId", "tone", "emphasis"], ids: &ids)

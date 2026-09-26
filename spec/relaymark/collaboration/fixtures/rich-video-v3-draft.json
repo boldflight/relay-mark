@@ -1,0 +1,169 @@
+{
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "bc5e20755a10547d08d9054f33618c548",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before video"
+          }
+        ]
+      },
+      {
+        "id": "b28718f2e96f1458d9608c7222745fbc0",
+        "type": "relay.video_embed",
+        "props": {
+          "videoId": "11111111-1111-4111-8111-111111111111"
+        },
+        "content": []
+      },
+      {
+        "id": "b29908e62e7c2496580e5aea7bb8e4f14",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After video"
+          }
+        ]
+      }
+    ]
+  },
+  "fixture_version": 1,
+  "root": "default",
+  "provenance": "TipTap 3.30.5 VideoEmbed-compatible node/UniqueID via @tiptap/y-tiptap; Yjs 13.6.32",
+  "update": "AQ25kLDLAgAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHALmQsMsCAAYEALmQsMsCAQxCZWZvcmUgdmlkZW8oALmQsMsCAAtyZWxheW1hcmtJZAF3IWJjNWUyMDc1NWExMDU0N2QwOGQ5MDU0ZjMzNjE4YzU0OIe5kLDLAgADCnZpZGVvRW1iZWQoALmQsMsCDwtyZWxheW1hcmtJZAF3IWIyODcxOGYyZTk2ZjE0NThkOTYwOGM3MjIyNzQ1ZmJjMCgAuZCwywIPB3ZpZGVvSWQBdyQxMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEoALmQsMsCDwZzb3VyY2UBdwNtdXgoALmQsMsCDwZzdGF0dXMBdwVyZWFkeYe5kLDLAg8DCXBhcmFncmFwaAcAuZCwywIUBgQAuZCwywIVC0FmdGVyIHZpZGVvKAC5kLDLAhQLcmVsYXltYXJrSWQBdyFiMjk5MDhlNjJlN2MyNDk2NTgwZTVhZWE3YmI4ZTRmMTQA",
+  "raw": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "bc5e20755a10547d08d9054f33618c548"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before video"
+          }
+        ]
+      },
+      {
+        "type": "videoEmbed",
+        "attrs": {
+          "relaymarkId": "b28718f2e96f1458d9608c7222745fbc0",
+          "videoId": "11111111-1111-4111-8111-111111111111"
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b29908e62e7c2496580e5aea7bb8e4f14"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After video"
+          }
+        ]
+      }
+    ]
+  },
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "bc5e20755a10547d08d9054f33618c548"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before video"
+          }
+        ]
+      },
+      {
+        "type": "videoEmbed",
+        "attrs": {
+          "relaymarkId": "b28718f2e96f1458d9608c7222745fbc0",
+          "videoId": "11111111-1111-4111-8111-111111111111",
+          "playbackId": null,
+          "title": null,
+          "source": "mux",
+          "thumbnailUrl": null,
+          "status": "ready",
+          "youtubeId": null,
+          "uploadPercent": null
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b29908e62e7c2496580e5aea7bb8e4f14"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After video"
+          }
+        ]
+      }
+    ]
+  },
+  "xml": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "paragraph",
+        "attributes": {
+          "relaymarkId": "bc5e20755a10547d08d9054f33618c548"
+        },
+        "children": [
+          {
+            "kind": "text",
+            "delta": [
+              {
+                "insert": "Before video"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "kind": "element",
+        "name": "videoEmbed",
+        "attributes": {
+          "relaymarkId": "b28718f2e96f1458d9608c7222745fbc0",
+          "videoId": "11111111-1111-4111-8111-111111111111",
+          "source": "mux",
+          "status": "ready"
+        },
+        "children": []
+      },
+      {
+        "kind": "element",
+        "name": "paragraph",
+        "attributes": {
+          "relaymarkId": "b29908e62e7c2496580e5aea7bb8e4f14"
+        },
+        "children": [
+          {
+            "kind": "text",
+            "delta": [
+              {
+                "insert": "After video"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
