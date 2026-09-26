@@ -12,6 +12,20 @@ public struct RelayMarkCollaborativeProse {
     public let isEditable: Bool
     public let blockRanges: [NSRange]
 
+    /// Native presentation metadata for table paragraphs. XML remains the
+    /// source of truth; these ranges share the same UTF-16 text map as edits.
+    public struct TableCell: Equatable, Sendable {
+        public let tableIdentity: Int
+        public let range: NSRange
+        public let columns: Int
+        public let row: Int
+        public let column: Int
+        public let rowSpan: Int
+        public let columnSpan: Int
+        public let header: Bool
+    }
+    public let tableCells: [TableCell]
+
     /// Block metadata remains available when an empty paragraph has no text run.
     public let blockIntents: [PresentationIntent]
     public let blockPaths: [[Int]]
@@ -35,6 +49,7 @@ public struct RelayMarkCollaborativeProse {
         var value = AttributedString()
         var ranges: [NSRange] = [], paths: [[Int]] = []
         var intents: [PresentationIntent] = []
+        var cells: [TableCell] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         var supported = root?["kind"] as? String == "fragment"
@@ -114,8 +129,19 @@ public struct RelayMarkCollaborativeProse {
             }
             return (expectedWidth ?? 0, starts)
         }
+        struct CellContext {
+            let tableIdentity: Int
+            let columns: Int
+            let row: Int
+            let column: Int
+            let rowSpan: Int
+            let columnSpan: Int
+            let header: Bool
+        }
         func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil,
-                  ordinal: Int = 1, tableRows: [[Int]]? = nil, tableCells: [Int]? = nil) {
+                  ordinal: Int = 1, tableRows: [[Int]]? = nil, tableColumns: [Int]? = nil,
+                  tableIdentity: Int? = nil, tableWidth: Int? = nil, tableRow: Int? = nil,
+                  cellContext: CellContext? = nil) {
             var offsets: [Int] = []
             for (index, block) in nodes.enumerated() {
                 let blockPath = path + [index]
@@ -153,7 +179,7 @@ public struct RelayMarkCollaborativeProse {
                     kind = children.allSatisfy { $0["name"] as? String == "tableHeader" }
                         ? .tableHeaderRow : .tableRow(rowIndex: index)
                 case "tableHeader", "tableCell":
-                    kind = .tableCell(columnIndex: tableCells?[index] ?? index)
+                    kind = .tableCell(columnIndex: tableColumns?[index] ?? index)
                 default: supported = false; kind = .paragraph
                 }
                 var allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
@@ -172,16 +198,24 @@ public struct RelayMarkCollaborativeProse {
                     walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1)
                 } else if name == "table" {
                     guard dialect == .markdownV3, let table, table.width > 0 else { supported = false; continue }
-                    walk(children, path: blockPath, parent: intent, tableRows: table.starts)
+                    walk(children, path: blockPath, parent: intent, tableRows: table.starts,
+                         tableIdentity: identity, tableWidth: table.width)
                 } else if name == "tableRow" {
                     guard dialect == .markdownV3, let columns = tableRows?[index] else { supported = false; continue }
-                    walk(children, path: blockPath, parent: intent, tableCells: columns)
+                    walk(children, path: blockPath, parent: intent, tableColumns: columns,
+                         tableIdentity: tableIdentity, tableWidth: tableWidth, tableRow: index)
                 } else if name == "tableHeader" || name == "tableCell" {
-                    guard dialect == .markdownV3,
+                    guard dialect == .markdownV3, let tableIdentity, let tableWidth, let tableRow,
+                          let column = tableColumns?[index],
                           children.allSatisfy({ $0["name"] as? String == "paragraph" }) else {
                         supported = false; continue
                     }
-                    walk(children, path: blockPath, parent: intent)
+                    walk(children, path: blockPath, parent: intent,
+                         cellContext: CellContext(tableIdentity: tableIdentity, columns: tableWidth,
+                            row: tableRow, column: column,
+                            rowSpan: attributes["rowspan"] as? Int ?? 1,
+                            columnSpan: attributes["colspan"] as? Int ?? 1,
+                            header: name == "tableHeader"))
                 } else {
                     if !ranges.isEmpty { value.append(AttributedString("\n")) }
                     let start = length(), attributedStart = value.endIndex
@@ -210,6 +244,13 @@ public struct RelayMarkCollaborativeProse {
                     boundaries[blockPath] = inlineOffsets
                     value[attributedStart..<value.endIndex].presentationIntent = intent
                     ranges.append(NSRange(location: start, length: length() - start)); paths.append(blockPath); intents.append(intent)
+                    if let cellContext {
+                        cells.append(TableCell(tableIdentity: cellContext.tableIdentity,
+                            range: ranges[ranges.count - 1], columns: cellContext.columns,
+                            row: cellContext.row, column: cellContext.column,
+                            rowSpan: cellContext.rowSpan, columnSpan: cellContext.columnSpan,
+                            header: cellContext.header))
+                    }
                 }
                 offsets.append(ranges.count > previousCount ? ranges[previousCount].location : length())
                 // An XML boundary immediately after a rule maps to the atom's end.
@@ -222,6 +263,7 @@ public struct RelayMarkCollaborativeProse {
         }
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
+        tableCells = cells
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }
