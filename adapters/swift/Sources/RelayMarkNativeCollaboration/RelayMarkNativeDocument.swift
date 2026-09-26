@@ -727,6 +727,38 @@ public final class RelayMarkNativeDocument {
         return attributes.keys.allSatisfy { booleanMarks.contains($0) || $0 == "link" }
     }
 
+    /// Change only the appearance of one existing, editable v3 callout.
+    /// The host binds this relative anchor to its authorized document and
+    /// captures the ID and appearance from the same displayed revision. A
+    /// changed/deleted callout is rejected rather than retargeting its path.
+    public func setCalloutAppearance(anchor: Data, expectedID: String,
+                                     expectedTone: String, expectedEmphasis: String,
+                                     tone: String, emphasis: String) throws -> Data {
+        let tones: Set<String> = ["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"]
+        let emphases: Set<String> = ["soft", "strong"]
+        guard tones.contains(tone), emphases.contains(emphasis),
+              tone != expectedTone || emphasis != expectedEmphasis,
+              integrationStatus().isComplete,
+              try markdownV3ProseProjection().isEditable else {
+            throw Failure.unsupportedProseEdit
+        }
+        let (callout, path) = try anchoredElement(anchor)
+        guard path.count == 1, callout.tag() == "callout" else { throw Failure.invalidAnchor }
+        let attributes = try callout.attributes()
+        guard attributes["relaymarkId"] as? String == expectedID,
+              attributes["tone"] as? String == expectedTone,
+              attributes["emphasis"] as? String == expectedEmphasis else {
+            throw Failure.invalidAnchor
+        }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            if tone != expectedTone { try callout.setAttribute("tone", value: tone, in: transaction) }
+            if emphasis != expectedEmphasis { try callout.setAttribute("emphasis", value: emphasis, in: transaction) }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Change only an existing top-level heading's level. Its XML identity,
     /// headingId, inline marks and text are retained. The host binds the relative
     /// anchor to its authorized document/incarnation before calling this method.

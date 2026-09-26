@@ -169,6 +169,58 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
             snapshot: JSONSerialization.data(withJSONObject: snapshot)))
     }
 
+    func testCommunityCalloutAppearanceChangeReplaysAndUndoesWithoutRebuildingContent() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument()
+        let peer = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try peer.applyUpdate(update)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let id = before.blocks[1].id
+        let calloutAnchor = try native.anchor(path: [1], index: 0)
+        let titleAnchor = try native.anchor(path: [1, 0, 0], index: 4)
+        let originalUpdate = try native.encodeUpdate()
+
+        for (expectedID, expectedTone, expectedEmphasis, tone, emphasis) in [
+            ("wrong", "warning", "strong", "info", "soft"),
+            (id, "neutral", "strong", "info", "soft"),
+            (id, "warning", "soft", "info", "soft"),
+            (id, "warning", "strong", "unknown", "soft"),
+            (id, "warning", "strong", "info", "unknown")
+        ] {
+            XCTAssertThrowsError(try native.setCalloutAppearance(
+                anchor: calloutAnchor, expectedID: expectedID,
+                expectedTone: expectedTone, expectedEmphasis: expectedEmphasis,
+                tone: tone, emphasis: emphasis))
+        }
+        XCTAssertThrowsError(try native.setCalloutAppearance(
+            anchor: try native.anchor(path: [0], index: 0), expectedID: id,
+            expectedTone: "warning", expectedEmphasis: "strong", tone: "info", emphasis: "soft"))
+        XCTAssertEqual(try native.encodeUpdate(), originalUpdate)
+
+        let change = try native.setCalloutAppearance(
+            anchor: calloutAnchor, expectedID: id,
+            expectedTone: "warning", expectedEmphasis: "strong", tone: "info", emphasis: "soft")
+        try peer.applyUpdate(change)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after.blocks[1].props["tone"], .string("info"))
+        XCTAssertEqual(after.blocks[1].props["emphasis"], .string("soft"))
+        XCTAssertEqual(after.blocks.map(\.id), before.blocks.map(\.id))
+        XCTAssertEqual(after.blocks[1].childBlocks, before.blocks[1].childBlocks)
+        XCTAssertEqual(try native.resolve(anchor: titleAnchor)?.path, [1, 0, 0])
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+        XCTAssertThrowsError(try native.setCalloutAppearance(
+            anchor: calloutAnchor, expectedID: id,
+            expectedTone: "warning", expectedEmphasis: "strong", tone: "error", emphasis: "soft"))
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+        try peer.applyUpdate(try XCTUnwrap(native.redo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+    }
+
     func testCalloutPlainFirstRunAcceptsTypingButBoldTitleBoundaryStaysFenced() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
