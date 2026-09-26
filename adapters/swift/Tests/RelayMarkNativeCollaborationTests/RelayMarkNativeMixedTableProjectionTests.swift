@@ -99,6 +99,21 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertEqual(edited.blocks[1].childBlocks[1].childBlocks[0].plainText, "Alicia")
         XCTAssertEqual(edited.blocks[1].childBlocks[0], original.blocks[1].childBlocks[0])
         XCTAssertEqual(edited.blocks[1].childBlocks[1].childBlocks[1], original.blocks[1].childBlocks[1].childBlocks[1])
+
+        let bold = try native.formatText(at: 0, length: 1, attributes: ["bold": [:]],
+                                         path: [1, 0, 0, 0, 0])
+        try peer.applyUpdate(bold)
+        let appended = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [1, 0, 0, 0, 0], start: 1, end: 1, text: "!")
+        try peer.applyUpdate(appended)
+        let styled = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(styled, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        let headerParagraph = styled.blocks[1].childBlocks[0].childBlocks[0].childBlocks[0]
+        guard case .inline(let strong)? = headerParagraph.content.first else {
+            return XCTFail("Expected bold table header")
+        }
+        XCTAssertEqual(strong.type, "strong")
+        XCTAssertEqual(strong.plainText, "A!")
     }
 
     func testMixedProjectionSharesInlineMarksAndRejectsUnknownMetadataDuplicateIDsAndBrokenGrid() throws {

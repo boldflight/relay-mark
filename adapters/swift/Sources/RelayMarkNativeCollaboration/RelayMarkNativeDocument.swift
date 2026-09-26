@@ -569,8 +569,9 @@ public final class RelayMarkNativeDocument {
             }
             // YSwift's insert default is explicit empty attributes, not Yjs's
             // inherited typing marks. Preserve a replacement wholly within one
-            // existing run (or an insertion strictly inside it). Boundary and
-            // mixed-run styling remain the host's candidate-validation decision.
+            // existing run (or an insertion strictly inside it). Appending to
+            // the leaf has one unambiguous last run. Interior mark boundaries
+            // and mixed-run styling remain the host's candidate-validation decision.
             var attributes: [String: Any] = [:]
             var offset = 0
             for run in try node.delta(in: transaction) {
@@ -579,6 +580,9 @@ public final class RelayMarkNativeDocument {
                     (length > 0 || index > offset) {
                     attributes = run.attributes
                     break
+                }
+                if length == 0 && index == total && end == total && !run.text.isEmpty {
+                    attributes = run.attributes
                 }
                 offset = end
             }

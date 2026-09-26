@@ -70,7 +70,8 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
                 isCharacterBoundary(end - offset, in: value) { return true }
             offset = next
         }
-        return false
+        guard let last = runs.last?["insert"] as? String, !last.isEmpty else { return false }
+        return start == offset && end == offset && !text.isEmpty
     }
 
     private static func isCharacterBoundary(_ utf16Offset: Int, in value: String) -> Bool {
