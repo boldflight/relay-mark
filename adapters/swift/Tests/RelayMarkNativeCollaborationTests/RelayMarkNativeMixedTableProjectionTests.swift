@@ -116,6 +116,28 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertEqual(strong.plainText, "A!")
     }
 
+    func testV3TypingSeedsAnEmptyTableCellWithoutReplacingItsParagraph() throws {
+        let (seed, _) = try fixture()
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let path = [1, 2, 0, 0]
+        let projection = try native.markdownV3ProseProjection()
+        let index = try XCTUnwrap(projection.blockPaths.firstIndex(of: path))
+        XCTAssertEqual(projection.blockRanges[index].length, 0)
+        let update = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: path, start: 0, end: 0, text: "First")
+        try peer.applyUpdate(update)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(after.blocks[1].childBlocks[2].childBlocks[0].plainText, "First")
+        XCTAssertEqual(after.blocks[1].childBlocks[2].childBlocks[0].id,
+                       before.blocks[1].childBlocks[2].childBlocks[0].id)
+        XCTAssertEqual(after.blocks[1].childBlocks[2].childBlocks[1],
+                       before.blocks[1].childBlocks[2].childBlocks[1])
+    }
+
     func testMixedProjectionSharesInlineMarksAndRejectsUnknownMetadataDuplicateIDsAndBrokenGrid() throws {
         let (update, _) = try fixture()
         let native = RelayMarkNativeDocument()

@@ -594,6 +594,32 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Seed one existing empty XML paragraph without changing its stable block
+    /// identity. The v3 adapter validates the surrounding document on a scratch
+    /// replica before this operation reaches the live Yrs transaction.
+    func insertTextIntoEmptyParagraph(_ text: String, path: [Int]) throws -> Data {
+        guard !text.isEmpty else { throw Failure.unsupportedProseEdit }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            var node = self.root
+            for component in path {
+                guard component >= 0, component <= Int(UInt32.max),
+                      let child = node.child(at: UInt32(component), in: transaction) else {
+                    throw Failure.invalidTextPath
+                }
+                node = child
+            }
+            guard node.kind(in: transaction) == "element", node.tag(in: transaction) == "paragraph",
+                  node.child(at: 0, in: transaction) == nil else {
+                throw Failure.invalidTextPath
+            }
+            let leaf = try node.insertText(at: 0, in: transaction)
+            try leaf.insert(text, at: 0, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Apply standard Y.XmlText formatting attributes; a null attribute clears a mark.
     public func formatText(at index: Int, length: Int, attributes: [String: Any], path: [Int]) throws -> Data {
         let update = try document.transactSync(origin: localOrigin) { transaction in

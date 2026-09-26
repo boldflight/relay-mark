@@ -33,15 +33,33 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
         }
 
         _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
-        guard try staysWithinOneTextRun(snapshot: document.snapshot(), path: path,
-                                        start: start, end: end, text: text) else {
+        let snapshot = try document.snapshot()
+        let emptyParagraph = try isEmptyParagraph(snapshot: snapshot, path: path) &&
+            start == 0 && end == 0 && !text.isEmpty
+        let validTextRun: Bool
+        if emptyParagraph { validTextRun = true }
+        else {
+            validTextRun = try staysWithinOneTextRun(snapshot: snapshot, path: path,
+                                                    start: start, end: end, text: text)
+        }
+        guard validTextRun else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
-        _ = try scratch.replaceText(at: start, length: end - start, with: text, path: path)
+        if emptyParagraph { _ = try scratch.insertTextIntoEmptyParagraph(text, path: path) }
+        else { _ = try scratch.replaceText(at: start, length: end - start, with: text, path: path) }
         _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch)
+        if emptyParagraph { return try document.insertTextIntoEmptyParagraph(text, path: path) }
         return try document.replaceText(at: start, length: end - start, with: text, path: path)
+    }
+
+    private static func isEmptyParagraph(snapshot: Data, path: [Int]) throws -> Bool {
+        guard let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
+              let paragraph = node(at: path, in: root) else { return false }
+        return paragraph["kind"] as? String == "element" &&
+            paragraph["name"] as? String == "paragraph" &&
+            (paragraph["children"] as? [Any])?.isEmpty == true
     }
 
     private static func staysWithinOneTextRun(snapshot: Data, path: [Int],
