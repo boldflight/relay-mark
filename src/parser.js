@@ -4,7 +4,9 @@ export function parseRelayMark(source) {
   const normalized = source.replace(/\r\n?/g, "\n");
   const { frontmatter, body } = parseFrontmatter(normalized);
   const lines = body.split("\n");
-  const state = { diagnostics: [] };
+  const skippedLines = normalized.slice(0, normalized.length - body.length).split("\n").length - 1;
+  const state = { diagnostics: [], rawLines:
+    (source.match(/[^\r\n]*(?:\r\n|\r|\n|$)/gu) || []).slice(skippedLines) };
   const { blocks } = parseBlocks(lines, 0, state, false);
   return { frontmatter, blocks, diagnostics: state.diagnostics };
 }
@@ -153,6 +155,7 @@ function parseDirective(lines, start, state) {
       name: match[1],
       attrs,
       children: childResult.blocks,
+      source: state.rawLines.slice(start, childResult.index).join("").replace(/(?:\r\n|\r|\n)$/u, ""),
       line: start + 1
     },
     index: childResult.index

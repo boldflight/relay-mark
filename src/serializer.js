@@ -1,6 +1,7 @@
 import { directiveForType } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
 import { sourceForV3Atom } from "./collaboration-atoms-v3.js";
+import { assertV3EntityReferenceProps } from "./collaboration-entity-reference-v3.js";
 
 /** Serializes the supported human-authored subset to one deterministic source form. */
 export function serializeRelayMark(document) {
@@ -19,6 +20,17 @@ export function serializeRelayMark(document) {
 }
 
 function serializeBlock(block) {
+  if (block.type === "relay.entity_reference" && block.props?.source !== undefined) {
+    const authored = assertV3EntityReferenceProps(block.props);
+    const content = block.content || [];
+    const parsedBody = content.length === 1 && content[0].type === "paragraph" &&
+      content[0].content?.length === 1 && content[0].content[0].type === "text" &&
+      content[0].content[0].text === authored.body;
+    if (content.length !== 0 && !parsedBody) {
+      throw new TypeError("Entity reference source/content mismatch");
+    }
+    return authored.source;
+  }
   if (block.type === "heading") {
     return `${"#".repeat(block.props?.level || 1)} ${serializeInline(block.content || [])}`;
   }

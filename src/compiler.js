@@ -1,6 +1,7 @@
 import { directiveForName } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
 import { parseV3AtomSource } from "./collaboration-atoms-v3.js";
+import { parseV3EntityReferenceSource } from "./collaboration-entity-reference-v3.js";
 
 export function compileParsedDocument(parsed) {
   const allocator = createBlockIdAllocator();
@@ -56,6 +57,14 @@ function compileBlock(block, allocator, diagnostics) {
 
     const astType = directive?.ast_type || `relay.unknown_${block.name.toLowerCase()}`;
     const props = applyAttributeDefaults(directive, block.attrs);
+    if (astType === "relay.entity_reference") {
+      const authored = parseV3EntityReferenceSource(block.source);
+      if (authored && authored.id === props.id && authored.label === (props.label || authored.body) &&
+          authored.projection === props.projection && block.children.length === 1 &&
+          block.children[0].kind === "paragraph" && block.children[0].text === authored.body) {
+        props.source = block.source;
+      }
+    }
     const id = allocator.next();
     const title = astType === "relay.callout" ? props.title : undefined;
     if (astType === "relay.callout") delete props.title;

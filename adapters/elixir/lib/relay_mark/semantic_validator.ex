@@ -393,15 +393,55 @@ defmodule RelayMark.SemanticValidator do
   end
 
   defp validate_entity_reference(block, diagnostics) do
-    if non_empty_string?(get_in(block, ["props", "id"])) do
-      diagnostics
+    props = Map.get(block, "props", %{})
+
+    diagnostics =
+      if non_empty_string?(props["id"]) do
+        diagnostics
+      else
+        append_error(
+          diagnostics,
+          "relaymark.entity_reference.id",
+          "relay.entity_reference.id must be a non-empty host reference."
+        )
+      end
+
+    if Map.has_key?(props, "source") do
+      case RelayMark.EntityReferenceV3.parse_source(props["source"]) do
+        {:ok, authored} ->
+          content = Map.get(block, "content", [])
+
+          parsed_body? =
+            case content do
+              [%{"type" => "paragraph", "content" => [%{"type" => "text", "text" => body}]}] ->
+                body == authored["body"]
+
+              _ ->
+                false
+            end
+
+          if props |> Map.keys() |> Enum.sort() == ["id", "label", "projection", "source"] and
+               props["id"] == authored["id"] and props["label"] == authored["label"] and
+               props["projection"] == authored["projection"] and (content == [] or parsed_body?) do
+            diagnostics
+          else
+            entity_reference_source_error(diagnostics)
+          end
+
+        :error ->
+          entity_reference_source_error(diagnostics)
+      end
     else
-      append_error(
-        diagnostics,
-        "relaymark.entity_reference.id",
-        "relay.entity_reference.id must be a non-empty host reference."
-      )
+      diagnostics
     end
+  end
+
+  defp entity_reference_source_error(diagnostics) do
+    append_error(
+      diagnostics,
+      "relaymark.entity_reference.source",
+      "relay.entity_reference.source must agree with identity, label, projection, and body."
+    )
   end
 
   defp validate_video_embed(block, diagnostics) do

@@ -1,0 +1,86 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91510,
+  "source": "Relay TipTap RelayEntityReference/StarterKit + community y-tiptap/Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000061"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "type": "relayEntityReference",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000062",
+          "entityRef": "entity:9f815b37-67b3-4101-868c-5335351feb6a",
+          "entityId": "9f815b37-67b3-4101-868c-5335351feb6a",
+          "entityType": "Entity",
+          "label": "Ada Lovelace",
+          "projection": "card",
+          "source": "@EntityRef(id: \"entity:9f815b37-67b3-4101-868c-5335351feb6a\", label: \"Ada Lovelace\", projection: \"card\") {\r\n  Authored fallback\r\n}"
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000063"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000061",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000062",
+        "type": "relay.entity_reference",
+        "props": {
+          "id": "entity:9f815b37-67b3-4101-868c-5335351feb6a",
+          "label": "Ada Lovelace",
+          "projection": "card",
+          "source": "@EntityRef(id: \"entity:9f815b37-67b3-4101-868c-5335351feb6a\", label: \"Ada Lovelace\", projection: \"card\") {\r\n  Authored fallback\r\n}"
+        },
+        "content": []
+      },
+      {
+        "id": "b00000000000040008000000000000063",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "authored_source": "@EntityRef(id: \"entity:9f815b37-67b3-4101-868c-5335351feb6a\", label: \"Ada Lovelace\", projection: \"card\") {\r\n  Authored fallback\r\n}",
+  "update": "ARD2ygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwD2ygUABgQA9soFAQZCZWZvcmUoAPbKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjGH9soFAAMUcmVsYXlFbnRpdHlSZWZlcmVuY2UoAPbKBQkLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjIoAPbKBQkJZW50aXR5UmVmAXcrZW50aXR5OjlmODE1YjM3LTY3YjMtNDEwMS04NjhjLTUzMzUzNTFmZWI2YSgA9soFCQhlbnRpdHlJZAF3JDlmODE1YjM3LTY3YjMtNDEwMS04NjhjLTUzMzUzNTFmZWI2YSgA9soFCQplbnRpdHlUeXBlAXcGRW50aXR5KAD2ygUJBWxhYmVsAXcMQWRhIExvdmVsYWNlKAD2ygUJCnByb2plY3Rpb24BdwRjYXJkKAD2ygUJBnNvdXJjZQF3ggFARW50aXR5UmVmKGlkOiAiZW50aXR5OjlmODE1YjM3LTY3YjMtNDEwMS04NjhjLTUzMzUzNTFmZWI2YSIsIGxhYmVsOiAiQWRhIExvdmVsYWNlIiwgcHJvamVjdGlvbjogImNhcmQiKSB7DQogIEF1dGhvcmVkIGZhbGxiYWNrDQp9h/bKBQkDCXBhcmFncmFwaAcA9soFEQYEAPbKBRIFQWZ0ZXIoAPbKBRELcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjMA"
+}

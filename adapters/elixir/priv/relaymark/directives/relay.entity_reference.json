@@ -21,6 +21,10 @@
       "type": "enum",
       "values": ["link", "chip", "card"],
       "default": "link"
+    },
+    "source": {
+      "type": "string",
+      "description": "Optional exact authored directive source for an offered atom; it must agree with identity, label and projection."
     }
   },
   "children": {

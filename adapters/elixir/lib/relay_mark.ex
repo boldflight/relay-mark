@@ -16,6 +16,11 @@ defmodule RelayMark do
     ValidationError
   }
 
+  @doc "Parses the bounded authored source of an optional v3 EntityRef atom."
+  @spec parse_v3_entity_reference_source(binary()) :: {:ok, map()} | :error
+  def parse_v3_entity_reference_source(source),
+    do: RelayMark.EntityReferenceV3.parse_source(source)
+
   @spec decode_layer_composition(binary()) :: {:ok, RelayMark.Composition.t()} | {:error, term()}
   def decode_layer_composition(json) when is_binary(json) do
     with {:ok, map} <- RelayMark.JSON.decode(json) do

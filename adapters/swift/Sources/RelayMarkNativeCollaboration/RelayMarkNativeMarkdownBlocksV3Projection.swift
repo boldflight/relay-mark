@@ -110,6 +110,23 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             try require(attrs["status"] == nil || attrs["status"] as? String == "ready", "video status")
             return ["id": id, "type": "relay.video_embed", "props": ["videoId": videoId],
                     "content": [[String: Any]]()]
+        case "relayEntityReference":
+            let id = try blockID(attrs, allowed: ["relaymarkId", "entityRef", "entityId", "entityType",
+                                                   "label", "projection", "source"], ids: &ids)
+            try require(children.isEmpty, "entity reference children")
+            guard let entityRef = attrs["entityRef"] as? String,
+                  let entityId = attrs["entityId"] as? String,
+                  let label = attrs["label"] as? String,
+                  let projection = attrs["projection"] as? String,
+                  let source = attrs["source"] as? String,
+                  attrs["entityType"] as? String == "Entity",
+                  entityReferenceSource(source, entityRef: entityRef, entityId: entityId,
+                                        label: label, projection: projection) else {
+                throw Failure.unsupported("entity reference source/identity")
+            }
+            return ["id": id, "type": "relay.entity_reference",
+                    "props": ["id": entityRef, "label": label, "projection": projection, "source": source],
+                    "content": [[String: Any]]()]
         case "callout":
             try require(calloutDepth < 8, "callout depth")
             let id = try blockID(attrs, allowed: ["relaymarkId", "tone", "emphasis"], ids: &ids)
@@ -347,6 +364,53 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         guard src.hasPrefix("https://"), let url = URLComponents(string: src),
               url.scheme == "https", let host = url.host, !host.isEmpty,
               url.user == nil, url.password == nil else { return false }
+        return true
+    }
+
+    private static func entityReferenceSource(_ source: String, entityRef: String, entityId: String,
+                                              label: String, projection: String) -> Bool {
+        guard source.utf16.count <= 16_384,
+              let directive = try? NSRegularExpression(
+                pattern: #"^@EntityRef\s*\(([\s\S]*?)\)\s*\{(?:\r\n|\n|\r)  ([^\r\n{}]+)(?:\r\n|\n|\r)\}$"#),
+              let match = directive.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)),
+              match.range == NSRange(source.startIndex..., in: source),
+              let headerRange = Range(match.range(at: 1), in: source),
+              let bodyRange = Range(match.range(at: 2), in: source) else { return false }
+        let body = String(source[bodyRange])
+        guard body == body.trimmingCharacters(in: .whitespacesAndNewlines),
+              !body.contains("[["), !body.contains("]]"), !body.contains("](relay:"),
+              !body.hasPrefix("@"), !body.hasPrefix("#") else { return false }
+        guard let attribute = try? NSRegularExpression(
+            pattern: #"^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*("(?:\\.|[^"\\])*")"#) else { return false }
+        var remaining = String(source[headerRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        var values = [String: String]()
+        while !remaining.isEmpty {
+            guard let token = attribute.firstMatch(in: remaining,
+                                                   range: NSRange(remaining.startIndex..., in: remaining)),
+                  token.range.location == 0,
+                  let keyRange = Range(token.range(at: 1), in: remaining),
+                  let valueRange = Range(token.range(at: 2), in: remaining) else { return false }
+            let key = String(remaining[keyRange])
+            guard ["id", "label", "projection"].contains(key), values[key] == nil,
+                  let value = try? JSONDecoder().decode(String.self,
+                                                         from: Data(remaining[valueRange].utf8)) else { return false }
+            values[key] = value
+            guard let consumed = Range(token.range, in: remaining) else { return false }
+            remaining = String(remaining[consumed.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !remaining.isEmpty {
+                guard remaining.hasPrefix(",") else { return false }
+                remaining.removeFirst()
+                remaining = remaining.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !remaining.isEmpty else { return false }
+            }
+        }
+        guard entityRef == values["id"], entityRef == "entity:\(entityId)",
+              UUID(uuidString: entityId)?.uuidString.lowercased() == entityId,
+              label == (values["label"] ?? body), !label.isEmpty,
+              label == label.trimmingCharacters(in: .whitespacesAndNewlines),
+              !label.contains("\r"), !label.contains("\n"),
+              projection == (values["projection"] ?? "link"),
+              ["link", "chip", "card"].contains(projection) else { return false }
         return true
     }
 

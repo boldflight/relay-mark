@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { directiveForType } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
+import { assertV3EntityReferenceProps } from "./collaboration-entity-reference-v3.js";
 
 export function validateDocument(document, validationContext = {}) {
   const diagnostics = [];
@@ -194,6 +195,19 @@ function validateEntityReference(block, diagnostics) {
     diagnostics.push(
       error("relaymark.entity_reference.id", "relay.entity_reference.id must be a non-empty host reference.")
     );
+  }
+  if (block.props?.source !== undefined) {
+    try {
+      const authored = assertV3EntityReferenceProps(block.props);
+      const content = block.content || [];
+      const parsedBody = content.length === 1 && content[0].type === "paragraph" &&
+        content[0].content?.length === 1 && content[0].content[0].type === "text" &&
+        content[0].content[0].text === authored.body;
+      if (content.length !== 0 && !parsedBody) throw new TypeError("Entity reference body mismatch");
+    } catch {
+      diagnostics.push(error("relaymark.entity_reference.source",
+        "relay.entity_reference.source must agree with identity, label, projection, and body."));
+    }
   }
 }
 

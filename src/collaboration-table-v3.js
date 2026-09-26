@@ -1,5 +1,6 @@
 /** Optional relaymark-prosemirror-v3 Markdown-block/table projection; no live profile admits it. */
 import { mapV3Inline, unmapV3Inline } from './collaboration-inline-v3.js';
+import { parseV3EntityReferenceSource, assertV3EntityReferenceProps } from './collaboration-entity-reference-v3.js';
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
@@ -59,6 +60,7 @@ function mapBlock(node, seen, calloutDepth) {
     case "horizontalRule": return mapRule(node, seen);
     case "image": return mapImage(node, seen);
     case "videoEmbed": return mapVideo(node, seen);
+    case "relayEntityReference": return mapEntityReference(node, seen);
     case "callout": return mapCallout(node, seen, calloutDepth);
     case "table": {
       const table = mapTable(node, seen);
@@ -80,6 +82,7 @@ function unmapBlock(block, seen, calloutDepth) {
     case "horizontal_rule": return unmapRule(block, seen);
     case "image": return unmapImage(block, seen);
     case "relay.video_embed": return unmapVideo(block, seen);
+    case "relay.entity_reference": return unmapEntityReference(block, seen);
     case "relay.callout": return unmapCallout(block, seen, calloutDepth);
     case "table": validateGrid(block); return unmapTable(block, seen);
     default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
@@ -379,6 +382,32 @@ function checkImageProps({ src, alt, title }) {
       throw new TypeError(`Invalid image ${name}`);
     }
   }
+}
+
+function mapEntityReference(node, seen) {
+  checkNode(node, "relayEntityReference", seen,
+    ["entityRef", "entityId", "entityType", "label", "projection", "source"]);
+  if (node.content !== undefined && children(node, "relayEntityReference").length !== 0) {
+    throw new TypeError("Entity reference atom cannot have children");
+  }
+  const { entityRef, entityId: id, entityType, label, projection, source } = node.attrs;
+  const authored = parseV3EntityReferenceSource(source);
+  if (!authored || authored.id !== entityRef || authored.entityId !== id ||
+      entityType !== "Entity" || authored.label !== label || authored.projection !== projection) {
+    throw new TypeError("Entity reference source/identity mismatch");
+  }
+  return { id: node.attrs.relaymarkId, type: "relay.entity_reference",
+    props: { id: entityRef, label, projection, source }, content: [] };
+}
+
+function unmapEntityReference(block, seen) {
+  checkBlock(block, "relay.entity_reference", seen, true);
+  if (block.content !== undefined && children(block, "relay.entity_reference").length !== 0) {
+    throw new TypeError("Entity reference atom cannot have children");
+  }
+  const { id, entityId, label, projection, source } = assertV3EntityReferenceProps(block.props);
+  return { type: "relayEntityReference", attrs: { relaymarkId: block.id,
+    entityRef: id, entityId, entityType: "Entity", label, projection, source } };
 }
 
 const videoId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
