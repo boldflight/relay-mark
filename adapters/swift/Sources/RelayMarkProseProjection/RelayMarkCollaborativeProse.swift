@@ -54,6 +54,18 @@ public struct RelayMarkCollaborativeProse {
     }
     public let inlineAtoms: [InlineAtom]
 
+    /// Inert v3 Paper controls projected as one UTF-16 block unit.
+    public struct BlockAtom: Equatable, Sendable {
+        public typealias Control = RelayMarkPaperControlContract.Control
+        public let id: String
+        public let control: Control
+        public let source: String
+        public let displayLabel: String
+        public let range: NSRange
+        public let path: [Int]
+    }
+    public let blockAtoms: [BlockAtom]
+
     /// Block metadata remains available when an empty paragraph has no text run.
     public let blockIntents: [PresentationIntent]
     public let blockPaths: [[Int]]
@@ -81,6 +93,7 @@ public struct RelayMarkCollaborativeProse {
         var cells: [TableCell] = []
         var calloutRanges: [Callout] = []
         var atoms: [InlineAtom] = []
+        var blockAtoms: [BlockAtom] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         var supported = root?["kind"] as? String == "fragment"
@@ -240,6 +253,7 @@ public struct RelayMarkCollaborativeProse {
                 }
                 let kind: PresentationIntent.Kind
                 var table: (width: Int, starts: [[Int]])?
+                var paperControl: RelayMarkPaperControlContract.Validated?
                 switch name {
                 case "paragraph": kind = .paragraph
                 case "heading":
@@ -253,6 +267,13 @@ public struct RelayMarkCollaborativeProse {
                     if let language = attributes["language"] as? String, language.contains("\n") || language.contains("\r") { supported = false }
                     kind = .codeBlock(languageHint: attributes["language"] as? String)
                 case "horizontalRule": kind = .thematicBreak
+                case "relayButton", "relayAnchor", "relayConnection":
+                    kind = .thematicBreak
+                    if dialect == .markdownV3, path.isEmpty,
+                       let validated = try? RelayMarkPaperControlContract.validate(nodeName: name, attributes: attributes),
+                       children.isEmpty {
+                        paperControl = validated
+                    } else { supported = false }
                 case "blockquote": kind = .blockQuote
                 case "bulletList": kind = .unorderedList
                 case "orderedList":
@@ -281,7 +302,7 @@ public struct RelayMarkCollaborativeProse {
                         allowed.formUnion(["colspan", "rowspan", "colwidth", "align"])
                     }
                 }
-                if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
+                if paperControl == nil && !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
                 let previousCount = ranges.count
                 if ["blockquote", "bulletList", "orderedList", "listItem"].contains(name) {
@@ -311,11 +332,16 @@ public struct RelayMarkCollaborativeProse {
                     if !ranges.isEmpty { value.append(AttributedString("\n")) }
                     let start = length(), attributedStart = value.endIndex
                     var inlineOffsets = [start]
-                    if name == "horizontalRule" {
+                    if name == "horizontalRule" || paperControl != nil {
                         if !children.isEmpty { supported = false }
                         value.append(AttributedString("\u{FFFC}"))
+                        if let paperControl {
+                            blockAtoms.append(BlockAtom(id: paperControl.id, control: paperControl.control,
+                                source: paperControl.source, displayLabel: paperControl.displayLabel,
+                                range: NSRange(location: start, length: 1), path: blockPath))
+                        }
                         mapped.append(Span(range: NSRange(location: start, length: 1), path: blockPath,
-                            text: false, afterPath: path, afterIndex: index + 1, atom: false))
+                            text: false, afterPath: path, afterIndex: index + 1, atom: paperControl != nil))
                     } else {
                         for (childIndex, child) in children.enumerated() {
                             let childPath = blockPath + [childIndex]
@@ -353,7 +379,8 @@ public struct RelayMarkCollaborativeProse {
                 offsets.append(ranges.count > previousCount ? ranges[previousCount].location : length())
                 // An XML boundary immediately after a rule maps to the atom's end.
                 // The next text leaf has its own unambiguous start position.
-                if index > 0, nodes[index - 1]["name"] as? String == "horizontalRule", previousCount > 0 {
+                if index > 0, ["horizontalRule", "relayButton", "relayAnchor", "relayConnection"]
+                    .contains(nodes[index - 1]["name"] as? String ?? ""), previousCount > 0 {
                     offsets[offsets.count - 1] = NSMaxRange(ranges[previousCount - 1])
                 }
             }
@@ -361,7 +388,7 @@ public struct RelayMarkCollaborativeProse {
         }
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
-        tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms
+        tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms; self.blockAtoms = blockAtoms
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }
@@ -379,6 +406,9 @@ public struct RelayMarkCollaborativeProse {
         // For identified atoms, both edges are XML sibling boundaries. Prefer
         // an adjacent text leaf when present so a caret edits that leaf.
         if let atom = spans.first(where: { $0.atom && ($0.range.location == offset || NSMaxRange($0.range) == offset) }) {
+            if atom.range.location == offset, blockAtoms.contains(where: { $0.path == atom.path }) {
+                return (atom.path, 0)
+            }
             if atom.range.location == offset,
                let previous = spans.first(where: { $0.text && NSMaxRange($0.range) == offset }) {
                 return (previous.path, previous.range.length)

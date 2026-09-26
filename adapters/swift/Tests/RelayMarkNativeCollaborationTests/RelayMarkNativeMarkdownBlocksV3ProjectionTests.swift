@@ -314,7 +314,36 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(update)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
-        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertEqual(String(prose.text.characters), "Before\n\u{FFFC}\n\u{FFFC}\n\u{FFFC}\n\u{FFFC}\n\u{FFFC}\nAfter")
+        XCTAssertEqual(prose.blockAtoms.map(\.control), [.anchor, .button, .button, .button, .connection])
+        XCTAssertEqual(prose.blockAtoms.map(\.id), (62...66).map {
+            "b000000000000400080000000000000\($0)"
+        })
+        XCTAssertEqual(prose.blockAtoms.map(\.path), [[1], [2], [3], [4], [5]])
+        XCTAssertEqual(prose.blockAtoms.map(\.range.location), [7, 9, 11, 13, 15])
+        XCTAssertEqual(prose.blockAtoms.map(\.range.length), [1, 1, 1, 1, 1])
+        XCTAssertEqual(prose.blockAtoms.map(\.displayLabel), ["next", "Next", "Search Alex", "Docs", "google"])
+        XCTAssertEqual(prose.blockAtoms.map(\.source), [
+            "@Anchor(name: \"next\")",
+            "@Button(label: \"Next\", kind: \"anchor\", target: \"next\")",
+            "@Button(label: \"Search Alex\", kind: \"command\", target: \"/search Alex\")",
+            "@Button(label: \"Docs\", kind: \"link\", target: \"https://example.com/docs\")",
+            "@Connection(provider: \"google\")"
+        ])
+        XCTAssertEqual(prose.textRanges(in: NSRange(location: 0, length: 22)).map(\.path), [[0, 0], [6, 0]])
+        for atom in prose.blockAtoms {
+            XCTAssertTrue(prose.textRanges(in: atom.range).isEmpty)
+            for edge in [atom.range.location, NSMaxRange(atom.range)] {
+                let position = try XCTUnwrap(prose.position(atUTF16: edge))
+                XCTAssertEqual(prose.offset(path: position.path, index: position.index), edge)
+            }
+        }
+        _ = try native.insertText("!", at: 6, path: [0, 0])
+        let edited = try native.markdownV3ProseProjection()
+        XCTAssertEqual(edited.blockAtoms.map(\.range.location), [8, 10, 12, 14, 16])
+        XCTAssertEqual(edited.blockAtoms.map(\.id), prose.blockAtoms.map(\.id))
 
         var snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
         var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
@@ -326,6 +355,24 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         snapshot["children"] = blocks
         XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(
             snapshot: JSONSerialization.data(withJSONObject: snapshot)))
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: JSONSerialization.data(withJSONObject: snapshot),
+                                                        dialect: .markdownV3).isEditable)
+        attrs.removeValue(forKey: "authorized")
+        attrs["target"] = "javascript:alert(1)"
+        button["attributes"] = attrs
+        blocks[2] = button
+        snapshot["children"] = blocks
+        let unsafeTarget = try JSONSerialization.data(withJSONObject: snapshot)
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: unsafeTarget))
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: unsafeTarget, dialect: .markdownV3).isEditable)
+        attrs["target"] = "next"
+        button["attributes"] = attrs
+        button["children"] = [["kind": "text", "delta": [["insert": "hidden"]]]]
+        blocks[2] = button
+        snapshot["children"] = blocks
+        let hiddenChild = try JSONSerialization.data(withJSONObject: snapshot)
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: hiddenChild))
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: hiddenChild, dialect: .markdownV3).isEditable)
     }
 
     func testCommunityVideoFixtureProjectsOnlyDurableIdentity() throws {
