@@ -227,12 +227,53 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
                 }
             } else {
                 let (name, attrs, grandchildren) = try element(child)
+                if breaks && (name == "relayReference" || name == "relayTag") {
+                    try require(grandchildren.isEmpty, "inline atom children")
+                    result.append(try atom(name, attrs: attrs))
+                    continue
+                }
                 try require(breaks && name == "hardBreak" && attrs.isEmpty && grandchildren.isEmpty,
                             "inline element")
                 result.append(["type": "hard_break"])
             }
         }
         return result
+    }
+
+    private static func atom(_ name: String, attrs: [String: Any]) throws -> [String: Any] {
+        let uuidPattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        func validUUID(_ value: String) -> Bool {
+            value.range(of: uuidPattern, options: .regularExpression) != nil
+        }
+        if name == "relayReference" {
+            try require(Set(attrs.keys).isSubset(of: Set(["entityType", "entityId", "label", "source", "status", "subtitle"])),
+                        "reference attributes")
+            guard let type = attrs["entityType"] as? String,
+                  type.range(of: "^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$", options: .regularExpression) != nil,
+                  type != "Tag", let id = attrs["entityId"] as? String, validUUID(id),
+                  let label = attrs["label"] as? String, !label.isEmpty,
+                  label == label.trimmingCharacters(in: .whitespacesAndNewlines),
+                  label.rangeOfCharacter(from: CharacterSet.newlines) == nil, !label.contains("]"),
+                  let source = attrs["source"] as? String,
+                  source == "[[\(type): \(id) | \(label)]]",
+                  (attrs["status"] == nil || attrs["status"] is NSNull),
+                  (attrs["subtitle"] == nil || attrs["subtitle"] is NSNull) else {
+                throw Failure.unsupported("reference identity or source")
+            }
+            return ["type": "relay.entity_ref", "id": id, "label": label,
+                    "props": ["entityType": type, "source": source]]
+        }
+        try require(Set(attrs.keys).isSubset(of: Set(["id", "name", "color", "source"])), "tag attributes")
+        guard let id = attrs["id"] as? String, validUUID(id),
+              let tagName = attrs["name"] as? String,
+              tagName.range(of: "^[a-z0-9][a-z0-9_-]*$", options: .regularExpression) != nil,
+              let source = attrs["source"] as? String,
+              source == "[[Tag: \(id) | #\(tagName)]]",
+              (attrs["color"] == nil || attrs["color"] is NSNull) else {
+            throw Failure.unsupported("tag identity or source")
+        }
+        return ["type": "relay.tag_ref", "id": id, "label": "#\(tagName)",
+                "props": ["name": tagName, "source": source]]
     }
 
     /// TipTap's mark rank is link, bold, code, italic, strike, underline,

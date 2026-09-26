@@ -1,5 +1,6 @@
 import { directiveForType } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
+import { sourceForV3Atom } from "./collaboration-atoms-v3.js";
 
 /** Serializes the supported human-authored subset to one deterministic source form. */
 export function serializeRelayMark(document) {
@@ -45,6 +46,10 @@ function serializeBlock(block) {
 function serializeInline(nodes) {
   return nodes.map((node) => {
     if (node.type === "text") return node.text || "";
+    if ((node.type === "relay.entity_ref" || node.type === "relay.tag_ref") &&
+        node.props && Object.keys(node.props).length > 0) {
+      return sourceForV3Atom(node);
+    }
     if (node.type?.startsWith("relay.") && node.type.endsWith("_ref")) {
       const kind = node.type.slice("relay.".length, -"_ref".length);
       return `[${node.label || node.id || "reference"}](relay:${kind}/${node.id || ""})`;

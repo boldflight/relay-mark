@@ -1,5 +1,6 @@
 import { directiveForName } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
+import { parseV3AtomSource } from "./collaboration-atoms-v3.js";
 
 export function compileParsedDocument(parsed) {
   const allocator = createBlockIdAllocator();
@@ -118,20 +119,17 @@ function applyAttributeDefaults(directive, attrs) {
 
 function parseInline(text) {
   const nodes = [];
-  const pattern = /\[([^\]]+)\]\(relay:([a-z_]+)\/([^)]+)\)/g;
+  const pattern = /\[\[[^\]\r\n]+\]\]|\[([^\]]+)\]\(relay:([a-z_]+)\/([^)]+)\)/g;
   let lastIndex = 0;
   let match;
 
   while ((match = pattern.exec(text))) {
+    const atom = match[0].startsWith("[[") ? parseV3AtomSource(match[0]) : null;
+    if (match[0].startsWith("[[") && !atom) continue;
     if (match.index > lastIndex) {
       nodes.push({ type: "text", text: text.slice(lastIndex, match.index) });
     }
-
-    nodes.push({
-      type: `relay.${match[2]}_ref`,
-      id: match[3],
-      label: match[1]
-    });
+    nodes.push(atom || { type: `relay.${match[2]}_ref`, id: match[3], label: match[1] });
 
     lastIndex = pattern.lastIndex;
   }

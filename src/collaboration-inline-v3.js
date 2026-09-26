@@ -1,4 +1,5 @@
 /** Draft v3 text-run mapping. Each mark wraps exactly one child, in schema order. */
+import { mapV3Atom, unmapV3Atom } from './collaboration-atoms-v3.js';
 const markTypes = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
 const inlineTypes = { link: "link", bold: "strong", code: "code_span",
   italic: "emphasis", strike: "strikethrough", underline: "underline",
@@ -26,6 +27,7 @@ function href(value) {
 
 export function mapV3Inline(node) {
   object(node, "inline");
+  if (node.type === 'relayReference' || node.type === 'relayTag') return mapV3Atom(node);
   if (node.type === "hardBreak") {
     keys(node, ["type"], "hardBreak");
     return { type: "hard_break" };
@@ -63,6 +65,7 @@ export function mapV3Inline(node) {
 
 export function unmapV3Inline(node) {
   object(node, "inline");
+  if (node.type === 'relay.entity_ref' || node.type === 'relay.tag_ref') return unmapV3Atom(node);
   if (node.type === "hard_break") {
     keys(node, ["type"], "hard_break");
     return { type: "hardBreak" };

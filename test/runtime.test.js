@@ -642,7 +642,7 @@ describe("RelayMark reference runtime", () => {
     const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
 
     assert.equal(receipt.type, "relaymark.fixture_receipt");
-    assert.equal(receipt.version, "0.8.0-draft");
+    assert.equal(receipt.version, "0.9.0-draft");
     assert.equal(receipt.algorithm, "sha256");
 
     for (const pair of receipt.pairs) {

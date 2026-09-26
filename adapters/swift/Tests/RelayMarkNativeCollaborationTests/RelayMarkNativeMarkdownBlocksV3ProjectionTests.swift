@@ -5,6 +5,55 @@ import RelayMarkSwift
 
 @MainActor
 final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
+    func testCommunityInlineAtomsProjectExactIdentityAndRejectUnresolvedSource() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-atoms-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let expected = try RelayMarkDocument.decodeJSON(JSONSerialization.data(
+            withJSONObject: try XCTUnwrap(fixture["expected_ast"])))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try native.applyUpdate(update)
+        XCTAssertTrue(native.integrationStatus().isComplete)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(try native.encodeUpdate())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+
+        let original = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        func changed(_ edit: (inout [[String: Any]]) -> Void) throws -> Data {
+            var snapshot = original
+            var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+            edit(&blocks)
+            snapshot["children"] = blocks
+            return try JSONSerialization.data(withJSONObject: snapshot)
+        }
+        let unresolved = try changed { blocks in
+            var paragraph = blocks[0]
+            var children = paragraph["children"] as! [[String: Any]]
+            var reference = children[1]
+            var attrs = reference["attributes"] as! [String: Any]
+            attrs["entityId"] = NSNull()
+            reference["attributes"] = attrs
+            children[1] = reference
+            paragraph["children"] = children
+            blocks[0] = paragraph
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: unresolved))
+        let colored = try changed { blocks in
+            var paragraph = blocks[0]
+            var children = paragraph["children"] as! [[String: Any]]
+            var tag = children[3]
+            var attrs = tag["attributes"] as! [String: Any]
+            attrs["color"] = "green"
+            tag["attributes"] = attrs
+            children[3] = tag
+            paragraph["children"] = children
+            blocks[0] = paragraph
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: colored))
+    }
+
     func testCommunityTaskListFixtureProjectsCheckedAndLinkedNestedItemsWithoutAdmittingEditing() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
