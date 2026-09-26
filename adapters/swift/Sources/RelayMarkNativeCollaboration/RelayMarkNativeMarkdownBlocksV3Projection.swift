@@ -27,7 +27,8 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         return try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: ast))
     }
 
-    private static func block(_ raw: Any, depth: Int, ids: inout Set<String>) throws -> [String: Any] {
+    private static func block(_ raw: Any, depth: Int, calloutDepth: Int = 0,
+                              ids: inout Set<String>) throws -> [String: Any] {
         let (name, attrs, children) = try element(raw)
         switch name {
         case "paragraph": return try paragraph(raw, ids: &ids)
@@ -86,6 +87,28 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
                     "props": ["src": src, "alt": try imageText(attrs["alt"], label: "image alt"),
                               "title": try imageText(attrs["title"], label: "image title")],
                     "content": [[String: Any]]()]
+        case "callout":
+            try require(calloutDepth < 8, "callout depth")
+            let id = try blockID(attrs, allowed: ["relaymarkId", "tone", "emphasis"], ids: &ids)
+            guard let tone = attrs["tone"] as? String,
+                  ["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"].contains(tone),
+                  let emphasis = attrs["emphasis"] as? String,
+                  ["soft", "strong"].contains(emphasis) else {
+                throw Failure.unsupported("callout appearance")
+            }
+            try require(!children.isEmpty && children.count <= 4_096, "callout children")
+            var content = [[String: Any]]()
+            var body = children[...]
+            if try element(children[0]).0 == "calloutTitle" {
+                content.append(try calloutTitle(children[0], ids: &ids))
+                body = children.dropFirst()
+                try require(!body.isEmpty, "callout body")
+            }
+            for child in body {
+                content.append(try block(child, depth: 0, calloutDepth: calloutDepth + 1, ids: &ids))
+            }
+            return ["id": id, "type": "relay.callout",
+                    "props": ["tone": tone, "emphasis": emphasis], "content": content]
         case "table":
             // Reuse the existing strict grid and cell validator. It returns the same
             // portable AST shape and keeps the table boundary unchanged.
@@ -101,6 +124,13 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
                               keys: ["id", "type", "props", "content", "evidence_refs"])
         default: throw Failure.unsupported("block \(name)")
         }
+    }
+
+    private static func calloutTitle(_ raw: Any, ids: inout Set<String>) throws -> [String: Any] {
+        let (name, attrs, children) = try element(raw)
+        try require(name == "calloutTitle", "callout title")
+        let id = try blockID(attrs, allowed: ["relaymarkId"], ids: &ids)
+        return ["id": id, "type": "relay.callout_title", "content": try inline(children, breaks: false)]
     }
 
     private static func listItem(_ raw: Any, depth: Int, ids: inout Set<String>) throws -> [String: Any] {

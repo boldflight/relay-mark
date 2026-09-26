@@ -119,6 +119,37 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: hidden))
     }
 
+    func testCommunityCalloutFixtureKeepsRichTitleAndAppearanceWithoutAdmittingTextEditing() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let expected = try RelayMarkDocument.decodeJSON(JSONSerialization.data(
+            withJSONObject: try XCTUnwrap(fixture["expected_ast"])))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try native.applyUpdate(update)
+        XCTAssertTrue(native.integrationStatus().isComplete)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        XCTAssertEqual(expected.blocks.map(\.type), ["paragraph", "relay.callout", "paragraph"])
+        XCTAssertEqual(expected.blocks[1].childBlocks.map(\.type), ["relay.callout_title", "paragraph"])
+        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(try native.encodeUpdate())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+
+        var snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+        var callout = blocks[1]
+        var attrs = try XCTUnwrap(callout["attributes"] as? [String: Any])
+        attrs["tone"] = "custom"
+        callout["attributes"] = attrs
+        blocks[1] = callout
+        snapshot["children"] = blocks
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(
+            snapshot: JSONSerialization.data(withJSONObject: snapshot)))
+    }
+
     func testStableParagraphIDEditsSpannedTableCellWithoutRebuildingGrid() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "table-mixed-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
