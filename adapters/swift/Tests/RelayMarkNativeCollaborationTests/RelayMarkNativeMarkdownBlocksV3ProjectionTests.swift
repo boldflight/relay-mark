@@ -46,6 +46,40 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
     }
 
+    func testStableParagraphIDEditsSpannedTableCellWithoutRebuildingGrid() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "table-mixed-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let table = try XCTUnwrap(before.blocks.first { $0.type == "table" })
+        let row = try XCTUnwrap(table.childBlocks.first)
+        let cell = try XCTUnwrap(row.childBlocks.first)
+        let paragraph = try XCTUnwrap(cell.childBlocks.first)
+        XCTAssertEqual(paragraph.plainText, "A")
+
+        let delta = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, blockID: paragraph.id, childIndex: 0,
+            start: 0, end: 1, text: "Shared")
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let updatedTable = try XCTUnwrap(after.blocks.first { $0.id == table.id })
+        let updatedCell = try XCTUnwrap(updatedTable.childBlocks.first?.childBlocks.first)
+        XCTAssertEqual(updatedCell.props, cell.props)
+        XCTAssertEqual(updatedCell.childBlocks.first?.id, paragraph.id)
+        XCTAssertEqual(updatedCell.childBlocks.first?.plainText, "Shared")
+
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(update)
+        try reopened.applyUpdate(delta)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), after)
+        let checkpoint = try native.encodeUpdate()
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, blockID: "b00000000000040008000000000000000", childIndex: 0,
+            start: 0, end: 0, text: "X"))
+        XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+    }
+
     func testCommunityInlineMarksProjectToExactPortableASTAfterReplayAndReopen() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-marks-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
@@ -106,6 +140,8 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
             document: native, path: [0, 0], start: 0, end: 0, text: "\n"))
         XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
             document: native, path: [0], start: 0, end: 0, text: "X"))
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 7, end: 7, text: "X"))
         XCTAssertEqual(try native.encodeUpdate(), checkpoint)
     }
 

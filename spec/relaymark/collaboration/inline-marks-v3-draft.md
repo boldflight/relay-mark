@@ -52,3 +52,9 @@ for basic Markdown blocks and marked text with stable `relaymarkId` attributes.
 The legacy mode continues to reject those attributes. Tables and other shapes
 outside that attributed-text map remain noneditable, and the app's v3 admission
 gate stays closed.
+
+The same bounded text command can locate a paragraph by its stable RelayMark
+block ID before editing one current XmlText leaf. A YSwift fixture proves a
+spanned table cell's text can change without rebuilding its table, spans, IDs,
+or peer-replay bytes. Text edits must stay inside one mark run and at Swift
+character boundaries; table structure and full native table UI are still gated.
