@@ -12,6 +12,90 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         return try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(object["update"] as? String)))
     }
 
+    private func tag() -> RelayMarkNativeInlineAtomMutation.Atom {
+        .init(kind: .relayTag, attributes: [
+            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "name": "followup",
+            "source": "[[Tag: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa | #followup]]"
+        ])
+    }
+
+    func testMidLeafInsertionPreservesMarksAndReplaysAcrossBrowserAndNative() throws {
+        let initial = try fixture()
+        let native = RelayMarkNativeDocument()
+        let peer = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        for replica in [native, peer] { try replica.applyUpdate(initial) }
+        try browser.applyUpdate(initial)
+        let marked = try native.formatText(at: 1, length: 3,
+                                           attributes: ["bold": [String: Any]()], path: [0, 0])
+        try peer.applyUpdate(marked)
+        try browser.applyUpdate(marked)
+        let originalLeaf = try native.anchor(path: [0, 0], index: 1)
+        let adjacentAtom = try native.anchor(path: [0, 1], index: 0)
+        let inserted = try RelayMarkNativeInlineAtomMutation.insert(
+            document: native, blockID: "b00000000000040008000000000000031",
+            childIndex: 0, utf16Offset: 2, expectedLeafText: "Meet ", atom: tag())
+        try peer.applyUpdate(inserted)
+        try browser.applyUpdate(inserted)
+
+        let snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        let blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+        let children = try XCTUnwrap(blocks[0]["children"] as? [[String: Any]])
+        XCTAssertEqual(children.count, 7)
+        XCTAssertEqual(children[0]["kind"] as? String, "text")
+        XCTAssertEqual(children[1]["name"] as? String, "relayTag")
+        XCTAssertEqual(children[2]["kind"] as? String, "text")
+        let left = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+        let right = try XCTUnwrap(children[2]["delta"] as? [[String: Any]])
+        XCTAssertEqual(left.compactMap { $0["insert"] as? String }.joined(), "Me")
+        XCTAssertEqual(right.compactMap { $0["insert"] as? String }.joined(), "et ")
+        XCTAssertNotNil((left.last?["attributes"] as? [String: Any])?["bold"] as? [String: Any])
+        XCTAssertNotNil((right.first?["attributes"] as? [String: Any])?["bold"] as? [String: Any])
+        XCTAssertEqual(try native.resolve(anchor: originalLeaf)?.path, [0, 0])
+        XCTAssertEqual(try native.resolve(anchor: adjacentAtom)?.path, [0, 3])
+        XCTAssertEqual(try peer.snapshot(), try native.snapshot())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        let undone = try XCTUnwrap(native.undo())
+        try peer.applyUpdate(undone)
+        try browser.applyUpdate(undone)
+        XCTAssertEqual(try peer.snapshot(), try native.snapshot())
+        XCTAssertEqual(try native.markdownV3ProseProjection().inlineAtoms.count, 3)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+    }
+
+    func testMidLeafUnicodeBoundaryAndStalePositionsFailClosed() throws {
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(fixture())
+        _ = try native.insertText("🌍", at: 2, path: [0, 0])
+        let before = try native.encodeUpdate()
+        for offset in [-1, 0, 3, 8] {
+            XCTAssertThrowsError(try RelayMarkNativeInlineAtomMutation.insert(
+                document: native, blockID: "b00000000000040008000000000000031",
+                childIndex: 0, utf16Offset: offset,
+                expectedLeafText: "Me🌍et ", atom: tag()))
+        }
+        XCTAssertThrowsError(try RelayMarkNativeInlineAtomMutation.insert(
+            document: native, blockID: "b00000000000040008000000000000031",
+            childIndex: 0, utf16Offset: 4, expectedLeafText: "Meet ", atom: tag()))
+        XCTAssertThrowsError(try RelayMarkNativeInlineAtomMutation.insert(
+            document: native, blockID: "b00000000000040008000000000000031",
+            childIndex: 1, utf16Offset: 1, expectedLeafText: "Me🌍et ", atom: tag()))
+        let wrongSource = RelayMarkNativeInlineAtomMutation.Atom(kind: .relayTag, attributes: [
+            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "name": "followup",
+            "source": "[[Tag: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa | #wrong]]"
+        ])
+        XCTAssertThrowsError(try RelayMarkNativeInlineAtomMutation.insert(
+            document: native, blockID: "b00000000000040008000000000000031",
+            childIndex: 0, utf16Offset: 4, expectedLeafText: "Me🌍et ", atom: wrongSource))
+        XCTAssertEqual(try native.encodeUpdate(), before)
+        _ = try RelayMarkNativeInlineAtomMutation.insert(
+            document: native, blockID: "b00000000000040008000000000000031",
+            childIndex: 0, utf16Offset: 4, expectedLeafText: "Me🌍et ", atom: tag())
+        XCTAssertEqual(try native.markdownV3ProseProjection().inlineAtoms.count, 4)
+    }
+
     func testBrowserFixtureInsertReplacePeerConvergenceAndUndo() throws {
         let initial = try fixture()
         let native = RelayMarkNativeDocument()

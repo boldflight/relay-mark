@@ -582,6 +582,49 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Split an existing XmlText around one atom without replacing the left
+    /// leaf. Suffix runs and their attributes are copied into a new right leaf.
+    /// All XML changes share the local origin and one undo item.
+    func insertInlineAtom(in path: [Int], at offset: Int, expectedText: String,
+                          tag: String, attributes: [String: String]) throws -> Data {
+        guard path.count >= 2, let index = path.last,
+              let childIndex = UInt32(exactly: index), offset > 0,
+              let insertionIndex = UInt32(exactly: offset) else {
+            throw Failure.invalidTextPath
+        }
+        var parent = root
+        for component in path.dropLast() {
+            guard let position = UInt32(exactly: component),
+                  let child = parent.child(at: position) else { throw Failure.invalidTextPath }
+            parent = child
+        }
+        guard parent.kind() == "element",
+              ["paragraph", "heading"].contains(parent.tag() ?? ""),
+              let leaf = parent.child(at: childIndex), leaf.kind() == "text",
+              try leaf.delta().map(\.text).joined() == expectedText,
+              offset < expectedText.utf16.count,
+              Self.split(expectedText, at: offset) != nil else {
+            throw Failure.unsupportedProseEdit
+        }
+        let suffix = try Self.suffixRuns(of: leaf, after: offset)
+        let suffixLength = expectedText.utf16.count - offset
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try leaf.removeText(start: insertionIndex, length: UInt32(suffixLength), in: transaction)
+            let atom = try parent.insertElement(named: tag, at: childIndex + 1, in: transaction)
+            for (key, value) in attributes { try atom.setAttribute(key, value: value, in: transaction) }
+            let right = try parent.insertText(at: childIndex + 2, in: transaction)
+            var rightOffset = 0
+            for run in suffix where !run.text.isEmpty {
+                try right.insert(run.text, attributes: run.attributes,
+                                 at: UInt32(rightOffset), in: transaction)
+                rightOffset += run.text.utf16.count
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Deletion and insertion share one transaction and one undo item.
     public func replaceText(at index: Int, length: Int, with text: String, path: [Int]) throws -> Data {
         let update = try document.transactSync(origin: localOrigin) { transaction in

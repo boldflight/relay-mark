@@ -24,6 +24,56 @@ public enum RelayMarkNativeInlineAtomMutation {
                    replacing: false, atom: atom)
     }
 
+    /// Insert within an XmlText leaf. Expected text binds the UTF-16 caret to
+    /// the source shown to the caller, so a stale position fails closed.
+    public static func insert(document: RelayMarkNativeDocument, blockID: String,
+                              childIndex: Int, utf16Offset: Int,
+                              expectedLeafText: String, atom: Atom) throws -> Data {
+        let prose = try document.markdownV3ProseProjection()
+        guard prose.isEditable, childIndex >= 0,
+              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let path = path(to: blockID, in: root, prefix: []),
+              let block = node(at: path, in: root),
+              ["paragraph", "heading"].contains(block["name"] as? String ?? ""),
+              var children = block["children"] as? [[String: Any]],
+              children.indices.contains(childIndex), childIndex < 4_096,
+              children[childIndex]["kind"] as? String == "text",
+              let delta = children[childIndex]["delta"] as? [[String: Any]],
+              let actualText = text(of: delta), actualText == expectedLeafText,
+              utf16Offset > 0, utf16Offset < actualText.utf16.count,
+              isCharacterBoundary(utf16Offset, in: actualText),
+              prose.offset(path: path + [childIndex], index: utf16Offset) != nil,
+              let (prefix, suffix) = split(delta: delta, at: utf16Offset) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        children[childIndex]["delta"] = prefix
+        children.insert(["kind": "element", "name": atom.kind.rawValue,
+                         "attributes": atom.attributes, "children": []], at: childIndex + 1)
+        children.insert(["kind": "text", "delta": suffix], at: childIndex + 2)
+        var candidate = root
+        guard setChildren(children, at: path, in: &candidate) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let candidateData = try JSONSerialization.data(withJSONObject: candidate)
+        let candidateAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: candidateData)
+        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .markdownV3).isEditable else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(document.encodeUpdate())
+        _ = try scratch.insertInlineAtom(in: path + [childIndex], at: utf16Offset,
+                                         expectedText: expectedLeafText,
+                                         tag: atom.kind.rawValue, attributes: atom.attributes)
+        let scratchAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch)
+        guard scratchAST == candidateAST,
+              try scratch.markdownV3ProseProjection().isEditable else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return try document.insertInlineAtom(in: path + [childIndex], at: utf16Offset,
+                                             expectedText: expectedLeafText,
+                                             tag: atom.kind.rawValue, attributes: atom.attributes)
+    }
+
     /// Replace exactly one projected atom; adjacent text and other atoms retain
     /// their XML identities. The range is the current native selection range.
     public static func replace(document: RelayMarkNativeDocument, range: NSRange,
@@ -111,5 +161,41 @@ public enum RelayMarkNativeInlineAtomMutation {
         siblings[first] = child
         node["children"] = siblings
         return true
+    }
+
+    private static func text(of delta: [[String: Any]]) -> String? {
+        var text = ""
+        for run in delta {
+            guard let part = run["insert"] as? String else { return nil }
+            text += part
+        }
+        return text
+    }
+
+    private static func isCharacterBoundary(_ offset: Int, in text: String) -> Bool {
+        var position = 0
+        for character in text {
+            if position == offset { return true }
+            position += String(character).utf16.count
+        }
+        return position == offset
+    }
+
+    private static func split(delta: [[String: Any]], at offset: Int)
+        -> (prefix: [[String: Any]], suffix: [[String: Any]])? {
+        var prefix: [[String: Any]] = [], suffix: [[String: Any]] = []
+        var base = 0
+        for run in delta {
+            guard let value = run["insert"] as? String else { return nil }
+            let length = value.utf16.count
+            let cut = min(max(offset - base, 0), length)
+            guard isCharacterBoundary(cut, in: value) else { return nil }
+            let index = String.Index(utf16Offset: cut, in: value)
+            let left = String(value[..<index]), right = String(value[index...])
+            if !left.isEmpty { var item = run; item["insert"] = left; prefix.append(item) }
+            if !right.isEmpty { var item = run; item["insert"] = right; suffix.append(item) }
+            base += length
+        }
+        return (prefix, suffix)
     }
 }
