@@ -1072,6 +1072,10 @@ public enum RelayMarkAgentAnswerValidator {
             "emphasis",
             "strong",
             "strikethrough",
+            "underline",
+            "highlight",
+            "superscript",
+            "subscript",
             "code_span"
         ]
 

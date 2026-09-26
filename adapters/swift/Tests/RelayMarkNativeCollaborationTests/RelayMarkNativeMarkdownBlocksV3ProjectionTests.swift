@@ -38,6 +38,37 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         return (update, expected)
     }
 
+    func testCommunityOfferedMarksProjectAndRejectAttributedHighlight() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-offered-marks-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let expected = try RelayMarkDocument.decodeJSON(JSONSerialization.data(
+            withJSONObject: try XCTUnwrap(fixture["expected_ast"])))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try native.applyUpdate(update)
+        XCTAssertTrue(native.integrationStatus().isComplete)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(try native.encodeUpdate())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+
+        var snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+        var paragraph = blocks[0]
+        var leaves = try XCTUnwrap(paragraph["children"] as? [[String: Any]])
+        var runs = try XCTUnwrap(leaves[0]["delta"] as? [[String: Any]])
+        var marks = try XCTUnwrap(runs[2]["attributes"] as? [String: Any])
+        marks["highlight"] = ["color": "yellow"]
+        runs[2]["attributes"] = marks
+        leaves[0]["delta"] = runs
+        paragraph["children"] = leaves
+        blocks[0] = paragraph
+        snapshot["children"] = blocks
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(
+            snapshot: JSONSerialization.data(withJSONObject: snapshot)))
+    }
+
     func testCommunityYjsFixtureProjectsToExactPortableASTAfterReplayAndReopen() throws {
         let (update, expected) = try fixture()
         let native = RelayMarkNativeDocument()
@@ -466,7 +497,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         let marked = try changed { blocks in
             var leaves = blocks[0]["children"] as! [[String: Any]]
             var runs = leaves[0]["delta"] as! [[String: Any]]
-            runs[0]["attributes"] = ["highlight": [:]]
+            runs[0]["attributes"] = ["textStyle": [:]]
             leaves[0]["delta"] = runs
             blocks[0]["children"] = leaves
         }

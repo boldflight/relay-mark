@@ -8,6 +8,10 @@ const commonMarkInlineTypes = new Set([
   "emphasis",
   "strong",
   "strikethrough",
+  "underline",
+  "highlight",
+  "superscript",
+  "subscript",
   "code_span"
 ]);
 

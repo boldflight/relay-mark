@@ -1,7 +1,8 @@
 /** Draft v3 text-run mapping. Each mark wraps exactly one child, in schema order. */
-const markTypes = ["link", "bold", "code", "italic", "strike"];
+const markTypes = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
 const inlineTypes = { link: "link", bold: "strong", code: "code_span",
-  italic: "emphasis", strike: "strikethrough" };
+  italic: "emphasis", strike: "strikethrough", underline: "underline",
+  highlight: "highlight", superscript: "superscript", subscript: "subscript" };
 const pmTypes = Object.fromEntries(Object.entries(inlineTypes).map(([pm, ast]) => [ast, pm]));
 const linkDefaults = { target: "_blank", rel: "noopener noreferrer nofollow", class: null, title: null };
 
@@ -50,7 +51,7 @@ export function mapV3Inline(node) {
         if (mark.attrs[key] !== value) throw new TypeError(`Unsupported link ${key}`);
       }
     } else if (mark.attrs !== undefined) {
-      keys(mark.attrs, [], `${mark.type} attrs`);
+      throw new TypeError(`Unsupported ${mark.type} attrs`);
     }
   }
   for (const mark of marks.toReversed()) {

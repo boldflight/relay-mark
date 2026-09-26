@@ -17,7 +17,7 @@ data and execute reviewed actions; Relay Kit and other renderers consume the
 validated AST without gaining authority.
 
 The reference runtime and generic adapters implement the portable
-`0.7.0-draft` contract line. Strict semantic-version repository tags are the
+`0.8.0-draft` contract line. Strict semantic-version repository tags are the
 distribution boundary for Swift consumers; independently versioned
 `elixir-X.Y.Z` tags and `relay_mark_elixir` Hex releases are the distribution
 boundary for Elixir consumers. The two distribution versions may coincide,

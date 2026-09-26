@@ -10,6 +10,11 @@ defmodule RelayMark.SemanticValidator do
                              "link",
                              "emphasis",
                              "strong",
+                             "strikethrough",
+                             "underline",
+                             "highlight",
+                             "superscript",
+                             "subscript",
                              "code_span"
                            ])
 

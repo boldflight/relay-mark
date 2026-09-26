@@ -70,7 +70,7 @@
       "type": "string",
       "anyOf": [
         {
-          "enum": ["text", "hard_break", "soft_break", "link", "emphasis", "strong", "strikethrough", "code_span"]
+          "enum": ["text", "hard_break", "soft_break", "link", "emphasis", "strong", "strikethrough", "code_span", "underline", "highlight", "superscript", "subscript"]
         },
         {
           "pattern": "^relay\\.[a-z][a-z0-9_]*_ref$",

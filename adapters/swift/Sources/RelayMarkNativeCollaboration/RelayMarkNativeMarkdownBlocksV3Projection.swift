@@ -235,23 +235,29 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         return result
     }
 
-    /// TipTap's mark rank is link, bold, code, italic, strike. Code excludes all
-    /// other marks. Portable wrappers follow that outer-to-inner rank so the
+    /// TipTap's mark rank is link, bold, code, italic, strike, underline,
+    /// highlight, superscript, subscript. Code excludes all other marks.
+    /// Portable wrappers follow that outer-to-inner rank so the
     /// inverse can restore one exact normalized ProseMirror text run.
     private static func markedText(_ text: String, attributes raw: Any?) throws -> [String: Any] {
-        let attrs = try object(raw ?? [String: Any](), keys: ["link", "bold", "code", "italic", "strike"])
+        let attrs = try object(raw ?? [String: Any](),
+                               keys: ["link", "bold", "code", "italic", "strike", "underline",
+                                      "highlight", "superscript", "subscript"])
         try require(attrs["code"] == nil || attrs.count == 1, "code mark combination")
-        for key in ["bold", "code", "italic", "strike"] where attrs[key] != nil {
+        for key in ["bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"]
+            where attrs[key] != nil {
             try require(try object(attrs[key]!, keys: []).isEmpty, "mark attributes")
         }
         var result: [String: Any] = ["type": "text", "text": text]
-        for key in ["strike", "italic", "code", "bold", "link"] where attrs[key] != nil {
+        for key in ["subscript", "superscript", "highlight", "underline", "strike", "italic", "code", "bold", "link"]
+            where attrs[key] != nil {
             let type: String
             switch key {
             case "strike": type = "strikethrough"
             case "italic": type = "emphasis"
             case "code": type = "code_span"
             case "bold": type = "strong"
+            case "underline", "highlight", "superscript", "subscript": type = key
             default: type = "link"
             }
             var wrapper: [String: Any] = ["type": type, "content": [result]]

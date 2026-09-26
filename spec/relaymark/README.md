@@ -21,7 +21,7 @@ It does not broaden the existing portable AST conformance claims.
 
 ## Status
 
-- Spec version: `0.7.0-draft`
+- Spec version: `0.8.0-draft`
 - Stability: draft
 - Compatibility target: CommonMark prose plus RelayMark directives
 - Canonical interchange model: RelayMark AST JSON

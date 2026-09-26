@@ -1,7 +1,7 @@
 defmodule RelayMark.ManifestProjection do
   @moduledoc false
 
-  @commonmark_inline_types ~w(text hard_break soft_break link emphasis strong code_span)
+  @commonmark_inline_types ~w(text hard_break soft_break link emphasis strong strikethrough code_span underline highlight superscript subscript)
   @block_reference_types ~w(relay.evidence_ref relay.file_ref relay.note_ref relay.url_ref)
   @composition_capabilities %{
     "relay.entity_reference" => {"entity.reference", "plain_text"},
