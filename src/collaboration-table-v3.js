@@ -53,6 +53,7 @@ function mapBlock(node, seen) {
     case "orderedList": return mapList(node, seen, true, 0);
     case "codeBlock": return mapCode(node, seen);
     case "horizontalRule": return mapRule(node, seen);
+    case "image": return mapImage(node, seen);
     case "table": {
       const table = mapTable(node, seen);
       validateGrid(table);
@@ -70,6 +71,7 @@ function unmapBlock(block, seen) {
     case "list": return unmapList(block, seen, 0);
     case "code": return unmapCode(block, seen);
     case "horizontal_rule": return unmapRule(block, seen);
+    case "image": return unmapImage(block, seen);
     case "table": validateGrid(block); return unmapTable(block, seen);
     default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
   }
@@ -199,6 +201,46 @@ function unmapRule(block, seen) {
     throw new TypeError("Horizontal rule cannot have children");
   }
   return { type: "horizontalRule", attrs: { relaymarkId: block.id } };
+}
+
+function mapImage(node, seen) {
+  checkNode(node, "image", seen, ["src", "alt", "title", "width", "height"]);
+  if (node.content !== undefined && children(node, "image").length !== 0) {
+    throw new TypeError("Image cannot have children");
+  }
+  const { src, alt, title, width, height } = node.attrs;
+  checkImageProps({ src, alt, title });
+  if (width !== null || height !== null) throw new TypeError("Image dimensions are not portable in v3");
+  return { id: node.attrs.relaymarkId, type: "image", props: { src, alt, title }, content: [] };
+}
+
+function unmapImage(block, seen) {
+  checkBlock(block, "image", seen, true);
+  assertObject(block.props, "image.props");
+  onlyKeys(block.props, ["src", "alt", "title"], "image.props");
+  if (block.content !== undefined && children(block, "image").length !== 0) {
+    throw new TypeError("Image cannot have children");
+  }
+  checkImageProps(block.props);
+  return { type: "image", attrs: { relaymarkId: block.id, ...block.props, width: null, height: null } };
+}
+
+function checkImageProps({ src, alt, title }) {
+  const hostMedia = typeof src === "string" && /^\/m\/[A-Za-z0-9_-]{1,128}$/u.test(src);
+  let secureURL = false;
+  if (typeof src === "string" && src.startsWith("https://") && src.length <= 2048 &&
+      src === src.trim() && !/[\u0000-\u001f\u007f\\]/u.test(src)) {
+    try {
+      const url = new URL(src);
+      secureURL = url.protocol === "https:" && !url.username && !url.password;
+    } catch { /* Relative and temporary URLs are not portable. */ }
+  }
+  if (!hostMedia && !secureURL) throw new TypeError("Image src must be durable host media or HTTPS");
+  for (const [name, value] of [["alt", alt], ["title", title]]) {
+    if (value !== null && (typeof value !== "string" || value.length > 4096 || /[\r\n]/u.test(value))) {
+      throw new TypeError(`Invalid image ${name}`);
+    }
+  }
 }
 
 function mapTable(node, seen) {

@@ -2,8 +2,9 @@
 
 This is the canonical contract for `relaymark-prosemirror-v1`, a bounded collaborative prose representation of a separately authorized document layer. It complements the portable RelayMark AST; it does not turn entity headers, permissions, transcripts, task execution, or the whole paper into CRDT state. The host owns those concerns. This document distinguishes the wire contract from each adapter's editing coverage.
 
-A separate [draft v3 block-ID slice](block-identity-v3-draft.md) and
-[inline-mark projection](inline-marks-v3-draft.md) are opt-in and do not change
+A separate [draft v3 block-ID slice](block-identity-v3-draft.md),
+[inline-mark projection](inline-marks-v3-draft.md), and
+[rich image mapping](rich-image-v3-draft.md) are opt-in and do not change
 this v1 profile or current v2 admission.
 
 ## Version identities
