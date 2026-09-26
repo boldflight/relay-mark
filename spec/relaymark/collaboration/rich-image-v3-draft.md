@@ -17,6 +17,7 @@ The [fixture](fixtures/rich-image-v3-draft.json) is an actual Yjs update from
 TipTap 3.30.5 PaperImage, UniqueID, and `@tiptap/y-tiptap`, with a paragraph on
 each side. The [test](../../../test/collaboration-rich-image-v3-draft.test.js)
 checks the Yjs XML, normalized ProseMirror JSON, AST validation, exact inverse,
-and rejection of temporary media or hidden content. This is a source-contract
-proof only; server projection, native presentation/editing, device interaction,
-and mixed-client live recovery remain gated.
+and rejection of temporary media or hidden content. The native YSwift/Yrs read
+projector and Phoenix/Yex projector replay the same update to that exact AST.
+This is a source-contract proof only; native image presentation/editing, browser
+admission, device interaction, and mixed-client live recovery remain gated.

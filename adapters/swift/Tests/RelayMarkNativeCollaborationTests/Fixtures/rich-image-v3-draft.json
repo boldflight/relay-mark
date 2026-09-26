@@ -1,0 +1,120 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "provenance": "TipTap 3.30.5 PaperImage/UniqueID via @tiptap/y-tiptap; Yjs 13.6.32",
+  "update": "AQ3Z99y5DAAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHANn33LkMAAYEANn33LkMAQxCZWZvcmUgaW1hZ2UoANn33LkMAAtyZWxheW1hcmtJZAF3IWJjNWUyMDc1NWExMDU0N2QwOGQ5MDU0ZjMzNjE4YzU0OIfZ99y5DAADBWltYWdlKADZ99y5DA8LcmVsYXltYXJrSWQBdyFiMjg3MThmMmU5NmYxNDU4ZDk2MDhjNzIyMjc0NWZiYzAoANn33LkMDwNzcmMBdycvbS8xMTExMTExMS0xMTExLTQxMTEtODExMS0xMTExMTExMTExMTEoANn33LkMDwNhbHQBdw5TaGFyZWQgZGlhZ3JhbSgA2ffcuQwPBXRpdGxlAXcIUGxhbm5pbmeH2ffcuQwPAwlwYXJhZ3JhcGgHANn33LkMFAYEANn33LkMFQtBZnRlciBpbWFnZSgA2ffcuQwUC3JlbGF5bWFya0lkAXchYjI5OTA4ZTYyZTdjMjQ5NjU4MGU1YWVhN2JiOGU0ZjE0AA==",
+  "raw": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "bc5e20755a10547d08d9054f33618c548"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before image"
+          }
+        ]
+      },
+      {
+        "type": "image",
+        "attrs": {
+          "relaymarkId": "b28718f2e96f1458d9608c7222745fbc0",
+          "src": "/m/11111111-1111-4111-8111-111111111111",
+          "alt": "Shared diagram",
+          "title": "Planning"
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b29908e62e7c2496580e5aea7bb8e4f14"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After image"
+          }
+        ]
+      }
+    ]
+  },
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "bc5e20755a10547d08d9054f33618c548"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before image"
+          }
+        ]
+      },
+      {
+        "type": "image",
+        "attrs": {
+          "relaymarkId": "b28718f2e96f1458d9608c7222745fbc0",
+          "src": "/m/11111111-1111-4111-8111-111111111111",
+          "alt": "Shared diagram",
+          "title": "Planning",
+          "width": null,
+          "height": null
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b29908e62e7c2496580e5aea7bb8e4f14"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After image"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "bc5e20755a10547d08d9054f33618c548",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before image"
+          }
+        ]
+      },
+      {
+        "id": "b28718f2e96f1458d9608c7222745fbc0",
+        "type": "image",
+        "props": {
+          "src": "/m/11111111-1111-4111-8111-111111111111",
+          "alt": "Shared diagram",
+          "title": "Planning"
+        },
+        "content": []
+      },
+      {
+        "id": "b29908e62e7c2496580e5aea7bb8e4f14",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After image"
+          }
+        ]
+      }
+    ]
+  }
+}
