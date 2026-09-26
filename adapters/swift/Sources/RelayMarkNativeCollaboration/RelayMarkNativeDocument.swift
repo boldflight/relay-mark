@@ -582,6 +582,45 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    enum PaperControlChange {
+        case insert(tag: String, attributes: [String: String])
+        case update(tag: String, expectedID: String, attributes: [String: String])
+        case remove(tag: String, expectedID: String)
+    }
+
+    /// One root-sibling transaction after the v3 command has validated a
+    /// scratch replica. Updates retain the existing Y.XmlElement identity.
+    func mutatePaperControl(at index: Int, change: PaperControlChange) throws -> Data {
+        guard let childIndex = UInt32(exactly: index) else { throw Failure.invalidTextPath }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            guard childIndex <= self.root.length(in: transaction) else { throw Failure.invalidTextPath }
+            switch change {
+            case let .insert(tag, attributes):
+                let node = try self.root.insertElement(named: tag, at: childIndex, in: transaction)
+                for (key, value) in attributes { try node.setAttribute(key, value: value, in: transaction) }
+            case let .update(tag, expectedID, attributes):
+                guard let node = self.root.child(at: childIndex, in: transaction),
+                      node.kind(in: transaction) == "element", node.tag(in: transaction) == tag,
+                      try node.attributes(in: transaction)["relaymarkId"] as? String == expectedID else {
+                    throw Failure.invalidTextPath
+                }
+                for (key, value) in attributes where key != "relaymarkId" {
+                    try node.setAttribute(key, value: value, in: transaction)
+                }
+            case let .remove(tag, expectedID):
+                guard let node = self.root.child(at: childIndex, in: transaction),
+                      node.kind(in: transaction) == "element", node.tag(in: transaction) == tag,
+                      try node.attributes(in: transaction)["relaymarkId"] as? String == expectedID else {
+                    throw Failure.invalidTextPath
+                }
+                try self.root.removeChildren(start: childIndex, length: 1, in: transaction)
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Split an existing XmlText around one atom without replacing the left
     /// leaf. Suffix runs and their attributes are copied into a new right leaf.
     /// All XML changes share the local origin and one undo item.
