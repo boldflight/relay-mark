@@ -45,6 +45,14 @@ metadata and nested shapes it cannot edit. Neither browser nor native live
 admission enables this extension yet; task actions and native task UI remain
 host-owned work after schema negotiation.
 
+The separate draft v3 portable AST projection now preserves task-list and
+task-item `relaymarkId` values, checked state, and an optional canonical entity
+UUID as inert metadata. It accepts a first paragraph followed by paragraphs or
+nested task/plain lists, with at most 16 task-list levels and 4,096 direct
+children per task node. Yjs omits a null `entityId` XML attribute; the native
+read projector restores the portable null value. This does not change the
+existing narrow native task editor or admit task lists to a live profile.
+
 Two additional native operations are now covered by real Chromium TipTap/Yjs
 fixtures: `setHeadingLevel(anchor:expectedHeadingID:level:)` changes an existing
 top-level v1 heading to level 1–6 while retaining its XML identity and heading ID;

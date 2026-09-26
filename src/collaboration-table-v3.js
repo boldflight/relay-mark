@@ -7,6 +7,9 @@ const maxRows = 256;
 const maxColumns = 256;
 const maxCells = 4096;
 const headingId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
+const entityId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const maxTaskDepth = 16;
+const maxTaskChildren = 4096;
 
 export function tableProseMirrorToRelayMark(prosemirror) {
   const document = proseMirrorV3ToRelayMark(prosemirror);
@@ -51,6 +54,7 @@ function mapBlock(node, seen, calloutDepth) {
     case "blockquote": return mapQuote(node, seen);
     case "bulletList": return mapList(node, seen, false, 0);
     case "orderedList": return mapList(node, seen, true, 0);
+    case "taskList": return mapTaskList(node, seen, 0);
     case "codeBlock": return mapCode(node, seen);
     case "horizontalRule": return mapRule(node, seen);
     case "image": return mapImage(node, seen);
@@ -71,6 +75,7 @@ function unmapBlock(block, seen, calloutDepth) {
     case "heading": return unmapHeading(block, seen);
     case "quote": return unmapQuote(block, seen);
     case "list": return unmapList(block, seen, 0);
+    case "task_list": return unmapTaskList(block, seen, 0);
     case "code": return unmapCode(block, seen);
     case "horizontal_rule": return unmapRule(block, seen);
     case "image": return unmapImage(block, seen);
@@ -224,6 +229,78 @@ function unmapListItem(block, seen, depth) {
   }
   return { type: "listItem", attrs: { relaymarkId: block.id },
     content: [unmapParagraph(items[0], seen), ...(items[1] ? [unmapList(items[1], seen, depth + 1)] : [])] };
+}
+
+function checkTaskProps(checked, linkedEntityId) {
+  if (typeof checked !== "boolean" ||
+      (linkedEntityId !== null && (typeof linkedEntityId !== "string" || !entityId.test(linkedEntityId)))) {
+    throw new TypeError("Invalid task checked state or entityId");
+  }
+}
+
+function taskChildren(items, label) {
+  if (items[0]?.type !== "paragraph" ||
+      items.slice(1).some(item => !["paragraph", "taskList", "bulletList", "orderedList"].includes(item?.type))) {
+    throw new TypeError(`Unsupported ${label} children`);
+  }
+}
+
+function portableTaskChildren(items, label) {
+  if (items[0]?.type !== "paragraph" ||
+      items.slice(1).some(item => !["paragraph", "task_list", "list"].includes(item?.type))) {
+    throw new TypeError(`Unsupported ${label} children`);
+  }
+}
+
+function mapTaskList(node, seen, depth) {
+  if (depth >= maxTaskDepth) throw new TypeError("Task list nesting exceeds the draft limit");
+  checkNode(node, "taskList", seen);
+  const items = children(node, "taskList", 1);
+  if (items.length > maxTaskChildren) throw new TypeError("Task list exceeds the draft child limit");
+  return { id: node.attrs.relaymarkId, type: "task_list",
+    content: items.map(item => mapTaskItem(item, seen, depth)) };
+}
+
+function unmapTaskList(block, seen, depth) {
+  if (depth >= maxTaskDepth) throw new TypeError("Task list nesting exceeds the draft limit");
+  checkBlock(block, "task_list", seen);
+  const items = children(block, "task_list", 1);
+  if (items.length > maxTaskChildren) throw new TypeError("Task list exceeds the draft child limit");
+  return { type: "taskList", attrs: { relaymarkId: block.id },
+    content: items.map(item => unmapTaskItem(item, seen, depth)) };
+}
+
+function mapTaskItem(node, seen, depth) {
+  checkNode(node, "taskItem", seen, ["checked", "entityId"]);
+  if (!Object.hasOwn(node.attrs, "checked") || !Object.hasOwn(node.attrs, "entityId")) {
+    throw new TypeError("Task item requires normalized checked and entityId attributes");
+  }
+  checkTaskProps(node.attrs.checked, node.attrs.entityId);
+  const items = children(node, "taskItem", 1);
+  if (items.length > maxTaskChildren) throw new TypeError("Task item exceeds the draft child limit");
+  taskChildren(items, "task item");
+  return { id: node.attrs.relaymarkId, type: "task_item",
+    props: { checked: node.attrs.checked, entityId: node.attrs.entityId },
+    content: items.map(item => item.type === "paragraph" ? mapParagraph(item, seen) :
+      item.type === "taskList" ? mapTaskList(item, seen, depth + 1) :
+      mapList(item, seen, item.type === "orderedList", 0)) };
+}
+
+function unmapTaskItem(block, seen, depth) {
+  checkBlock(block, "task_item", seen, true);
+  assertObject(block.props, "task_item.props");
+  onlyKeys(block.props, ["checked", "entityId"], "task_item.props");
+  if (!Object.hasOwn(block.props, "checked") || !Object.hasOwn(block.props, "entityId")) {
+    throw new TypeError("Task item requires checked and entityId props");
+  }
+  checkTaskProps(block.props.checked, block.props.entityId);
+  const items = children(block, "task_item", 1);
+  if (items.length > maxTaskChildren) throw new TypeError("Task item exceeds the draft child limit");
+  portableTaskChildren(items, "task item");
+  return { type: "taskItem", attrs: { relaymarkId: block.id, ...block.props },
+    content: items.map(item => item.type === "paragraph" ? unmapParagraph(item, seen) :
+      item.type === "task_list" ? unmapTaskList(item, seen, depth + 1) :
+      unmapList(item, seen, 0)) };
 }
 
 function mapCode(node, seen) {

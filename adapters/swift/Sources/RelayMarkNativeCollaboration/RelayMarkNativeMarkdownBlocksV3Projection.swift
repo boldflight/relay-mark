@@ -27,7 +27,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         return try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: ast))
     }
 
-    private static func block(_ raw: Any, depth: Int, calloutDepth: Int = 0,
+    private static func block(_ raw: Any, depth: Int, calloutDepth: Int = 0, taskDepth: Int = 0,
                               ids: inout Set<String>) throws -> [String: Any] {
         let (name, attrs, children) = try element(raw)
         switch name {
@@ -60,6 +60,12 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             try require(!children.isEmpty && children.count <= 4_096, "list children")
             return ["id": id, "type": "list", "props": props,
                     "content": try children.map { try listItem($0, depth: depth, ids: &ids) }]
+        case "taskList":
+            try require(taskDepth < 16, "task list depth")
+            let id = try blockID(attrs, allowed: ["relaymarkId"], ids: &ids)
+            try require(!children.isEmpty && children.count <= 4_096, "task list children")
+            return ["id": id, "type": "task_list",
+                    "content": try children.map { try taskItem($0, depth: taskDepth, ids: &ids) }]
         case "codeBlock":
             let id = try blockID(attrs, allowed: ["relaymarkId", "language"], ids: &ids)
             let language: Any
@@ -161,6 +167,38 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             content.append(try block(children[1], depth: depth + 1, ids: &ids))
         }
         return ["id": id, "type": "list_item", "content": content]
+    }
+
+    private static func taskItem(_ raw: Any, depth: Int, ids: inout Set<String>) throws -> [String: Any] {
+        let (name, attrs, children) = try element(raw)
+        try require(name == "taskItem" && !children.isEmpty && children.count <= 4_096, "task item")
+        let id = try blockID(attrs, allowed: ["relaymarkId", "checked", "entityId"], ids: &ids)
+        let checked: Bool
+        if let value = attrs["checked"] {
+            guard let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() else {
+                throw Failure.unsupported("task checked")
+            }
+            checked = number.boolValue
+        } else { checked = false }
+        let entity: Any
+        if let linked = attrs["entityId"], !(linked is NSNull) {
+            guard let value = linked as? String, UUID(uuidString: value)?.uuidString.lowercased() == value else {
+                throw Failure.unsupported("task entityId")
+            }
+            entity = value
+        } else {
+            entity = NSNull()
+        }
+        var content = [try paragraph(children[0], ids: &ids)]
+        for child in children.dropFirst() {
+            let (childName, _, _) = try element(child)
+            try require(["paragraph", "taskList", "bulletList", "orderedList"].contains(childName),
+                        "task item children")
+            content.append(try block(child, depth: 0, taskDepth: childName == "taskList" ? depth + 1 : depth,
+                                     ids: &ids))
+        }
+        return ["id": id, "type": "task_item", "props": ["checked": checked, "entityId": entity],
+                "content": content]
     }
 
     private static func paragraph(_ raw: Any, ids: inout Set<String>) throws -> [String: Any] {

@@ -5,6 +5,29 @@ import RelayMarkSwift
 
 @MainActor
 final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
+    func testCommunityTaskListFixtureProjectsCheckedAndLinkedNestedItemsWithoutAdmittingEditing() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let expected = try RelayMarkDocument.decodeJSON(JSONSerialization.data(
+            withJSONObject: try XCTUnwrap(fixture["expected_ast"])))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try native.applyUpdate(update)
+        XCTAssertTrue(native.integrationStatus().isComplete)
+        let actual = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(actual, expected)
+        XCTAssertEqual(actual.blocks[1].type, "task_list")
+        XCTAssertEqual(actual.blocks[1].childBlocks[0].props["checked"], .bool(true))
+        XCTAssertEqual(actual.blocks[1].childBlocks[0].props["entityId"],
+                       .string(try XCTUnwrap(fixture["linked_entity_id"] as? String)))
+        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(try native.encodeUpdate())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+    }
+
     private func fixture() throws -> (update: Data, expected: RelayMarkDocument) {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "markdown-blocks-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

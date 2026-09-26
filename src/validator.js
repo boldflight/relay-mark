@@ -35,7 +35,7 @@ export function validateDirectiveNode(block) {
   return diagnostics;
 }
 
-function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources, parentType = null) {
+function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources, parentType = null, taskDepth = 0) {
   if (!block.id) {
     diagnostics.push(error("relaymark.block.id", "Every block must have an id."));
   } else if (seenIds.has(block.id)) {
@@ -64,9 +64,35 @@ function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureRe
     diagnostics.push(error("relaymark.callout.title_parent", "Callout title must be a direct callout child."));
   }
 
+  if (block.type === "task_list") {
+    if (taskDepth >= 16 || !Array.isArray(block.content) || block.content.length < 1 ||
+        block.content.length > 4_096 || block.content.some(child => child?.type !== "task_item")) {
+      diagnostics.push(error("relaymark.task_list.children", "Task list needs task items within the depth and size limits."));
+    }
+    if (block.props !== undefined && Object.keys(block.props).length > 0) {
+      diagnostics.push(error("relaymark.task_list.props", "Task list has no properties."));
+    }
+  }
+  if (block.type === "task_item") {
+    const props = block.props || {};
+    const validEntity = props.entityId === null ||
+      (typeof props.entityId === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(props.entityId));
+    if (typeof props.checked !== "boolean" || !validEntity ||
+        Object.keys(props).some(key => key !== "checked" && key !== "entityId")) {
+      diagnostics.push(error("relaymark.task_item.props", "Task item needs checked and canonical entityId properties."));
+    }
+    if (parentType !== "task_list" || !Array.isArray(block.content) || block.content.length < 1 ||
+        block.content.length > 4_096 || block.content[0]?.type !== "paragraph" ||
+        block.content.slice(1).some(child => !["paragraph", "task_list", "list"].includes(child?.type))) {
+      diagnostics.push(error("relaymark.task_item.children", "Task item needs a first paragraph and supported child blocks."));
+    }
+  }
+
   for (const child of block.content || []) {
     if (isBlockNode(child)) {
-      validateBlock(child, diagnostics, seenIds, evidenceTargets, scriptureResources, block.type);
+      validateBlock(child, diagnostics, seenIds, evidenceTargets, scriptureResources, block.type,
+        taskDepth + (block.type === "task_list" ? 1 : 0));
     }
   }
 }
