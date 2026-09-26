@@ -65,6 +65,34 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertFalse(try native.proseProjection().isEditable)
     }
 
+    func testV3CellTextUsesTheSameNativeSelectionAndYrsMutationPath() throws {
+        let (seed, _) = try fixture()
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try native.markdownV3ProseProjection()
+        XCTAssertTrue(before.isEditable)
+        let text = String(before.text.characters)
+        let alice = (text as NSString).range(of: "Alice")
+        XCTAssertNotEqual(alice.location, NSNotFound)
+        let slices = before.textRanges(in: alice)
+        XCTAssertEqual(slices.count, 1)
+        let slice = try XCTUnwrap(slices.first)
+        XCTAssertEqual(slice.path, [1, 1, 0, 0, 0])
+        XCTAssertEqual(slice.length, alice.length)
+
+        let original = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let update = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: slice.path, start: slice.index,
+            end: slice.index + slice.length, text: "Alicia")
+        try peer.applyUpdate(update)
+        let edited = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(edited, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(edited.blocks[1].childBlocks[1].childBlocks[0].plainText, "Alicia")
+        XCTAssertEqual(edited.blocks[1].childBlocks[0], original.blocks[1].childBlocks[0])
+        XCTAssertEqual(edited.blocks[1].childBlocks[1].childBlocks[1], original.blocks[1].childBlocks[1].childBlocks[1])
+    }
+
     func testMixedProjectionSharesInlineMarksAndRejectsUnknownMetadataDuplicateIDsAndBrokenGrid() throws {
         let (update, _) = try fixture()
         let native = RelayMarkNativeDocument()

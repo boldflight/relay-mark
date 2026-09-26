@@ -79,7 +79,43 @@ public struct RelayMarkCollaborativeProse {
             mapped.append(Span(range: NSRange(location: start, length: length() - start), path: path,
                 text: true, afterPath: path, afterIndex: length() - start))
         }
-        func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil, ordinal: Int = 1) {
+        func tableLayout(_ rows: [[String: Any]]) -> (width: Int, starts: [[Int]]) {
+            var occupied = Array(repeating: Set<Int>(), count: rows.count)
+            var starts = [[Int]]()
+            var expectedWidth: Int?
+            for (rowIndex, row) in rows.enumerated() {
+                guard row["name"] as? String == "tableRow",
+                      let cells = row["children"] as? [[String: Any]], !cells.isEmpty else {
+                    supported = false; return (0, [])
+                }
+                var columns = [Int](), column = 0
+                for cell in cells {
+                    while occupied[rowIndex].contains(column) { column += 1 }
+                    let attrs = cell["attributes"] as? [String: Any] ?? [:]
+                    let colspan = attrs["colspan"] as? Int ?? 1
+                    let rowspan = attrs["rowspan"] as? Int ?? 1
+                    guard colspan > 0, rowspan > 0, column <= 256 - colspan,
+                          rowIndex <= rows.count - rowspan else {
+                        supported = false; return (0, [])
+                    }
+                    columns.append(column)
+                    for row in rowIndex..<(rowIndex + rowspan) {
+                        for slot in column..<(column + colspan) {
+                            if !occupied[row].insert(slot).inserted { supported = false }
+                        }
+                    }
+                    column += colspan
+                }
+                let width = (occupied[rowIndex].max() ?? -1) + 1
+                if expectedWidth != nil && expectedWidth != width { supported = false }
+                if (0..<width).contains(where: { !occupied[rowIndex].contains($0) }) { supported = false }
+                expectedWidth = width
+                starts.append(columns)
+            }
+            return (expectedWidth ?? 0, starts)
+        }
+        func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil,
+                  ordinal: Int = 1, tableRows: [[Int]]? = nil, tableCells: [Int]? = nil) {
             var offsets: [Int] = []
             for (index, block) in nodes.enumerated() {
                 let blockPath = path + [index]
@@ -89,6 +125,7 @@ public struct RelayMarkCollaborativeProse {
                 if block["kind"] as? String != "element" { supported = false }
                 identity += 1
                 let kind: PresentationIntent.Kind
+                var table: (width: Int, starts: [[Int]])?
                 switch name {
                 case "paragraph": kind = .paragraph
                 case "heading":
@@ -109,12 +146,23 @@ public struct RelayMarkCollaborativeProse {
                     if let type = attributes["type"], !(type is NSNull) { supported = false }
                     kind = .orderedList
                 case "listItem": kind = .listItem(ordinal: ordinal + index)
+                case "table":
+                    table = tableLayout(children)
+                    kind = .table(columns: Array(repeating: .init(alignment: .left), count: table?.width ?? 0))
+                case "tableRow":
+                    kind = children.allSatisfy { $0["name"] as? String == "tableHeader" }
+                        ? .tableHeaderRow : .tableRow(rowIndex: index)
+                case "tableHeader", "tableCell":
+                    kind = .tableCell(columnIndex: tableCells?[index] ?? index)
                 default: supported = false; kind = .paragraph
                 }
                 var allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
                 if dialect == .markdownV3 {
                     allowed.insert("relaymarkId")
                     if name == "orderedList" { allowed.insert("type") }
+                    if name == "tableHeader" || name == "tableCell" {
+                        allowed.formUnion(["colspan", "rowspan", "colwidth", "align"])
+                    }
                 }
                 if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
@@ -122,6 +170,18 @@ public struct RelayMarkCollaborativeProse {
                 if ["blockquote", "bulletList", "orderedList", "listItem"].contains(name) {
                     if ["bulletList", "orderedList"].contains(name), children.contains(where: { $0["name"] as? String != "listItem" }) { supported = false }
                     walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1)
+                } else if name == "table" {
+                    guard dialect == .markdownV3, let table, table.width > 0 else { supported = false; continue }
+                    walk(children, path: blockPath, parent: intent, tableRows: table.starts)
+                } else if name == "tableRow" {
+                    guard dialect == .markdownV3, let columns = tableRows?[index] else { supported = false; continue }
+                    walk(children, path: blockPath, parent: intent, tableCells: columns)
+                } else if name == "tableHeader" || name == "tableCell" {
+                    guard dialect == .markdownV3,
+                          children.allSatisfy({ $0["name"] as? String == "paragraph" }) else {
+                        supported = false; continue
+                    }
+                    walk(children, path: blockPath, parent: intent)
                 } else {
                     if !ranges.isEmpty { value.append(AttributedString("\n")) }
                     let start = length(), attributedStart = value.endIndex

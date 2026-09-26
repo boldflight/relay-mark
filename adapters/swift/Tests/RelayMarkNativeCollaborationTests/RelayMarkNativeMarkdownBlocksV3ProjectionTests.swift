@@ -43,7 +43,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         try native.applyUpdate(update)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native),
                        try RelayMarkNativeMixedTableProjection.project(snapshot: native.snapshot()))
-        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+        XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
     }
 
     func testStableParagraphIDEditsSpannedTableCellWithoutRebuildingGrid() throws {
