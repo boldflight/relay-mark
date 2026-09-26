@@ -35,7 +35,7 @@ export function validateDirectiveNode(block) {
   return diagnostics;
 }
 
-function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources) {
+function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureResources, parentType = null) {
   if (!block.id) {
     diagnostics.push(error("relaymark.block.id", "Every block must have an id."));
   } else if (seenIds.has(block.id)) {
@@ -52,9 +52,21 @@ function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureRe
     validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResources);
   }
 
+  if (block.type === "relay.callout") {
+    const children = block.content || [];
+    const titles = children.filter((child) => child.type === "relay.callout_title");
+    if (titles.length > 1 || (titles.length === 1 && children[0] !== titles[0]) ||
+        children.length <= titles.length) {
+      diagnostics.push(error("relaymark.callout.children", "Callout needs body blocks and at most one first title."));
+    }
+  }
+  if (block.type === "relay.callout_title" && parentType !== "relay.callout") {
+    diagnostics.push(error("relaymark.callout.title_parent", "Callout title must be a direct callout child."));
+  }
+
   for (const child of block.content || []) {
     if (isBlockNode(child)) {
-      validateBlock(child, diagnostics, seenIds, evidenceTargets, scriptureResources);
+      validateBlock(child, diagnostics, seenIds, evidenceTargets, scriptureResources, block.type);
     }
   }
 }

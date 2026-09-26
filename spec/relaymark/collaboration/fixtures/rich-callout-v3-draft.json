@@ -1,0 +1,143 @@
+{
+  "schema": "relaymark-prosemirror-v3",
+  "root": "default",
+  "source": "Community TipTap StarterKit/Callout/UniqueID + y-tiptap + Yjs",
+  "raw": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000140008000000000000000"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "relaymarkId": "b00000000000240008000000000000000",
+          "tone": "warning",
+          "emphasis": "strong"
+        },
+        "content": [
+          {
+            "type": "calloutTitle",
+            "attrs": {
+              "relaymarkId": "b00000000000340008000000000000000"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Pay attention",
+                "marks": [
+                  {
+                    "type": "bold",
+                    "attrs": {}
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b00000000000440008000000000000000"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Shared note"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000540008000000000000000"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000140008000000000000000"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "relaymarkId": "b00000000000240008000000000000000",
+          "tone": "warning",
+          "emphasis": "strong"
+        },
+        "content": [
+          {
+            "type": "calloutTitle",
+            "attrs": {
+              "relaymarkId": "b00000000000340008000000000000000"
+            },
+            "content": [
+              {
+                "type": "text",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ],
+                "text": "Pay attention"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b00000000000440008000000000000000"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Shared note"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000540008000000000000000"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "update": "ARa1zI+NBAAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHALXMj40EAAYEALXMj40EAQZCZWZvcmUoALXMj40EAAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDE0MDAwODAwMDAwMDAwMDAwMDAwMIe1zI+NBAADB2NhbGxvdXQHALXMj40ECQMMY2FsbG91dFRpdGxlBwC1zI+NBAoGBgC1zI+NBAsEYm9sZAJ7fYS1zI+NBAwNUGF5IGF0dGVudGlvboa1zI+NBBkEYm9sZARudWxsKAC1zI+NBAoLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAzNDAwMDgwMDAwMDAwMDAwMDAwMDCHtcyPjQQKAwlwYXJhZ3JhcGgHALXMj40EHAYEALXMj40EHQtTaGFyZWQgbm90ZSgAtcyPjQQcC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwNDQwMDA4MDAwMDAwMDAwMDAwMDAwKAC1zI+NBAkLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAyNDAwMDgwMDAwMDAwMDAwMDAwMDAoALXMj40ECQR0b25lAXcHd2FybmluZygAtcyPjQQJCGVtcGhhc2lzAXcGc3Ryb25nh7XMj40ECQMJcGFyYWdyYXBoBwC1zI+NBC0GBAC1zI+NBC4FQWZ0ZXIoALXMj40ELQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDU0MDAwODAwMDAwMDAwMDAwMDAwMAA="
+}

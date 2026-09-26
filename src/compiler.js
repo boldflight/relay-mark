@@ -56,9 +56,16 @@ function compileBlock(block, allocator, diagnostics) {
     const astType = directive?.ast_type || `relay.unknown_${block.name.toLowerCase()}`;
     const props = applyAttributeDefaults(directive, block.attrs);
     const id = allocator.next();
+    const title = astType === "relay.callout" ? props.title : undefined;
+    if (astType === "relay.callout") delete props.title;
+    const titleBlock = typeof title === "string"
+      ? { id: allocator.next(), type: "relay.callout_title",
+        content: title ? [{ type: "text", text: title }] : [] }
+      : null;
     const content = shouldFlattenRawDirectiveContent(astType, block.children)
       ? parseInline(block.children[0].text)
       : block.children.map((child) => compileBlock(child, allocator, diagnostics));
+    if (titleBlock) content.unshift(titleBlock);
     const evidenceRefs = Array.isArray(props.evidence) ? props.evidence : [];
 
     const result = {

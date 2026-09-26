@@ -21,7 +21,7 @@ export function proseMirrorV3ToRelayMark(prosemirror) {
   onlyKeys(prosemirror, ["type", "content"], "doc");
   requireType(prosemirror, "doc");
   const seen = new Set();
-  const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen));
+  const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen, 0));
   return { type: "relaymark.document", version: 1, blocks };
 }
 
@@ -41,10 +41,10 @@ export function relayMarkV3ToProseMirror(document) {
   }
   const seen = new Set();
   const blocks = children({ content: document.blocks }, "document", 1);
-  return { type: "doc", content: blocks.map(block => unmapBlock(block, seen)) };
+  return { type: "doc", content: blocks.map(block => unmapBlock(block, seen, 0)) };
 }
 
-function mapBlock(node, seen) {
+function mapBlock(node, seen, calloutDepth) {
   switch (node?.type) {
     case "paragraph": return mapParagraph(node, seen);
     case "heading": return mapHeading(node, seen);
@@ -54,6 +54,7 @@ function mapBlock(node, seen) {
     case "codeBlock": return mapCode(node, seen);
     case "horizontalRule": return mapRule(node, seen);
     case "image": return mapImage(node, seen);
+    case "callout": return mapCallout(node, seen, calloutDepth);
     case "table": {
       const table = mapTable(node, seen);
       validateGrid(table);
@@ -63,7 +64,7 @@ function mapBlock(node, seen) {
   }
 }
 
-function unmapBlock(block, seen) {
+function unmapBlock(block, seen, calloutDepth) {
   switch (block?.type) {
     case "paragraph": return unmapParagraph(block, seen);
     case "heading": return unmapHeading(block, seen);
@@ -72,9 +73,67 @@ function unmapBlock(block, seen) {
     case "code": return unmapCode(block, seen);
     case "horizontal_rule": return unmapRule(block, seen);
     case "image": return unmapImage(block, seen);
+    case "relay.callout": return unmapCallout(block, seen, calloutDepth);
     case "table": validateGrid(block); return unmapTable(block, seen);
     default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
   }
+}
+
+const calloutTones = new Set(["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"]);
+const calloutEmphases = new Set(["soft", "strong"]);
+
+function checkCalloutProps(tone, emphasis) {
+  if (!calloutTones.has(tone) || !calloutEmphases.has(emphasis)) {
+    throw new TypeError("Unsupported callout tone or emphasis");
+  }
+}
+
+function mapCallout(node, seen, depth) {
+  if (depth >= 8) throw new TypeError("Callout nesting exceeds the draft limit");
+  checkNode(node, "callout", seen, ["tone", "emphasis"]);
+  const { tone, emphasis } = node.attrs;
+  checkCalloutProps(tone, emphasis);
+  const items = children(node, "callout", 1);
+  if (items[0]?.type === "calloutTitle" && items.length < 2) {
+    throw new TypeError("Callout requires a body block");
+  }
+  return { id: node.attrs.relaymarkId, type: "relay.callout", props: { tone, emphasis },
+    content: items.map((item, index) => index === 0 && item.type === "calloutTitle"
+      ? mapCalloutTitle(item, seen) : mapBlock(item, seen, depth + 1)) };
+}
+
+function unmapCallout(block, seen, depth) {
+  if (depth >= 8) throw new TypeError("Callout nesting exceeds the draft limit");
+  checkBlock(block, "relay.callout", seen, true);
+  assertObject(block.props, "relay.callout.props");
+  onlyKeys(block.props, ["tone", "emphasis"], "relay.callout.props");
+  const { tone, emphasis } = block.props;
+  checkCalloutProps(tone, emphasis);
+  const items = children(block, "relay.callout", 1);
+  if (items[0]?.type === "relay.callout_title" && items.length < 2) {
+    throw new TypeError("Callout requires a body block");
+  }
+  if (items.slice(1).some(item => item.type === "relay.callout_title")) {
+    throw new TypeError("Callout title must be first");
+  }
+  return { type: "callout", attrs: { relaymarkId: block.id, tone, emphasis },
+    content: items.map((item, index) => index === 0 && item.type === "relay.callout_title"
+      ? unmapCalloutTitle(item, seen) : unmapBlock(item, seen, depth + 1)) };
+}
+
+function mapCalloutTitle(node, seen) {
+  checkNode(node, "calloutTitle", seen);
+  const items = inlineChildren(node, "calloutTitle");
+  if (items.some(item => item.type !== "text")) throw new TypeError("Unsupported callout title inline node");
+  return { id: node.attrs.relaymarkId, type: "relay.callout_title",
+    content: items.map(mapV3Inline) };
+}
+
+function unmapCalloutTitle(block, seen) {
+  checkBlock(block, "relay.callout_title", seen);
+  const content = inlineChildren(block, "relay.callout_title").map(unmapV3Inline);
+  if (content.some(item => item.type !== "text")) throw new TypeError("Unsupported callout title inline node");
+  return { type: "calloutTitle", attrs: { relaymarkId: block.id }, content };
 }
 
 function mapHeading(node, seen) {
