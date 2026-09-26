@@ -1,0 +1,90 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91512,
+  "source": "Relay v3 TipTap AgentSuggestion + community y-tiptap/Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000081"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "type": "agentSuggestion",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000082",
+          "review": "ready",
+          "kind": "note",
+          "confidence": 0.88,
+          "evidence": [],
+          "content": "Check **this** source."
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000083"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000081",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000082",
+        "type": "relay.agent_suggestion",
+        "props": {
+          "review": "ready",
+          "kind": "note",
+          "evidence": [],
+          "confidence": 0.88
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Check **this** source."
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000083",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "authored_source": "Before\n\n@AgentSuggestion(confidence: 0.88, evidence: [], kind: \"note\", review: \"ready\") {\n  Check **this** source.\n}\n\nAfter\n",
+  "update": "AQ/4ygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwD4ygUABgQA+MoFAQZCZWZvcmUoAPjKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwODGH+MoFAAMPYWdlbnRTdWdnZXN0aW9uKAD4ygUJC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDgyKAD4ygUJBnJldmlldwF3BXJlYWR5KAD4ygUJBGtpbmQBdwRub3RlKAD4ygUJCmNvbmZpZGVuY2UBez/sKPXCj1wpKAD4ygUJCGV2aWRlbmNlAXUAKAD4ygUJB2NvbnRlbnQBdxZDaGVjayAqKnRoaXMqKiBzb3VyY2Uuh/jKBQkDCXBhcmFncmFwaAcA+MoFEAYEAPjKBREFQWZ0ZXIoAPjKBRALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwODMA"
+}

@@ -375,6 +375,31 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: hiddenChild, dialect: .markdownV3).isEditable)
     }
 
+    func testCommunityAgentSuggestionFixtureProjectsOnlyAuthoredContent() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "agent-suggestion-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let expected = try RelayMarkDocument.decodeJSON(JSONSerialization.data(
+            withJSONObject: try XCTUnwrap(fixture["expected_ast"])))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        let suggestion = try XCTUnwrap(expected.blocks.dropFirst().first)
+        XCTAssertEqual(suggestion.type, "relay.agent_suggestion")
+        XCTAssertEqual(suggestion.props["review"], .string("ready"))
+        XCTAssertNil(suggestion.props["proposalId"])
+        var snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+        var node = blocks[1]
+        var attributes = try XCTUnwrap(node["attributes"] as? [String: Any])
+        attributes["proposalId"] = "host-only"
+        node["attributes"] = attributes
+        blocks[1] = node
+        snapshot["children"] = blocks
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(
+            snapshot: JSONSerialization.data(withJSONObject: snapshot)))
+    }
+
     func testCommunityVideoFixtureProjectsOnlyDurableIdentity() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-video-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

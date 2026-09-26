@@ -2,6 +2,7 @@
 import { mapV3Inline, unmapV3Inline } from './collaboration-inline-v3.js';
 import { parseV3EntityReferenceSource, assertV3EntityReferenceProps } from './collaboration-entity-reference-v3.js';
 import { canonicalPaperControlSource, assertV3PaperControlProps, paperControlKind, paperControlNodeName } from './collaboration-paper-controls-v3.js';
+import { assertV3AgentSuggestion, assertV3AgentSuggestionBlock } from './collaboration-agent-suggestion-v3.js';
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
@@ -65,6 +66,7 @@ function mapBlock(node, seen, calloutDepth) {
     case "relayButton":
     case "relayAnchor":
     case "relayConnection": return mapPaperControl(node, seen);
+    case "agentSuggestion": return mapAgentSuggestion(node, seen);
     case "callout": return mapCallout(node, seen, calloutDepth);
     case "table": {
       const table = mapTable(node, seen);
@@ -88,6 +90,7 @@ function unmapBlock(block, seen, calloutDepth) {
     case "relay.video_embed": return unmapVideo(block, seen);
     case "relay.entity_reference": return unmapEntityReference(block, seen);
     case "relay.paper_control": return unmapPaperControl(block, seen);
+    case "relay.agent_suggestion": return unmapAgentSuggestion(block, seen);
     case "relay.callout": return unmapCallout(block, seen, calloutDepth);
     case "table": validateGrid(block); return unmapTable(block, seen);
     default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
@@ -436,6 +439,25 @@ function unmapPaperControl(block, seen) {
   }
   const { control, authored } = assertV3PaperControlProps(block.props);
   return { type: paperControlNodeName(control), attrs: { relaymarkId: block.id, ...authored } };
+}
+
+function mapAgentSuggestion(node, seen) {
+  checkNode(node, 'agentSuggestion', seen, ['review', 'kind', 'confidence', 'evidence', 'content']);
+  if (node.content !== undefined && children(node, 'agentSuggestion').length !== 0) {
+    throw new TypeError('AgentSuggestion atom cannot have children');
+  }
+  const { review, kind, confidence, evidence, content } = assertV3AgentSuggestion(
+    node.attrs.review, node.attrs.kind, node.attrs.confidence, node.attrs.evidence, node.attrs.content);
+  return { id: node.attrs.relaymarkId, type: 'relay.agent_suggestion',
+    props: { review, kind, evidence, ...(confidence === null ? {} : { confidence }) },
+    content: [{ type: 'text', text: content }] };
+}
+
+function unmapAgentSuggestion(block, seen) {
+  checkBlock(block, 'relay.agent_suggestion', seen, true);
+  const { review, kind, confidence, evidence, content } = assertV3AgentSuggestionBlock(block);
+  return { type: 'agentSuggestion', attrs: { relaymarkId: block.id,
+    review, kind, confidence, evidence, content } };
 }
 
 const videoId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;

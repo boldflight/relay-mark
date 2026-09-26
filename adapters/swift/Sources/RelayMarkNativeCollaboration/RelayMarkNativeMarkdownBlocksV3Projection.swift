@@ -136,6 +136,15 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             for (key, value) in validated.authored { props[key] = value }
             return ["id": id, "type": "relay.paper_control", "props": props,
                     "content": [[String: Any]]()]
+        case "agentSuggestion":
+            let authored = try RelayMarkAgentSuggestionV3Contract.validate(attributes: attrs)
+            let id = try blockID(attrs, allowed: Set(attrs.keys), ids: &ids)
+            try require(children.isEmpty, "AgentSuggestion children")
+            var props: [String: Any] = ["review": authored.review, "kind": authored.kind,
+                                        "evidence": authored.evidence]
+            if let confidence = authored.confidence { props["confidence"] = confidence }
+            return ["id": id, "type": "relay.agent_suggestion", "props": props,
+                    "content": [["type": "text", "text": authored.content]]]
         case "callout":
             try require(calloutDepth < 8, "callout depth")
             let id = try blockID(attrs, allowed: ["relaymarkId", "tone", "emphasis"], ids: &ids)
