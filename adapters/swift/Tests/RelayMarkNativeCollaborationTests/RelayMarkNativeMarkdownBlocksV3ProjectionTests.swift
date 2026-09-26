@@ -169,6 +169,27 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
             snapshot: JSONSerialization.data(withJSONObject: snapshot)))
     }
 
+    func testCalloutPlainFirstRunAcceptsTypingButBoldTitleBoundaryStaysFenced() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+        try peer.applyUpdate(update)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let delta = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [1, 1, 0], start: 0, end: 0, text: "Ω ")
+        try peer.applyUpdate(delta)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after.blocks[1].childBlocks[0], before.blocks[1].childBlocks[0])
+        XCTAssertEqual(after.blocks[1].childBlocks[1].plainText, "Ω Shared note")
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+        let checkpoint = try native.encodeUpdate()
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [1, 0, 0], start: 0, end: 0, text: "X"))
+        XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+    }
+
     func testStableParagraphIDEditsSpannedTableCellWithoutRebuildingGrid() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "table-mixed-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

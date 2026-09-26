@@ -78,6 +78,12 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
             return false
         }
         if runs.isEmpty { return start == 0 && end == 0 && !text.isEmpty }
+        // YSwift inserts explicit empty attributes at an exact run boundary.
+        // At the beginning of a plain first run this is the same semantic
+        // style; a styled first run remains fenced rather than losing marks.
+        if start == 0 && end == 0 && !text.isEmpty,
+           let first = runs.first,
+           (first["attributes"] as? [String: Any] ?? [:]).isEmpty { return true }
         var offset = 0
         for run in runs {
             guard let value = run["insert"] as? String else { return false }
