@@ -119,7 +119,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: hidden))
     }
 
-    func testCommunityCalloutFixtureKeepsRichTitleAndAppearanceWithoutAdmittingTextEditing() throws {
+    func testCommunityCalloutFixtureKeepsRichTitleAndEditsExistingBodyLeaf() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
@@ -132,11 +132,30 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
         XCTAssertEqual(expected.blocks.map(\.type), ["paragraph", "relay.callout", "paragraph"])
         XCTAssertEqual(expected.blocks[1].childBlocks.map(\.type), ["relay.callout_title", "paragraph"])
-        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertEqual(prose.blockPaths, [[0], [1, 0], [1, 1], [2]])
+        XCTAssertEqual(prose.callouts.count, 1)
+        XCTAssertEqual(prose.callouts[0].id, expected.blocks[1].id)
+        XCTAssertEqual(prose.callouts[0].tone, "warning")
+        XCTAssertEqual(prose.callouts[0].emphasis, "strong")
+        XCTAssertEqual((String(prose.text.characters) as NSString).substring(with: prose.callouts[0].range),
+                       "Pay attention\nShared note")
+        XCTAssertEqual((String(prose.text.characters) as NSString).substring(
+            with: try XCTUnwrap(prose.callouts[0].titleRange)), "Pay attention")
 
         let reopened = RelayMarkNativeDocument()
         try reopened.applyUpdate(try native.encodeUpdate())
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+
+        let delta = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [1, 1, 0], start: 0, end: 6, text: "Together")
+        try reopened.applyUpdate(delta)
+        let edited = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(edited.blocks[1].id, expected.blocks[1].id)
+        XCTAssertEqual(edited.blocks[1].childBlocks.map(\.id), expected.blocks[1].childBlocks.map(\.id))
+        XCTAssertEqual(edited.blocks[1].childBlocks[1].plainText, "Together note")
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), edited)
 
         var snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
         var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])

@@ -26,6 +26,17 @@ public struct RelayMarkCollaborativeProse {
     }
     public let tableCells: [TableCell]
 
+    /// Stable callout identity and presentation ranges. The Yrs XML remains
+    /// authoritative; these ranges only style editable native text leaves.
+    public struct Callout: Equatable, Sendable {
+        public let id: String
+        public let range: NSRange
+        public let titleRange: NSRange?
+        public let tone: String
+        public let emphasis: String
+    }
+    public let callouts: [Callout]
+
     /// Block metadata remains available when an empty paragraph has no text run.
     public let blockIntents: [PresentationIntent]
     public let blockPaths: [[Int]]
@@ -50,6 +61,7 @@ public struct RelayMarkCollaborativeProse {
         var ranges: [NSRange] = [], paths: [[Int]] = []
         var intents: [PresentationIntent] = []
         var cells: [TableCell] = []
+        var calloutRanges: [Callout] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         var supported = root?["kind"] as? String == "fragment"
@@ -141,7 +153,7 @@ public struct RelayMarkCollaborativeProse {
         func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil,
                   ordinal: Int = 1, tableRows: [[Int]]? = nil, tableColumns: [Int]? = nil,
                   tableIdentity: Int? = nil, tableWidth: Int? = nil, tableRow: Int? = nil,
-                  cellContext: CellContext? = nil) {
+                  cellContext: CellContext? = nil, allowCalloutTitle: Bool = false) {
             var offsets: [Int] = []
             for (index, block) in nodes.enumerated() {
                 let blockPath = path + [index]
@@ -150,6 +162,30 @@ public struct RelayMarkCollaborativeProse {
                 let children = block["children"] as? [[String: Any]] ?? []
                 if block["kind"] as? String != "element" { supported = false }
                 identity += 1
+                if name == "callout" {
+                    let tone = attributes["tone"] as? String
+                    let emphasis = attributes["emphasis"] as? String
+                    let title = children.first?["name"] as? String == "calloutTitle"
+                    let body = title ? children.dropFirst() : children[...]
+                    guard dialect == .markdownV3,
+                          Set(attributes.keys) == Set(["relaymarkId", "tone", "emphasis"]),
+                          let id = attributes["relaymarkId"] as? String,
+                          let tone, ["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"].contains(tone),
+                          let emphasis, ["soft", "strong"].contains(emphasis),
+                          !body.isEmpty, body.allSatisfy({ $0["name"] as? String == "paragraph" }) else {
+                        supported = false; continue
+                    }
+                    let firstRange = ranges.count
+                    walk(children, path: blockPath, parent: parent, allowCalloutTitle: true)
+                    guard ranges.count > firstRange else { supported = false; continue }
+                    let first = ranges[firstRange]
+                    let last = ranges[ranges.count - 1]
+                    calloutRanges.append(Callout(id: id,
+                        range: NSRange(location: first.location, length: NSMaxRange(last) - first.location),
+                        titleRange: title ? first : nil, tone: tone, emphasis: emphasis))
+                    offsets.append(first.location)
+                    continue
+                }
                 let kind: PresentationIntent.Kind
                 var table: (width: Int, starts: [[Int]])?
                 switch name {
@@ -180,6 +216,9 @@ public struct RelayMarkCollaborativeProse {
                         ? .tableHeaderRow : .tableRow(rowIndex: index)
                 case "tableHeader", "tableCell":
                     kind = .tableCell(columnIndex: tableColumns?[index] ?? index)
+                case "calloutTitle":
+                    if dialect != .markdownV3 || !allowCalloutTitle { supported = false }
+                    kind = .paragraph
                 default: supported = false; kind = .paragraph
                 }
                 var allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
@@ -263,7 +302,7 @@ public struct RelayMarkCollaborativeProse {
         }
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
-        tableCells = cells
+        tableCells = cells; callouts = calloutRanges
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }
