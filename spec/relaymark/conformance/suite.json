@@ -1,6 +1,6 @@
 {
   "type": "relaymark.conformance_suite",
-  "version": "0.6.0-draft",
+  "version": "0.7.0-draft",
   "features": [
     "frontmatter",
     "commonmark.heading",

@@ -144,7 +144,7 @@ test('mixed projection rejects unsupported prose nodes, marks, attributes and cr
     content: [{ type: 'text', text: 'Plain' }] };
   const base = () => ({ type: 'doc', content: [clone(paragraph), clone(concurrent.normalized.content[0])] });
   const marked = base();
-  marked.content[0].content[0].marks = [{ type: 'bold' }];
+  marked.content[0].content[0].marks = [{ type: 'highlight' }];
   assert.throws(() => proseMirrorV3ToRelayMark(marked), /Unsupported/);
   const attributed = base();
   attributed.content[0].attrs.class = 'unexpected';

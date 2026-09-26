@@ -169,7 +169,7 @@ public enum RelayMarkContent: Codable, Equatable, Sendable {
 
     private static func isInlineType(_ type: String) -> Bool {
         switch type {
-        case "text", "hard_break", "soft_break", "link", "emphasis", "strong", "code_span":
+        case "text", "hard_break", "soft_break", "link", "emphasis", "strong", "strikethrough", "code_span":
             return true
         case "relay.evidence_ref", "relay.file_ref", "relay.note_ref", "relay.url_ref":
             return false

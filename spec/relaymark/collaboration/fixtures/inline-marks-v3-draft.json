@@ -1,0 +1,283 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91504,
+  "source": "Community TipTap StarterKit/PaperHeading + stable relaymarkId attrs + y-tiptap + Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Plain "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "italic"
+              },
+              {
+                "type": "strike"
+              }
+            ],
+            "text": "bold italic strike"
+          },
+          {
+            "type": "text",
+            "text": " then "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "code `x`"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "https://example.org/path?q=relay#part",
+                  "target": "_blank",
+                  "rel": "noopener noreferrer nofollow",
+                  "class": null,
+                  "title": null
+                }
+              }
+            ],
+            "text": "web"
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "relay:entity/12345678-1234-4234-8234-123456789abc",
+                  "target": "_blank",
+                  "rel": "noopener noreferrer nofollow",
+                  "class": null,
+                  "title": null
+                }
+              },
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Relay entity"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000002",
+          "level": 2,
+          "headingId": "marked-heading"
+        },
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ],
+            "text": "Marked heading"
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000003"
+        },
+        "content": [
+          {
+            "type": "listItem",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000004"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b00000000000040008000000000000005"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "marks": [
+                      {
+                        "type": "link",
+                        "attrs": {
+                          "href": "mailto:relay@example.org",
+                          "target": "_blank",
+                          "rel": "noopener noreferrer nofollow",
+                          "class": null,
+                          "title": null
+                        }
+                      }
+                    ],
+                    "text": "List link"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000001",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Plain "
+          },
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "emphasis",
+                "content": [
+                  {
+                    "type": "strikethrough",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "bold italic strike"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " then "
+          },
+          {
+            "type": "code_span",
+            "content": [
+              {
+                "type": "text",
+                "text": "code `x`"
+              }
+            ]
+          },
+          {
+            "type": "hard_break"
+          },
+          {
+            "type": "link",
+            "href": "https://example.org/path?q=relay#part",
+            "content": [
+              {
+                "type": "text",
+                "text": "web"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "link",
+            "href": "relay:entity/12345678-1234-4234-8234-123456789abc",
+            "content": [
+              {
+                "type": "strong",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Relay entity"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000002",
+        "type": "heading",
+        "props": {
+          "level": 2,
+          "headingId": "marked-heading"
+        },
+        "content": [
+          {
+            "type": "emphasis",
+            "content": [
+              {
+                "type": "text",
+                "text": "Marked heading"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000003",
+        "type": "list",
+        "props": {
+          "kind": "bullet"
+        },
+        "content": [
+          {
+            "id": "b00000000000040008000000000000004",
+            "type": "list_item",
+            "content": [
+              {
+                "id": "b00000000000040008000000000000005",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "link",
+                    "href": "mailto:relay@example.org",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "List link"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "update": "ASzwygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDwygUABgQA8MoFAQZQbGFpbiCG8MoFBwRib2xkAnt9hvDKBQgGaXRhbGljAnt9hvDKBQkGc3RyaWtlAnt9hPDKBQoSYm9sZCBpdGFsaWMgc3RyaWtlhvDKBRwEYm9sZARudWxshvDKBR0GaXRhbGljBG51bGyG8MoFHgZzdHJpa2UEbnVsbITwygUfBiB0aGVuIIbwygUlBGNvZGUCe32E8MoFJghjb2RlIGB4YIbwygUuBGNvZGUEbnVsbIfwygUBAwloYXJkQnJlYWuH8MoFMAYGAPDKBTEEbGlua4EBeyJocmVmIjoiaHR0cHM6Ly9leGFtcGxlLm9yZy9wYXRoP3E9cmVsYXkjcGFydCIsInRhcmdldCI6Il9ibGFuayIsInJlbCI6Im5vb3BlbmVyIG5vcmVmZXJyZXIgbm9mb2xsb3ciLCJjbGFzcyI6bnVsbCwidGl0bGUiOm51bGx9hPDKBTIDd2VihvDKBTUEbGluawRudWxshPDKBTYFIGFuZCCG8MoFOwRsaW5rjQF7ImhyZWYiOiJyZWxheTplbnRpdHkvMTIzNDU2NzgtMTIzNC00MjM0LTgyMzQtMTIzNDU2Nzg5YWJjIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2G8MoFPARib2xkAnt9hPDKBT0MUmVsYXkgZW50aXR5hvDKBUkEbGluawRudWxshvDKBUoEYm9sZARudWxsKADwygUAC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAxh/DKBQADB2hlYWRpbmcHAPDKBU0GBgDwygVOBml0YWxpYwJ7fYTwygVPDk1hcmtlZCBoZWFkaW5nhvDKBV0GaXRhbGljBG51bGwoAPDKBU0LcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDIoAPDKBU0FbGV2ZWwBfQIoAPDKBU0JaGVhZGluZ0lkAXcObWFya2VkLWhlYWRpbmeH8MoFTQMKYnVsbGV0TGlzdAcA8MoFYgMIbGlzdEl0ZW0HAPDKBWMDCXBhcmFncmFwaAcA8MoFZAYGAPDKBWUEbGlua3R7ImhyZWYiOiJtYWlsdG86cmVsYXlAZXhhbXBsZS5vcmciLCJ0YXJnZXQiOiJfYmxhbmsiLCJyZWwiOiJub29wZW5lciBub3JlZmVycmVyIG5vZm9sbG93IiwiY2xhc3MiOm51bGwsInRpdGxlIjpudWxsfYTwygVmCUxpc3QgbGlua4bwygVvBGxpbmsEbnVsbCgA8MoFZAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNSgA8MoFYwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNCgA8MoFYgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwMwA="
+}

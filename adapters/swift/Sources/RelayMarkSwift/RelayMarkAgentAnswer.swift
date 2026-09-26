@@ -1071,6 +1071,7 @@ public enum RelayMarkAgentAnswerValidator {
             "link",
             "emphasis",
             "strong",
+            "strikethrough",
             "code_span"
         ]
 

@@ -79,7 +79,7 @@ test('v3 Markdown block mapper rejects unsupported content before source project
   reject(doc => { code(doc).content[0].marks = [{ type: 'bold' }]; }, /Unsupported/);
   reject(doc => { rule(doc).content = [{ type: 'text', text: 'hidden' }]; }, /rule cannot/);
   reject(doc => { doc.content[0].content[1].attrs = { relaymarkId: 'extra' }; }, /Unsupported/);
-  reject(doc => { doc.content[0].content[0].marks = [{ type: 'italic' }]; }, /Unsupported/);
+  reject(doc => { doc.content[0].content[0].marks = [{ type: 'highlight' }]; }, /Unsupported/);
   reject(doc => { doc.content[0].attrs.style = 'hidden'; }, /Unsupported/);
 });
 

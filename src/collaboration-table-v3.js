@@ -1,4 +1,5 @@
 /** Optional relaymark-prosemirror-v3 Markdown-block/table projection; no live profile admits it. */
+import { mapV3Inline, unmapV3Inline } from './collaboration-inline-v3.js';
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
@@ -79,7 +80,7 @@ function mapHeading(node, seen) {
   const { level, headingId: anchor } = node.attrs;
   checkHeading(level, anchor);
   return { id: node.attrs.relaymarkId, type: "heading", props: { level, headingId: anchor },
-    content: inlineChildren(node, "heading").map(mapInline) };
+    content: inlineChildren(node, "heading").map(mapV3Inline) };
 }
 
 function unmapHeading(block, seen) {
@@ -89,7 +90,7 @@ function unmapHeading(block, seen) {
   const { level, headingId: anchor } = block.props;
   checkHeading(level, anchor);
   return { type: "heading", attrs: { relaymarkId: block.id, level, headingId: anchor },
-    content: inlineChildren(block, "heading").map(unmapInline) };
+    content: inlineChildren(block, "heading").map(unmapV3Inline) };
 }
 
 function checkHeading(level, anchor) {
@@ -239,15 +240,7 @@ function mapCellParagraph(node, seen) {
 function mapParagraph(node, seen) {
   checkNode(node, "paragraph", seen);
   return { id: node.attrs.relaymarkId, type: "paragraph", content: inlineChildren(node, "paragraph")
-    .map(mapInline) };
-}
-
-function mapInline(node) {
-  if (node?.type === "text") return mapText(node);
-  assertObject(node, "inline");
-  onlyKeys(node, ["type"], "hardBreak");
-  requireType(node, "hardBreak");
-  return { type: "hard_break" };
+    .map(mapV3Inline) };
 }
 
 function mapText(node) {
@@ -303,15 +296,7 @@ function unmapCellParagraph(block, seen) {
 function unmapParagraph(block, seen) {
   checkBlock(block, "paragraph", seen);
   return { type: "paragraph", attrs: { relaymarkId: block.id },
-    content: inlineChildren(block, "paragraph").map(unmapInline) };
-}
-
-function unmapInline(node) {
-  if (node?.type === "text") return unmapText(node);
-  assertObject(node, "inline");
-  onlyKeys(node, ["type"], "hard_break");
-  requireType(node, "hard_break");
-  return { type: "hardBreak" };
+    content: inlineChildren(block, "paragraph").map(unmapV3Inline) };
 }
 
 function unmapText(node) {

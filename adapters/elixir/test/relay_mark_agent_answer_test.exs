@@ -11,7 +11,7 @@ defmodule RelayMarkAgentAnswerTest do
     receipt_directory = Path.dirname(@receipt_path)
 
     assert receipt["type"] == "relaymark.fixture_receipt"
-    assert receipt["version"] == "0.6.0-draft"
+    assert receipt["version"] == "0.7.0-draft"
     assert receipt["algorithm"] == "sha256"
 
     for pair_receipt <- receipt["pairs"] do

@@ -123,11 +123,10 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
                 }
                 for run in runs {
                     let item = try object(run, keys: ["insert", "attributes"])
-                    if let marks = item["attributes"] { try require(try object(marks, keys: []).isEmpty, "text marks") }
                     guard let value = item["insert"] as? String, !value.isEmpty, value.utf16.count <= 131_072 else {
                         throw Failure.unsupported("text run")
                     }
-                    result.append(["type": "text", "text": value])
+                    result.append(try markedText(value, attributes: item["attributes"]))
                 }
             } else {
                 let (name, attrs, grandchildren) = try element(child)
@@ -135,6 +134,46 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
                             "inline element")
                 result.append(["type": "hard_break"])
             }
+        }
+        return result
+    }
+
+    /// TipTap's mark rank is link, bold, code, italic, strike. Code excludes all
+    /// other marks. Portable wrappers follow that outer-to-inner rank so the
+    /// inverse can restore one exact normalized ProseMirror text run.
+    private static func markedText(_ text: String, attributes raw: Any?) throws -> [String: Any] {
+        let attrs = try object(raw ?? [String: Any](), keys: ["link", "bold", "code", "italic", "strike"])
+        try require(attrs["code"] == nil || attrs.count == 1, "code mark combination")
+        for key in ["bold", "code", "italic", "strike"] where attrs[key] != nil {
+            try require(try object(attrs[key]!, keys: []).isEmpty, "mark attributes")
+        }
+        var result: [String: Any] = ["type": "text", "text": text]
+        for key in ["strike", "italic", "code", "bold", "link"] where attrs[key] != nil {
+            let type: String
+            switch key {
+            case "strike": type = "strikethrough"
+            case "italic": type = "emphasis"
+            case "code": type = "code_span"
+            case "bold": type = "strong"
+            default: type = "link"
+            }
+            var wrapper: [String: Any] = ["type": type, "content": [result]]
+            if key == "link" {
+                let link = try object(attrs[key]!, keys: ["href", "target", "rel", "class", "title"])
+                try require(Set(link.keys) == Set(["href", "target", "rel", "class", "title"]),
+                            "link attributes")
+                guard let href = link["href"] as? String, !href.isEmpty,
+                      href.rangeOfCharacter(from: .controlCharacters) == nil,
+                      !href.contains("<"), !href.contains(">") else {
+                    throw Failure.unsupported("link href")
+                }
+                try require(link["target"] as? String == "_blank" &&
+                            link["rel"] as? String == "noopener noreferrer nofollow" &&
+                            (link["class"] == nil || link["class"] is NSNull) &&
+                            (link["title"] == nil || link["title"] is NSNull), "link attributes")
+                wrapper["href"] = href
+            }
+            result = wrapper
         }
         return result
     }

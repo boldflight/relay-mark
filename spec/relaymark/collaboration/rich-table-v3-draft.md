@@ -28,8 +28,8 @@ and the exact expected portable AST. The additive block mappings are:
 All block XML elements require stable `relaymarkId` values. An ordered list's
 nullable TipTap `type` attribute must be null for this slice; non-null list
 numbering variants fail. Only one nested list level, one paragraph per list item,
-paragraph-only quotes, and unmarked text are admitted. Inline marks, links,
-other RelayMark elements and all product admission remain separate work. Table
+paragraph-only quotes, and the [bounded v3 inline marks](inline-marks-v3-draft.md)
+are admitted. Other RelayMark elements and all product admission remain separate work. Table
 cell paragraphs stay plain-text-only; this expansion does not silently broaden
 the existing table source contract.
 
@@ -98,4 +98,4 @@ normalizes it with TipTap's schema. The test verifies block order, IDs, empty
 content, text, spans and widths through AST and inverse ProseMirror JSON.
 This is a mixed-document Yjs projection proof, not live v3 admission or a
 browser/native editing acceptance test for surrounding prose. Unsupported
-top-level nodes, inline marks, attributes and duplicate IDs fail closed.
+top-level nodes, unknown inline marks or attributes, and duplicate IDs fail closed.
