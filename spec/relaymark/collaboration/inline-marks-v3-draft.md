@@ -38,3 +38,10 @@ native projection test verify replay, inverse mapping, Unicode text, formatting,
 and a Relay entity link. This is a projection proof. Markdown serialization,
 all RelayMark directives/widgets, native v3 editing, and live mixed-client
 acceptance remain separate release gates.
+
+The native YSwift adapter also has a bounded text-leaf mutation command. It
+validates the whole v3 candidate on a scratch Yrs document before changing the
+live replica, preserves marks only for edits inside one existing text run, and
+returns the exact Yjs update for the host to persist. Cross-mark replacements
+and structural input are rejected without changing the live document. This is
+a low-level command, not v3 editor admission or a complete typing path.

@@ -76,6 +76,56 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
             snapshot: JSONSerialization.data(withJSONObject: snapshot)))
     }
 
+    func testBoundedV3TextMutationRetainsStructureAndSurvivesReplay() throws {
+        let (update, expected) = try fixture()
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+
+        let delta = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 0, end: 6, text: "After")
+        let updated = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(updated.blocks.map(\.id), expected.blocks.map(\.id))
+        XCTAssertEqual(updated.blocks.dropFirst(), expected.blocks.dropFirst())
+        XCTAssertEqual(updated.blocks[0].plainText, "After 🌍second line")
+
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(update)
+        try reopened.applyUpdate(delta)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), updated)
+
+        let checkpoint = try native.encodeUpdate()
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 0, end: 0, text: "\n"))
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0], start: 0, end: 0, text: "X"))
+        XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+    }
+
+    func testV3TextMutationPreservesOneMarkedRunAndRejectsCrossMarkReplacement() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-marks-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(update)
+
+        _ = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 8, end: 12, text: "BOLD")
+        let projected = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertTrue(projected.blocks[0].plainText.contains("boBOLDtalic strike"))
+        let snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        let blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+        let children = try XCTUnwrap(blocks[0]["children"] as? [[String: Any]])
+        let runs = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+        let marked = try XCTUnwrap(runs.first { ($0["insert"] as? String)?.contains("BOLD") == true })
+        let attributes = try XCTUnwrap(marked["attributes"] as? [String: Any])
+        XCTAssertEqual(Set(attributes.keys), Set(["bold", "italic", "strike"]))
+
+        let checkpoint = try native.encodeUpdate()
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 5, end: 8, text: "cross"))
+        XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+    }
+
     func testRejectsUnknownMetadataMarksDuplicateIDsAndDeeperLists() throws {
         let (update, _) = try fixture()
         let native = RelayMarkNativeDocument()
