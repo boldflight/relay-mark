@@ -37,6 +37,23 @@ public struct RelayMarkCollaborativeProse {
     }
     public let callouts: [Callout]
 
+    /// Identified inline XML nodes occupy one non-text UTF-16 unit in `text`.
+    /// Authored identity and source remain on the XML node; the range is only a
+    /// native selection/presentation coordinate.
+    public struct InlineAtom: Equatable, Sendable {
+        public enum Kind: String, Sendable {
+            case relayReference
+            case relayTag
+        }
+        public let kind: Kind
+        public let id: String
+        public let label: String
+        public let source: String
+        public let range: NSRange
+        public let path: [Int]
+    }
+    public let inlineAtoms: [InlineAtom]
+
     /// Block metadata remains available when an empty paragraph has no text run.
     public let blockIntents: [PresentationIntent]
     public let blockPaths: [[Int]]
@@ -51,6 +68,7 @@ public struct RelayMarkCollaborativeProse {
         let text: Bool
         let afterPath: [Int]
         let afterIndex: Int
+        let atom: Bool
     }
     private let spans: [Span]
     private let containerOffsets: [[Int]: [Int]]
@@ -62,6 +80,7 @@ public struct RelayMarkCollaborativeProse {
         var intents: [PresentationIntent] = []
         var cells: [TableCell] = []
         var calloutRanges: [Callout] = []
+        var atoms: [InlineAtom] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         var supported = root?["kind"] as? String == "fragment"
@@ -104,7 +123,40 @@ public struct RelayMarkCollaborativeProse {
                 value.append(part)
             }
             mapped.append(Span(range: NSRange(location: start, length: length() - start), path: path,
-                text: true, afterPath: path, afterIndex: length() - start))
+                text: true, afterPath: path, afterIndex: length() - start, atom: false))
+        }
+        func inlineAtom(_ leaf: [String: Any], path: [Int]) -> InlineAtom? {
+            guard dialect == .markdownV3, leaf["kind"] as? String == "element",
+                  let name = leaf["name"] as? String,
+                  let kind = InlineAtom.Kind(rawValue: name),
+                  let attributes = leaf["attributes"] as? [String: Any],
+                  let children = leaf["children"] as? [Any], children.isEmpty else { return nil }
+            let uuidPattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            func validUUID(_ id: String) -> Bool { id.range(of: uuidPattern, options: .regularExpression) != nil }
+            if kind == .relayReference {
+                guard Set(attributes.keys).isSubset(of: ["entityType", "entityId", "label", "source", "status", "subtitle"]),
+                      let type = attributes["entityType"] as? String,
+                      type.range(of: "^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$", options: .regularExpression) != nil,
+                      type != "Tag", let id = attributes["entityId"] as? String, validUUID(id),
+                      let label = attributes["label"] as? String, !label.isEmpty,
+                      label == label.trimmingCharacters(in: .whitespacesAndNewlines),
+                      label.rangeOfCharacter(from: .newlines) == nil, !label.contains("]"),
+                      let source = attributes["source"] as? String,
+                      source == "[[\(type): \(id) | \(label)]]",
+                      (attributes["status"] == nil || attributes["status"] is NSNull),
+                      (attributes["subtitle"] == nil || attributes["subtitle"] is NSNull) else { return nil }
+                return InlineAtom(kind: kind, id: id, label: label, source: source,
+                                  range: NSRange(location: length(), length: 1), path: path)
+            }
+            guard Set(attributes.keys).isSubset(of: ["id", "name", "color", "source"]),
+                  let id = attributes["id"] as? String, validUUID(id),
+                  let name = attributes["name"] as? String,
+                  name.range(of: "^[a-z0-9][a-z0-9_-]*$", options: .regularExpression) != nil,
+                  let source = attributes["source"] as? String,
+                  source == "[[Tag: \(id) | #\(name)]]",
+                  (attributes["color"] == nil || attributes["color"] is NSNull) else { return nil }
+            return InlineAtom(kind: kind, id: id, label: "#\(name)", source: source,
+                              range: NSRange(location: length(), length: 1), path: path)
         }
         func tableLayout(_ rows: [[String: Any]]) -> (width: Int, starts: [[Int]]) {
             var occupied = Array(repeating: Set<Int>(), count: rows.count)
@@ -263,7 +315,7 @@ public struct RelayMarkCollaborativeProse {
                         if !children.isEmpty { supported = false }
                         value.append(AttributedString("\u{FFFC}"))
                         mapped.append(Span(range: NSRange(location: start, length: 1), path: blockPath,
-                            text: false, afterPath: path, afterIndex: index + 1))
+                            text: false, afterPath: path, afterIndex: index + 1, atom: false))
                     } else {
                         for (childIndex, child) in children.enumerated() {
                             let childPath = blockPath + [childIndex]
@@ -275,7 +327,14 @@ public struct RelayMarkCollaborativeProse {
                                 value.append(AttributedString("\u{2028}"))
                                 boundaries[childPath] = [offset]
                                 mapped.append(Span(range: NSRange(location: offset, length: 1), path: childPath,
-                                    text: false, afterPath: blockPath, afterIndex: childIndex + 1))
+                                    text: false, afterPath: blockPath, afterIndex: childIndex + 1, atom: false))
+                            } else if child["name"] as? String == "relayReference" || child["name"] as? String == "relayTag" {
+                                if let atom = inlineAtom(child, path: childPath), name != "codeBlock" {
+                                    atoms.append(atom)
+                                    value.append(AttributedString("\u{FFFC}"))
+                                    mapped.append(Span(range: atom.range, path: childPath, text: false,
+                                        afterPath: blockPath, afterIndex: childIndex + 1, atom: true))
+                                } else { supported = false }
                             } else { supported = false }
                             inlineOffsets.append(length())
                         }
@@ -302,7 +361,7 @@ public struct RelayMarkCollaborativeProse {
         }
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
-        tableCells = cells; callouts = calloutRanges
+        tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }
@@ -317,6 +376,19 @@ public struct RelayMarkCollaborativeProse {
     }
 
     public func position(atUTF16 offset: Int) -> (path: [Int], index: Int)? {
+        // For identified atoms, both edges are XML sibling boundaries. Prefer
+        // an adjacent text leaf when present so a caret edits that leaf.
+        if let atom = spans.first(where: { $0.atom && ($0.range.location == offset || NSMaxRange($0.range) == offset) }) {
+            if atom.range.location == offset,
+               let previous = spans.first(where: { $0.text && NSMaxRange($0.range) == offset }) {
+                return (previous.path, previous.range.length)
+            }
+            if NSMaxRange(atom.range) == offset,
+               let next = spans.first(where: { $0.text && $0.range.location == offset }) {
+                return (next.path, 0)
+            }
+            return (atom.afterPath, atom.afterIndex - (atom.range.location == offset ? 1 : 0))
+        }
         for span in spans where offset >= span.range.location && offset <= NSMaxRange(span.range) {
             if span.text { return (span.path, offset - span.range.location) }
             if offset == span.range.location { return (span.path, 0) }

@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import RelayMarkSwift
+import RelayMarkProseProjection
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
@@ -16,9 +17,53 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         try native.applyUpdate(update)
         XCTAssertTrue(native.integrationStatus().isComplete)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertEqual(String(prose.text.characters), "Meet \u{FFFC} for \u{FFFC}. [[unknown]] stays text.\n\u{FFFC}")
+        XCTAssertEqual(prose.inlineAtoms.map(\.kind), [.relayReference, .relayTag, .relayReference])
+        XCTAssertEqual(prose.inlineAtoms.map(\.path), [[0, 1], [0, 3], [1, 0]])
+        XCTAssertEqual(prose.inlineAtoms.map(\.range), [
+            NSRange(location: 5, length: 1), NSRange(location: 11, length: 1),
+            NSRange(location: 38, length: 1)
+        ])
+        XCTAssertEqual(prose.inlineAtoms.map(\.id), [
+            "9f815b37-67b3-4101-868c-5335351feb6a",
+            "9712027d-18db-448e-8514-cea7c215d6f7",
+            "12345678-1234-4234-8234-123456789abc"
+        ])
+        XCTAssertEqual(prose.inlineAtoms.map(\.label), ["Ada Lovelace", "#today", "Prepare review"])
+        XCTAssertEqual(prose.inlineAtoms.map(\.source), [
+            "[[Person: 9f815b37-67b3-4101-868c-5335351feb6a | Ada Lovelace]]",
+            "[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #today]]",
+            "[[Task: 12345678-1234-4234-8234-123456789abc | Prepare review]]"
+        ])
+        XCTAssertEqual(prose.textRanges(in: NSRange(location: 0, length: 39)).map(\.path),
+                       [[0, 0], [0, 2], [0, 4]])
+        for atom in prose.inlineAtoms {
+            XCTAssertTrue(prose.textRanges(in: atom.range).isEmpty)
+            for edge in [atom.range.location, NSMaxRange(atom.range)] {
+                let position = try XCTUnwrap(prose.position(atUTF16: edge))
+                XCTAssertEqual(prose.offset(path: position.path, index: position.index), edge)
+            }
+        }
+        XCTAssertEqual(prose.position(atUTF16: 5)?.path, [0, 0])
+        XCTAssertEqual(prose.position(atUTF16: 6)?.path, [0, 2])
+        XCTAssertEqual(prose.position(atUTF16: 11)?.path, [0, 2])
+        XCTAssertEqual(prose.position(atUTF16: 12)?.path, [0, 4])
+        XCTAssertEqual(prose.position(atUTF16: 38)?.path, [1])
+        XCTAssertEqual(prose.position(atUTF16: 38)?.index, 0)
+        XCTAssertEqual(prose.position(atUTF16: 39)?.path, [1])
+        XCTAssertEqual(prose.position(atUTF16: 39)?.index, 1)
+
+        _ = try native.insertText("new ", at: 0, path: [0, 2])
+        let edited = try native.markdownV3ProseProjection()
+        XCTAssertEqual(String(edited.text.characters), "Meet \u{FFFC}new  for \u{FFFC}. [[unknown]] stays text.\n\u{FFFC}")
+        XCTAssertEqual(edited.inlineAtoms.map(\.range.location), [5, 15, 42])
+        XCTAssertEqual(edited.inlineAtoms.map(\.id), prose.inlineAtoms.map(\.id))
+        let editedAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
         let reopened = RelayMarkNativeDocument()
         try reopened.applyUpdate(try native.encodeUpdate())
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), editedAST)
 
         let original = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
         func changed(_ edit: (inout [[String: Any]]) -> Void) throws -> Data {
@@ -40,6 +85,20 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
             blocks[0] = paragraph
         }
         XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: unresolved))
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: unresolved, dialect: .markdownV3).isEditable)
+        let mismatchedSource = try changed { blocks in
+            var paragraph = blocks[0]
+            var children = paragraph["children"] as! [[String: Any]]
+            var reference = children[1]
+            var attrs = reference["attributes"] as! [String: Any]
+            attrs["source"] = "[[Person: 9f815b37-67b3-4101-868c-5335351feb6a | Someone else]]"
+            reference["attributes"] = attrs
+            children[1] = reference
+            paragraph["children"] = children
+            blocks[0] = paragraph
+        }
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: mismatchedSource))
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: mismatchedSource, dialect: .markdownV3).isEditable)
         let colored = try changed { blocks in
             var paragraph = blocks[0]
             var children = paragraph["children"] as! [[String: Any]]
@@ -52,6 +111,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
             blocks[0] = paragraph
         }
         XCTAssertThrowsError(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: colored))
+        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: colored, dialect: .markdownV3).isEditable)
     }
 
     func testCommunityTaskListFixtureProjectsCheckedAndLinkedNestedItemsWithoutAdmittingEditing() throws {
