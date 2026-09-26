@@ -53,7 +53,7 @@
       "type": "string",
       "anyOf": [
         {
-          "pattern": "^(paragraph|heading|list|list_item|quote|code|table|table_row|table_cell|image|horizontal_rule|widget\\.[a-z][a-z0-9_]*)$"
+          "pattern": "^(paragraph|heading|list|list_item|task_list|task_item|quote|code|table|table_row|table_cell|image|horizontal_rule|widget\\.[a-z][a-z0-9_]*)$"
         },
         {
           "pattern": "^relay\\.[a-z][a-z0-9_]*$",

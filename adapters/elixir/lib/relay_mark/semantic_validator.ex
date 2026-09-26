@@ -87,7 +87,14 @@ defmodule RelayMark.SemanticValidator do
     )
   end
 
-  defp validate_block(block, {diagnostics, seen_ids}, evidence_targets, scripture_resources) do
+  defp validate_block(
+         block,
+         {diagnostics, seen_ids},
+         evidence_targets,
+         scripture_resources,
+         parent_type \\ nil,
+         task_depth \\ 0
+       ) do
     id = block["id"]
 
     {diagnostics, seen_ids} =
@@ -127,14 +134,87 @@ defmodule RelayMark.SemanticValidator do
         diagnostics
       end
 
+    diagnostics = validate_task_block(block, diagnostics, parent_type, task_depth)
+
     Enum.reduce(block["content"] || [], {diagnostics, seen_ids}, fn child, state ->
       if block_node?(child) do
-        validate_block(child, state, evidence_targets, scripture_resources)
+        validate_block(
+          child,
+          state,
+          evidence_targets,
+          scripture_resources,
+          type,
+          task_depth + if(type == "task_list", do: 1, else: 0)
+        )
       else
         state
       end
     end)
   end
+
+  defp validate_task_block(%{"type" => "task_list"} = block, diagnostics, _parent_type, depth) do
+    content = block["content"]
+
+    diagnostics =
+      if depth >= 16 or not is_list(content) or length(content) < 1 or length(content) > 4_096 or
+           Enum.any?(content, &(&1["type"] != "task_item")) do
+        append_error(
+          diagnostics,
+          "relaymark.task_list.children",
+          "Task list needs task items within the depth and size limits."
+        )
+      else
+        diagnostics
+      end
+
+    if block["props"] != nil and map_size(block["props"]) > 0 do
+      append_error(diagnostics, "relaymark.task_list.props", "Task list has no properties.")
+    else
+      diagnostics
+    end
+  end
+
+  defp validate_task_block(%{"type" => "task_item"} = block, diagnostics, parent_type, _depth) do
+    props = block["props"] || %{}
+    entity_id = props["entityId"]
+
+    valid_entity? =
+      Map.has_key?(props, "entityId") and
+        (is_nil(entity_id) or
+           (is_binary(entity_id) and
+              Regex.match?(
+                ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u,
+                entity_id
+              )))
+
+    diagnostics =
+      if not is_boolean(props["checked"]) or not valid_entity? or
+           Enum.any?(Map.keys(props), &(&1 not in ["checked", "entityId"])) do
+        append_error(
+          diagnostics,
+          "relaymark.task_item.props",
+          "Task item needs checked and canonical entityId properties."
+        )
+      else
+        diagnostics
+      end
+
+    content = block["content"]
+
+    if parent_type != "task_list" or not is_list(content) or length(content) < 1 or
+         length(content) > 4_096 or hd(content)["type"] != "paragraph" or
+         Enum.any?(tl(content), &(&1["type"] not in ["paragraph", "task_list", "list"])) do
+      append_error(
+        diagnostics,
+        "relaymark.task_item.children",
+        "Task item needs a first paragraph and supported child blocks."
+      )
+    else
+      diagnostics
+    end
+  end
+
+  defp validate_task_block(_block, diagnostics, _parent_type, _depth), do: diagnostics
 
   defp validate_relay_block(block, diagnostics, evidence_targets, scripture_resources) do
     case @directive_registry[block["type"]] do
@@ -327,13 +407,21 @@ defmodule RelayMark.SemanticValidator do
            Regex.match?(~r/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/, id) do
         diagnostics
       else
-        append_error(diagnostics, "relaymark.video_embed.id", "relay.video_embed.videoId must be a canonical lowercase UUID.")
+        append_error(
+          diagnostics,
+          "relaymark.video_embed.id",
+          "relay.video_embed.videoId must be a canonical lowercase UUID."
+        )
       end
 
     if (block["content"] || []) == [] do
       diagnostics
     else
-      append_error(diagnostics, "relaymark.video_embed.children", "relay.video_embed cannot have children.")
+      append_error(
+        diagnostics,
+        "relaymark.video_embed.children",
+        "relay.video_embed cannot have children."
+      )
     end
   end
 
