@@ -25,6 +25,10 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(ast, expected)
         XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "heading", "quote", "list", "list", "code", "horizontal_rule", "paragraph"])
         XCTAssertFalse(try native.proseProjection().isEditable)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertTrue(String(prose.text.characters).contains("Before 🌍"))
+        XCTAssertEqual(prose.position(atUTF16: 0)?.path, [0, 0])
 
         let reopened = RelayMarkNativeDocument()
         try reopened.applyUpdate(try native.encodeUpdate())
@@ -39,6 +43,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         try native.applyUpdate(update)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native),
                        try RelayMarkNativeMixedTableProjection.project(snapshot: native.snapshot()))
+        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
     }
 
     func testCommunityInlineMarksProjectToExactPortableASTAfterReplayAndReopen() throws {
@@ -52,6 +57,9 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         try native.applyUpdate(update)
         XCTAssertTrue(native.integrationStatus().isComplete)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertTrue(String(prose.text.characters).contains("bold italic strike"))
 
         let reopened = RelayMarkNativeDocument()
         try reopened.applyUpdate(try native.encodeUpdate())

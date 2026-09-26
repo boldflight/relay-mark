@@ -45,3 +45,10 @@ live replica, preserves marks only for edits inside one existing text run, and
 returns the exact Yjs update for the host to persist. Cross-mark replacements
 and structural input are rejected without changing the live document. This is
 a low-level command, not v3 editor admission or a complete typing path.
+
+For documents accepted by the strict v3 AST projector, the native prose
+projector has an explicit v3 mode that retains the existing selection/path map
+for basic Markdown blocks and marked text with stable `relaymarkId` attributes.
+The legacy mode continues to reject those attributes. Tables and other shapes
+outside that attributed-text map remain noneditable, and the app's v3 admission
+gate stays closed.

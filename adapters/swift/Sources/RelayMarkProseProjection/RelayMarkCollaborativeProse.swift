@@ -3,6 +3,11 @@ import CoreFoundation
 
 /// Deliberately bounded editable projection; unsupported structure is preserved by the replica.
 public struct RelayMarkCollaborativeProse {
+    public enum Dialect: Sendable {
+        case legacy
+        case markdownV3
+    }
+
     public let text: AttributedString
     public let isEditable: Bool
     public let blockRanges: [NSRange]
@@ -25,7 +30,7 @@ public struct RelayMarkCollaborativeProse {
     private let spans: [Span]
     private let containerOffsets: [[Int]: [Int]]
 
-    public init(snapshot: Data) throws {
+    public init(snapshot: Data, dialect: Dialect = .legacy) throws {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
         var value = AttributedString()
         var ranges: [NSRange] = [], paths: [[Int]] = []
@@ -62,7 +67,9 @@ public struct RelayMarkCollaborativeProse {
                 part.inlinePresentationIntent = intent
                 if let mark = attributes["link"] {
                     if let link = mark as? [String: Any], let href = link["href"] as? String,
-                        Set(link.keys).isSubset(of: ["href", "target", "rel", "class"]),
+                        Set(link.keys).isSubset(of: dialect == .markdownV3
+                            ? ["href", "target", "rel", "class", "title"] : ["href", "target", "rel", "class"]),
+                        (dialect != .markdownV3 || link["title"] == nil || link["title"] is NSNull),
                         !href.contains("\n"), !href.contains("<"), !href.contains(">"), let url = URL(string: href) {
                         part.link = url
                     } else { supported = false }
@@ -87,6 +94,7 @@ public struct RelayMarkCollaborativeProse {
                 case "heading":
                     if !validInteger(attributes["level"], minimum: 1, maximum: 6) { supported = false }
                     if let headingID = attributes["headingId"],
+                       (dialect == .legacy || !(headingID is NSNull)),
                        (headingID as? String)?.isEmpty != false { supported = false }
                     kind = .header(level: min(6, max(1, attributes["level"] as? Int ?? 1)))
                 case "codeBlock":
@@ -98,11 +106,16 @@ public struct RelayMarkCollaborativeProse {
                 case "bulletList": kind = .unorderedList
                 case "orderedList":
                     if !validInteger(attributes["start"], minimum: 1) { supported = false }
+                    if let type = attributes["type"], !(type is NSNull) { supported = false }
                     kind = .orderedList
                 case "listItem": kind = .listItem(ordinal: ordinal + index)
                 default: supported = false; kind = .paragraph
                 }
-                let allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
+                var allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
+                if dialect == .markdownV3 {
+                    allowed.insert("relaymarkId")
+                    if name == "orderedList" { allowed.insert("type") }
+                }
                 if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
                 let previousCount = ranges.count

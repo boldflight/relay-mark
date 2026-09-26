@@ -94,6 +94,13 @@ public final class RelayMarkNativeDocument {
         try RelayMarkCollaborativeProse(snapshot: snapshot())
     }
 
+    /// Basic v3 Markdown read/selection map after strict whole-document AST
+    /// validation. Tables and other unsupported presentation shapes stay gated.
+    public func markdownV3ProseProjection() throws -> RelayMarkCollaborativeProse {
+        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: self)
+        return try RelayMarkCollaborativeProse(snapshot: snapshot(), dialect: .markdownV3)
+    }
+
     /// One quote with one or two flat paragraphs; no wrapping, splitting or joins.
     public func supportsQuoteEditing() -> Bool { (try? quoteParagraphs()) != nil }
 
