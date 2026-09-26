@@ -111,7 +111,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         return ["id": id, "type": "paragraph", "content": try inline(children, breaks: true)]
     }
 
-    private static func inline(_ children: [Any], breaks: Bool) throws -> [[String: Any]] {
+    static func inline(_ children: [Any], breaks: Bool) throws -> [[String: Any]] {
         try require(children.count <= 4_096, "inline child limit")
         var result = [[String: Any]]()
         for child in children {

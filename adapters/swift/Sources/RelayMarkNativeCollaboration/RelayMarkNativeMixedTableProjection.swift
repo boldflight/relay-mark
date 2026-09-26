@@ -107,24 +107,10 @@ public enum RelayMarkNativeMixedTableProjection {
         let (name, attrs, rawLeaves) = try element(raw)
         try require(name == "paragraph", "paragraph")
         let id = try blockID(attrs, allowed: ["relaymarkId"], ids: &ids)
-        var content = [[String: Any]]()
-        for leaf in rawLeaves {
-            let text = try object(leaf, keys: ["kind", "delta"])
-            try require(text["kind"] as? String == "text", "paragraph text leaf")
-            guard let runs = text["delta"] as? [Any] else { throw Failure.unsupported("text delta") }
-            for run in runs {
-                let item = try object(run, keys: ["insert", "attributes"])
-                if let marks = item["attributes"] {
-                    let values = try object(marks, keys: [])
-                    try require(values.isEmpty, "text marks")
-                }
-                guard let value = item["insert"] as? String, !value.isEmpty else {
-                    throw Failure.unsupported("text run")
-                }
-                content.append(["type": "text", "text": value])
-            }
-        }
-        return ["id": id, "type": "paragraph", "content": content]
+        // A table cell uses the same TipTap inline grammar as an ordinary v3
+        // paragraph. Keep one validator so marks and links cannot diverge.
+        return ["id": id, "type": "paragraph",
+                "content": try RelayMarkNativeMarkdownBlocksV3Projection.inline(rawLeaves, breaks: true)]
     }
 
     private static func blockID(_ attrs: [String: Any], allowed: Set<String>,

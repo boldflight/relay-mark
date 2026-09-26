@@ -65,7 +65,7 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertFalse(try native.proseProjection().isEditable)
     }
 
-    func testMixedProjectionRejectsUnknownMetadataMarksDuplicateIDsAndBrokenGrid() throws {
+    func testMixedProjectionSharesInlineMarksAndRejectsUnknownMetadataDuplicateIDsAndBrokenGrid() throws {
         let (update, _) = try fixture()
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(update)
@@ -101,14 +101,36 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
 
         let marked = try changed { snapshot in
             nodes(&snapshot) { blocks in
-                var leaves = blocks[0]["children"] as! [[String: Any]]
+                var rows = blocks[1]["children"] as! [[String: Any]]
+                var cells = rows[0]["children"] as! [[String: Any]]
+                var paragraphs = cells[0]["children"] as! [[String: Any]]
+                var leaves = paragraphs[0]["children"] as! [[String: Any]]
                 var runs = leaves[0]["delta"] as! [[String: Any]]
                 runs[0]["attributes"] = ["bold": [:]]
+                leaves[0]["delta"] = runs
+                paragraphs[0]["children"] = leaves
+                cells[0]["children"] = paragraphs
+                rows[0]["children"] = cells
+                blocks[1]["children"] = rows
+            }
+        }
+        let markedAST = try RelayMarkNativeMixedTableProjection.project(snapshot: marked)
+        guard case .inline(let inline)? = markedAST.blocks[1].childBlocks[0].childBlocks[0].childBlocks[0].content.first else {
+            return XCTFail("Expected marked table cell text")
+        }
+        XCTAssertEqual(inline.type, "strong")
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: marked), markedAST)
+
+        let unknownMark = try changed { snapshot in
+            nodes(&snapshot) { blocks in
+                var leaves = blocks[0]["children"] as! [[String: Any]]
+                var runs = leaves[0]["delta"] as! [[String: Any]]
+                runs[0]["attributes"] = ["unsupported": [:]]
                 leaves[0]["delta"] = runs
                 blocks[0]["children"] = leaves
             }
         }
-        XCTAssertThrowsError(try RelayMarkNativeMixedTableProjection.project(snapshot: marked))
+        XCTAssertThrowsError(try RelayMarkNativeMixedTableProjection.project(snapshot: unknownMark))
 
         let brokenGrid = try changed { snapshot in
             nodes(&snapshot) { blocks in
