@@ -1,0 +1,160 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91511,
+  "source": "Relay TipTap PaperButton/PaperAnchor/PaperConnection + community y-tiptap/Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000061"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "type": "relayAnchor",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000062",
+          "name": "next"
+        }
+      },
+      {
+        "type": "relayButton",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000063",
+          "label": "Next",
+          "kind": "anchor",
+          "target": "next"
+        }
+      },
+      {
+        "type": "relayButton",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000064",
+          "label": "Search Alex",
+          "kind": "command",
+          "target": "/search Alex"
+        }
+      },
+      {
+        "type": "relayButton",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000065",
+          "label": "Docs",
+          "kind": "link",
+          "target": "https://example.com/docs"
+        }
+      },
+      {
+        "type": "relayConnection",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000066",
+          "provider": "google"
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000067"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000061",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000062",
+        "type": "relay.paper_control",
+        "props": {
+          "control": "anchor",
+          "name": "next",
+          "source": "@Anchor(name: \"next\")"
+        },
+        "content": []
+      },
+      {
+        "id": "b00000000000040008000000000000063",
+        "type": "relay.paper_control",
+        "props": {
+          "control": "button",
+          "label": "Next",
+          "kind": "anchor",
+          "target": "next",
+          "source": "@Button(label: \"Next\", kind: \"anchor\", target: \"next\")"
+        },
+        "content": []
+      },
+      {
+        "id": "b00000000000040008000000000000064",
+        "type": "relay.paper_control",
+        "props": {
+          "control": "button",
+          "label": "Search Alex",
+          "kind": "command",
+          "target": "/search Alex",
+          "source": "@Button(label: \"Search Alex\", kind: \"command\", target: \"/search Alex\")"
+        },
+        "content": []
+      },
+      {
+        "id": "b00000000000040008000000000000065",
+        "type": "relay.paper_control",
+        "props": {
+          "control": "button",
+          "label": "Docs",
+          "kind": "link",
+          "target": "https://example.com/docs",
+          "source": "@Button(label: \"Docs\", kind: \"link\", target: \"https://example.com/docs\")"
+        },
+        "content": []
+      },
+      {
+        "id": "b00000000000040008000000000000066",
+        "type": "relay.paper_control",
+        "props": {
+          "control": "connection",
+          "provider": "google",
+          "source": "@Connection(provider: \"google\")"
+        },
+        "content": []
+      },
+      {
+        "id": "b00000000000040008000000000000067",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "authored_source": "Before\n\n@Anchor(name: \"next\")\n\n@Button(label: \"Next\", kind: \"anchor\", target: \"next\")\n\n@Button(label: \"Search Alex\", kind: \"command\", target: \"/search Alex\")\n\n@Button(label: \"Docs\", kind: \"link\", target: \"https://example.com/docs\")\n\n@Connection(provider: \"google\")\n\nAfter\n",
+  "update": "AR33ygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwD3ygUABgQA98oFAQZCZWZvcmUoAPfKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjGH98oFAAMLcmVsYXlBbmNob3IoAPfKBQkLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjIoAPfKBQkEbmFtZQF3BG5leHSH98oFCQMLcmVsYXlCdXR0b24oAPfKBQwLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjMoAPfKBQwFbGFiZWwBdwROZXh0KAD3ygUMBGtpbmQBdwZhbmNob3IoAPfKBQwGdGFyZ2V0AXcEbmV4dIf3ygUMAwtyZWxheUJ1dHRvbigA98oFEQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NCgA98oFEQVsYWJlbAF3C1NlYXJjaCBBbGV4KAD3ygURBGtpbmQBdwdjb21tYW5kKAD3ygURBnRhcmdldAF3DC9zZWFyY2ggQWxleIf3ygURAwtyZWxheUJ1dHRvbigA98oFFgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NSgA98oFFgVsYWJlbAF3BERvY3MoAPfKBRYEa2luZAF3BGxpbmsoAPfKBRYGdGFyZ2V0AXcYaHR0cHM6Ly9leGFtcGxlLmNvbS9kb2Nzh/fKBRYDD3JlbGF5Q29ubmVjdGlvbigA98oFGwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NigA98oFGwhwcm92aWRlcgF3Bmdvb2dsZYf3ygUbAwlwYXJhZ3JhcGgHAPfKBR4GBAD3ygUfBUFmdGVyKAD3ygUeC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDY3AA=="
+}

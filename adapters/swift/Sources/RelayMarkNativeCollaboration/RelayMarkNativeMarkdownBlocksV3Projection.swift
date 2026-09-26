@@ -127,6 +127,22 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             return ["id": id, "type": "relay.entity_reference",
                     "props": ["id": entityRef, "label": label, "projection": projection, "source": source],
                     "content": [[String: Any]]()]
+        case "relayButton", "relayAnchor", "relayConnection":
+            let control = name == "relayButton" ? "button" : name == "relayAnchor" ? "anchor" : "connection"
+            let fields = control == "button" ? ["label", "kind", "target"] : control == "anchor" ? ["name"] : ["provider"]
+            let id = try blockID(attrs, allowed: Set(["relaymarkId"] + fields), ids: &ids)
+            try require(children.isEmpty, "paper control children")
+            var authored = [String: String]()
+            for field in fields {
+                guard let value = attrs[field] as? String else { throw Failure.unsupported("paper control field") }
+                authored[field] = value
+            }
+            let source = try paperControlSource(control: control, fields: authored)
+            try require(source.utf16.count <= 16_384, "paper control source limit")
+            var props: [String: Any] = ["control": control, "source": source]
+            for (key, value) in authored { props[key] = value }
+            return ["id": id, "type": "relay.paper_control", "props": props,
+                    "content": [[String: Any]]()]
         case "callout":
             try require(calloutDepth < 8, "callout depth")
             let id = try blockID(attrs, allowed: ["relaymarkId", "tone", "emphasis"], ids: &ids)
@@ -365,6 +381,37 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
               url.scheme == "https", let host = url.host, !host.isEmpty,
               url.user == nil, url.password == nil else { return false }
         return true
+    }
+
+    private static func paperControlSource(control: String, fields: [String: String]) throws -> String {
+        let anchor = #"\A[A-Za-z0-9][A-Za-z0-9_-]{0,127}\z"#
+        func matches(_ value: String, _ pattern: String) -> Bool {
+            value.range(of: pattern, options: .regularExpression) != nil
+        }
+        func json(_ value: String) throws -> String {
+            let data = try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .withoutEscapingSlashes])
+            return String(decoding: data, as: UTF8.self)
+        }
+        switch control {
+        case "button":
+            let label = fields["label"]!, kind = fields["kind"]!, target = fields["target"]!
+            let safe = !matches(target, #"[\s\x00-\x1f\x7f\\]"#) &&
+                (matches(target, #"^/(?!/)"#) || matches(target, #"(?i)^https?://[^/?#]+"#) ||
+                 matches(target, #"(?i)^mailto:[^?]+"#))
+            let valid = !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+                (kind == "anchor" ? matches(target, anchor) :
+                 kind == "command" ? matches(target, #"\A/[a-z][a-z0-9._-]*(?: [^\x00-\x1f\x7f]+)?\z"#) :
+                 kind == "link" && safe)
+            try require(valid, "paper button")
+            return "@Button(label: \(try json(label)), kind: \(try json(kind)), target: \(try json(target)))"
+        case "anchor":
+            try require(matches(fields["name"]!, anchor), "paper anchor")
+            return "@Anchor(name: \(try json(fields["name"]!)))"
+        case "connection":
+            try require(matches(fields["provider"]!, #"\A[a-z][a-z0-9_-]*\z"#), "paper connection")
+            return "@Connection(provider: \(try json(fields["provider"]!)))"
+        default: throw Failure.unsupported("paper control")
+        }
     }
 
     private static func entityReferenceSource(_ source: String, entityRef: String, entityId: String,

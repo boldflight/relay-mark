@@ -2,6 +2,7 @@ import { directiveForType } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
 import { sourceForV3Atom } from "./collaboration-atoms-v3.js";
 import { assertV3EntityReferenceProps } from "./collaboration-entity-reference-v3.js";
+import { assertV3PaperControlProps } from "./collaboration-paper-controls-v3.js";
 
 /** Serializes the supported human-authored subset to one deterministic source form. */
 export function serializeRelayMark(document) {
@@ -20,6 +21,11 @@ export function serializeRelayMark(document) {
 }
 
 function serializeBlock(block) {
+  if (block.type === "relay.paper_control") {
+    const { source } = assertV3PaperControlProps(block.props);
+    if (!Array.isArray(block.content) || block.content.length !== 0) throw new TypeError("Paper control cannot have children");
+    return source;
+  }
   if (block.type === "relay.entity_reference" && block.props?.source !== undefined) {
     const authored = assertV3EntityReferenceProps(block.props);
     const content = block.content || [];

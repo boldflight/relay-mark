@@ -1,6 +1,7 @@
 /** Optional relaymark-prosemirror-v3 Markdown-block/table projection; no live profile admits it. */
 import { mapV3Inline, unmapV3Inline } from './collaboration-inline-v3.js';
 import { parseV3EntityReferenceSource, assertV3EntityReferenceProps } from './collaboration-entity-reference-v3.js';
+import { canonicalPaperControlSource, assertV3PaperControlProps, paperControlKind, paperControlNodeName } from './collaboration-paper-controls-v3.js';
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
@@ -61,6 +62,9 @@ function mapBlock(node, seen, calloutDepth) {
     case "image": return mapImage(node, seen);
     case "videoEmbed": return mapVideo(node, seen);
     case "relayEntityReference": return mapEntityReference(node, seen);
+    case "relayButton":
+    case "relayAnchor":
+    case "relayConnection": return mapPaperControl(node, seen);
     case "callout": return mapCallout(node, seen, calloutDepth);
     case "table": {
       const table = mapTable(node, seen);
@@ -83,6 +87,7 @@ function unmapBlock(block, seen, calloutDepth) {
     case "image": return unmapImage(block, seen);
     case "relay.video_embed": return unmapVideo(block, seen);
     case "relay.entity_reference": return unmapEntityReference(block, seen);
+    case "relay.paper_control": return unmapPaperControl(block, seen);
     case "relay.callout": return unmapCallout(block, seen, calloutDepth);
     case "table": validateGrid(block); return unmapTable(block, seen);
     default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
@@ -408,6 +413,29 @@ function unmapEntityReference(block, seen) {
   const { id, entityId, label, projection, source } = assertV3EntityReferenceProps(block.props);
   return { type: "relayEntityReference", attrs: { relaymarkId: block.id,
     entityRef: id, entityId, entityType: "Entity", label, projection, source } };
+}
+
+const paperControlFields = { button: ["label", "kind", "target"], anchor: ["name"], connection: ["provider"] };
+
+function mapPaperControl(node, seen) {
+  const control = paperControlKind(node.type);
+  checkNode(node, node.type, seen, paperControlFields[control]);
+  if (node.content !== undefined && children(node, node.type).length !== 0) {
+    throw new TypeError("Paper control cannot have children");
+  }
+  const authored = Object.fromEntries(paperControlFields[control].map(field => [field, node.attrs[field]]));
+  const source = canonicalPaperControlSource(control, authored);
+  return { id: node.attrs.relaymarkId, type: "relay.paper_control",
+    props: { control, ...authored, source }, content: [] };
+}
+
+function unmapPaperControl(block, seen) {
+  checkBlock(block, "relay.paper_control", seen, true);
+  if (block.content !== undefined && children(block, "relay.paper_control").length !== 0) {
+    throw new TypeError("Paper control cannot have children");
+  }
+  const { control, authored } = assertV3PaperControlProps(block.props);
+  return { type: paperControlNodeName(control), attrs: { relaymarkId: block.id, ...authored } };
 }
 
 const videoId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;

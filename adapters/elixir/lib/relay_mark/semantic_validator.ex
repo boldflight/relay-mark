@@ -325,6 +325,13 @@ defmodule RelayMark.SemanticValidator do
             "relay.entity_reference" ->
               validate_entity_reference(block, diagnostics)
 
+            "relay.paper_control" ->
+              if RelayMark.PaperControlV3.valid_block?(block) do
+                diagnostics
+              else
+                append_error(diagnostics, "relaymark.paper_control.source", "Paper control fields, source, and empty content must agree.")
+              end
+
             "relay.video_embed" ->
               validate_video_embed(block, diagnostics)
 

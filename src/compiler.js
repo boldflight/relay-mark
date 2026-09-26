@@ -26,6 +26,10 @@ export function compileParsedDocument(parsed) {
 }
 
 function compileBlock(block, allocator, diagnostics) {
+  if (block.kind === "paper_control") {
+    return { id: allocator.next(), type: "relay.paper_control",
+      props: { control: block.control, ...block.attrs, source: block.source }, content: [] };
+  }
   if (block.kind === "heading") {
     return {
       id: allocator.next(),

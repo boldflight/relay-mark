@@ -1,4 +1,5 @@
 import { parseAttributes } from "./attributes.js";
+import { parsePaperControlSource } from "./collaboration-paper-controls-v3.js";
 
 export function parseRelayMark(source) {
   const normalized = source.replace(/\r\n?/g, "\n");
@@ -61,6 +62,12 @@ function parseBlocks(lines, start, state, stopOnClose) {
     }
 
     if (trimmed.startsWith("@")) {
+      const control = parsePaperControlSource(trimmed);
+      if (control) {
+        blocks.push({ kind: "paper_control", ...control, line: index + 1 });
+        index += 1;
+        continue;
+      }
       const parsed = parseDirective(lines, index, state);
       blocks.push(parsed.block);
       index = parsed.index;

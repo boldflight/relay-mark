@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { directiveForType } from "./registry.js";
 import { isBlockNode } from "./node-kind.js";
 import { assertV3EntityReferenceProps } from "./collaboration-entity-reference-v3.js";
+import { assertV3PaperControlProps } from "./collaboration-paper-controls-v3.js";
 
 export function validateDocument(document, validationContext = {}) {
   const diagnostics = [];
@@ -165,6 +166,15 @@ function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResour
 
   if (block.type === "relay.entity_reference") {
     validateEntityReference(block, diagnostics);
+  }
+
+  if (block.type === "relay.paper_control") {
+    try {
+      assertV3PaperControlProps(block.props);
+      if (!Array.isArray(block.content) || block.content.length !== 0) throw new TypeError('Paper control content');
+    } catch {
+      diagnostics.push(error("relaymark.paper_control.source", "Paper control fields, source, and empty content must agree."));
+    }
   }
 
   if (block.type === "relay.video_embed") {

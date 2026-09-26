@@ -1,0 +1,26 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "name": "PaperControl",
+  "ast_type": "relay.paper_control",
+  "version": 1,
+  "category": "relay_kit",
+  "description": "Inert authored Paper button, anchor, or connection.",
+  "capability": "paper.control",
+  "fallback": "plain_text",
+  "attributes": {
+    "control": { "type": "enum", "values": ["button", "anchor", "connection"], "required": true },
+    "label": { "type": "string" },
+    "kind": { "type": "enum", "values": ["anchor", "link", "command"] },
+    "target": { "type": "string" },
+    "name": { "type": "string" },
+    "provider": { "type": "string" },
+    "source": { "type": "string", "required": true }
+  },
+  "children": { "mode": "none" },
+  "validation": [
+    "Exactly the fields for the discriminant and canonical authored source are present",
+    "Navigation, command execution, authorization and connection hydration belong to the host"
+  ],
+  "projections": { "plain_text": "authored label or name", "manifest": [] },
+  "policy": { "requires_review": false, "requires_evidence": false, "allows_agent_creation": false }
+}
