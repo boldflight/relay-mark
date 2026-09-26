@@ -551,6 +551,37 @@ public final class RelayMarkNativeDocument {
         try replaceText(at: index, length: length, with: "", path: path)
     }
 
+    /// Change one identified inline XML sibling in a single Yrs transaction.
+    /// The v3 command validates a candidate on a scratch replica first.
+    func mutateInlineAtom(path: [Int], replacing: Bool, tag: String,
+                          attributes: [String: String]) throws -> Data {
+        guard path.count >= 2, let index = path.last, index >= 0,
+              let childIndex = UInt32(exactly: index) else { throw Failure.invalidTextPath }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            var parent = self.root
+            for component in path.dropLast() {
+                guard let offset = UInt32(exactly: component),
+                      let child = parent.child(at: offset, in: transaction) else {
+                    throw Failure.invalidTextPath
+                }
+                parent = child
+            }
+            guard parent.kind(in: transaction) == "element",
+                  ["paragraph", "heading"].contains(parent.tag(in: transaction) ?? ""),
+                  childIndex <= parent.length(in: transaction),
+                  (!replacing || parent.child(at: childIndex, in: transaction)?.tag(in: transaction) == "relayReference" ||
+                   parent.child(at: childIndex, in: transaction)?.tag(in: transaction) == "relayTag") else {
+                throw Failure.invalidTextPath
+            }
+            if replacing { try parent.removeChildren(start: childIndex, length: 1, in: transaction) }
+            let atom = try parent.insertElement(named: tag, at: childIndex, in: transaction)
+            for (key, value) in attributes { try atom.setAttribute(key, value: value, in: transaction) }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Deletion and insertion share one transaction and one undo item.
     public func replaceText(at index: Int, length: Int, with text: String, path: [Int]) throws -> Data {
         let update = try document.transactSync(origin: localOrigin) { transaction in
