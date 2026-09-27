@@ -158,6 +158,16 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         try native.applyUpdate(update)
         XCTAssertTrue(native.integrationStatus().isComplete)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        let offered = prose.text.runs.compactMap { run -> Set<RelayMarkV3OfferedMark>? in
+            run[RelayMarkV3OfferedMarksAttribute.self]
+        }
+        XCTAssertTrue(offered.contains([.underline]))
+        XCTAssertTrue(offered.contains([.highlight]))
+        XCTAssertTrue(offered.contains([.superscript]))
+        XCTAssertTrue(offered.contains([.subscript]))
+        XCTAssertTrue(offered.contains(Set(RelayMarkV3OfferedMark.allCases)))
         let reopened = RelayMarkNativeDocument()
         try reopened.applyUpdate(try native.encodeUpdate())
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)

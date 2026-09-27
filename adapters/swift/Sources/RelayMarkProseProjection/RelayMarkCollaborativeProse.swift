@@ -125,11 +125,22 @@ public struct RelayMarkCollaborativeProse {
             for run in delta {
                 guard let insert = run["insert"] as? String else { supported = false; continue }
                 let attributes = run["attributes"] as? [String: Any] ?? [:]
-                if !Set(attributes.keys).isSubset(of: ["bold", "italic", "strike", "code", "link"]) { supported = false }
+                let offered = Set(RelayMarkV3OfferedMark.allCases.map(\.rawValue))
+                let allowed = Set(["bold", "italic", "strike", "code", "link"])
+                    .union(dialect == .markdownV3 ? offered : [])
+                if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 if codeBlock && !attributes.isEmpty { supported = false }
                 if attributes["code"] != nil && (attributes.count > 1 || insert.contains("\r") || insert.contains("\n")) { supported = false }
                 for key in ["bold", "italic", "strike", "code"] where attributes[key] != nil {
                     if !(attributes[key] is [String: Any]) { supported = false }
+                }
+                var offeredMarks = Set<RelayMarkV3OfferedMark>()
+                if dialect == .markdownV3 {
+                    for mark in RelayMarkV3OfferedMark.allCases where attributes[mark.rawValue] != nil {
+                        if (attributes[mark.rawValue] as? [String: Any])?.isEmpty == true {
+                            offeredMarks.insert(mark)
+                        } else { supported = false }
+                    }
                 }
                 var part = AttributedString(insert)
                 var intent: InlinePresentationIntent = []
@@ -138,6 +149,7 @@ public struct RelayMarkCollaborativeProse {
                 if attributes["strike"] != nil { intent.insert(.strikethrough) }
                 if attributes["code"] != nil { intent.insert(.code) }
                 part.inlinePresentationIntent = intent
+                if !offeredMarks.isEmpty { part[RelayMarkV3OfferedMarksAttribute.self] = offeredMarks }
                 if let mark = attributes["link"] {
                     if let link = mark as? [String: Any], let href = link["href"] as? String,
                         Set(link.keys).isSubset(of: dialect == .markdownV3
