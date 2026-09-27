@@ -1487,6 +1487,48 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Insert a new task list after an existing top-level paragraph. The
+    /// paragraph is never rebuilt or removed, so concurrent edits to its Yjs
+    /// text are not discarded by creating the list.
+    public func insertEmptyMarkdownV3TaskList(after paragraphAnchor: Data,
+                                               expectedSnapshot: Data) throws
+        -> (update: Data, listID: String, itemID: String, paragraphID: String) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (_, path, _) = try markdownV3TopLevelParagraphTarget(paragraphAnchor)
+        guard root.length() < 4_096 else { throw Failure.unsupportedProseEdit }
+        func newID() -> String { "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") }
+        let listID = newID(), itemID = newID(), paragraphID = newID()
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.performMarkdownV3TaskListInsertion(after: paragraphAnchor, path: path,
+            listID: listID, itemID: itemID, paragraphID: paragraphID)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performMarkdownV3TaskListInsertion(after: paragraphAnchor, path: path,
+            listID: listID, itemID: itemID, paragraphID: paragraphID)
+        return (update, listID, itemID, paragraphID)
+    }
+
+    private func performMarkdownV3TaskListInsertion(after anchor: Data, path: [Int],
+                                                    listID: String, itemID: String,
+                                                    paragraphID: String) throws -> Data {
+        let (_, resolvedPath, _) = try markdownV3TopLevelParagraphTarget(anchor)
+        guard resolvedPath == path else { throw Failure.invalidAnchor }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            let list = try self.root.insertElement(named: "taskList", at: UInt32(path[0] + 1), in: transaction)
+            try list.setAttribute("relaymarkId", value: listID, in: transaction)
+            let item = try list.insertElement(named: "taskItem", at: 0, in: transaction)
+            try item.setAttribute("relaymarkId", value: itemID, in: transaction)
+            try item.setAttribute("checked", value: false, in: transaction)
+            let paragraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
+            try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Return in a top-level v3 paragraph creates one identified XML sibling.
     /// The original paragraph keeps its ID and any suffix carries its marks.
     /// A caller must bind the anchor and caret to an exact projected snapshot.

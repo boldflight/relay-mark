@@ -49,4 +49,34 @@ final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
             XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
         }
     }
+
+    func testTaskListInsertionKeepsTheSourceParagraphAndReplaysToPeer() throws {
+        let source = try seed()
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(source)
+        try peer.applyUpdate(source)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let anchor = try native.anchor(path: [0], index: 0)
+        let snapshot = try native.snapshot()
+        XCTAssertThrowsError(try native.insertEmptyMarkdownV3TaskList(after: anchor,
+            expectedSnapshot: Data()))
+
+        let change = try native.insertEmptyMarkdownV3TaskList(after: anchor,
+            expectedSnapshot: snapshot)
+        try peer.applyUpdate(change.update)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(after.blocks[0], before.blocks[0])
+        XCTAssertEqual(after.blocks[1].id, change.listID)
+        XCTAssertEqual(after.blocks[1].type, "task_list")
+        let tasks = try native.markdownV3ProseProjection().taskItems
+        XCTAssertEqual(tasks.count, 1)
+        XCTAssertEqual(tasks[0].id, change.itemID)
+        XCTAssertFalse(tasks[0].checked)
+        XCTAssertNil(tasks[0].entityID)
+
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+    }
 }
