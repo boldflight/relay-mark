@@ -1,6 +1,6 @@
-// node scripts/collaboration-table-add-row-v3-probe.mjs /absolute/web/assets --write|--check
-// Community TipTap table command + UniqueID + y-tiptap/Yjs evidence for one
-// unmerged table row insertion. This does not enroll the v3 schema.
+// node scripts/collaboration-table-structure-v3-probe.mjs /absolute/web/assets --write|--check
+// Community TipTap table commands + UniqueID + y-tiptap/Yjs evidence for
+// unmerged row/column insertion. This does not enroll the v3 schema.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -83,9 +83,43 @@ mergedDoc.clientID = 91732;
 binding.prosemirrorToYXmlFragment(mergedEditor.state.doc, mergedDoc.getXmlFragment('default'));
 fixture.merged_seed = Buffer.from(Y.encodeStateAsUpdate(mergedDoc)).toString('base64');
 mergedEditor.destroy(); mergedDoc.destroy();
-const path = new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/table-add-row-v3.json', import.meta.url);
-const encoded = `${JSON.stringify(fixture, null, 2)}\n`;
-if (mode === '--write') writeFileSync(path, encoded);
-else assert.equal(readFileSync(path, 'utf8'), encoded);
+next = 99;
+const columnInitial = new Editor({ element: document.createElement('div'), extensions, content: source });
+const columnNormalized = JSON.parse(JSON.stringify(columnInitial.getJSON()));
+const columnDoc = new Y.Doc();
+columnDoc.clientID = 91733;
+const columnRoot = columnDoc.getXmlFragment('default');
+binding.prosemirrorToYXmlFragment(columnInitial.state.doc, columnRoot);
+columnInitial.destroy();
+const columnBefore = snapshot(columnRoot);
+const columnSeed = Buffer.from(Y.encodeStateAsUpdate(columnDoc)).toString('base64');
+const columnVector = Y.encodeStateVector(columnDoc);
+const columnEditor = new Editor({ element: document.createElement('div'),
+  extensions: [...extensions, Collaboration.configure({ document: columnDoc, field: 'default' })] });
+let columnPosition;
+columnEditor.state.doc.descendants((node, pos) => { if (node.isText && node.text === 'Alpha') columnPosition = pos + 2; });
+columnEditor.commands.setTextSelection(columnPosition);
+assert.equal(columnEditor.state.selection.$from.parent.textContent, 'Alpha');
+assert.equal(columnEditor.commands.addColumnAfter(), true);
+assert.equal(columnEditor.state.selection.$from.parent.textContent, 'Alpha');
+assert.equal(columnEditor.state.selection.$from.parentOffset, 2);
+const columnAfter = columnEditor.getJSON();
+assert.deepEqual(columnAfter.content[0].content.map(item => item.content[1].type),
+  ['tableHeader', 'tableCell']);
+assert.ok(columnAfter.content[0].content.every(item =>
+  item.content[1].attrs.colwidth === null && !item.content[1].content[0].content));
+const columnFixture = { source: fixture.source, command: 'addColumnAfter',
+  normalized: columnNormalized, before_xml: columnBefore, after: columnAfter,
+  after_xml: snapshot(columnRoot), seed: columnSeed,
+  update: Buffer.from(Y.encodeStateAsUpdate(columnDoc, columnVector)).toString('base64'),
+  expected_ast: proseMirrorV3ToRelayMark(columnAfter), merged_seed: fixture.merged_seed,
+  selection_after: { cell_id: id(8), text_offset: 2 } };
+columnEditor.destroy(); columnDoc.destroy();
+for (const [name, value] of [['row', fixture], ['column', columnFixture]]) {
+  const path = new URL(`../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/table-add-${name}-v3.json`, import.meta.url);
+  const encoded = `${JSON.stringify(value, null, 2)}\n`;
+  if (mode === '--write') writeFileSync(path, encoded);
+  else assert.equal(readFileSync(path, 'utf8'), encoded);
+}
 editor.destroy(); doc.destroy(); dom.window.close();
-console.log(`Community addRowAfter ${mode === '--write' ? 'written' : 'verified'}`);
+console.log(`Community table additions ${mode === '--write' ? 'written' : 'verified'}`);

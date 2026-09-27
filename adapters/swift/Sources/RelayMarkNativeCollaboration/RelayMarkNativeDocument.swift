@@ -1001,6 +1001,78 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// TipTap's `addColumnAfter` on an unmerged rectangular table. Each row
+    /// receives a fresh empty cell/paragraph of that row's header or body
+    /// type. Existing cells, marks, IDs, and widths remain untouched; the
+    /// community command leaves the caret in the originally selected cell.
+    public func canAddMarkdownV3TableColumn(afterCell anchor: Data, expectedCellID: String) -> Bool {
+        guard integrationStatus().isComplete,
+              let projection = try? markdownV3ProseProjection(), projection.isEditable else { return false }
+        return (try? markdownV3TableColumnTarget(anchor, expectedCellID: expectedCellID)) != nil
+    }
+
+    public func addMarkdownV3TableColumn(afterCell anchor: Data, expectedCellID: String,
+                                         expectedSnapshot: Data) throws
+        -> (update: Data, cellIDs: [String], paragraphIDs: [String]) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let target = try markdownV3TableColumnTarget(anchor, expectedCellID: expectedCellID)
+        let cellIDs = (0..<target.rows).map { _ in
+            "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        }
+        let paragraphIDs = (0..<target.rows).map { _ in
+            "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        }
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.insertMarkdownV3TableColumn(afterCell: anchor, expectedCellID: expectedCellID,
+            cellIDs: cellIDs, paragraphIDs: paragraphIDs)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertMarkdownV3TableColumn(afterCell: anchor, expectedCellID: expectedCellID,
+            cellIDs: cellIDs, paragraphIDs: paragraphIDs)
+        return (update, cellIDs, paragraphIDs)
+    }
+
+    private func markdownV3TableColumnTarget(_ anchor: Data, expectedCellID: String) throws
+        -> (table: YXmlNode, columnIndex: Int, rows: Int) {
+        let target = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
+        let (_, path) = try anchoredElement(anchor)
+        guard target.width < 256 else { throw Failure.unsupportedProseEdit }
+        for row in target.table.children() {
+            let names = Set(row.children().compactMap { $0.tag() })
+            guard names.count == 1, let name = names.first,
+                  name == "tableCell" || name == "tableHeader" else {
+                throw Failure.unsupportedProseEdit
+            }
+        }
+        return (target.table, path[2], Int(target.table.length()))
+    }
+
+    private func insertMarkdownV3TableColumn(afterCell anchor: Data, expectedCellID: String,
+                                             cellIDs: [String], paragraphIDs: [String]) throws -> Data {
+        let target = try markdownV3TableColumnTarget(anchor, expectedCellID: expectedCellID)
+        guard cellIDs.count == target.rows, paragraphIDs.count == target.rows else {
+            throw Failure.unsupportedProseEdit
+        }
+        let rows = target.table.children()
+        let rowTags = rows.compactMap { $0.child(at: 0)?.tag() }
+        guard rowTags.count == target.rows else { throw Failure.unsupportedProseEdit }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            for (index, row) in rows.enumerated() {
+                let cell = try row.insertElement(named: rowTags[index], at: UInt32(target.columnIndex + 1), in: transaction)
+                try cell.setAttribute("relaymarkId", value: cellIDs[index], in: transaction)
+                try cell.setAttribute("colspan", value: 1, in: transaction)
+                try cell.setAttribute("rowspan", value: 1, in: transaction)
+                let paragraph = try cell.insertElement(named: "paragraph", at: 0, in: transaction)
+                try paragraph.setAttribute("relaymarkId", value: paragraphIDs[index], in: transaction)
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Insert the browser's default `Title` child into one untitled, flat v3
     /// callout. The snapshot is the exact displayed checkpoint: it includes
     /// the callout, every child, and their text/marks. A changed document is
