@@ -910,6 +910,91 @@ public final class RelayMarkNativeDocument {
         return attributes.keys.allSatisfy { booleanMarks.contains($0) || $0 == "link" }
     }
 
+    /// TipTap's `addRowAfter` for a rectangular v3 table without merged cells.
+    /// Existing rows and text stay in place; the new empty cells copy the
+    /// selected body row's column widths and alignment. The relative cell
+    /// anchor and full displayed snapshot reject stale or retargeted actions.
+    public func addMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String,
+                                      expectedSnapshot: Data) throws
+        -> (update: Data, rowID: String, cellIDs: [String], paragraphIDs: [String]) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let path = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
+        let rowID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let cellIDs = (0..<path.width).map { _ in
+            "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        }
+        let paragraphIDs = (0..<path.width).map { _ in
+            "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        }
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.insertMarkdownV3TableRow(afterCell: anchor, expectedCellID: expectedCellID,
+            rowID: rowID, cellIDs: cellIDs, paragraphIDs: paragraphIDs)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertMarkdownV3TableRow(afterCell: anchor, expectedCellID: expectedCellID,
+            rowID: rowID, cellIDs: cellIDs, paragraphIDs: paragraphIDs)
+        return (update, rowID, cellIDs, paragraphIDs)
+    }
+
+    private func markdownV3TableRowTarget(_ anchor: Data, expectedCellID: String) throws
+        -> (table: YXmlNode, row: YXmlNode, width: Int, rowIndex: Int) {
+        let (cell, path) = try anchoredElement(anchor)
+        guard path.count == 3, cell.tag() == "tableCell",
+              try cell.attributes()["relaymarkId"] as? String == expectedCellID,
+              let table = root.child(at: UInt32(path[0])), table.tag() == "table",
+              let row = table.child(at: UInt32(path[1])), row.tag() == "tableRow",
+              table.length() < 256, (1...256).contains(row.length()) else { throw Failure.invalidAnchor }
+        let width = Int(row.length())
+        for candidate in table.children() {
+            guard candidate.tag() == "tableRow", candidate.length() == width else {
+                throw Failure.unsupportedProseEdit
+            }
+            for entry in candidate.children() {
+                guard ["tableCell", "tableHeader"].contains(entry.tag() ?? ""),
+                      entry.length() == 1, entry.child(at: 0)?.tag() == "paragraph" else {
+                    throw Failure.unsupportedProseEdit
+                }
+                let attrs = try entry.attributes()
+                guard attrs["colspan"] as? Int == 1, attrs["rowspan"] as? Int == 1 else {
+                    throw Failure.unsupportedProseEdit
+                }
+            }
+        }
+        guard row.children().allSatisfy({ $0.tag() == "tableCell" }) else {
+            throw Failure.unsupportedProseEdit
+        }
+        return (table, row, width, path[1])
+    }
+
+    private func insertMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String,
+                                          rowID: String, cellIDs: [String], paragraphIDs: [String]) throws -> Data {
+        let target = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
+        guard cellIDs.count == target.width, paragraphIDs.count == target.width else {
+            throw Failure.unsupportedProseEdit
+        }
+        let sourceAttrs = try target.row.children().map { try $0.attributes() }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            let row = try target.table.insertElement(named: "tableRow", at: UInt32(target.rowIndex + 1), in: transaction)
+            try row.setAttribute("relaymarkId", value: rowID, in: transaction)
+            for index in 0..<target.width {
+                let cell = try row.insertElement(named: "tableCell", at: UInt32(index), in: transaction)
+                try cell.setAttribute("relaymarkId", value: cellIDs[index], in: transaction)
+                for key in ["colspan", "rowspan", "colwidth", "align"] {
+                    if let value = sourceAttrs[index][key], !(value is NSNull) {
+                        try cell.setAttribute(key, value: value, in: transaction)
+                    }
+                }
+                let paragraph = try cell.insertElement(named: "paragraph", at: 0, in: transaction)
+                try paragraph.setAttribute("relaymarkId", value: paragraphIDs[index], in: transaction)
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Insert the browser's default `Title` child into one untitled, flat v3
     /// callout. The snapshot is the exact displayed checkpoint: it includes
     /// the callout, every child, and their text/marks. A changed document is
