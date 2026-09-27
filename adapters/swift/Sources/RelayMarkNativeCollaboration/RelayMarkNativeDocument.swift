@@ -1335,10 +1335,12 @@ public final class RelayMarkNativeDocument {
             list = child
         }
         let position = UInt32(path[path.count - 2] + 1)
+        let task = list.tag() == "taskList"
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try leaf.removeText(start: UInt32(offset), length: UInt32(old.utf16.count - offset), in: transaction)
-            let item = try list.insertElement(named: "listItem", at: position, in: transaction)
+            let item = try list.insertElement(named: task ? "taskItem" : "listItem", at: position, in: transaction)
             try item.setAttribute("relaymarkId", value: itemID, in: transaction)
+            if task { try item.setAttribute("checked", value: false, in: transaction) }
             let newParagraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
             try newParagraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
             let destination = try newParagraph.insertText(at: 0, in: transaction)
@@ -1383,17 +1385,21 @@ public final class RelayMarkNativeDocument {
               paragraph.tag() == "paragraph", paragraph.length() == 0,
               let paragraphID = try paragraph.attributes()["relaymarkId"] as? String,
               let top = root.child(at: UInt32(path[0])),
-              ["bulletList", "orderedList"].contains(top.tag() ?? "") else { throw Failure.invalidAnchor }
+              ["bulletList", "orderedList", "taskList"].contains(top.tag() ?? "") else { throw Failure.invalidAnchor }
         if path.count == 3 {
-            guard path[1] == Int(top.length()) - 1, top.length() > 1,
-                  let item = top.child(at: UInt32(path[1])), item.tag() == "listItem",
+            guard path[1] == Int(top.length()) - 1,
+                  let item = top.child(at: UInt32(path[1])),
+                  item.tag() == (top.tag() == "taskList" ? "taskItem" : "listItem"),
                   item.length() == 1 else { throw Failure.unsupportedProseEdit }
         } else {
-            guard let outer = top.child(at: UInt32(path[1])), outer.tag() == "listItem",
+            guard let outer = top.child(at: UInt32(path[1])),
+                  outer.tag() == (top.tag() == "taskList" ? "taskItem" : "listItem"),
                   outer.length() == 2,
-                  let nested = outer.child(at: 1), ["bulletList", "orderedList"].contains(nested.tag() ?? ""),
+                  let nested = outer.child(at: 1),
+                  ["bulletList", "orderedList", "taskList"].contains(nested.tag() ?? ""),
                   nested.length() == 1, path[2] == 1, path[3] == 0,
-                  let item = nested.child(at: 0), item.tag() == "listItem",
+                  let item = nested.child(at: 0),
+                  item.tag() == (nested.tag() == "taskList" ? "taskItem" : "listItem"),
                   item.length() == 1 else { throw Failure.unsupportedProseEdit }
         }
         return (path, paragraphID)
@@ -1405,19 +1411,27 @@ public final class RelayMarkNativeDocument {
         guard resolvedPath == path, resolvedID == paragraphID,
               (path.count == 5) == (newItemID != nil),
               let top = root.child(at: UInt32(path[0])) else { throw Failure.invalidAnchor }
+        let onlyItem = path.count == 3 && top.length() == 1
+        let task = top.tag() == "taskList"
         let update = try document.transactSync(origin: localOrigin) { transaction in
             if path.count == 3 {
-                try top.removeChildren(start: UInt32(path[1]), length: 1, in: transaction)
+                if onlyItem {
+                    try self.root.removeChildren(start: UInt32(path[0]), length: 1, in: transaction)
+                } else {
+                    try top.removeChildren(start: UInt32(path[1]), length: 1, in: transaction)
+                }
                 let paragraph = try self.root.insertElement(named: "paragraph",
-                                                            at: UInt32(path[0] + 1), in: transaction)
+                                                            at: UInt32(path[0] + (onlyItem ? 0 : 1)), in: transaction)
                 try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
             } else {
                 guard let newItemID, let outer = top.child(at: UInt32(path[1]), in: transaction) else {
                     throw Failure.invalidAnchor
                 }
                 try outer.removeChildren(start: 1, length: 1, in: transaction)
-                let item = try top.insertElement(named: "listItem", at: UInt32(path[1] + 1), in: transaction)
+                let item = try top.insertElement(named: task ? "taskItem" : "listItem",
+                                                 at: UInt32(path[1] + 1), in: transaction)
                 try item.setAttribute("relaymarkId", value: newItemID, in: transaction)
+                if task { try item.setAttribute("checked", value: false, in: transaction) }
                 let paragraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
                 try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
             }
@@ -1437,9 +1451,9 @@ public final class RelayMarkNativeDocument {
         for (level, index) in path.enumerated() {
             guard let child = node.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
             let expected = level == path.count - 1 ? "paragraph" :
-                (level.isMultiple(of: 2) ? "list" : "listItem")
+                (level.isMultiple(of: 2) ? "list" : (node.tag() == "taskList" ? "taskItem" : "listItem"))
             if expected == "list" {
-                guard ["bulletList", "orderedList"].contains(child.tag() ?? "") else { throw Failure.invalidAnchor }
+                guard ["bulletList", "orderedList", "taskList"].contains(child.tag() ?? "") else { throw Failure.invalidAnchor }
             } else { guard child.tag() == expected else { throw Failure.invalidAnchor } }
             node = child
         }
@@ -1460,9 +1474,11 @@ public final class RelayMarkNativeDocument {
             list = child
         }
         let position = UInt32(path[path.count - 2] + 1)
+        let task = list.tag() == "taskList"
         let update = try document.transactSync(origin: localOrigin) { transaction in
-            let item = try list.insertElement(named: "listItem", at: position, in: transaction)
+            let item = try list.insertElement(named: task ? "taskItem" : "listItem", at: position, in: transaction)
             try item.setAttribute("relaymarkId", value: itemID, in: transaction)
+            if task { try item.setAttribute("checked", value: false, in: transaction) }
             let paragraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
             try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
             return Data(transaction.transactionEncodeUpdate())

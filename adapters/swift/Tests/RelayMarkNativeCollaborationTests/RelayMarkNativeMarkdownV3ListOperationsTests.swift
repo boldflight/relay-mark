@@ -95,4 +95,95 @@ final class RelayMarkNativeMarkdownV3ListOperationsTests: XCTestCase {
             XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
         }
     }
+
+    func testCommunityTaskReturnSplitsUncheckedSiblingAndExitsLastEmptyItem() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-flat-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let split = try native.splitMarkdownV3ListItem(at: native.anchor(path: [0, 0, 0], index: 0),
+            utf16Offset: 4, expectedSnapshot: native.snapshot())
+        try peer.applyUpdate(split.update)
+        let afterSplit = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(afterSplit, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(afterSplit.blocks[0].childBlocks.map(\.plainText), ["Done", " today", "Next"])
+        XCTAssertEqual(afterSplit.blocks[0].childBlocks.map { $0.props["checked"] },
+                       [.bool(true), .bool(false), .bool(false)])
+        XCTAssertEqual(afterSplit.blocks[0].childBlocks[1].props["entityId"], .null)
+        XCTAssertEqual(afterSplit.blocks[0].childBlocks[1].id, split.itemID)
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+
+        let append = try native.appendEmptyMarkdownV3ListItem(after: native.anchor(path: [0, 1, 0], index: 0),
+            expectedSnapshot: native.snapshot())
+        try peer.applyUpdate(append.update)
+        let afterAppend = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(afterAppend.blocks[0].childBlocks.last?.id, append.itemID)
+        XCTAssertEqual(afterAppend.blocks[0].childBlocks.last?.props["checked"], .bool(false))
+        XCTAssertEqual(afterAppend.blocks[0].childBlocks.last?.props["entityId"], .null)
+        XCTAssertEqual(afterAppend, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        let exit = try native.exitEmptyMarkdownV3ListItem(at: native.anchor(path: [0, 2, 0], index: 0),
+            expectedSnapshot: native.snapshot())
+        try peer.applyUpdate(exit.update)
+        let afterExit = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(afterExit.blocks.map(\.type), ["task_list", "paragraph"])
+        XCTAssertEqual(afterExit.blocks[0], before.blocks[0])
+        XCTAssertEqual(afterExit.blocks[1].id, append.paragraphID)
+        XCTAssertEqual(afterExit, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+    }
+
+    func testSingleEmptyCommunityTaskExitsToParagraphAndUndoes() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-single-empty-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(before.blocks.map(\.type), ["task_list"])
+        let paragraphID = try XCTUnwrap(before.blocks[0].childBlocks[0].childBlocks.first?.id)
+        let exit = try native.exitEmptyMarkdownV3ListItem(at: native.anchor(path: [0, 0, 0], index: 0),
+            expectedSnapshot: native.snapshot())
+        try peer.applyUpdate(exit.update)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after.blocks.map(\.type), ["paragraph"])
+        XCTAssertEqual(after.blocks[0].id, paragraphID)
+        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(before, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(before, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+    }
+
+    func testNestedCommunityTaskReturnKeepsOuterMixedStructure() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let change = try native.appendEmptyMarkdownV3ListItem(
+            after: native.anchor(path: [1, 0, 2, 0, 0], index: 0), expectedSnapshot: native.snapshot())
+        try peer.applyUpdate(change.update)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(after.blocks[0], before.blocks[0])
+        XCTAssertEqual(after.blocks[2], before.blocks[2])
+        XCTAssertEqual(after.blocks[1].childBlocks[0].childBlocks[0],
+                       before.blocks[1].childBlocks[0].childBlocks[0])
+        XCTAssertEqual(after.blocks[1].childBlocks[0].childBlocks[3],
+                       before.blocks[1].childBlocks[0].childBlocks[3])
+        let nested = after.blocks[1].childBlocks[0].childBlocks[2]
+        XCTAssertEqual(nested.childBlocks.count, 2)
+        XCTAssertEqual(nested.childBlocks[1].id, change.itemID)
+        XCTAssertEqual(nested.childBlocks[1].props["checked"], .bool(false))
+        XCTAssertEqual(nested.childBlocks[1].props["entityId"], .null)
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(before, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(before, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+    }
 }
