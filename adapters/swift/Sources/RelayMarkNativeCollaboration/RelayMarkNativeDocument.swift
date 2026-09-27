@@ -914,6 +914,12 @@ public final class RelayMarkNativeDocument {
     /// Existing rows and text stay in place; the new empty cells copy the
     /// selected body row's column widths and alignment. The relative cell
     /// anchor and full displayed snapshot reject stale or retargeted actions.
+    public func canAddMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String) -> Bool {
+        guard integrationStatus().isComplete,
+              let projection = try? markdownV3ProseProjection(), projection.isEditable else { return false }
+        return (try? markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)) != nil
+    }
+
     public func addMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String,
                                       expectedSnapshot: Data) throws
         -> (update: Data, rowID: String, cellIDs: [String], paragraphIDs: [String]) {

@@ -16,6 +16,8 @@ final class RelayMarkNativeMarkdownV3TableRowTests: XCTestCase {
         let checkpoint = try native.snapshot()
         let state = try native.encodeUpdate()
         let cell = try native.anchor(path: [0, 1, 0], index: 0)
+        XCTAssertTrue(native.canAddMarkdownV3TableRow(afterCell: cell,
+            expectedCellID: "b00000000000040008000000000000008"))
         XCTAssertThrowsError(try native.addMarkdownV3TableRow(afterCell: cell,
             expectedCellID: "b00000000000040008000000000000008", expectedSnapshot: Data()))
         XCTAssertThrowsError(try native.addMarkdownV3TableRow(afterCell: cell,
@@ -63,6 +65,10 @@ final class RelayMarkNativeMarkdownV3TableRowTests: XCTestCase {
         try merged.applyUpdate(try XCTUnwrap(Data(base64Encoded:
             try XCTUnwrap(fixture["merged_seed"] as? String))))
         let mergedState = try merged.encodeUpdate()
+        let mergedCell = try merged.anchor(path: [0, 1, 0], index: 0)
+        XCTAssertFalse(merged.canAddMarkdownV3TableRow(afterCell:
+            mergedCell,
+            expectedCellID: "b00000000000040008000000000000008"))
         XCTAssertThrowsError(try merged.addMarkdownV3TableRow(afterCell:
             merged.anchor(path: [0, 1, 0], index: 0),
             expectedCellID: "b00000000000040008000000000000008",
