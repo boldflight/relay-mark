@@ -71,14 +71,71 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
                        try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
     }
 
+    func testAcceptOneHeadingKeepsBrowserV3HeadingShapeAndRestoresSuggestionOnUndo() throws {
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        let baseline = try fixture()
+        for replica in [native, peer] { try replica.applyUpdate(baseline) }
+        try browser.applyUpdate(baseline)
+        let content = "## Shared **heading**"
+        let changed = try native.mutatePaperControl(at: 1, change: .update(
+            tag: "agentSuggestion", expectedID: id, attributes: ["content": content]))
+        try peer.applyUpdate(changed)
+        try browser.applyUpdate(changed)
+        let before = try native.snapshot()
+        XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(content))
+        let accepted = try accept(native, content: content)
+        try peer.applyUpdate(accepted)
+        try browser.applyUpdate(accepted)
+        XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+        let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "heading", "paragraph"])
+        XCTAssertEqual(ast.blocks[1].id, "b00000000000040008000000000000084")
+        XCTAssertEqual(ast.blocks[1].props["level"], .number(2))
+        let anchor: String?
+        if case let .string(value) = ast.blocks[1].props["headingId"] { anchor = value }
+        else { anchor = nil }
+        XCTAssertNotNil(anchor?.range(of: #"^h-[0-9a-f]{8}-[0-9a-f-]{27}$"#,
+                                      options: .regularExpression))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()), ast)
+        let browserHeadingURL = try XCTUnwrap(Bundle.module.url(
+            forResource: "markdown-blocks-v3-draft", withExtension: "json"))
+        let browserHeadingFixture = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: Data(contentsOf: browserHeadingURL)) as? [String: Any])
+        let browserHeadingUpdate = try XCTUnwrap(Data(base64Encoded:
+            try XCTUnwrap(browserHeadingFixture["update"] as? String)))
+        let browserHeadingDocument = RelayMarkNativeDocument()
+        try browserHeadingDocument.applyUpdate(browserHeadingUpdate)
+        func headingAttributes(_ document: RelayMarkNativeDocument) throws -> [String: Any] {
+            let root = try XCTUnwrap(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any])
+            let children = try XCTUnwrap(root["children"] as? [[String: Any]])
+            return try XCTUnwrap(children[1]["attributes"] as? [String: Any])
+        }
+        let browserAttributes = try headingAttributes(browserHeadingDocument)
+        let acceptedAttributes = try headingAttributes(native)
+        XCTAssertEqual(Set(acceptedAttributes.keys), Set(browserAttributes.keys))
+        XCTAssertEqual(acceptedAttributes["level"] as? Int, browserAttributes["level"] as? Int)
+        XCTAssertTrue(acceptedAttributes["headingId"] is String)
+        let nullable = try RelayMarkNativeMarkdownV3SingleBlock.parse(content)
+        XCTAssertTrue(nullable.attributes(id: "b00000000000040008000000000000084",
+                                          headingID: nil)["headingId"] is NSNull)
+        let restored = try XCTUnwrap(native.undo())
+        try peer.applyUpdate(restored)
+        try browser.applyUpdate(restored)
+        XCTAssertEqual(try native.snapshot(), before)
+        XCTAssertEqual(try peer.snapshot(), before)
+        XCTAssertEqual(try native.markdownV3ProseProjection().suggestionAtoms.first?.content, content)
+    }
+
     func testAcceptRejectsUnsupportedOrStaleContentAndDuplicateIDWithoutMutation() throws {
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(fixture())
         let before = try native.encodeUpdate()
         XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(
             "Read *carefully*, **please**, then use `code` and [source](https://example.com)."))
-        for source in ["# Heading", "First\n\nSecond", "![image](https://example.com/a.png)",
-                       "<b>HTML</b>", "- list", "[unsafe](javascript:alert(1))"] {
+        for source in ["First\n\nSecond", "![image](https://example.com/a.png)",
+                       "<b>HTML</b>", "- list", "[unsafe](javascript:alert(1))",
+                       "# Heading {#manual-anchor}"] {
             XCTAssertFalse(RelayMarkNativeAgentSuggestionMutation.canAccept(source), source)
         }
         XCTAssertThrowsError(try accept(native, content: "Changed"))

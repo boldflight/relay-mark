@@ -621,11 +621,12 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Replace one authored suggestion with an ordinary paragraph in one
+    /// Replace one authored suggestion with one ordinary Markdown block in one
     /// local-origin Yrs transaction, so undo restores the complete atom.
-    func acceptAgentSuggestion(at index: Int, expectedID: String, newBlockID: String,
-                               runs: [(String, [String: Any])]) throws -> Data {
-        guard let childIndex = UInt32(exactly: index), !runs.isEmpty else {
+    func acceptAgentSuggestion(at index: Int, expectedID: String,
+                               block: RelayMarkNativeMarkdownV3SingleBlock.Block,
+                               newBlockID: String, headingID: String?) throws -> Data {
+        guard let childIndex = UInt32(exactly: index), !block.runs.isEmpty else {
             throw Failure.invalidTextPath
         }
         let update = try document.transactSync(origin: localOrigin) { transaction in
@@ -636,14 +637,16 @@ public final class RelayMarkNativeDocument {
                 throw Failure.invalidTextPath
             }
             try self.root.removeChildren(start: childIndex, length: 1, in: transaction)
-            let paragraph = try self.root.insertElement(named: "paragraph", at: childIndex,
-                                                        in: transaction)
-            try paragraph.setAttribute("relaymarkId", value: newBlockID, in: transaction)
-            let leaf = try paragraph.insertText(at: 0, in: transaction)
+            let replacement = try self.root.insertElement(named: block.kind.tag, at: childIndex,
+                                                          in: transaction)
+            for (key, value) in block.attributes(id: newBlockID, headingID: headingID) {
+                try replacement.setAttribute(key, value: value, in: transaction)
+            }
+            let leaf = try replacement.insertText(at: 0, in: transaction)
             var offset: UInt32 = 0
-            for (text, attributes) in runs {
-                try leaf.insert(text, attributes: attributes, at: offset, in: transaction)
-                offset += UInt32(text.utf16.count)
+            for run in block.runs {
+                try leaf.insert(run.text, attributes: run.attributes, at: offset, in: transaction)
+                offset += UInt32(run.text.utf16.count)
             }
             return Data(transaction.transactionEncodeUpdate())
         }
