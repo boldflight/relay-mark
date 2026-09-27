@@ -29,12 +29,13 @@ All block XML elements require stable `relaymarkId` values. An ordered list's
 nullable TipTap `type` attribute must be null for this slice; non-null list
 numbering variants fail. Only one nested list level, one paragraph per list item,
 paragraph-only quotes, and the [bounded v3 inline marks](inline-marks-v3-draft.md)
-are admitted. Other RelayMark elements and all product admission remain separate work. Table
-cell paragraphs stay plain-text-only; this expansion does not silently broaden
-the existing table source contract.
+are admitted. Other RelayMark elements and all product admission remain separate work.
+Table cell paragraphs use the same bounded inline grammar as ordinary v3
+paragraphs, including approved marks, hard breaks, and authored reference/tag
+atoms. Their host hydration stays outside the shared document.
 
 The canonical collaborative structure is the community TipTap/ProseMirror
-`table → tableRow → tableHeader | tableCell → paragraph → text` hierarchy in
+`table → tableRow → tableHeader | tableCell → paragraph → inline` hierarchy in
 Yjs XML. The [pure mapping](../../../src/collaboration-table-v3.js) translates
 this admitted subset to existing RelayMark AST block types. Its mixed-document
 entry points also accept plain top-level paragraphs before or after tables;
@@ -47,7 +48,7 @@ the existing table-only entry points retain their stricter contract:
 | `tableHeader` | `table_cell` | `header: true`, `colspan`, `rowspan`, `colwidth`, `align` |
 | `tableCell` | `table_cell` | `header: false`, same cell properties |
 | `paragraph` | `paragraph` | none |
-| `text` | inline `text` | `text` |
+| `text` and bounded inline nodes | corresponding portable inline AST | authored fields only |
 
 Every mapped block, including each row, cell, and paragraph, requires an
 existing `relaymarkId` ProseMirror/Yjs attribute in the [v3 block-ID
@@ -59,8 +60,8 @@ Cell `colspan` and `rowspan` are positive integers. `colwidth` is either
 column. `align` is `null`, `left`, `center`, or `right`, matching installed
 TipTap table attributes. Header identity is the explicit `header` Boolean;
 the existing AST schema has `table_cell` but no `table_header` type. Each cell
-contains at least one paragraph; text leaves are plain text in this first
-slice. Rows must form a complete non-overlapping rectangle, including cells
+contains at least one paragraph; its inline content follows the same strict
+mapping as a top-level paragraph. Rows must form a complete non-overlapping rectangle, including cells
 spanning later rows. Unknown attributes, marks, node types, or AST fields fail
 projection; they are never silently omitted.
 

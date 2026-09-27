@@ -71,6 +71,32 @@ test('alignment and multiple cell paragraphs remain explicit in both directions'
   assert.deepEqual(relayMarkTableToProseMirror(ast), original);
 });
 
+test('table cell paragraphs use the same bounded inline grammar as ordinary paragraphs', () => {
+  const original = addIds(clone(fixture.cases[0].prosemirror));
+  const paragraph = original.content[0].content[0].content[0].content[0];
+  paragraph.content = [
+    { type: 'text', text: 'Bold', marks: [{ type: 'bold' }] },
+    { type: 'hardBreak' },
+    { type: 'text', text: ' linked', marks: [{ type: 'link', attrs: {
+      href: 'relay:entity/12345678-1234-4234-8234-123456789abc',
+      target: '_blank', rel: 'noopener noreferrer nofollow', class: null, title: null,
+    } }] },
+    { type: 'relayTag', attrs: { id: '12345678-1234-4234-8234-123456789abc',
+      name: 'planning', color: null,
+      source: '[[Tag: 12345678-1234-4234-8234-123456789abc | #planning]]' } },
+  ];
+  const ast = tableProseMirrorToRelayMark(original);
+  const inline = ast.blocks[0].content[0].content[0].content[0].content;
+  assert.deepEqual(inline.map(item => item.type), ['strong', 'hard_break', 'link', 'relay.tag_ref']);
+  assert.deepEqual(validateDocument(ast), []);
+  assert.deepEqual(validateJSONSchema(ast, astSchema, fileURLToPath(astSchemaURL)), []);
+  assert.deepEqual(relayMarkTableToProseMirror(ast), original);
+
+  const unsupported = clone(original);
+  unsupported.content[0].content[0].content[0].content[0].content[0].marks = [{ type: 'textStyle' }];
+  assert.throws(() => tableProseMirrorToRelayMark(unsupported), /Unsupported/);
+});
+
 test('real concurrent cell edits and addRowAfter require community schema defaults before the strict table mapping', () => {
   assert.equal(concurrent.fixture_version, 1);
   assert.equal(concurrent.root, 'default');
@@ -174,14 +200,6 @@ test('v3 table mapping rejects missing IDs, duplicate IDs, unknown attrs and uns
   const extra = base();
   header(extra).attrs.background = 'red';
   assert.throws(() => tableProseMirrorToRelayMark(extra), /Unsupported/);
-
-  const mark = base();
-  header(mark).content[0].content[0].marks = [{ type: 'bold' }];
-  assert.throws(() => tableProseMirrorToRelayMark(mark), /Unsupported/);
-
-  const breakInCell = base();
-  header(breakInCell).content[0].content.push({ type: 'hardBreak' });
-  assert.throws(() => tableProseMirrorToRelayMark(breakInCell), /table cell inline/);
 
   const badWidth = base();
   header(badWidth).attrs.colwidth = [120];

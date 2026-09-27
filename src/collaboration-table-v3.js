@@ -528,11 +528,7 @@ function mapCell(node, seen) {
 }
 
 function mapCellParagraph(node, seen) {
-  const paragraph = mapParagraph(node, seen);
-  if (paragraph.content.some(child => child.type !== "text")) {
-    throw new TypeError("Unsupported table cell inline node");
-  }
-  return paragraph;
+  return mapParagraph(node, seen);
 }
 
 function mapParagraph(node, seen) {
@@ -584,11 +580,7 @@ function unmapCell(block, seen) {
 }
 
 function unmapCellParagraph(block, seen) {
-  const paragraph = unmapParagraph(block, seen);
-  if (paragraph.content.some(child => child.type !== "text")) {
-    throw new TypeError("Unsupported table cell inline node");
-  }
-  return paragraph;
+  return unmapParagraph(block, seen);
 }
 
 function unmapParagraph(block, seen) {
