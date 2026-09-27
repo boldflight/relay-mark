@@ -1,0 +1,403 @@
+{
+  "flat_ordered": {
+    "source": "Relay v3 TipTap splitListItem + UniqueID + community y-tiptap/Yjs",
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "orderedList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7,
+            "type": null
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Numbered Ω"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "orderedList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7,
+            "type": null
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Numbered Ω"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000065"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000066"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "seed": "AQn8ygUABwEHZGVmYXVsdAMLb3JkZXJlZExpc3QHAPzKBQADCGxpc3RJdGVtBwD8ygUBAwlwYXJhZ3JhcGgHAPzKBQIGBAD8ygUDC051bWJlcmVkIM6pKAD8ygUCC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAzKAD8ygUBC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAyKAD8ygUAC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAxKAD8ygUABXN0YXJ0AX0HAA==",
+    "update": "AQT8ygUSh/zKBQEDCGxpc3RJdGVtBwD8ygUSAwlwYXJhZ3JhcGgoAPzKBRMLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjYoAPzKBRILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjUA",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b00000000000040008000000000000001",
+          "type": "list",
+          "props": {
+            "kind": "ordered",
+            "start": 7
+          },
+          "content": [
+            {
+              "id": "b00000000000040008000000000000002",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000003",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Numbered Ω"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000065",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000066",
+                  "type": "paragraph",
+                  "content": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "nested_ordered": {
+    "source": "Relay v3 TipTap splitListItem + UniqueID + community y-tiptap/Yjs",
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "type": "orderedList",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3,
+                    "type": null
+                  },
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Nested 🌍"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "type": "orderedList",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3,
+                    "type": null
+                  },
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Nested 🌍"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b00000000000040008000000000000065"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000066"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "seed": "ARf9ygUABwEHZGVmYXVsdAMKYnVsbGV0TGlzdAcA/coFAAMIbGlzdEl0ZW0HAP3KBQEDCXBhcmFncmFwaAcA/coFAgYEAP3KBQMFT3V0ZXIoAP3KBQILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGSH/coFAgMLb3JkZXJlZExpc3QHAP3KBQoDCGxpc3RJdGVtBwD9ygULAwlwYXJhZ3JhcGgHAP3KBQwGBAD9ygUNC05lc3RlZCDwn4yNKAD9ygUMC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEwKAD9ygULC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDBmKAD9ygUKC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDBlKAD9ygUKBXN0YXJ0AX0DKAD9ygUBC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDBjh/3KBQEDCGxpc3RJdGVtBwD9ygUcAwlwYXJhZ3JhcGgHAP3KBR0GBAD9ygUeB1NpYmxpbmcoAP3KBR0LcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTIoAP3KBRwLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTEoAP3KBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGIA",
+    "update": "AQT9ygUph/3KBQsDCGxpc3RJdGVtBwD9ygUpAwlwYXJhZ3JhcGgoAP3KBSoLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjYoAP3KBSkLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjUA",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b0000000000004000800000000000000b",
+          "type": "list",
+          "props": {
+            "kind": "bullet"
+          },
+          "content": [
+            {
+              "id": "b0000000000004000800000000000000c",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b0000000000004000800000000000000d",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "id": "b0000000000004000800000000000000e",
+                  "type": "list",
+                  "props": {
+                    "kind": "ordered",
+                    "start": 3
+                  },
+                  "content": [
+                    {
+                      "id": "b0000000000004000800000000000000f",
+                      "type": "list_item",
+                      "content": [
+                        {
+                          "id": "b00000000000040008000000000000010",
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "text",
+                              "text": "Nested 🌍"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "b00000000000040008000000000000065",
+                      "type": "list_item",
+                      "content": [
+                        {
+                          "id": "b00000000000040008000000000000066",
+                          "type": "paragraph",
+                          "content": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000011",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000012",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

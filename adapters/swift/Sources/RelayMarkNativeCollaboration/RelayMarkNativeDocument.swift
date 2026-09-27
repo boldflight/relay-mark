@@ -1106,6 +1106,73 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// TipTap's end-of-item Return for a flat or one-level nested v3 list.
+    /// The caller binds the paragraph anchor to an exact displayed snapshot;
+    /// a sibling insert or changed text rejects before the live transaction.
+    /// Existing list/item/paragraph XML nodes and ordered starts stay intact.
+    public func appendEmptyMarkdownV3ListItem(after paragraphAnchor: Data,
+                                               expectedSnapshot: Data) throws
+        -> (update: Data, itemID: String, paragraphID: String) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (_, path) = try markdownV3ListEndTarget(paragraphAnchor)
+        let itemID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let paragraphID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.insertEmptyMarkdownV3ListItem(after: paragraphAnchor, path: path,
+                                                      itemID: itemID, paragraphID: paragraphID)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertEmptyMarkdownV3ListItem(after: paragraphAnchor, path: path,
+                                                       itemID: itemID, paragraphID: paragraphID)
+        return (update, itemID, paragraphID)
+    }
+
+    private func markdownV3ListEndTarget(_ anchor: Data) throws -> (YXmlNode, [Int]) {
+        let (paragraph, path) = try anchoredElement(anchor)
+        guard (path.count == 3 || path.count == 5), path.last == 0,
+              paragraph.tag() == "paragraph", paragraph.length() == 1,
+              let leaf = paragraph.child(at: 0), leaf.kind() == "text",
+              try !leaf.delta().map(\.text).joined().isEmpty else { throw Failure.invalidAnchor }
+        var node = root
+        for (level, index) in path.enumerated() {
+            guard let child = node.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            let expected = level == path.count - 1 ? "paragraph" :
+                (level.isMultiple(of: 2) ? "list" : "listItem")
+            if expected == "list" {
+                guard ["bulletList", "orderedList"].contains(child.tag() ?? "") else { throw Failure.invalidAnchor }
+            } else { guard child.tag() == expected else { throw Failure.invalidAnchor } }
+            node = child
+        }
+        let itemPath = Array(path.dropLast())
+        var item = root
+        for index in itemPath { guard let child = item.child(at: UInt32(index)) else { throw Failure.invalidAnchor }; item = child }
+        guard item.length() == 1 else { throw Failure.unsupportedProseEdit }
+        return (paragraph, path)
+    }
+
+    private func insertEmptyMarkdownV3ListItem(after anchor: Data, path: [Int],
+                                                itemID: String, paragraphID: String) throws -> Data {
+        let (_, resolvedPath) = try markdownV3ListEndTarget(anchor)
+        guard resolvedPath == path else { throw Failure.invalidAnchor }
+        var list = root
+        for index in path.dropLast(2) {
+            guard let child = list.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            list = child
+        }
+        let position = UInt32(path[path.count - 2] + 1)
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            let item = try list.insertElement(named: "listItem", at: position, in: transaction)
+            try item.setAttribute("relaymarkId", value: itemID, in: transaction)
+            let paragraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
+            try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     private func anchoredElement(_ anchor: Data) throws -> (YXmlNode, [Int]) {
         guard let resolved = try document.resolveXmlRelativePosition(anchor), resolved.index == 0,
               resolved.node.kind() == "element", let path = path(to: resolved.node, from: root), !path.isEmpty else {
