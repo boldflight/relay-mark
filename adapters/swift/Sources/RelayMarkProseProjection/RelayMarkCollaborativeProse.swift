@@ -82,6 +82,17 @@ public struct RelayMarkCollaborativeProse {
     }
     public let entityReferenceAtoms: [EntityReferenceAtom]
 
+    /// A task's authored checkbox and optional linked entity are metadata on
+    /// its XML item, not characters inserted into the editable text map.
+    public struct TaskItem: Equatable, Sendable {
+        public let id: String
+        public let checked: Bool
+        public let entityID: String?
+        public let firstParagraphRange: NSRange
+        public let path: [Int]
+    }
+    public let taskItems: [TaskItem]
+
     /// Media occupies one block selection unit. The host resolves and renders
     /// the source; this projection never fetches media or changes the XML.
     public struct MediaAtom: Equatable, Sendable {
@@ -141,6 +152,7 @@ public struct RelayMarkCollaborativeProse {
         var atoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
         var entityReferenceAtoms: [EntityReferenceAtom] = []
+        var taskItems: [TaskItem] = []
         var mediaAtoms: [MediaAtom] = []
         var suggestionAtoms: [SuggestionAtom] = []
         var mapped: [Span] = []
@@ -290,6 +302,30 @@ public struct RelayMarkCollaborativeProse {
                 let children = block["children"] as? [[String: Any]] ?? []
                 if block["kind"] as? String != "element" { supported = false }
                 identity += 1
+                if name == "taskItem" {
+                    let checkedValue = attributes["checked"] as? NSNumber
+                    let checked = checkedValue?.boolValue ?? false
+                    let entityID = attributes["entityId"] as? String
+                    let validChecked = attributes["checked"] == nil ||
+                        checkedValue.map { CFGetTypeID($0) == CFBooleanGetTypeID() } == true
+                    let validEntity = attributes["entityId"] == nil ||
+                        entityID.map { UUID(uuidString: $0)?.uuidString.lowercased() == $0 } == true
+                    guard dialect == .markdownV3,
+                          let id = attributes["relaymarkId"] as? String,
+                          Set(attributes.keys).isSubset(of: ["relaymarkId", "checked", "entityId"]),
+                          validChecked, validEntity,
+                          children.first?["name"] as? String == "paragraph" else {
+                        supported = false; continue
+                    }
+                    let intent = PresentationIntent(.listItem(ordinal: index + 1), identity: identity, parent: parent)
+                    let firstRange = ranges.count
+                    walk(children, path: blockPath, parent: intent)
+                    guard ranges.count > firstRange else { supported = false; continue }
+                    taskItems.append(TaskItem(id: id, checked: checked, entityID: entityID,
+                        firstParagraphRange: ranges[firstRange], path: blockPath))
+                    offsets.append(ranges[firstRange].location)
+                    continue
+                }
                 if name == "callout" {
                     let tone = attributes["tone"] as? String
                     let emphasis = attributes["emphasis"] as? String
@@ -375,6 +411,10 @@ public struct RelayMarkCollaborativeProse {
                     } else { supported = false }
                 case "blockquote": kind = .blockQuote
                 case "bulletList": kind = .unorderedList
+                case "taskList":
+                    if dialect != .markdownV3 || !Set(attributes.keys).isSubset(of: ["relaymarkId"]) ||
+                        attributes["relaymarkId"] as? String == nil { supported = false }
+                    kind = .unorderedList
                 case "orderedList":
                     if !validInteger(attributes["start"], minimum: 1) { supported = false }
                     if let type = attributes["type"], !(type is NSNull) { supported = false }
@@ -405,8 +445,9 @@ public struct RelayMarkCollaborativeProse {
                     !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
                 let previousCount = ranges.count
-                if ["blockquote", "bulletList", "orderedList", "listItem"].contains(name) {
+                if ["blockquote", "bulletList", "orderedList", "listItem", "taskList"].contains(name) {
                     if ["bulletList", "orderedList"].contains(name), children.contains(where: { $0["name"] as? String != "listItem" }) { supported = false }
+                    if name == "taskList", children.contains(where: { $0["name"] as? String != "taskItem" }) { supported = false }
                     walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1)
                 } else if name == "table" {
                     guard dialect == .markdownV3, let table, table.width > 0 else { supported = false; continue }
@@ -524,6 +565,7 @@ public struct RelayMarkCollaborativeProse {
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
         tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms
         self.blockAtoms = blockAtoms; self.entityReferenceAtoms = entityReferenceAtoms
+        self.taskItems = taskItems.sorted { $0.firstParagraphRange.location < $1.firstParagraphRange.location }
         self.mediaAtoms = mediaAtoms; self.suggestionAtoms = suggestionAtoms
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty

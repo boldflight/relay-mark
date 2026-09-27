@@ -114,7 +114,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: colored, dialect: .markdownV3).isEditable)
     }
 
-    func testCommunityTaskListFixtureProjectsCheckedAndLinkedNestedItemsWithoutAdmittingEditing() throws {
+    func testCommunityTaskListFixtureProjectsCheckedAndLinkedNestedItemsInUnifiedProseMap() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
@@ -130,11 +130,61 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(actual.blocks[1].childBlocks[0].props["checked"], .bool(true))
         XCTAssertEqual(actual.blocks[1].childBlocks[0].props["entityId"],
                        .string(try XCTUnwrap(fixture["linked_entity_id"] as? String)))
-        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertEqual(prose.taskItems.map(\.path), [[1, 0], [1, 0, 2, 0], [1, 1]])
+        XCTAssertEqual(prose.taskItems.map(\.checked), [true, false, false])
+        XCTAssertEqual(prose.taskItems.map(\.entityID), [fixture["linked_entity_id"] as? String, nil, nil])
+        XCTAssertTrue(prose.taskItems.allSatisfy { $0.firstParagraphRange.location >= 0 })
+
+        var malformed = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        var blocks = try XCTUnwrap(malformed["children"] as? [[String: Any]])
+        var list = blocks[1]
+        var items = try XCTUnwrap(list["children"] as? [[String: Any]])
+        var item = items[0]
+        var attributes = try XCTUnwrap(item["attributes"] as? [String: Any])
+        attributes["checked"] = "true"
+        item["attributes"] = attributes
+        items[0] = item
+        list["children"] = items
+        blocks[1] = list
+        malformed["children"] = blocks
+        XCTAssertFalse(try RelayMarkCollaborativeProse(
+            snapshot: JSONSerialization.data(withJSONObject: malformed), dialect: .markdownV3).isEditable)
 
         let reopened = RelayMarkNativeDocument()
         try reopened.applyUpdate(try native.encodeUpdate())
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), expected)
+    }
+
+    func testMixedTaskProseEditsConvergeWithoutChangingTaskStructure() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+
+        for path in [[0, 0], [1, 0, 2, 0, 0, 0]] {
+            let range = try XCTUnwrap(prose.blockPaths.firstIndex(of: Array(path.dropLast())))
+            let selection = NSRange(location: prose.blockRanges[range].location, length: 0)
+            let position = try XCTUnwrap(prose.position(atUTF16: selection.location))
+            XCTAssertEqual(position.path, path)
+            let update = try RelayMarkNativeMarkdownV3TextMutation.replace(
+                document: native, path: path, start: 0, end: 0, text: "Edited ")
+            try peer.applyUpdate(update)
+        }
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(after.blocks[1].id, before.blocks[1].id)
+        XCTAssertEqual(after.blocks[1].childBlocks.map(\.id), before.blocks[1].childBlocks.map(\.id))
+        XCTAssertEqual(after.blocks[1].childBlocks[0].props, before.blocks[1].childBlocks[0].props)
+        XCTAssertEqual(after.blocks[0].plainText, "Edited " + before.blocks[0].plainText)
+        XCTAssertEqual(after.blocks[1].childBlocks[0].childBlocks[2].childBlocks[0].plainText,
+                       "Edited " + before.blocks[1].childBlocks[0].childBlocks[2].childBlocks[0].plainText)
     }
 
     private func fixture() throws -> (update: Data, expected: RelayMarkDocument) {
@@ -312,7 +362,9 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(update)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
-        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+        let prose = try native.markdownV3ProseProjection()
+        XCTAssertTrue(prose.isEditable)
+        XCTAssertEqual(prose.entityReferenceAtoms.count, 1)
 
         var snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
         var blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
