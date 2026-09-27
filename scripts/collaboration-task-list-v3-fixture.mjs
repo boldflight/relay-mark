@@ -79,6 +79,28 @@ const path = new URL('../spec/relaymark/collaboration/fixtures/task-list-v3-draf
 const encoded = `${JSON.stringify(fixture, null, 2)}\n`;
 if (mode === '--write') await writeFile(path, encoded);
 else assert.equal(await readFile(path, 'utf8'), encoded);
+// A second real community update exercises the bounded native task editor.
+// The richer fixture above remains the portable read/projection contract.
+const flatRaw = { type: 'doc', content: [tasks(
+  task(true, linkedEntityId, paragraph('Done today')),
+  task(false, null, paragraph('Next')),
+)] };
+const flatNormalized = JSON.parse(JSON.stringify(schema.nodeFromJSON(flatRaw).toJSON()));
+const flatDoc = new Y.Doc();
+flatDoc.clientID = 91_505;
+prosemirrorToYXmlFragment(schema.nodeFromJSON(flatNormalized), flatDoc.getXmlFragment('default'));
+const flatUpdate = Buffer.from(Y.encodeStateAsUpdate(flatDoc)).toString('base64');
+const flatAST = proseMirrorV3ToRelayMark(flatNormalized);
+assert.deepEqual(validateDocument(flatAST), []);
+assert.deepEqual(relayMarkV3ToProseMirror(flatAST), flatNormalized);
+const flatFixture = { fixture_version: 1, root: 'default', client_id: flatDoc.clientID,
+  source: fixture.source, linked_entity_id: linkedEntityId,
+  normalized: flatNormalized, expected_ast: flatAST, update: flatUpdate };
+const flatPath = new URL('../spec/relaymark/collaboration/fixtures/task-list-flat-v3-draft.json', import.meta.url);
+const flatEncoded = `${JSON.stringify(flatFixture, null, 2)}\n`;
+if (mode === '--write') await writeFile(flatPath, flatEncoded);
+else assert.equal(await readFile(flatPath, 'utf8'), flatEncoded);
 console.log(`Community v3 task-list fixture ${mode === '--write' ? 'written' : 'matches'}`);
 doc.destroy();
 replay.destroy();
+flatDoc.destroy();

@@ -5,6 +5,34 @@ import RelayMarkCollaboration
 
 @MainActor
 final class RelayMarkNativeDocumentTests: XCTestCase {
+    func testCommunityV3FlatTaskUpdateKeepsIDsAndConvergesAfterNativeEdits() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-flat-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let initial = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertThrowsError(try native.taskItems())
+        let items = try native.taskItems(markdownV3: true)
+        XCTAssertEqual(items.map(\.paragraphs), [["Done today"], ["Next"]])
+        XCTAssertEqual(items[0].entityID, fixture["linked_entity_id"] as? String)
+        let toggle = try native.setTaskItemChecked(anchor: items[1].anchor,
+            expectedEntityID: nil, checked: true, markdownV3: true)
+        try peer.applyUpdate(toggle)
+        let text = try native.replaceTaskItemText(anchor: items[0].anchor,
+            expectedEntityID: items[0].entityID, start: 4, end: 4, text: " again",
+            markdownV3: true)
+        try peer.applyUpdate(text)
+        let changed = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(changed, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(changed.blocks[0].id, initial.blocks[0].id)
+        XCTAssertEqual(changed.blocks[0].childBlocks.map(\.id), initial.blocks[0].childBlocks.map(\.id))
+        XCTAssertEqual(try native.taskItems(markdownV3: true)[0].paragraphs, ["Done again today"])
+        XCTAssertThrowsError(try native.setTaskItemChecked(anchor: items[0].anchor,
+            expectedEntityID: nil, checked: false, markdownV3: true))
+    }
+
     func testRealBrowserTaskListFixtureNativeReadToggleAndTextConverge() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-experimental", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])

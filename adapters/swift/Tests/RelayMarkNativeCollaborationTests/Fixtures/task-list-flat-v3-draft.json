@@ -1,0 +1,117 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91505,
+  "source": "Community TipTap StarterKit/TaskList/TaskItem with RelayMark identity attributes + y-tiptap + Yjs",
+  "linked_entity_id": "123e4567-e89b-42d3-a456-426614174000",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "taskList",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000013"
+        },
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000010",
+              "checked": true,
+              "entityId": "123e4567-e89b-42d3-a456-426614174000"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b0000000000004000800000000000000f"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Done today"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "taskItem",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000012",
+              "checked": false,
+              "entityId": null
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b00000000000040008000000000000011"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Next"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000013",
+        "type": "task_list",
+        "content": [
+          {
+            "id": "b00000000000040008000000000000010",
+            "type": "task_item",
+            "props": {
+              "checked": true,
+              "entityId": "123e4567-e89b-42d3-a456-426614174000"
+            },
+            "content": [
+              {
+                "id": "b0000000000004000800000000000000f",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Done today"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "b00000000000040008000000000000012",
+            "type": "task_item",
+            "props": {
+              "checked": false,
+              "entityId": null
+            },
+            "content": [
+              {
+                "id": "b00000000000040008000000000000011",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Next"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "update": "ARHxygUABwEHZGVmYXVsdAMIdGFza0xpc3QHAPHKBQADCHRhc2tJdGVtBwDxygUBAwlwYXJhZ3JhcGgHAPHKBQIGBADxygUDCkRvbmUgdG9kYXkoAPHKBQILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGYoAPHKBQELcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTAoAPHKBQEHY2hlY2tlZAF4KADxygUBCGVudGl0eUlkAXckMTIzZTQ1NjctZTg5Yi00MmQzLWE0NTYtNDI2NjE0MTc0MDAwh/HKBQEDCHRhc2tJdGVtBwDxygUSAwlwYXJhZ3JhcGgHAPHKBRMGBADxygUUBE5leHQoAPHKBRMLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTEoAPHKBRILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTIoAPHKBRIHY2hlY2tlZAF5KADxygUAC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEzAA=="
+}

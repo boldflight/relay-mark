@@ -8,8 +8,27 @@ import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/task-list-v3-draft.json', import.meta.url)));
+const flatFixture = JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/task-list-flat-v3-draft.json', import.meta.url)));
 const schemaURL = new URL('../spec/relaymark/schemas/relaymark-document.schema.json', import.meta.url);
 const schema = JSON.parse(readFileSync(schemaURL));
+
+test('bounded native task fixture is real Yjs with the same portable task identities', () => {
+  const replica = new Y.Doc();
+  Y.applyUpdate(replica, Buffer.from(flatFixture.update, 'base64'));
+  const [list] = replica.getXmlFragment('default').toArray();
+  assert.equal(list.nodeName, 'taskList');
+  assert.deepEqual(list.getAttributes(), flatFixture.normalized.content[0].attrs);
+  assert.deepEqual(list.toArray().map(item => item.getAttributes()),
+    flatFixture.normalized.content[0].content.map(item => {
+      const { entityId, ...attrs } = item.attrs;
+      return entityId === null ? attrs : item.attrs;
+    }));
+  const ast = proseMirrorV3ToRelayMark(flatFixture.normalized);
+  assert.deepEqual(ast, flatFixture.expected_ast);
+  assert.deepEqual(validateDocument(ast), []);
+  assert.deepEqual(relayMarkV3ToProseMirror(ast), flatFixture.normalized);
+  replica.destroy();
+});
 
 test('community TipTap/Yjs task items keep checked state, optional entity UUID and nested block identities', () => {
   const replica = new Y.Doc();
