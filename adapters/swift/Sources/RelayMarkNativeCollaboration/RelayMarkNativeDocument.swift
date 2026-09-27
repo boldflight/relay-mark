@@ -1471,6 +1471,116 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Return inside a v3 quote uses the same identified paragraph shape as
+    /// TipTap. The existing quote and paragraph retain their IDs; only the
+    /// new paragraph receives an ID. The host binds the anchor to one exact
+    /// snapshot and caret position before invoking this command.
+    public func returnInMarkdownV3Quote(at paragraphAnchor: Data, utf16Offset: Int,
+                                        expectedSnapshot: Data) throws
+        -> (update: Data, kind: MarkdownV3QuoteReturnKind, paragraphID: String) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (paragraph, quote, path, old) = try markdownV3QuoteTarget(paragraphAnchor)
+        guard utf16Offset >= 0, utf16Offset <= old.utf16.count,
+              Self.split(old, at: utf16Offset) != nil else { throw Failure.unsupportedProseEdit }
+        let kind: MarkdownV3QuoteReturnKind
+        if old.isEmpty {
+            guard path[1] == Int(quote.length()) - 1 else { throw Failure.unsupportedProseEdit }
+            kind = .exit
+        } else if utf16Offset == old.utf16.count {
+            guard quote.length() < 4_096 else { throw Failure.unsupportedProseEdit }
+            kind = .append
+        } else {
+            guard utf16Offset > 0, quote.length() < 4_096,
+                  paragraph.child(at: 0)?.kind() == "text" else { throw Failure.unsupportedProseEdit }
+            kind = .split
+        }
+        let paragraphID = kind == .exit
+            ? try quoteParagraphID(paragraph)
+            : "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.performMarkdownV3QuoteReturn(anchor: paragraphAnchor, path: path,
+            offset: utf16Offset, kind: kind, paragraphID: paragraphID)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performMarkdownV3QuoteReturn(anchor: paragraphAnchor, path: path,
+            offset: utf16Offset, kind: kind, paragraphID: paragraphID)
+        return (update, kind, paragraphID)
+    }
+
+    public enum MarkdownV3QuoteReturnKind: Equatable { case append, split, exit }
+
+    private func quoteParagraphID(_ paragraph: YXmlNode) throws -> String {
+        guard let id = try paragraph.attributes()["relaymarkId"] as? String else { throw Failure.invalidAnchor }
+        return id
+    }
+
+    private func markdownV3QuoteTarget(_ anchor: Data) throws
+        -> (paragraph: YXmlNode, quote: YXmlNode, path: [Int], text: String) {
+        let (paragraph, path) = try anchoredElement(anchor)
+        guard path.count == 2, paragraph.tag() == "paragraph",
+              let quote = root.child(at: UInt32(path[0])), quote.tag() == "blockquote",
+              path[1] < Int(quote.length()), paragraph.length() <= 1 else { throw Failure.invalidAnchor }
+        _ = try quoteParagraphID(paragraph)
+        let leaf = paragraph.child(at: 0)
+        guard leaf == nil || leaf?.kind() == "text" else { throw Failure.invalidAnchor }
+        return (paragraph, quote, path, try leaf?.delta().map(\.text).joined() ?? "")
+    }
+
+    private func performMarkdownV3QuoteReturn(anchor: Data, path: [Int], offset: Int,
+                                               kind: MarkdownV3QuoteReturnKind,
+                                               paragraphID: String) throws -> Data {
+        let (paragraph, quote, resolvedPath, old) = try markdownV3QuoteTarget(anchor)
+        guard resolvedPath == path, offset >= 0, offset <= old.utf16.count,
+              Self.split(old, at: offset) != nil else { throw Failure.invalidAnchor }
+        let suffix: [TextRun]
+        if kind == .split {
+            guard offset > 0, offset < old.utf16.count,
+                  let leaf = paragraph.child(at: 0) else { throw Failure.invalidAnchor }
+            suffix = try Self.suffixRuns(of: leaf, after: offset)
+        } else { suffix = [] }
+        let existingParagraphID = try quoteParagraphID(paragraph)
+        guard kind != .exit || (old.isEmpty && path[1] == Int(quote.length()) - 1 &&
+              existingParagraphID == paragraphID) else { throw Failure.invalidAnchor }
+        guard kind != .append || (!old.isEmpty && offset == old.utf16.count) else {
+            throw Failure.invalidAnchor
+        }
+        let exitRemovesQuote = kind == .exit && quote.length() == 1
+        let splitLeaf = kind == .split ? paragraph.child(at: 0) : nil
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            if kind == .exit {
+                try quote.removeChildren(start: UInt32(path[1]), length: 1, in: transaction)
+                let insertAt: UInt32
+                if exitRemovesQuote {
+                    try self.root.removeChildren(start: UInt32(path[0]), length: 1, in: transaction)
+                    insertAt = UInt32(path[0])
+                } else { insertAt = UInt32(path[0] + 1) }
+                let newParagraph = try self.root.insertElement(named: "paragraph", at: insertAt, in: transaction)
+                try newParagraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            } else {
+                if kind == .split {
+                    guard let leaf = splitLeaf else { throw Failure.invalidAnchor }
+                    try leaf.removeText(start: UInt32(offset), length: UInt32(old.utf16.count - offset), in: transaction)
+                }
+                let newParagraph = try quote.insertElement(named: "paragraph", at: UInt32(path[1] + 1), in: transaction)
+                try newParagraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+                if !suffix.isEmpty {
+                    let leaf = try newParagraph.insertText(at: 0, in: transaction)
+                    var destinationOffset: UInt32 = 0
+                    for run in suffix where !run.text.isEmpty {
+                        try leaf.insert(run.text, attributes: run.attributes,
+                                        at: destinationOffset, in: transaction)
+                        destinationOffset += UInt32(run.text.utf16.count)
+                    }
+                }
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     private func anchoredElement(_ anchor: Data) throws -> (YXmlNode, [Int]) {
         guard let resolved = try document.resolveXmlRelativePosition(anchor), resolved.index == 0,
               resolved.node.kind() == "element", let path = path(to: resolved.node, from: root), !path.isEmpty else {
