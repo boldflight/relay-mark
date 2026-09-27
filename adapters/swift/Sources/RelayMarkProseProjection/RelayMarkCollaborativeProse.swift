@@ -70,6 +70,23 @@ public struct RelayMarkCollaborativeProse {
     }
     public let blockAtoms: [BlockAtom]
 
+    /// Media occupies one block selection unit. The host resolves and renders
+    /// the source; this projection never fetches media or changes the XML.
+    public struct MediaAtom: Equatable, Sendable {
+        public enum Kind: String, Sendable {
+            case image
+            case videoEmbed
+        }
+        public let kind: Kind
+        public let id: String
+        public let source: String
+        public let alt: String?
+        public let title: String?
+        public let range: NSRange
+        public let path: [Int]
+    }
+    public let mediaAtoms: [MediaAtom]
+
     /// Authored v3 suggestion as one inert block unit; review actions remain host-owned.
     public struct SuggestionAtom: Equatable, Sendable {
         public let id: String
@@ -111,6 +128,7 @@ public struct RelayMarkCollaborativeProse {
         var calloutRanges: [Callout] = []
         var atoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
+        var mediaAtoms: [MediaAtom] = []
         var suggestionAtoms: [SuggestionAtom] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
@@ -287,6 +305,7 @@ public struct RelayMarkCollaborativeProse {
                 var table: (width: Int, starts: [[Int]])?
                 var paperControl: RelayMarkPaperControlContract.Validated?
                 var suggestion: RelayMarkAgentSuggestionV3Contract.Validated?
+                var media: MediaAtom.Kind?
                 switch name {
                 case "paragraph": kind = .paragraph
                 case "heading":
@@ -313,6 +332,16 @@ public struct RelayMarkCollaborativeProse {
                        let validated = try? RelayMarkAgentSuggestionV3Contract.validate(attributes: attributes),
                        children.isEmpty {
                         suggestion = validated
+                    } else { supported = false }
+                case "image", "videoEmbed":
+                    kind = .thematicBreak
+                    if dialect == .markdownV3, path.isEmpty, children.isEmpty,
+                       let mediaKind = MediaAtom.Kind(rawValue: name),
+                       attributes["relaymarkId"] is String {
+                        media = mediaKind
+                        // Selection metadata is ready, but editing remains closed
+                        // until the native host renders this atom in the editor.
+                        supported = false
                     } else { supported = false }
                 case "blockquote": kind = .blockQuote
                 case "bulletList": kind = .unorderedList
@@ -342,7 +371,7 @@ public struct RelayMarkCollaborativeProse {
                         allowed.formUnion(["colspan", "rowspan", "colwidth", "align"])
                     }
                 }
-                if paperControl == nil && suggestion == nil && !Set(attributes.keys).isSubset(of: allowed) { supported = false }
+                if paperControl == nil && suggestion == nil && media == nil && !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
                 let previousCount = ranges.count
                 if ["blockquote", "bulletList", "orderedList", "listItem"].contains(name) {
@@ -385,7 +414,7 @@ public struct RelayMarkCollaborativeProse {
                     if !ranges.isEmpty { value.append(AttributedString("\n")) }
                     let start = length(), attributedStart = value.endIndex
                     var inlineOffsets = [start]
-                    if name == "horizontalRule" || paperControl != nil || suggestion != nil {
+                    if name == "horizontalRule" || paperControl != nil || suggestion != nil || media != nil {
                         if !children.isEmpty { supported = false }
                         value.append(AttributedString("\u{FFFC}"))
                         if let paperControl {
@@ -399,9 +428,15 @@ public struct RelayMarkCollaborativeProse {
                                 evidence: suggestion.evidence, content: suggestion.content,
                                 range: NSRange(location: start, length: 1), path: blockPath))
                         }
+                        if let media, let id = attributes["relaymarkId"] as? String,
+                           let source = attributes[media == .image ? "src" : "videoId"] as? String {
+                            mediaAtoms.append(MediaAtom(kind: media, id: id, source: source,
+                                alt: attributes["alt"] as? String, title: attributes["title"] as? String,
+                                range: NSRange(location: start, length: 1), path: blockPath))
+                        } else if media != nil { supported = false }
                         mapped.append(Span(range: NSRange(location: start, length: 1), path: blockPath,
                             text: false, afterPath: path, afterIndex: index + 1,
-                            atom: paperControl != nil || suggestion != nil))
+                            atom: paperControl != nil || suggestion != nil || media != nil))
                     } else {
                         for (childIndex, child) in children.enumerated() {
                             let childPath = blockPath + [childIndex]
@@ -440,7 +475,7 @@ public struct RelayMarkCollaborativeProse {
                 offsets.append(ranges.count > previousCount ? ranges[previousCount].location : length())
                 // An XML boundary immediately after a rule maps to the atom's end.
                 // The next text leaf has its own unambiguous start position.
-                if index > 0, ["horizontalRule", "relayButton", "relayAnchor", "relayConnection", "agentSuggestion"]
+                if index > 0, ["horizontalRule", "relayButton", "relayAnchor", "relayConnection", "agentSuggestion", "image", "videoEmbed"]
                     .contains(nodes[index - 1]["name"] as? String ?? ""), previousCount > 0 {
                     offsets[offsets.count - 1] = NSMaxRange(ranges[previousCount - 1])
                 }
@@ -450,7 +485,7 @@ public struct RelayMarkCollaborativeProse {
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
         tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms
-        self.blockAtoms = blockAtoms; self.suggestionAtoms = suggestionAtoms
+        self.blockAtoms = blockAtoms; self.mediaAtoms = mediaAtoms; self.suggestionAtoms = suggestionAtoms
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }
@@ -470,6 +505,7 @@ public struct RelayMarkCollaborativeProse {
         if let atom = spans.first(where: { $0.atom && ($0.range.location == offset || NSMaxRange($0.range) == offset) }) {
             if atom.range.location == offset,
                blockAtoms.contains(where: { $0.path == atom.path }) ||
+               mediaAtoms.contains(where: { $0.path == atom.path }) ||
                suggestionAtoms.contains(where: { $0.path == atom.path }) {
                 return (atom.path, 0)
             }
