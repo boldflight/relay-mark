@@ -84,32 +84,19 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             return ["id": id, "type": "horizontal_rule", "content": [[String: Any]]()]
         case "image":
             let id = try blockID(attrs, allowed: ["relaymarkId", "src", "alt", "title", "width", "height"], ids: &ids)
+            let media = try RelayMarkMediaV3Contract.validate(name: name, attributes: attrs, children: [])
             try require(children.isEmpty, "image children")
-            try require(attrs["width"] == nil || attrs["width"] is NSNull, "image dimensions")
-            try require(attrs["height"] == nil || attrs["height"] is NSNull, "image dimensions")
-            guard let src = attrs["src"] as? String, validImageSource(src) else {
-                throw Failure.unsupported("image source")
-            }
             return ["id": id, "type": "image",
-                    "props": ["src": src, "alt": try imageText(attrs["alt"], label: "image alt"),
-                              "title": try imageText(attrs["title"], label: "image title")],
+                    "props": ["src": media.source, "alt": media.alt.map { $0 as Any } ?? NSNull(),
+                              "title": media.title.map { $0 as Any } ?? NSNull()],
                     "content": [[String: Any]]()]
         case "videoEmbed":
             let id = try blockID(attrs, allowed: ["relaymarkId", "videoId", "playbackId", "title",
                                                    "source", "thumbnailUrl", "status", "youtubeId",
                                                    "uploadPercent"], ids: &ids)
             try require(children.isEmpty, "video children")
-            guard let videoId = attrs["videoId"] as? String,
-                  videoId.range(of: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-                                options: .regularExpression) != nil else {
-                throw Failure.unsupported("video ID")
-            }
-            for key in ["playbackId", "title", "thumbnailUrl", "youtubeId", "uploadPercent"] {
-                try require(attrs[key] == nil || attrs[key] is NSNull, "video presentation metadata")
-            }
-            try require(attrs["source"] == nil || attrs["source"] as? String == "mux", "video source")
-            try require(attrs["status"] == nil || attrs["status"] as? String == "ready", "video status")
-            return ["id": id, "type": "relay.video_embed", "props": ["videoId": videoId],
+            let media = try RelayMarkMediaV3Contract.validate(name: name, attributes: attrs, children: [])
+            return ["id": id, "type": "relay.video_embed", "props": ["videoId": media.source],
                     "content": [[String: Any]]()]
         case "relayEntityReference":
             let id = try blockID(attrs, allowed: ["relaymarkId", "entityRef", "entityId", "entityType",
@@ -375,16 +362,6 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         return value.intValue
     }
 
-    private static func validImageSource(_ src: String) -> Bool {
-        guard src.utf16.count <= 2_048, src.trimmingCharacters(in: .whitespacesAndNewlines) == src,
-              src.rangeOfCharacter(from: .controlCharacters) == nil, !src.contains("\\") else { return false }
-        if src.range(of: "^/m/[A-Za-z0-9_-]{1,128}$", options: .regularExpression) != nil { return true }
-        guard src.hasPrefix("https://"), let url = URLComponents(string: src),
-              url.scheme == "https", let host = url.host, !host.isEmpty,
-              url.user == nil, url.password == nil else { return false }
-        return true
-    }
-
     private static func entityReferenceSource(_ source: String, entityRef: String, entityId: String,
                                               label: String, projection: String) -> Bool {
         guard source.utf16.count <= 16_384,
@@ -430,13 +407,6 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
               projection == (values["projection"] ?? "link"),
               ["link", "chip", "card"].contains(projection) else { return false }
         return true
-    }
-
-    private static func imageText(_ raw: Any?, label: String) throws -> Any {
-        guard let raw, !(raw is NSNull) else { return NSNull() }
-        guard let text = raw as? String, text.utf16.count <= 4_096,
-              !text.contains("\r"), !text.contains("\n") else { throw Failure.unsupported(label) }
-        return text
     }
 
     private static func element(_ raw: Any) throws -> (String, [String: Any], [Any]) {

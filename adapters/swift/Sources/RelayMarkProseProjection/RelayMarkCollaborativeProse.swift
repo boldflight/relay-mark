@@ -336,12 +336,9 @@ public struct RelayMarkCollaborativeProse {
                 case "image", "videoEmbed":
                     kind = .thematicBreak
                     if dialect == .markdownV3, path.isEmpty, children.isEmpty,
-                       let mediaKind = MediaAtom.Kind(rawValue: name),
-                       attributes["relaymarkId"] is String {
-                        media = mediaKind
-                        // Selection metadata is ready, but editing remains closed
-                        // until the native host renders this atom in the editor.
-                        supported = false
+                       let validated = try? RelayMarkMediaV3Contract.validate(
+                           name: name, attributes: attributes, children: children) {
+                        media = validated.kind
                     } else { supported = false }
                 case "blockquote": kind = .blockQuote
                 case "bulletList": kind = .unorderedList

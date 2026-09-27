@@ -41,7 +41,7 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), original)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()), original)
-        XCTAssertFalse(try native.markdownV3ProseProjection().isEditable)
+        XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
 
         let undone = try XCTUnwrap(native.undo())
         try peer.applyUpdate(undone)
@@ -90,5 +90,41 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         try peer.applyUpdate(inserted)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), original)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
+    }
+
+    func testAdjacentTextAndSecondImageReplayWithoutReplacingEitherMediaAtom() throws {
+        let seed = try update("rich-image-v3-draft")
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        for replica in [native, peer] { try replica.applyUpdate(seed) }
+        try browser.applyUpdate(seed)
+        let first = try XCTUnwrap(native.markdownV3ProseProjection().mediaAtoms.first)
+        XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
+
+        let proseUpdate = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 12, end: 12, text: " together")
+        try peer.applyUpdate(proseUpdate)
+        try browser.applyUpdate(proseUpdate)
+        let secondID = "b" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        let added = try RelayMarkNativeMediaMutation.insert(document: native, atRootIndex: 2,
+            expectedPreviousID: first.id, expectedNextID: "b29908e62e7c2496580e5aea7bb8e4f14",
+            block: .init(id: secondID, kind: .image, source: "https://images.example.org/second.png"))
+        try peer.applyUpdate(added)
+        try browser.applyUpdate(added)
+        XCTAssertEqual(try native.markdownV3ProseProjection().mediaAtoms.count, 2)
+        let checkpoint = try native.encodeUpdate()
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [1], start: 0, end: 1, text: "lost"))
+        XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+
+        let removed = try RelayMarkNativeMediaMutation.remove(document: native, atRootIndex: 1,
+            expectedID: first.id, expectedSource: first.source)
+        try peer.applyUpdate(removed)
+        try browser.applyUpdate(removed)
+        let final = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(final.blocks[0].plainText, "Before image together")
+        XCTAssertEqual(try native.markdownV3ProseProjection().mediaAtoms.map(\.id), [secondID])
+        XCTAssertEqual(final, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(final, try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()))
     }
 }

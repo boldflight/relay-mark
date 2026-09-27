@@ -57,7 +57,7 @@ public enum RelayMarkNativeMediaMutation {
     }
 
     /// Remove one exact media atom. The remaining paper must pass the native
-    /// editable projection; unsupported neighbors cannot be silently changed.
+    /// editable projection; unrelated media and neighbors stay untouched.
     public static func remove(document: RelayMarkNativeDocument, atRootIndex index: Int,
                               expectedID: String, expectedSource: String) throws -> Data {
         guard document.integrationStatus().isComplete else {
@@ -68,7 +68,7 @@ public enum RelayMarkNativeMediaMutation {
         guard blocks.indices.contains(index), blockID(blocks[index]) == expectedID,
               let media = prose.mediaAtoms.first(where: {
                   $0.path == [index] && $0.id == expectedID && $0.source == expectedSource
-              }), prose.mediaAtoms.count == 1,
+              }),
               blocks[index]["name"] as? String == media.kind.rawValue else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }

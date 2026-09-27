@@ -219,7 +219,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
     }
 
-    func testCommunityImageFixtureProjectsToExactPortableASTWithoutAdmittingTextEditing() throws {
+    func testCommunityImageFixtureProjectsToExactPortableASTWithProtectedMediaAtom() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-image-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let update = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
@@ -232,7 +232,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
         XCTAssertEqual(expected.blocks.map(\.type), ["paragraph", "image", "paragraph"])
         let prose = try native.markdownV3ProseProjection()
-        XCTAssertFalse(prose.isEditable)
+        XCTAssertTrue(prose.isEditable)
         XCTAssertEqual(prose.mediaAtoms.count, 1)
         XCTAssertEqual(prose.mediaAtoms[0].kind, .image)
         XCTAssertEqual(prose.mediaAtoms[0].id, "b28718f2e96f1458d9608c7222745fbc0")
@@ -241,6 +241,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(prose.mediaAtoms[0].title, "Planning")
         XCTAssertEqual(prose.mediaAtoms[0].path, [1])
         XCTAssertEqual(prose.mediaAtoms[0].range.length, 1)
+        XCTAssertTrue(prose.textRanges(in: prose.mediaAtoms[0].range).isEmpty)
         XCTAssertEqual(prose.position(atUTF16: prose.mediaAtoms[0].range.location)?.path, [1])
 
         let reopened = RelayMarkNativeDocument()
@@ -487,7 +488,7 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
         XCTAssertEqual(expected.blocks.map(\.type), ["paragraph", "relay.video_embed", "paragraph"])
         let prose = try native.markdownV3ProseProjection()
-        XCTAssertFalse(prose.isEditable)
+        XCTAssertTrue(prose.isEditable)
         XCTAssertEqual(prose.mediaAtoms.count, 1)
         XCTAssertEqual(prose.mediaAtoms[0].kind, .videoEmbed)
         XCTAssertEqual(prose.mediaAtoms[0].id, "b28718f2e96f1458d9608c7222745fbc0")
