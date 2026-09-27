@@ -53,6 +53,12 @@ children per task node. Yjs omits a null `entityId` XML attribute; the native
 read projector restores the portable null value. This does not change the
 existing narrow native task editor or admit task lists to a live profile.
 
+Draft v3 native Return now splits a top-level paragraph with at most one XML
+text leaf into an identified sibling. It retains the original block ID,
+preserves suffix marks, checks the exact snapshot and relative anchor, and
+produces one Yrs update for peer replay and undo. This is an editor operation,
+not live v3 admission or support for Return in every RelayMark structure.
+
 Two additional native operations are now covered by real Chromium TipTap/Yjs
 fixtures: `setHeadingLevel(anchor:expectedHeadingID:level:)` changes an existing
 top-level v1 heading to level 1–6 while retaining its XML identity and heading ID;

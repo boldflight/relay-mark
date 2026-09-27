@@ -1471,6 +1471,68 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Return in a top-level v3 paragraph creates one identified XML sibling.
+    /// The original paragraph keeps its ID and any suffix carries its marks.
+    /// A caller must bind the anchor and caret to an exact projected snapshot.
+    public func returnInMarkdownV3Paragraph(at paragraphAnchor: Data, utf16Offset: Int,
+                                            expectedSnapshot: Data) throws
+        -> (update: Data, paragraphID: String) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (_, path, old) = try markdownV3TopLevelParagraphTarget(paragraphAnchor)
+        guard utf16Offset >= 0, utf16Offset <= old.utf16.count,
+              Self.split(old, at: utf16Offset) != nil,
+              root.length() < 4_096 else { throw Failure.unsupportedProseEdit }
+        let paragraphID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.performMarkdownV3ParagraphReturn(anchor: paragraphAnchor, path: path,
+            offset: utf16Offset, paragraphID: paragraphID)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performMarkdownV3ParagraphReturn(anchor: paragraphAnchor, path: path,
+            offset: utf16Offset, paragraphID: paragraphID)
+        return (update, paragraphID)
+    }
+
+    private func markdownV3TopLevelParagraphTarget(_ anchor: Data) throws
+        -> (paragraph: YXmlNode, path: [Int], text: String) {
+        let (paragraph, path) = try anchoredElement(anchor)
+        let attrs = try paragraph.attributes()
+        guard path.count == 1, paragraph.tag() == "paragraph", paragraph.length() <= 1,
+              attrs["relaymarkId"] is String else { throw Failure.invalidAnchor }
+        let leaf = paragraph.child(at: 0)
+        guard leaf == nil || leaf?.kind() == "text" else { throw Failure.invalidAnchor }
+        return (paragraph, path, try leaf?.delta().map(\.text).joined() ?? "")
+    }
+
+    private func performMarkdownV3ParagraphReturn(anchor: Data, path: [Int], offset: Int,
+                                                   paragraphID: String) throws -> Data {
+        let (paragraph, resolvedPath, old) = try markdownV3TopLevelParagraphTarget(anchor)
+        guard resolvedPath == path, offset >= 0, offset <= old.utf16.count,
+              Self.split(old, at: offset) != nil else { throw Failure.invalidAnchor }
+        let leaf = paragraph.child(at: 0)
+        let suffix = try leaf.map { try Self.suffixRuns(of: $0, after: offset) } ?? []
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            if let leaf, offset < old.utf16.count {
+                try leaf.removeText(start: UInt32(offset), length: UInt32(old.utf16.count - offset), in: transaction)
+            }
+            let next = try self.root.insertElement(named: "paragraph", at: UInt32(path[0] + 1), in: transaction)
+            try next.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            if !suffix.isEmpty {
+                let destination = try next.insertText(at: 0, in: transaction)
+                var destinationOffset: UInt32 = 0
+                for run in suffix where !run.text.isEmpty {
+                    try destination.insert(run.text, attributes: run.attributes, at: destinationOffset, in: transaction)
+                    destinationOffset += UInt32(run.text.utf16.count)
+                }
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Return inside a v3 quote uses the same identified paragraph shape as
     /// TipTap. The existing quote and paragraph retain their IDs; only the
     /// new paragraph receives an ID. The host binds the anchor to one exact
