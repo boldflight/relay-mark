@@ -47,14 +47,22 @@ const nestedDoc = new Y.Doc();
 nestedDoc.clientID = 91_514;
 prosemirrorToYXmlFragment(schema.nodeFromJSON(nestedNormalized), nestedDoc.getXmlFragment('default'));
 const nestedUpdate = Buffer.from(Y.encodeStateAsUpdate(nestedDoc)).toString('base64');
+const emptyTitle = structuredClone(expected);
+delete emptyTitle.content[1].content[0].content;
+const emptyNormalized = normalize(emptyTitle);
+schema.nodeFromJSON(emptyNormalized).check();
+const emptyDoc = new Y.Doc();
+emptyDoc.clientID = 91_515;
+prosemirrorToYXmlFragment(schema.nodeFromJSON(emptyNormalized), emptyDoc.getXmlFragment('default'));
+const emptyTitleUpdate = Buffer.from(Y.encodeStateAsUpdate(emptyDoc)).toString('base64');
 const fixture = { fixture_version: 1, root: 'default', client_id: doc.clientID,
   source: 'Relay v3 TipTap Callout/UniqueID + community y-tiptap/Yjs',
   normalized, expected_after_add_title: expected,
   expected_ast_after_add_title: proseMirrorV3ToRelayMark(expected), update,
-  nested_body_update: nestedUpdate };
+  nested_body_update: nestedUpdate, empty_title_update: emptyTitleUpdate };
 const output = `${JSON.stringify(fixture, null, 2)}\n`;
 const path = new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/callout-add-title-v3-draft.json', import.meta.url);
 if (mode === '--write') await writeFile(path, output);
 else assert.equal(await readFile(path, 'utf8'), output);
 console.log(`Community v3 callout Add title fixture ${mode === '--write' ? 'written' : 'matches'}`);
-doc.destroy(); replay.destroy(); nestedDoc.destroy();
+doc.destroy(); replay.destroy(); nestedDoc.destroy(); emptyDoc.destroy();

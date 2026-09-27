@@ -34,7 +34,7 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
 
         _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
         let snapshot = try document.snapshot()
-        let emptyParagraph = try isEmptyParagraph(snapshot: snapshot, path: path) &&
+        let emptyParagraph = try isEmptyTextBlock(snapshot: snapshot, path: path) &&
             start == 0 && end == 0 && !text.isEmpty
         let validTextRun: Bool
         if emptyParagraph { validTextRun = true }
@@ -54,12 +54,16 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
         return try document.replaceText(at: start, length: end - start, with: text, path: path)
     }
 
-    private static func isEmptyParagraph(snapshot: Data, path: [Int]) throws -> Bool {
+    private static func isEmptyTextBlock(snapshot: Data, path: [Int]) throws -> Bool {
         guard let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
-              let paragraph = node(at: path, in: root) else { return false }
-        return paragraph["kind"] as? String == "element" &&
-            paragraph["name"] as? String == "paragraph" &&
-            (paragraph["children"] as? [Any])?.isEmpty == true
+              let block = node(at: path, in: root),
+              block["kind"] as? String == "element",
+              (block["children"] as? [Any])?.isEmpty == true else { return false }
+        if block["name"] as? String == "paragraph" { return true }
+        guard block["name"] as? String == "calloutTitle", path.count == 2, path[1] == 0,
+              let callout = node(at: [path[0]], in: root),
+              callout["name"] as? String == "callout" else { return false }
+        return true
     }
 
     private static func staysWithinOneTextRun(snapshot: Data, path: [Int],

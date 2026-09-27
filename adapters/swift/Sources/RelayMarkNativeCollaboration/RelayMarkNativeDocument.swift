@@ -774,7 +774,7 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Seed one existing empty XML paragraph without changing its stable block
+    /// Seed one existing empty XML paragraph or first-child callout title without changing its stable block
     /// identity. The v3 adapter validates the surrounding document on a scratch
     /// replica before this operation reaches the live Yrs transaction.
     func insertTextIntoEmptyParagraph(_ text: String, path: [Int]) throws -> Data {
@@ -788,7 +788,10 @@ public final class RelayMarkNativeDocument {
                 }
                 node = child
             }
-            guard node.kind(in: transaction) == "element", node.tag(in: transaction) == "paragraph",
+            let isTitle = path.count == 2 && path[1] == 0 && node.tag(in: transaction) == "calloutTitle" &&
+                self.root.child(at: UInt32(path[0]), in: transaction)?.tag(in: transaction) == "callout"
+            guard node.kind(in: transaction) == "element",
+                  node.tag(in: transaction) == "paragraph" || isTitle,
                   node.child(at: 0, in: transaction) == nil else {
                 throw Failure.invalidTextPath
             }

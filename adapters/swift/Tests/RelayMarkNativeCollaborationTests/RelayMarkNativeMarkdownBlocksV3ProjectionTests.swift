@@ -676,6 +676,28 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try nested.encodeUpdate(), nestedState)
     }
 
+    func testBrowserEmptyCalloutTitleAcceptsFirstTextAndKeepsIdentity() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "callout-add-title-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let source = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["empty_title_update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(source)
+        try peer.applyUpdate(source)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(before.blocks[1].childBlocks[0].plainText, "")
+        let update = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [1, 0], start: 0, end: 0, text: "New title")
+        try peer.applyUpdate(update)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after.blocks[1].childBlocks[0].plainText, "New title")
+        XCTAssertEqual(after.blocks[1].childBlocks.map(\.id), before.blocks[1].childBlocks.map(\.id))
+        XCTAssertEqual(after.blocks[1].childBlocks[1], before.blocks[1].childBlocks[1])
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+    }
+
     func testCalloutPlainFirstRunAcceptsTypingButBoldTitleBoundaryStaysFenced() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
