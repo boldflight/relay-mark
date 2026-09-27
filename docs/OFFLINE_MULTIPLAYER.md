@@ -58,6 +58,9 @@ text leaf into an identified sibling. It retains the original block ID,
 preserves suffix marks, checks the exact snapshot and relative anchor, and
 produces one Yrs update for peer replay and undo. This is an editor operation,
 not live v3 admission or support for Return in every RelayMark structure.
+The v3 native prose map also retains a validated block entity reference as one
+inert selection unit, so an adjacent paragraph remains editable without
+flattening or rewriting the reference. Target resolution remains host-owned.
 
 Two additional native operations are now covered by real Chromium TipTap/Yjs
 fixtures: `setHeadingLevel(anchor:expectedHeadingID:level:)` changes an existing

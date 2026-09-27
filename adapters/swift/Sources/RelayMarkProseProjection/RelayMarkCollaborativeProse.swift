@@ -70,6 +70,18 @@ public struct RelayMarkCollaborativeProse {
     }
     public let blockAtoms: [BlockAtom]
 
+    /// A block reference occupies one selection unit. The host resolves its
+    /// authorized target; authored identity and fallback remain in XML.
+    public struct EntityReferenceAtom: Equatable, Sendable {
+        public let id: String
+        public let entityID: String
+        public let label: String
+        public let source: String
+        public let range: NSRange
+        public let path: [Int]
+    }
+    public let entityReferenceAtoms: [EntityReferenceAtom]
+
     /// Media occupies one block selection unit. The host resolves and renders
     /// the source; this projection never fetches media or changes the XML.
     public struct MediaAtom: Equatable, Sendable {
@@ -128,6 +140,7 @@ public struct RelayMarkCollaborativeProse {
         var calloutRanges: [Callout] = []
         var atoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
+        var entityReferenceAtoms: [EntityReferenceAtom] = []
         var mediaAtoms: [MediaAtom] = []
         var suggestionAtoms: [SuggestionAtom] = []
         var mapped: [Span] = []
@@ -304,6 +317,7 @@ public struct RelayMarkCollaborativeProse {
                 let kind: PresentationIntent.Kind
                 var table: (width: Int, starts: [[Int]])?
                 var paperControl: RelayMarkPaperControlContract.Validated?
+                var entityReference: EntityReferenceAtom?
                 var suggestion: RelayMarkAgentSuggestionV3Contract.Validated?
                 var media: MediaAtom.Kind?
                 switch name {
@@ -325,6 +339,25 @@ public struct RelayMarkCollaborativeProse {
                        let validated = try? RelayMarkPaperControlContract.validate(nodeName: name, attributes: attributes),
                        children.isEmpty {
                         paperControl = validated
+                    } else { supported = false }
+                case "relayEntityReference":
+                    kind = .thematicBreak
+                    if dialect == .markdownV3, path.isEmpty, children.isEmpty,
+                       Set(attributes.keys).isSubset(of: ["relaymarkId", "entityRef", "entityId",
+                                                          "entityType", "label", "projection", "source"]),
+                       let id = attributes["relaymarkId"] as? String,
+                       let entityRef = attributes["entityRef"] as? String,
+                       let entityID = attributes["entityId"] as? String,
+                       UUID(uuidString: entityID)?.uuidString.lowercased() == entityID,
+                       entityRef == "entity:\(entityID)",
+                       attributes["entityType"] as? String == "Entity",
+                       let label = attributes["label"] as? String,
+                       !label.isEmpty,
+                       ["link", "card"].contains(attributes["projection"] as? String ?? ""),
+                       let source = attributes["source"] as? String {
+                        entityReference = EntityReferenceAtom(id: id, entityID: entityID,
+                            label: label, source: source,
+                            range: NSRange(location: 0, length: 1), path: blockPath)
                     } else { supported = false }
                 case "agentSuggestion":
                     kind = .thematicBreak
@@ -368,7 +401,8 @@ public struct RelayMarkCollaborativeProse {
                         allowed.formUnion(["colspan", "rowspan", "colwidth", "align"])
                     }
                 }
-                if paperControl == nil && suggestion == nil && media == nil && !Set(attributes.keys).isSubset(of: allowed) { supported = false }
+                if paperControl == nil && entityReference == nil && suggestion == nil && media == nil &&
+                    !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
                 let previousCount = ranges.count
                 if ["blockquote", "bulletList", "orderedList", "listItem"].contains(name) {
@@ -411,12 +445,19 @@ public struct RelayMarkCollaborativeProse {
                     if !ranges.isEmpty { value.append(AttributedString("\n")) }
                     let start = length(), attributedStart = value.endIndex
                     var inlineOffsets = [start]
-                    if name == "horizontalRule" || paperControl != nil || suggestion != nil || media != nil {
+                    if name == "horizontalRule" || paperControl != nil || entityReference != nil ||
+                        suggestion != nil || media != nil {
                         if !children.isEmpty { supported = false }
                         value.append(AttributedString("\u{FFFC}"))
                         if let paperControl {
                             blockAtoms.append(BlockAtom(id: paperControl.id, control: paperControl.control,
                                 source: paperControl.source, displayLabel: paperControl.displayLabel,
+                                range: NSRange(location: start, length: 1), path: blockPath))
+                        }
+                        if let entityReference {
+                            entityReferenceAtoms.append(EntityReferenceAtom(id: entityReference.id,
+                                entityID: entityReference.entityID, label: entityReference.label,
+                                source: entityReference.source,
                                 range: NSRange(location: start, length: 1), path: blockPath))
                         }
                         if let suggestion {
@@ -433,7 +474,7 @@ public struct RelayMarkCollaborativeProse {
                         } else if media != nil { supported = false }
                         mapped.append(Span(range: NSRange(location: start, length: 1), path: blockPath,
                             text: false, afterPath: path, afterIndex: index + 1,
-                            atom: paperControl != nil || suggestion != nil || media != nil))
+                            atom: paperControl != nil || entityReference != nil || suggestion != nil || media != nil))
                     } else {
                         for (childIndex, child) in children.enumerated() {
                             let childPath = blockPath + [childIndex]
@@ -472,7 +513,7 @@ public struct RelayMarkCollaborativeProse {
                 offsets.append(ranges.count > previousCount ? ranges[previousCount].location : length())
                 // An XML boundary immediately after a rule maps to the atom's end.
                 // The next text leaf has its own unambiguous start position.
-                if index > 0, ["horizontalRule", "relayButton", "relayAnchor", "relayConnection", "agentSuggestion", "image", "videoEmbed"]
+                if index > 0, ["horizontalRule", "relayButton", "relayAnchor", "relayConnection", "relayEntityReference", "agentSuggestion", "image", "videoEmbed"]
                     .contains(nodes[index - 1]["name"] as? String ?? ""), previousCount > 0 {
                     offsets[offsets.count - 1] = NSMaxRange(ranges[previousCount - 1])
                 }
@@ -482,7 +523,8 @@ public struct RelayMarkCollaborativeProse {
         walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
         tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms
-        self.blockAtoms = blockAtoms; self.mediaAtoms = mediaAtoms; self.suggestionAtoms = suggestionAtoms
+        self.blockAtoms = blockAtoms; self.entityReferenceAtoms = entityReferenceAtoms
+        self.mediaAtoms = mediaAtoms; self.suggestionAtoms = suggestionAtoms
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }
