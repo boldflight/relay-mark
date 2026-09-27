@@ -1129,6 +1129,141 @@ public final class RelayMarkNativeDocument {
         return (update, itemID, paragraphID)
     }
 
+    /// Split one existing nonempty v3 list paragraph at an interior grapheme
+    /// boundary. The prefix keeps its XML text and stable IDs; suffix runs are
+    /// copied with their original marks into a fresh sibling item/paragraph.
+    public func splitMarkdownV3ListItem(at paragraphAnchor: Data, utf16Offset: Int,
+                                         expectedSnapshot: Data) throws
+        -> (update: Data, itemID: String, paragraphID: String) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (paragraph, path) = try markdownV3ListEndTarget(paragraphAnchor)
+        guard let leaf = paragraph.child(at: 0), leaf.kind() == "text" else { throw Failure.invalidAnchor }
+        let old = try leaf.delta().map(\.text).joined()
+        guard utf16Offset > 0, utf16Offset < old.utf16.count,
+              Self.split(old, at: utf16Offset) != nil else { throw Failure.unsupportedProseEdit }
+        let itemID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let paragraphID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.insertSplitMarkdownV3ListItem(at: paragraphAnchor, path: path,
+            offset: utf16Offset, itemID: itemID, paragraphID: paragraphID)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertSplitMarkdownV3ListItem(at: paragraphAnchor, path: path,
+            offset: utf16Offset, itemID: itemID, paragraphID: paragraphID)
+        return (update, itemID, paragraphID)
+    }
+
+    private func insertSplitMarkdownV3ListItem(at anchor: Data, path: [Int], offset: Int,
+                                                itemID: String, paragraphID: String) throws -> Data {
+        let (paragraph, resolvedPath) = try markdownV3ListEndTarget(anchor)
+        guard resolvedPath == path, let leaf = paragraph.child(at: 0), leaf.kind() == "text" else {
+            throw Failure.invalidAnchor
+        }
+        let old = try leaf.delta().map(\.text).joined()
+        guard offset > 0, offset < old.utf16.count, Self.split(old, at: offset) != nil else {
+            throw Failure.unsupportedProseEdit
+        }
+        let suffix = try Self.suffixRuns(of: leaf, after: offset)
+        var list = root
+        for index in path.dropLast(2) {
+            guard let child = list.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            list = child
+        }
+        let position = UInt32(path[path.count - 2] + 1)
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try leaf.removeText(start: UInt32(offset), length: UInt32(old.utf16.count - offset), in: transaction)
+            let item = try list.insertElement(named: "listItem", at: position, in: transaction)
+            try item.setAttribute("relaymarkId", value: itemID, in: transaction)
+            let newParagraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
+            try newParagraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            let destination = try newParagraph.insertText(at: 0, in: transaction)
+            var destinationOffset: UInt32 = 0
+            for run in suffix where !run.text.isEmpty {
+                try destination.insert(run.text, attributes: run.attributes,
+                                       at: destinationOffset, in: transaction)
+                destinationOffset += UInt32(run.text.utf16.count)
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    /// TipTap Enter on a final empty list item: leave a flat list for a
+    /// top-level paragraph, or leave a one-item nested list for an outer item.
+    /// The empty paragraph keeps its authored ID even though Yjs recreates its
+    /// XML type; nested exit gives the new outer item a fresh ID.
+    public func exitEmptyMarkdownV3ListItem(at paragraphAnchor: Data,
+                                             expectedSnapshot: Data) throws
+        -> (update: Data, newItemID: String?) {
+        guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (path, paragraphID) = try markdownV3EmptyListExitTarget(paragraphAnchor)
+        let newItemID = path.count == 5 ?
+            "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") : nil
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.performMarkdownV3ListExit(anchor: paragraphAnchor, path: path,
+                                                  paragraphID: paragraphID, newItemID: newItemID)
+        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performMarkdownV3ListExit(anchor: paragraphAnchor, path: path,
+                                                   paragraphID: paragraphID, newItemID: newItemID)
+        return (update, newItemID)
+    }
+
+    private func markdownV3EmptyListExitTarget(_ anchor: Data) throws -> ([Int], String) {
+        let (paragraph, path) = try anchoredElement(anchor)
+        guard (path.count == 3 || path.count == 5), path.last == 0,
+              paragraph.tag() == "paragraph", paragraph.length() == 0,
+              let paragraphID = try paragraph.attributes()["relaymarkId"] as? String,
+              let top = root.child(at: UInt32(path[0])),
+              ["bulletList", "orderedList"].contains(top.tag() ?? "") else { throw Failure.invalidAnchor }
+        if path.count == 3 {
+            guard path[1] == Int(top.length()) - 1, top.length() > 1,
+                  let item = top.child(at: UInt32(path[1])), item.tag() == "listItem",
+                  item.length() == 1 else { throw Failure.unsupportedProseEdit }
+        } else {
+            guard let outer = top.child(at: UInt32(path[1])), outer.tag() == "listItem",
+                  outer.length() == 2,
+                  let nested = outer.child(at: 1), ["bulletList", "orderedList"].contains(nested.tag() ?? ""),
+                  nested.length() == 1, path[2] == 1, path[3] == 0,
+                  let item = nested.child(at: 0), item.tag() == "listItem",
+                  item.length() == 1 else { throw Failure.unsupportedProseEdit }
+        }
+        return (path, paragraphID)
+    }
+
+    private func performMarkdownV3ListExit(anchor: Data, path: [Int],
+                                            paragraphID: String, newItemID: String?) throws -> Data {
+        let (resolvedPath, resolvedID) = try markdownV3EmptyListExitTarget(anchor)
+        guard resolvedPath == path, resolvedID == paragraphID,
+              (path.count == 5) == (newItemID != nil),
+              let top = root.child(at: UInt32(path[0])) else { throw Failure.invalidAnchor }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            if path.count == 3 {
+                try top.removeChildren(start: UInt32(path[1]), length: 1, in: transaction)
+                let paragraph = try self.root.insertElement(named: "paragraph",
+                                                            at: UInt32(path[0] + 1), in: transaction)
+                try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            } else {
+                guard let newItemID, let outer = top.child(at: UInt32(path[1]), in: transaction) else {
+                    throw Failure.invalidAnchor
+                }
+                try outer.removeChildren(start: 1, length: 1, in: transaction)
+                let item = try top.insertElement(named: "listItem", at: UInt32(path[1] + 1), in: transaction)
+                try item.setAttribute("relaymarkId", value: newItemID, in: transaction)
+                let paragraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
+                try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     private func markdownV3ListEndTarget(_ anchor: Data) throws -> (YXmlNode, [Int]) {
         let (paragraph, path) = try anchoredElement(anchor)
         guard (path.count == 3 || path.count == 5), path.last == 0,
