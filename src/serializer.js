@@ -72,8 +72,10 @@ function serializeInline(nodes) {
       const kind = node.type.slice("relay.".length, -"_ref".length);
       return `[${node.label || node.id || "reference"}](relay:${kind}/${node.id || ""})`;
     }
-    if (Array.isArray(node.content)) return serializeInline(node.content);
-    return node.text || node.label || "";
+    // The reference source parser does not reconstruct rich inline wrappers or
+    // hard breaks yet. Flattening them would turn a valid collaborative AST
+    // into different authored content on a later source import.
+    throw new TypeError(`Cannot losslessly serialize inline type '${String(node.type)}' to RelayMark source.`);
   }).join("");
 }
 

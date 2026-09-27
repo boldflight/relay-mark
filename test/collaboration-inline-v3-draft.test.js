@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
 import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { serializeRelayMark } from '../src/serializer.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
@@ -24,6 +25,7 @@ test('community TipTap/Yjs v3 marks have an exact, valid portable round trip', (
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
   assert.deepEqual(relayMarkV3ToProseMirror(ast), fixture.normalized);
   assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
+  assert.throws(() => serializeRelayMark(ast), /Cannot losslessly serialize inline type 'strong'/);
   assert.deepEqual(ast.blocks[0].content[1], { type: 'strong', content: [{ type: 'emphasis',
     content: [{ type: 'strikethrough', content: [{ type: 'text', text: 'bold italic strike' }] }] }] });
   assert.deepEqual(ast.blocks[0].content[7], { type: 'link',
@@ -64,6 +66,7 @@ test('community TipTap/Yjs offered marks preserve exact wrappers, order, IDs and
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
   assert.deepEqual(relayMarkV3ToProseMirror(ast), offered.normalized);
+  assert.throws(() => serializeRelayMark(ast), /Cannot losslessly serialize inline type/);
   assert.deepEqual(ast.blocks.map(block => block.id), [21, 22, 23].map(n =>
     `b0000000000004000800000000000${n.toString(16).padStart(4, '0')}`));
   assert.deepEqual(ast.blocks[0].content[8], { type: 'strong', content: [{ type: 'underline',
