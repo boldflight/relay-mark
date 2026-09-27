@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import RelayMarkSwift
+import RelayMarkProseProjection
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
@@ -79,7 +80,10 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertEqual(header.rowSpan, 1)
         XCTAssertEqual(header.columnSpan, 2)
         XCTAssertTrue(header.header)
+        XCTAssertEqual(header.columnWidths, [120, 180])
+        XCTAssertNil(header.alignment)
         XCTAssertEqual(before.tableCells.filter { $0.row == 1 }.map(\.column), [0, 1])
+        XCTAssertEqual(before.tableCells.first(where: { $0.row == 1 && $0.column == 0 })?.columnWidths, [120])
         let text = String(before.text.characters)
         let alice = (text as NSString).range(of: "Alice")
         XCTAssertNotEqual(alice.location, NSNotFound)
@@ -218,6 +222,21 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
             }
         }
         XCTAssertThrowsError(try RelayMarkNativeMixedTableProjection.project(snapshot: brokenGrid))
+
+        let aligned = try changed { snapshot in
+            nodes(&snapshot) { blocks in
+                var rows = blocks[1]["children"] as! [[String: Any]]
+                var cells = rows[1]["children"] as! [[String: Any]]
+                var attrs = cells[0]["attributes"] as! [String: Any]
+                attrs["align"] = "right"
+                cells[0]["attributes"] = attrs
+                rows[1]["children"] = cells
+                blocks[1]["children"] = rows
+            }
+        }
+        let alignedProse = try RelayMarkCollaborativeProse(snapshot: aligned, dialect: .markdownV3)
+        XCTAssertTrue(alignedProse.isEditable)
+        XCTAssertEqual(alignedProse.tableCells.first(where: { $0.row == 1 && $0.column == 0 })?.alignment, "right")
 
         let hugeSpan = try changed { snapshot in
             nodes(&snapshot) { blocks in

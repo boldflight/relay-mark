@@ -23,6 +23,10 @@ public struct RelayMarkCollaborativeProse {
         public let rowSpan: Int
         public let columnSpan: Int
         public let header: Bool
+        /// TipTap's per-spanned-column widths, when explicitly authored.
+        public let columnWidths: [Int]?
+        /// Explicit cell alignment; nil retains the native paragraph default.
+        public let alignment: String?
     }
     public let tableCells: [TableCell]
 
@@ -240,6 +244,8 @@ public struct RelayMarkCollaborativeProse {
             let rowSpan: Int
             let columnSpan: Int
             let header: Bool
+            let columnWidths: [Int]?
+            let alignment: String?
         }
         func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil,
                   ordinal: Int = 1, tableRows: [[Int]]? = nil, tableColumns: [Int]? = nil,
@@ -356,12 +362,25 @@ public struct RelayMarkCollaborativeProse {
                           children.allSatisfy({ $0["name"] as? String == "paragraph" }) else {
                         supported = false; continue
                     }
+                    let span = attributes["colspan"] as? Int ?? 1
+                    let widths: [Int]?
+                    if let raw = attributes["colwidth"], !(raw is NSNull) {
+                        guard let values = raw as? [Int], values.count == span,
+                              values.allSatisfy({ $0 > 0 }) else { supported = false; continue }
+                        widths = values
+                    } else { widths = nil }
+                    let alignment: String?
+                    if let raw = attributes["align"], !(raw is NSNull) {
+                        guard let value = raw as? String,
+                              ["left", "center", "right"].contains(value) else { supported = false; continue }
+                        alignment = value
+                    } else { alignment = nil }
                     walk(children, path: blockPath, parent: intent,
                          cellContext: CellContext(tableIdentity: tableIdentity, columns: tableWidth,
                             row: tableRow, column: column,
                             rowSpan: attributes["rowspan"] as? Int ?? 1,
-                            columnSpan: attributes["colspan"] as? Int ?? 1,
-                            header: name == "tableHeader"))
+                            columnSpan: span, header: name == "tableHeader",
+                            columnWidths: widths, alignment: alignment))
                 } else {
                     if !ranges.isEmpty { value.append(AttributedString("\n")) }
                     let start = length(), attributedStart = value.endIndex
@@ -414,7 +433,8 @@ public struct RelayMarkCollaborativeProse {
                             range: ranges[ranges.count - 1], columns: cellContext.columns,
                             row: cellContext.row, column: cellContext.column,
                             rowSpan: cellContext.rowSpan, columnSpan: cellContext.columnSpan,
-                            header: cellContext.header))
+                            header: cellContext.header, columnWidths: cellContext.columnWidths,
+                            alignment: cellContext.alignment))
                     }
                 }
                 offsets.append(ranges.count > previousCount ? ranges[previousCount].location : length())
