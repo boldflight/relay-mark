@@ -74,9 +74,39 @@ final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
         XCTAssertEqual(tasks[0].id, change.itemID)
         XCTAssertFalse(tasks[0].checked)
         XCTAssertNil(tasks[0].entityID)
+        if let path = ProcessInfo.processInfo.environment["RELAY_TASK_V3_FIXTURE_OUTPUT"] {
+            let fixture = ["schema": "relaymark-prosemirror-v3", "root": "default",
+                           "seed": source.base64EncodedString(),
+                           "native_update": change.update.base64EncodedString(),
+                           "list_id": change.listID, "item_id": change.itemID,
+                           "paragraph_id": change.paragraphID]
+            let encoded = try JSONSerialization.data(withJSONObject: fixture,
+                options: [.prettyPrinted, .sortedKeys])
+            try encoded.write(to: URL(fileURLWithPath: path))
+        }
 
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+    }
+
+    func testBrowserContinuesNativeInsertedTaskThroughYjs() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "native-task-insertion-v3", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
+        let document = RelayMarkNativeDocument()
+        for key in ["seed", "native_update", "browser_update"] {
+            try document.applyUpdate(XCTUnwrap(Data(base64Encoded: XCTUnwrap(fixture[key]))))
+        }
+        XCTAssertTrue(document.integrationStatus().isComplete)
+        let projected = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
+        XCTAssertEqual(projected.blocks.map(\.type), ["paragraph", "task_list", "image", "paragraph"])
+        XCTAssertEqual(projected.blocks[0].plainText, "Before image")
+        XCTAssertEqual(projected.blocks[1].id, fixture["list_id"])
+        XCTAssertEqual(projected.blocks[1].childBlocks[0].id, fixture["item_id"])
+        XCTAssertEqual(projected.blocks[1].childBlocks[0].plainText, "From browser")
+        let item = try XCTUnwrap(document.markdownV3ProseProjection().taskItems.first)
+        XCTAssertEqual(item.id, fixture["item_id"])
+        XCTAssertFalse(item.checked)
+        XCTAssertNil(item.entityID)
     }
 }
