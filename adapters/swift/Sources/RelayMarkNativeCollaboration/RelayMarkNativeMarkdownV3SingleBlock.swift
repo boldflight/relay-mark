@@ -14,6 +14,8 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
         case quote
         case code(language: String?)
         case rule
+        case bulletList
+        case orderedList(start: Int)
 
         var tag: String {
             switch self {
@@ -22,6 +24,8 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
             case .quote: "blockquote"
             case .code: "codeBlock"
             case .rule: "horizontalRule"
+            case .bulletList: "bulletList"
+            case .orderedList: "orderedList"
             }
         }
     }
@@ -34,17 +38,27 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
     struct Block {
         let kind: Kind
         let runs: [Run]
+        let listItems: [[Run]]
+
+        init(kind: Kind, runs: [Run], listItems: [[Run]] = []) {
+            self.kind = kind
+            self.runs = runs
+            self.listItems = listItems
+        }
 
         func attributes(id: String, headingID: String?) -> [String: Any] {
             switch kind {
-            case .paragraph, .quote, .rule: ["relaymarkId": id]
+            case .paragraph, .quote, .rule, .bulletList: ["relaymarkId": id]
             case .heading(let level):
                 ["relaymarkId": id, "level": level, "headingId": headingID ?? NSNull()]
             case .code(let language): ["relaymarkId": id, "language": language ?? NSNull()]
+            // y-tiptap omits ProseMirror's null `type` from the Yjs XML attrs.
+            case .orderedList(let start): ["relaymarkId": id, "start": start]
             }
         }
 
-        func snapshot(id: String, headingID: String?, quoteParagraphID: String?) throws -> [String: Any] {
+        func snapshot(id: String, headingID: String?, quoteParagraphID: String?,
+                      listIDs: [(item: String, paragraph: String)]) throws -> [String: Any] {
             let text: [[String: Any]] = runs.isEmpty ? [] : [["kind": "text", "delta": runs.map {
                 ["insert": $0.text, "attributes": $0.attributes] as [String: Any]
             }]]
@@ -55,6 +69,18 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
                 children = [["kind": "element", "name": "paragraph",
                              "attributes": ["relaymarkId": quoteParagraphID], "children": text]]
             case .rule: children = []
+            case .bulletList, .orderedList:
+                guard listIDs.count == listItems.count else { throw Failure.unsupported }
+                children = zip(listItems, listIDs).map { runs, ids in
+                    let text: [[String: Any]] = [["kind": "text", "delta": runs.map {
+                        ["insert": $0.text, "attributes": $0.attributes] as [String: Any]
+                    }]]
+                    return ["kind": "element", "name": "listItem",
+                            "attributes": ["relaymarkId": ids.item],
+                            "children": [["kind": "element", "name": "paragraph",
+                                          "attributes": ["relaymarkId": ids.paragraph],
+                                          "children": text]]]
+                }
             default: children = text
             }
             return ["kind": "element", "name": kind.tag,
@@ -88,7 +114,26 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
             }
             kind = .code(language: code.language)
         } else if root is ThematicBreak { kind = .rule }
+        else if root is UnorderedList { kind = .bulletList }
+        else if let ordered = root as? OrderedList,
+                ordered.startIndex >= 1, ordered.startIndex <= UInt(Int.max) {
+            kind = .orderedList(start: Int(ordered.startIndex))
+        }
         else { throw Failure.unsupported }
+        switch kind {
+        case .bulletList, .orderedList:
+            guard (1...4_096).contains(root.childCount) else { throw Failure.unsupported }
+            var items = [[Run]]()
+            for child in root.children {
+                guard let item = child as? ListItem, item.checkbox == nil,
+                      item.childCount == 1, let paragraph = item.child(at: 0) as? Paragraph else {
+                    throw Failure.unsupported
+                }
+                items.append(try inlineRuns(in: paragraph))
+            }
+            return Block(kind: kind, runs: [], listItems: items)
+        default: break
+        }
         if case .rule = kind { return Block(kind: kind, runs: []) }
         if case .code = kind {
             guard let code = root as? CodeBlock else { throw Failure.unsupported }
@@ -103,7 +148,11 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
             guard let paragraph = root.child(at: 0) else { throw Failure.unsupported }
             inlineRoot = paragraph
         } else { inlineRoot = root }
-        guard inlineRoot.childCount > 0 else { throw Failure.unsupported }
+        return Block(kind: kind, runs: try inlineRuns(in: inlineRoot))
+    }
+
+    private static func inlineRuns(in root: Markup) throws -> [Run] {
+        guard root.childCount > 0 else { throw Failure.unsupported }
         var runs: [Run] = []
         func append(_ markup: Markup, marks: [String: Any]) throws {
             if let value = markup as? Text {
@@ -131,9 +180,9 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
                 for child in value.children { try append(child, marks: nested) }
             } else { throw Failure.unsupported }
         }
-        for child in inlineRoot.children { try append(child, marks: [:]) }
+        for child in root.children { try append(child, marks: [:]) }
         guard !runs.isEmpty, runs.count <= 4_096 else { throw Failure.unsupported }
-        return Block(kind: kind, runs: runs)
+        return runs
     }
 
     enum Failure: Error { case unsupported }

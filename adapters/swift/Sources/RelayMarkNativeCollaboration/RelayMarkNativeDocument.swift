@@ -626,9 +626,11 @@ public final class RelayMarkNativeDocument {
     func acceptAgentSuggestion(at index: Int, expectedID: String,
                                block: RelayMarkNativeMarkdownV3SingleBlock.Block,
                                newBlockID: String, headingID: String?,
-                               quoteParagraphID: String?) throws -> Data {
+                               quoteParagraphID: String?,
+                               listIDs: [(item: String, paragraph: String)]) throws -> Data {
         guard let childIndex = UInt32(exactly: index),
-              (!block.runs.isEmpty || block.kind.tag == "horizontalRule") else {
+              (!block.runs.isEmpty || !block.listItems.isEmpty || block.kind.tag == "horizontalRule"),
+              listIDs.count == block.listItems.count else {
             throw Failure.invalidTextPath
         }
         if case .quote = block.kind, quoteParagraphID == nil { throw Failure.invalidTextPath }
@@ -644,6 +646,25 @@ public final class RelayMarkNativeDocument {
                                                           in: transaction)
             for (key, value) in block.attributes(id: newBlockID, headingID: headingID) {
                 try replacement.setAttribute(key, value: value, in: transaction)
+            }
+            if !block.listItems.isEmpty {
+                for (offset, item) in block.listItems.enumerated() {
+                    let listItem = try replacement.insertElement(named: "listItem",
+                                                                  at: UInt32(offset), in: transaction)
+                    try listItem.setAttribute("relaymarkId", value: listIDs[offset].item, in: transaction)
+                    let paragraph = try listItem.insertElement(named: "paragraph", at: 0,
+                                                               in: transaction)
+                    try paragraph.setAttribute("relaymarkId", value: listIDs[offset].paragraph,
+                                               in: transaction)
+                    let leaf = try paragraph.insertText(at: 0, in: transaction)
+                    var textOffset: UInt32 = 0
+                    for run in item {
+                        try leaf.insert(run.text, attributes: run.attributes, at: textOffset,
+                                        in: transaction)
+                        textOffset += UInt32(run.text.utf16.count)
+                    }
+                }
+                return Data(transaction.transactionEncodeUpdate())
             }
             let textParent: YXmlNode
             if case .quote = block.kind {
