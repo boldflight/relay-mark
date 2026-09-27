@@ -614,6 +614,68 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
     }
 
+    func testBrowserCalloutAddTitleReplaysUndoesAndRejectsStaleCheckpoint() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "callout-add-title-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let source = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(source)
+        try peer.applyUpdate(source)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let checkpoint = try native.snapshot()
+        let state = try native.encodeUpdate()
+        let calloutID = before.blocks[1].id
+        let anchor = try native.anchor(path: [1], index: 0)
+        XCTAssertThrowsError(try native.addCalloutTitle(anchor: anchor, expectedID: "wrong", expectedSnapshot: checkpoint))
+        XCTAssertThrowsError(try native.addCalloutTitle(anchor: try native.anchor(path: [0], index: 0),
+                                                        expectedID: calloutID, expectedSnapshot: checkpoint))
+        XCTAssertEqual(try native.encodeUpdate(), state)
+
+        let change = try native.addCalloutTitle(anchor: anchor, expectedID: calloutID,
+                                                expectedSnapshot: checkpoint)
+        try peer.applyUpdate(change.update)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        var expected = try XCTUnwrap(fixture["expected_ast_after_add_title"] as? [String: Any])
+        var blocks = try XCTUnwrap(expected["blocks"] as? [[String: Any]])
+        var callout = blocks[1]
+        var children = try XCTUnwrap(callout["content"] as? [[String: Any]])
+        children[0]["id"] = change.titleID
+        callout["content"] = children
+        blocks[1] = callout
+        expected["blocks"] = blocks
+        XCTAssertEqual(after, try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: expected)))
+        XCTAssertEqual(after.blocks.map(\.id), before.blocks.map(\.id))
+        XCTAssertEqual(after.blocks[1].childBlocks[1], before.blocks[1].childBlocks[0])
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+        let afterState = try native.encodeUpdate()
+        XCTAssertThrowsError(try native.addCalloutTitle(anchor: anchor, expectedID: calloutID,
+                                                        expectedSnapshot: checkpoint))
+        XCTAssertEqual(try native.encodeUpdate(), afterState)
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+        try peer.applyUpdate(try XCTUnwrap(native.redo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+
+        let changed = RelayMarkNativeDocument()
+        try changed.applyUpdate(source)
+        let changedAnchor = try changed.anchor(path: [1], index: 0)
+        _ = try changed.setCalloutAppearance(anchor: changedAnchor, expectedID: calloutID,
+                                             expectedTone: "warning", expectedEmphasis: "strong",
+                                             tone: "info", emphasis: "strong")
+        let changedState = try changed.encodeUpdate()
+        XCTAssertThrowsError(try changed.addCalloutTitle(anchor: changedAnchor, expectedID: calloutID,
+                                                         expectedSnapshot: checkpoint))
+        XCTAssertEqual(try changed.encodeUpdate(), changedState)
+
+        let nested = RelayMarkNativeDocument()
+        try nested.applyUpdate(try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["nested_body_update"] as? String))))
+        let nestedState = try nested.encodeUpdate()
+        XCTAssertThrowsError(try nested.addCalloutTitle(anchor: try nested.anchor(path: [1], index: 0),
+                                                        expectedID: calloutID, expectedSnapshot: nested.snapshot()))
+        XCTAssertEqual(try nested.encodeUpdate(), nestedState)
+    }
+
     func testCalloutPlainFirstRunAcceptsTypingButBoldTitleBoundaryStaysFenced() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-callout-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

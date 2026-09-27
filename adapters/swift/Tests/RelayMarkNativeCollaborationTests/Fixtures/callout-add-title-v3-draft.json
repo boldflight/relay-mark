@@ -1,0 +1,178 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91513,
+  "source": "Relay v3 TipTap Callout/UniqueID + community y-tiptap/Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000081"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000082",
+          "tone": "warning",
+          "emphasis": "strong"
+        },
+        "content": [
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000083"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Shared note"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000084"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_after_add_title": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000081"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "type": "callout",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000082",
+          "tone": "warning",
+          "emphasis": "strong"
+        },
+        "content": [
+          {
+            "type": "calloutTitle",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000085"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Title"
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000083"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Shared note"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000084"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast_after_add_title": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000081",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before"
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000082",
+        "type": "relay.callout",
+        "props": {
+          "tone": "warning",
+          "emphasis": "strong"
+        },
+        "content": [
+          {
+            "id": "b00000000000040008000000000000085",
+            "type": "relay.callout_title",
+            "content": [
+              {
+                "type": "text",
+                "text": "Title"
+              }
+            ]
+          },
+          {
+            "id": "b00000000000040008000000000000083",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Shared note"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000084",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After"
+          }
+        ]
+      }
+    ]
+  },
+  "update": "ARD5ygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwD5ygUABgQA+coFAQZCZWZvcmUoAPnKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwODGH+coFAAMHY2FsbG91dAcA+coFCQMJcGFyYWdyYXBoBwD5ygUKBgQA+coFCwtTaGFyZWQgbm90ZSgA+coFCgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA4MygA+coFCQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA4MigA+coFCQR0b25lAXcHd2FybmluZygA+coFCQhlbXBoYXNpcwF3BnN0cm9uZ4f5ygUJAwlwYXJhZ3JhcGgHAPnKBRsGBAD5ygUcBUFmdGVyKAD5ygUbC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDg0AA==",
+  "nested_body_update": "ARb6ygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwD6ygUABgQA+soFAQZCZWZvcmUoAPrKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwODGH+soFAAMHY2FsbG91dAcA+soFCQMJcGFyYWdyYXBoBwD6ygUKBgQA+soFCwtTaGFyZWQgbm90ZSgA+soFCgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA4M4f6ygUKAwpibG9ja3F1b3RlBwD6ygUYAwlwYXJhZ3JhcGgHAPrKBRkGBAD6ygUaBk5lc3RlZCgA+soFGQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA4NygA+soFGAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA4NigA+soFCQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA4MigA+soFCQR0b25lAXcHd2FybmluZygA+soFCQhlbXBoYXNpcwF3BnN0cm9uZ4f6ygUJAwlwYXJhZ3JhcGgHAPrKBSYGBAD6ygUnBUFmdGVyKAD6ygUmC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDg0AA=="
+}

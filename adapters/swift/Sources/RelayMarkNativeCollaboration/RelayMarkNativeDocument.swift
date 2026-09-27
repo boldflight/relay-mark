@@ -907,6 +907,58 @@ public final class RelayMarkNativeDocument {
         return attributes.keys.allSatisfy { booleanMarks.contains($0) || $0 == "link" }
     }
 
+    /// Insert the browser's default `Title` child into one untitled, flat v3
+    /// callout. The snapshot is the exact displayed checkpoint: it includes
+    /// the callout, every child, and their text/marks. A changed document is
+    /// rejected before any live transaction. The returned ID belongs to the
+    /// newly inserted title and is stable across peer replay and undo/redo.
+    public func addCalloutTitle(anchor: Data, expectedID: String,
+                                expectedSnapshot: Data) throws -> (update: Data, titleID: String) {
+        guard integrationStatus().isComplete,
+              try snapshot() == expectedSnapshot,
+              try markdownV3ProseProjection().isEditable else {
+            throw Failure.unsupportedProseEdit
+        }
+        let (callout, path) = try anchoredElement(anchor)
+        guard path.count == 1, callout.tag() == "callout",
+              try callout.attributes()["relaymarkId"] as? String == expectedID,
+              callout.length() > 0,
+              callout.children().allSatisfy({ $0.tag() == "paragraph" }) else {
+            throw Failure.invalidAnchor
+        }
+
+        let titleID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
+        let scratch = RelayMarkNativeDocument()
+        try scratch.applyUpdate(encodeUpdate())
+        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
+        _ = try scratch.insertCalloutTitle(anchor: anchor, expectedID: expectedID, titleID: titleID)
+        guard try scratch.markdownV3ProseProjection().isEditable else {
+            throw Failure.unsupportedProseEdit
+        }
+        let update = try insertCalloutTitle(anchor: anchor, expectedID: expectedID, titleID: titleID)
+        return (update, titleID)
+    }
+
+    private func insertCalloutTitle(anchor: Data, expectedID: String,
+                                    titleID: String) throws -> Data {
+        let (callout, path) = try anchoredElement(anchor)
+        guard path.count == 1, callout.tag() == "callout",
+              try callout.attributes()["relaymarkId"] as? String == expectedID,
+              callout.length() > 0,
+              callout.children().allSatisfy({ $0.tag() == "paragraph" }) else {
+            throw Failure.invalidAnchor
+        }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            let title = try callout.insertElement(named: "calloutTitle", at: 0, in: transaction)
+            try title.setAttribute("relaymarkId", value: titleID, in: transaction)
+            let leaf = try title.insertText(at: 0, in: transaction)
+            try leaf.insert("Title", at: 0, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Change only the appearance of one existing, editable v3 callout.
     /// The host binds this relative anchor to its authorized document and
     /// captures the ID and appearance from the same displayed revision. A
