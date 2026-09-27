@@ -187,6 +187,32 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
                        "Edited " + before.blocks[1].childBlocks[0].childBlocks[2].childBlocks[0].plainText)
     }
 
+    func testNestedTaskToggleReplaysAndUndoesWithoutRetargetingAnotherItem() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try native.markdownV3ProseProjection()
+        let nested = try XCTUnwrap(before.taskItems.first(where: { $0.path == [1, 0, 2, 0] }))
+        let update = try native.setMarkdownV3TaskItemChecked(path: nested.path, expectedID: nested.id,
+            expectedEntityID: nested.entityID, expectedChecked: false, checked: true)
+        try peer.applyUpdate(update)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native),
+                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(try native.markdownV3ProseProjection().taskItems.map(\.checked), [true, true, false])
+        XCTAssertThrowsError(try native.setMarkdownV3TaskItemChecked(path: nested.path, expectedID: nested.id,
+            expectedEntityID: nested.entityID, expectedChecked: false, checked: true))
+        XCTAssertThrowsError(try native.setMarkdownV3TaskItemChecked(path: [1, 1], expectedID: nested.id,
+            expectedEntityID: nested.entityID, expectedChecked: false, checked: true))
+        let undo = try XCTUnwrap(native.undo())
+        try peer.applyUpdate(undo)
+        XCTAssertEqual(try native.markdownV3ProseProjection().taskItems.map(\.checked), before.taskItems.map(\.checked))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native),
+                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+    }
+
     private func fixture() throws -> (update: Data, expected: RelayMarkDocument) {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "markdown-blocks-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

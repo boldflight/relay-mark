@@ -1706,6 +1706,47 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Toggle an identified v3 task at any supported nesting depth. The
+    /// current whole-document contract and the item's stable ID guard a path
+    /// that may have shifted after a remote insertion.
+    public func setMarkdownV3TaskItemChecked(path: [Int], expectedID: String,
+                                             expectedEntityID: String?, expectedChecked: Bool,
+                                             checked: Bool) throws -> Data {
+        guard integrationStatus().isComplete, path.count >= 2, checked != expectedChecked,
+              Self.validV3TaskID(["relaymarkId": expectedID]) else {
+            throw Failure.unsupportedProseEdit
+        }
+        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: self)
+        var node = root
+        var parent: YXmlNode?
+        for index in path {
+            guard index >= 0, let child = node.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            parent = node
+            node = child
+        }
+        guard parent?.tag() == "taskList", node.kind() == "element", node.tag() == "taskItem" else {
+            throw Failure.invalidAnchor
+        }
+        let attributes = try node.attributes()
+        guard attributes["relaymarkId"] as? String == expectedID,
+              (attributes["entityId"] as? String) == expectedEntityID else {
+            throw Failure.invalidAnchor
+        }
+        let current: Bool
+        if let value = attributes["checked"] {
+            guard let number = value as? NSNumber,
+                  CFGetTypeID(number) == CFBooleanGetTypeID() else { throw Failure.unsupportedProseEdit }
+            current = number.boolValue
+        } else { current = false }
+        guard current == expectedChecked else { throw Failure.invalidAnchor }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try node.setAttribute("checked", value: checked, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Edit a one-paragraph, one-text-leaf item without replacing the task
     /// container or its UUID. More complex nested content remains read-only.
     public func replaceTaskItemText(anchor: Data, expectedEntityID: String?,
