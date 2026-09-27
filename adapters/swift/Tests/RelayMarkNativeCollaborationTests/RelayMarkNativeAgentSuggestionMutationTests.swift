@@ -127,6 +127,69 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         XCTAssertEqual(try native.markdownV3ProseProjection().suggestionAtoms.first?.content, content)
     }
 
+    func testAcceptSingleQuoteCodeAndRuleMatchBrowserBlockShapesAndUndo() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "markdown-blocks-v3-draft",
+                                                   withExtension: "json"))
+        let fixtureObject = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: Data(contentsOf: url)) as? [String: Any])
+        let fixtureUpdate = try XCTUnwrap(Data(base64Encoded:
+            try XCTUnwrap(fixtureObject["update"] as? String)))
+        let browserBlocks = RelayMarkNativeDocument()
+        try browserBlocks.applyUpdate(fixtureUpdate)
+        let browserRoot = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: browserBlocks.snapshot()) as? [String: Any])
+        let reference = try XCTUnwrap(browserRoot["children"] as? [[String: Any]])
+        let cases: [(source: String, type: String, xmlName: String, referenceIndex: Int,
+                     expectedText: String)] = [
+            ("> Quoted **text**", "quote", "blockquote", 2, "Quoted text"),
+            ("```swift\nlet earth = \"🌍\"\nprint(earth)\n```", "code", "codeBlock", 5,
+             "let earth = \"🌍\"\nprint(earth)"),
+            ("```\nplain code\n```", "code", "codeBlock", 5, "plain code"),
+            ("---", "horizontal_rule", "horizontalRule", 6, "")
+        ]
+        for scenario in cases {
+            let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+            let browser = try RelayMarkCollaborationDocument()
+            let baseline = try fixture()
+            for replica in [native, peer] { try replica.applyUpdate(baseline) }
+            try browser.applyUpdate(baseline)
+            let changed = try native.mutatePaperControl(at: 1, change: .update(
+                tag: "agentSuggestion", expectedID: id, attributes: ["content": scenario.source]))
+            try peer.applyUpdate(changed)
+            try browser.applyUpdate(changed)
+            let before = try native.snapshot()
+            XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(scenario.source))
+            let update = try accept(native, content: scenario.source)
+            try peer.applyUpdate(update)
+            try browser.applyUpdate(update)
+            XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+            let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+            XCTAssertEqual(ast.blocks[1].type, scenario.type)
+            XCTAssertEqual(ast.blocks[1].plainText, scenario.expectedText)
+            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()), ast)
+            let current = try XCTUnwrap(JSONSerialization.jsonObject(
+                with: native.snapshot()) as? [String: Any])
+            let nodes = try XCTUnwrap(current["children"] as? [[String: Any]])
+            let node = nodes[1], browserNode = reference[scenario.referenceIndex]
+            XCTAssertEqual(node["name"] as? String, scenario.xmlName)
+            XCTAssertEqual(node["name"] as? String, browserNode["name"] as? String)
+            XCTAssertEqual(Set((node["attributes"] as? [String: Any] ?? [:]).keys),
+                           Set((browserNode["attributes"] as? [String: Any] ?? [:]).keys))
+            if scenario.type == "quote" {
+                let child = try XCTUnwrap((node["children"] as? [[String: Any]])?.first)
+                XCTAssertEqual(child["name"] as? String, "paragraph")
+                XCTAssertNotNil((child["attributes"] as? [String: Any])?["relaymarkId"])
+            } else if scenario.type == "horizontal_rule" {
+                XCTAssertEqual((node["children"] as? [Any])?.count, 0)
+            }
+            let restored = try XCTUnwrap(native.undo())
+            try peer.applyUpdate(restored)
+            try browser.applyUpdate(restored)
+            XCTAssertEqual(try native.snapshot(), before)
+            XCTAssertEqual(try peer.snapshot(), before)
+        }
+    }
+
     func testAcceptRejectsUnsupportedOrStaleContentAndDuplicateIDWithoutMutation() throws {
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(fixture())
@@ -135,7 +198,8 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
             "Read *carefully*, **please**, then use `code` and [source](https://example.com)."))
         for source in ["First\n\nSecond", "![image](https://example.com/a.png)",
                        "<b>HTML</b>", "- list", "[unsafe](javascript:alert(1))",
-                       "# Heading {#manual-anchor}"] {
+                       "# Heading {#manual-anchor}", "> First\n>\n> Second",
+                       "```swift extra\nprint(1)\n```", "```\n```"] {
             XCTAssertFalse(RelayMarkNativeAgentSuggestionMutation.canAccept(source), source)
         }
         XCTAssertThrowsError(try accept(native, content: "Changed"))

@@ -6,7 +6,7 @@ import RelayMarkProseProjection
 /// only the exact authored block the editor displayed.
 @MainActor
 public enum RelayMarkNativeAgentSuggestionMutation {
-    /// A bounded shared converter handles one paragraph or heading. The host
+    /// A bounded shared converter handles one ordinary Markdown block. The host
     /// can hide Accept for every shape it cannot preserve.
     public static func canAccept(_ content: String) -> Bool {
         RelayMarkNativeMarkdownV3SingleBlock.canConvert(content)
@@ -38,7 +38,7 @@ public enum RelayMarkNativeAgentSuggestionMutation {
         let block = try RelayMarkNativeMarkdownV3SingleBlock.parse(expectedContent)
         let headingID: String?
         switch block.kind {
-        case .paragraph: headingID = nil
+        case .paragraph, .quote, .code, .rule: headingID = nil
         case .heading:
             // Browser PaperHeading assigns a fresh h-UUID on insertion. Keep
             // the same v3 attribute shape and avoid anchors already in paper.
@@ -49,7 +49,12 @@ public enum RelayMarkNativeAgentSuggestionMutation {
             })
             headingID = candidate
         }
-        blocks[index] = block.snapshot(id: newBlockID, headingID: headingID)
+        let quoteParagraphID: String?
+        if case .quote = block.kind {
+            quoteParagraphID = "b" + UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+        } else { quoteParagraphID = nil }
+        blocks[index] = try block.snapshot(id: newBlockID, headingID: headingID,
+                                           quoteParagraphID: quoteParagraphID)
         var candidate = root
         candidate["children"] = blocks
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
@@ -61,14 +66,16 @@ public enum RelayMarkNativeAgentSuggestionMutation {
         try scratch.applyUpdate(document.encodeUpdate())
         _ = try scratch.acceptAgentSuggestion(at: index, expectedID: expectedID,
                                                block: block, newBlockID: newBlockID,
-                                               headingID: headingID)
+                                               headingID: headingID,
+                                               quoteParagraphID: quoteParagraphID)
         guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expectedAST,
               try scratch.markdownV3ProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return try document.acceptAgentSuggestion(at: index, expectedID: expectedID,
                                                    block: block, newBlockID: newBlockID,
-                                                   headingID: headingID)
+                                                   headingID: headingID,
+                                                   quoteParagraphID: quoteParagraphID)
     }
 
     public static func dismiss(document: RelayMarkNativeDocument, atRootIndex index: Int,

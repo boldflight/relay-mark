@@ -11,11 +11,17 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
     enum Kind {
         case paragraph
         case heading(level: Int)
+        case quote
+        case code(language: String?)
+        case rule
 
         var tag: String {
             switch self {
             case .paragraph: "paragraph"
             case .heading: "heading"
+            case .quote: "blockquote"
+            case .code: "codeBlock"
+            case .rule: "horizontalRule"
             }
         }
     }
@@ -31,17 +37,28 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
 
         func attributes(id: String, headingID: String?) -> [String: Any] {
             switch kind {
-            case .paragraph: ["relaymarkId": id]
+            case .paragraph, .quote, .rule: ["relaymarkId": id]
             case .heading(let level):
                 ["relaymarkId": id, "level": level, "headingId": headingID ?? NSNull()]
+            case .code(let language): ["relaymarkId": id, "language": language ?? NSNull()]
             }
         }
 
-        func snapshot(id: String, headingID: String?) -> [String: Any] {
-            ["kind": "element", "name": kind.tag, "attributes": attributes(id: id, headingID: headingID),
-             "children": [["kind": "text", "delta": runs.map {
-                 ["insert": $0.text, "attributes": $0.attributes] as [String: Any]
-             }]]]
+        func snapshot(id: String, headingID: String?, quoteParagraphID: String?) throws -> [String: Any] {
+            let text: [[String: Any]] = runs.isEmpty ? [] : [["kind": "text", "delta": runs.map {
+                ["insert": $0.text, "attributes": $0.attributes] as [String: Any]
+            }]]
+            let children: [[String: Any]]
+            switch kind {
+            case .quote:
+                guard let quoteParagraphID else { throw Failure.unsupported }
+                children = [["kind": "element", "name": "paragraph",
+                             "attributes": ["relaymarkId": quoteParagraphID], "children": text]]
+            case .rule: children = []
+            default: children = text
+            }
+            return ["kind": "element", "name": kind.tag,
+                    "attributes": attributes(id: id, headingID: headingID), "children": children]
         }
     }
 
@@ -61,8 +78,32 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
             guard source.range(of: #"\s+\{#[A-Za-z0-9][A-Za-z0-9_-]{0,127}\}$"#,
                                options: .regularExpression) == nil else { throw Failure.unsupported }
             kind = .heading(level: heading.level)
-        } else { throw Failure.unsupported }
-        guard root.childCount > 0 else { throw Failure.unsupported }
+        } else if let quote = root as? BlockQuote, quote.childCount == 1,
+                  quote.child(at: 0) is Paragraph {
+            kind = .quote
+        } else if let code = root as? CodeBlock {
+            if let language = code.language,
+               language.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) == nil {
+                throw Failure.unsupported
+            }
+            kind = .code(language: code.language)
+        } else if root is ThematicBreak { kind = .rule }
+        else { throw Failure.unsupported }
+        if case .rule = kind { return Block(kind: kind, runs: []) }
+        if case .code = kind {
+            guard let code = root as? CodeBlock else { throw Failure.unsupported }
+            // cmark includes the fence's terminating newline; TipTap's code
+            // leaf stores only the authored body.
+            let body = code.code.hasSuffix("\n") ? String(code.code.dropLast()) : code.code
+            guard !body.isEmpty else { throw Failure.unsupported }
+            return Block(kind: kind, runs: [Run(text: body, attributes: [:])])
+        }
+        let inlineRoot: Markup
+        if case .quote = kind {
+            guard let paragraph = root.child(at: 0) else { throw Failure.unsupported }
+            inlineRoot = paragraph
+        } else { inlineRoot = root }
+        guard inlineRoot.childCount > 0 else { throw Failure.unsupported }
         var runs: [Run] = []
         func append(_ markup: Markup, marks: [String: Any]) throws {
             if let value = markup as? Text {
@@ -90,7 +131,7 @@ public enum RelayMarkNativeMarkdownV3SingleBlock {
                 for child in value.children { try append(child, marks: nested) }
             } else { throw Failure.unsupported }
         }
-        for child in root.children { try append(child, marks: [:]) }
+        for child in inlineRoot.children { try append(child, marks: [:]) }
         guard !runs.isEmpty, runs.count <= 4_096 else { throw Failure.unsupported }
         return Block(kind: kind, runs: runs)
     }

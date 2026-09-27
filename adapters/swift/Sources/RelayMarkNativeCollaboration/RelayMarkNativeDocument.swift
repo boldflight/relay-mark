@@ -625,10 +625,13 @@ public final class RelayMarkNativeDocument {
     /// local-origin Yrs transaction, so undo restores the complete atom.
     func acceptAgentSuggestion(at index: Int, expectedID: String,
                                block: RelayMarkNativeMarkdownV3SingleBlock.Block,
-                               newBlockID: String, headingID: String?) throws -> Data {
-        guard let childIndex = UInt32(exactly: index), !block.runs.isEmpty else {
+                               newBlockID: String, headingID: String?,
+                               quoteParagraphID: String?) throws -> Data {
+        guard let childIndex = UInt32(exactly: index),
+              (!block.runs.isEmpty || block.kind.tag == "horizontalRule") else {
             throw Failure.invalidTextPath
         }
+        if case .quote = block.kind, quoteParagraphID == nil { throw Failure.invalidTextPath }
         let update = try document.transactSync(origin: localOrigin) { transaction in
             guard let node = self.root.child(at: childIndex, in: transaction),
                   node.kind(in: transaction) == "element",
@@ -642,11 +645,21 @@ public final class RelayMarkNativeDocument {
             for (key, value) in block.attributes(id: newBlockID, headingID: headingID) {
                 try replacement.setAttribute(key, value: value, in: transaction)
             }
-            let leaf = try replacement.insertText(at: 0, in: transaction)
-            var offset: UInt32 = 0
-            for run in block.runs {
-                try leaf.insert(run.text, attributes: run.attributes, at: offset, in: transaction)
-                offset += UInt32(run.text.utf16.count)
+            let textParent: YXmlNode
+            if case .quote = block.kind {
+                guard let quoteParagraphID else { throw Failure.invalidTextPath }
+                let paragraph = try replacement.insertElement(named: "paragraph", at: 0,
+                                                              in: transaction)
+                try paragraph.setAttribute("relaymarkId", value: quoteParagraphID, in: transaction)
+                textParent = paragraph
+            } else { textParent = replacement }
+            if !block.runs.isEmpty {
+                let leaf = try textParent.insertText(at: 0, in: transaction)
+                var offset: UInt32 = 0
+                for run in block.runs {
+                    try leaf.insert(run.text, attributes: run.attributes, at: offset, in: transaction)
+                    offset += UInt32(run.text.utf16.count)
+                }
             }
             return Data(transaction.transactionEncodeUpdate())
         }
