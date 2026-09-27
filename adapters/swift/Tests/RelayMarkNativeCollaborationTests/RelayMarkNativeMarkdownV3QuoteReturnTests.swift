@@ -56,6 +56,8 @@ final class RelayMarkNativeMarkdownV3QuoteReturnTests: XCTestCase {
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         try native.applyUpdate(source)
         try peer.applyUpdate(source)
+        let bold = try native.formatText(at: 0, length: 11, attributes: ["bold": [:]], path: [2, 0, 0])
+        try peer.applyUpdate(bold)
         let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
         let paragraph = try native.anchor(path: [2, 0], index: 0)
         let checkpoint = try native.encodeUpdate()
@@ -73,6 +75,11 @@ final class RelayMarkNativeMarkdownV3QuoteReturnTests: XCTestCase {
         XCTAssertEqual(after.blocks[2].childBlocks.map(\.id),
                        [before.blocks[2].childBlocks[0].id, change.paragraphID, before.blocks[2].childBlocks[1].id])
         XCTAssertEqual(after.blocks[2].childBlocks.map(\.plainText), ["First", " quote", "Second quote"])
+        if case .inline(let prefix)? = after.blocks[2].childBlocks[0].content.first,
+           case .inline(let suffix)? = after.blocks[2].childBlocks[1].content.first {
+            XCTAssertEqual(prefix.type, "strong")
+            XCTAssertEqual(suffix.type, "strong")
+        } else { XCTFail("Quote split lost its inline mark") }
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
         XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
