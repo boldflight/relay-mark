@@ -621,6 +621,36 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// Replace one authored suggestion with an ordinary paragraph in one
+    /// local-origin Yrs transaction, so undo restores the complete atom.
+    func acceptAgentSuggestion(at index: Int, expectedID: String, newBlockID: String,
+                               runs: [(String, [String: Any])]) throws -> Data {
+        guard let childIndex = UInt32(exactly: index), !runs.isEmpty else {
+            throw Failure.invalidTextPath
+        }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            guard let node = self.root.child(at: childIndex, in: transaction),
+                  node.kind(in: transaction) == "element",
+                  node.tag(in: transaction) == "agentSuggestion",
+                  try node.attributes(in: transaction)["relaymarkId"] as? String == expectedID else {
+                throw Failure.invalidTextPath
+            }
+            try self.root.removeChildren(start: childIndex, length: 1, in: transaction)
+            let paragraph = try self.root.insertElement(named: "paragraph", at: childIndex,
+                                                        in: transaction)
+            try paragraph.setAttribute("relaymarkId", value: newBlockID, in: transaction)
+            let leaf = try paragraph.insertText(at: 0, in: transaction)
+            var offset: UInt32 = 0
+            for (text, attributes) in runs {
+                try leaf.insert(text, attributes: attributes, at: offset, in: transaction)
+                offset += UInt32(text.utf16.count)
+            }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Split an existing XmlText around one atom without replacing the left
     /// leaf. Suffix runs and their attributes are copied into a new right leaf.
     /// All XML changes share the local origin and one undo item.

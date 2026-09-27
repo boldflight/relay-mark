@@ -22,6 +22,71 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
             expectedContent: "Check **this** source.")
     }
 
+    private func accept(_ document: RelayMarkNativeDocument,
+                        index: Int = 1, content: String = "Check **this** source.",
+                        newID: String = "b00000000000040008000000000000084") throws -> Data {
+        try RelayMarkNativeAgentSuggestionMutation.accept(
+            document: document, atRootIndex: index, expectedID: id,
+            expectedReview: "ready", expectedKind: "note", expectedConfidence: 0.88,
+            expectedEvidence: [], expectedContent: content, newBlockID: newID)
+    }
+
+    func testAcceptBrowserAuthoredBoldParagraphReplaysAndUndoesAsOneChange() throws {
+        // The source and initial Yjs update are produced by the browser v3 fixture.
+        // The browser Accept test replaces its atom with parsed Markdown, whose
+        // first paragraph carries three text runs and a strong mark on "this".
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        let browser = try RelayMarkCollaborationDocument()
+        let baseline = try fixture()
+        for replica in [native, peer] { try replica.applyUpdate(baseline) }
+        try browser.applyUpdate(baseline)
+        let before = try native.snapshot()
+        XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept("Check **this** source."))
+        let update = try accept(native)
+        try peer.applyUpdate(update)
+        try browser.applyUpdate(update)
+        XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(ast.blocks.map(\.id), ["b00000000000040008000000000000081",
+                                              "b00000000000040008000000000000084",
+                                              "b00000000000040008000000000000083"])
+        XCTAssertEqual(ast.blocks[1].type, "paragraph")
+        XCTAssertEqual(ast.blocks[1].content.compactMap {
+            if case let .inline(value) = $0 { return value.type }
+            return nil
+        }, ["text", "strong", "text"])
+        if case let .inline(strong) = ast.blocks[1].content[1] {
+            XCTAssertEqual(strong.content.map(\.text), ["this"])
+        } else { XCTFail("missing strong run") }
+        XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters),
+                       "Before\nCheck this source.\nAfter")
+        let restored = try XCTUnwrap(native.undo())
+        try peer.applyUpdate(restored)
+        try browser.applyUpdate(restored)
+        XCTAssertEqual(try native.snapshot(), before)
+        XCTAssertEqual(try peer.snapshot(), before)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+    }
+
+    func testAcceptRejectsUnsupportedOrStaleContentAndDuplicateIDWithoutMutation() throws {
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(fixture())
+        let before = try native.encodeUpdate()
+        XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(
+            "Read *carefully*, **please**, then use `code` and [source](https://example.com)."))
+        for source in ["# Heading", "First\n\nSecond", "![image](https://example.com/a.png)",
+                       "<b>HTML</b>", "- list", "[unsafe](javascript:alert(1))"] {
+            XCTAssertFalse(RelayMarkNativeAgentSuggestionMutation.canAccept(source), source)
+        }
+        XCTAssertThrowsError(try accept(native, content: "Changed"))
+        XCTAssertThrowsError(try accept(native, index: 0))
+        XCTAssertThrowsError(try accept(native, newID: "b00000000000040008000000000000000083"))
+        XCTAssertEqual(try native.encodeUpdate(), before)
+    }
+
     func testDismissReplaysAndOneUndoRestoresSuggestionBetweenAdjacentProse() throws {
         let update = try fixture()
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
