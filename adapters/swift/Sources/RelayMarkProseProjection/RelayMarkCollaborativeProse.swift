@@ -319,7 +319,7 @@ public struct RelayMarkCollaborativeProse {
                     }
                     let intent = PresentationIntent(.listItem(ordinal: index + 1), identity: identity, parent: parent)
                     let firstRange = ranges.count
-                    walk(children, path: blockPath, parent: intent)
+                    walk(children, path: blockPath, parent: intent, cellContext: cellContext)
                     guard ranges.count > firstRange else { supported = false; continue }
                     taskItems.append(TaskItem(id: id, checked: checked, entityID: entityID,
                         firstParagraphRange: ranges[firstRange], path: blockPath))
@@ -340,7 +340,7 @@ public struct RelayMarkCollaborativeProse {
                         supported = false; continue
                     }
                     let firstRange = ranges.count
-                    walk(children, path: blockPath, parent: parent, allowCalloutTitle: true)
+                    walk(children, path: blockPath, parent: parent, cellContext: cellContext, allowCalloutTitle: true)
                     guard ranges.count > firstRange else { supported = false; continue }
                     let first = ranges[firstRange]
                     let last = ranges[ranges.count - 1]
@@ -448,7 +448,7 @@ public struct RelayMarkCollaborativeProse {
                 if ["blockquote", "bulletList", "orderedList", "listItem", "taskList"].contains(name) {
                     if ["bulletList", "orderedList"].contains(name), children.contains(where: { $0["name"] as? String != "listItem" }) { supported = false }
                     if name == "taskList", children.contains(where: { $0["name"] as? String != "taskItem" }) { supported = false }
-                    walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1)
+                    walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1, cellContext: cellContext)
                 } else if name == "table" {
                     guard dialect == .markdownV3, let table, table.width > 0 else { supported = false; continue }
                     walk(children, path: blockPath, parent: intent, tableRows: table.starts,
@@ -459,8 +459,7 @@ public struct RelayMarkCollaborativeProse {
                          tableIdentity: tableIdentity, tableWidth: tableWidth, tableRow: index)
                 } else if name == "tableHeader" || name == "tableCell" {
                     guard dialect == .markdownV3, let tableIdentity, let tableWidth, let tableRow,
-                          let column = tableColumns?[index],
-                          children.allSatisfy({ $0["name"] as? String == "paragraph" }) else {
+                          let column = tableColumns?[index], !children.isEmpty else {
                         supported = false; continue
                     }
                     let span = attributes["colspan"] as? Int ?? 1

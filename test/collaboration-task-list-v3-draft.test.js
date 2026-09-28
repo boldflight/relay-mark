@@ -63,7 +63,7 @@ test('task projection rejects executable or ambiguous task metadata and invalid 
   reject(item => { item.attrs.lastText = 'shadow'; }, /Unsupported/);
   reject(item => { item.content[0].type = 'heading'; }, /task item children/);
   reject(item => { item.content.push({ type: 'horizontalRule', attrs: { relaymarkId: item.attrs.relaymarkId } }); },
-    /task item children/);
+    /Duplicate/);
   reject((item, doc) => { item.attrs.relaymarkId = doc.content[1].attrs.relaymarkId; }, /Duplicate/);
 
   const ast = structuredClone(fixture.expected_ast);
@@ -86,4 +86,13 @@ test('task projection rejects executable or ambiguous task metadata and invalid 
   }
   assert.throws(() => relayMarkV3ToProseMirror(nested), /nesting/);
   assert.ok(validateDocument(nested).some(issue => issue.code === 'relaymark.task_list.children'));
+});
+
+
+test('community task and table-cell bodies retain full authored block structures', () => {
+  const rich = JSON.parse(readFileSync(new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/rich-containers-v3.json', import.meta.url)));
+  const ast = proseMirrorV3ToRelayMark(rich.normalized);
+  assert.deepEqual(ast, rich.expected_ast);
+  assert.deepEqual(validateDocument(ast), []);
+  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
 });

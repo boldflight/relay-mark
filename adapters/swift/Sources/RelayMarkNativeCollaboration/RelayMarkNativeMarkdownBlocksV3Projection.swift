@@ -29,7 +29,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         return try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: ast))
     }
 
-    private static func block(_ raw: Any, depth: Int, calloutDepth: Int = 0, taskDepth: Int = 0,
+    static func block(_ raw: Any, depth: Int, calloutDepth: Int = 0, taskDepth: Int = 0,
                               ids: inout Set<String>) throws -> [String: Any] {
         let (name, attrs, children) = try element(raw)
         switch name {
@@ -156,18 +156,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             return ["id": id, "type": "relay.callout",
                     "props": ["tone": tone, "emphasis": emphasis], "content": content]
         case "table":
-            // Reuse the existing strict grid and cell validator. It returns the same
-            // portable AST shape and keeps the table boundary unchanged.
-            let fragment: [String: Any] = ["kind": "fragment", "children": [raw]]
-            let table = try RelayMarkNativeMixedTableProjection.project(
-                snapshot: JSONSerialization.data(withJSONObject: fragment)).blocks[0]
-            func register(_ block: RelayMarkBlock) throws {
-                try require(ids.insert(block.id).inserted, "duplicate relaymarkId")
-                for child in block.childBlocks { try register(child) }
-            }
-            try register(table)
-            return try object(JSONSerialization.jsonObject(with: JSONEncoder().encode(table)),
-                              keys: ["id", "type", "props", "content", "evidence_refs"])
+            return try RelayMarkNativeMixedTableProjection.table(raw, ids: &ids)
         default: throw Failure.unsupported("block \(name)")
         }
     }
@@ -192,7 +181,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         return ["id": id, "type": "list_item", "content": content]
     }
 
-    private static func validateDepth(_ node: [String: Any], depth: Int) throws {
+    static func validateDepth(_ node: [String: Any], depth: Int) throws {
         try require(depth <= 64, "document nesting limit")
         for child in node["children"] as? [[String: Any]] ?? [] {
             try validateDepth(child, depth: depth + 1)
@@ -222,8 +211,6 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         var content = [try paragraph(children[0], ids: &ids)]
         for child in children.dropFirst() {
             let (childName, _, _) = try element(child)
-            try require(["paragraph", "taskList", "bulletList", "orderedList"].contains(childName),
-                        "task item children")
             content.append(try block(child, depth: 0, taskDepth: childName == "taskList" ? depth + 1 : depth,
                                      ids: &ids))
         }

@@ -13,6 +13,7 @@ public enum RelayMarkNativeMixedTableProjection {
         let raw = try JSONSerialization.jsonObject(with: snapshot)
         let root = try object(raw, keys: ["kind", "children"])
         try require(root["kind"] as? String == "fragment", "root fragment")
+        try RelayMarkNativeMarkdownBlocksV3Projection.validateDepth(root, depth: 0)
         let nodes = try children(root, minimum: 1)
         var ids = Set<String>()
         let blocks = try nodes.map { node -> [String: Any] in
@@ -27,7 +28,7 @@ public enum RelayMarkNativeMixedTableProjection {
         return try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: ast))
     }
 
-    private static func table(_ raw: Any, ids: inout Set<String>) throws -> [String: Any] {
+    static func table(_ raw: Any, ids: inout Set<String>) throws -> [String: Any] {
         let (name, attrs, rawRows) = try element(raw)
         try require(name == "table", "table node")
         let id = try blockID(attrs, allowed: ["relaymarkId"], ids: &ids)
@@ -96,7 +97,9 @@ public enum RelayMarkNativeMixedTableProjection {
             align = NSNull()
         }
         try require(!rawParagraphs.isEmpty, "cell paragraphs")
-        let paragraphs = try rawParagraphs.map { try paragraph($0, ids: &ids) }
+        let paragraphs = try rawParagraphs.map {
+            try RelayMarkNativeMarkdownBlocksV3Projection.block($0, depth: 0, ids: &ids)
+        }
         let props: [String: Any] = ["header": name == "tableHeader", "colspan": colspan,
                                     "rowspan": rowspan, "colwidth": colwidth, "align": align]
         return (["id": id, "type": "table_cell", "props": props, "content": paragraphs],

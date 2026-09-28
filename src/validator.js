@@ -86,7 +86,8 @@ function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureRe
     }
     if (parentType !== "task_list" || !Array.isArray(block.content) || block.content.length < 1 ||
         block.content.length > 4_096 || block.content[0]?.type !== "paragraph" ||
-        block.content.slice(1).some(child => !["paragraph", "task_list", "list"].includes(child?.type))) {
+        block.content.slice(1).some(child => !isBlockNode(child) ||
+          ["list_item", "task_item", "table_row", "table_cell", "relay.callout_title"].includes(child.type))) {
       diagnostics.push(error("relaymark.task_item.children", "Task item needs a first paragraph and supported child blocks."));
     }
   }

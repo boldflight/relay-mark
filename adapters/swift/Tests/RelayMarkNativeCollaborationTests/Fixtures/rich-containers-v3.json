@@ -1,0 +1,406 @@
+{
+  "schema": "relaymark-prosemirror-v3",
+  "root": "default",
+  "source": "Community TipTap nested TaskItem paragraph block* and TableCell block+ with Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "taskList",
+        "attrs": {
+          "relaymarkId": "bde908405d2e648d9b4572bdbd214754a"
+        },
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "relaymarkId": "b715369afb23740e2881a22eab969a54f",
+              "checked": true,
+              "entityId": "12345678-1234-4234-8234-123456789abc"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b2beb68bbd62040969c9831586ea7f36c"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Rich task"
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "attrs": {
+                  "relaymarkId": "bb64402e581e842adaad5b7ee0057761c",
+                  "level": 2,
+                  "headingId": "h-f345a9d2-3be1-4c20-b6ec-66ae1ae5098d"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Task heading"
+                  }
+                ]
+              },
+              {
+                "type": "blockquote",
+                "attrs": {
+                  "relaymarkId": "be3e09042312443c59c63405a56aa9430"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "be4e4932e05de4eaa9ae1062dda832b9f"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Task quote"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "table",
+                "attrs": {
+                  "relaymarkId": "b479f4e9f215d4162ae068413ccd9463f"
+                },
+                "content": [
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "relaymarkId": "bb2b7948859ab4c929ef87c410729f723"
+                    },
+                    "content": [
+                      {
+                        "type": "tableHeader",
+                        "attrs": {
+                          "relaymarkId": "b5e75c177eaec41798540d85082d4a59e",
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "type": "heading",
+                            "attrs": {
+                              "relaymarkId": "bf0978f3757f248baa0b0d21feadf8e7f",
+                              "level": 2,
+                              "headingId": "h-4670c3b4-7ca8-4d8a-b6c9-ebf9ff0d348c"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Cell heading"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "bulletList",
+                            "attrs": {
+                              "relaymarkId": "b2f0fa21d4ce5481da6dcbd0c5dbd6e5b"
+                            },
+                            "content": [
+                              {
+                                "type": "listItem",
+                                "attrs": {
+                                  "relaymarkId": "bd27a96e4184449328af534f22031be8a"
+                                },
+                                "content": [
+                                  {
+                                    "type": "paragraph",
+                                    "attrs": {
+                                      "relaymarkId": "bae9ffa595d6d4dbc919c109c2dd08811"
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Cell list"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "codeBlock",
+                                    "attrs": {
+                                      "relaymarkId": "bd076b5eb5259488ab106a43b21c2de5b",
+                                      "language": "swift"
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "let count = 1"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "relaymarkId": "b7d0d47390994446aa0f8137c96d620bf",
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "type": "taskList",
+                            "attrs": {
+                              "relaymarkId": "b82634617b4a64cc6b64cc92a701ddd65"
+                            },
+                            "content": [
+                              {
+                                "type": "taskItem",
+                                "attrs": {
+                                  "relaymarkId": "b81a0b6b0a36d4e7fba67c9da47fbea7a",
+                                  "checked": false,
+                                  "entityId": null
+                                },
+                                "content": [
+                                  {
+                                    "type": "paragraph",
+                                    "attrs": {
+                                      "relaymarkId": "b2a45024b809f4118803f1fa08b28af12"
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Cell task"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "type": "heading",
+                                    "attrs": {
+                                      "relaymarkId": "b0d8d2fd2f2d34ac2bfe65ebd56e61d92",
+                                      "level": 2,
+                                      "headingId": "h-d3a7c27d-6b9c-4e9d-ba12-cec5e2072ac4"
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Cell task heading"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "update": "AUT/g8qyDQAHAQdkZWZhdWx0Awh0YXNrTGlzdAcA/4PKsg0AAwh0YXNrSXRlbQcA/4PKsg0BAwlwYXJhZ3JhcGgHAP+DyrINAgYEAP+DyrINAwlSaWNoIHRhc2soAP+DyrINAgtyZWxheW1hcmtJZAF3IWIyYmViNjhiYmQ2MjA0MDk2OWM5ODMxNTg2ZWE3ZjM2Y4f/g8qyDQIDB2hlYWRpbmcHAP+DyrINDgYEAP+DyrINDwxUYXNrIGhlYWRpbmcoAP+DyrINDgtyZWxheW1hcmtJZAF3IWJiNjQ0MDJlNTgxZTg0MmFkYWFkNWI3ZWUwMDU3NzYxYygA/4PKsg0OBWxldmVsAX0CKAD/g8qyDQ4JaGVhZGluZ0lkAXcmaC1mMzQ1YTlkMi0zYmUxLTRjMjAtYjZlYy02NmFlMWFlNTA5OGSH/4PKsg0OAwpibG9ja3F1b3RlBwD/g8qyDR8DCXBhcmFncmFwaAcA/4PKsg0gBgQA/4PKsg0hClRhc2sgcXVvdGUoAP+DyrINIAtyZWxheW1hcmtJZAF3IWJlNGU0OTMyZTA1ZGU0ZWFhOWFlMTA2MmRkYTgzMmI5ZigA/4PKsg0fC3JlbGF5bWFya0lkAXchYmUzZTA5MDQyMzEyNDQzYzU5YzYzNDA1YTU2YWE5NDMwh/+DyrINHwMFdGFibGUHAP+DyrINLgMIdGFibGVSb3cHAP+DyrINLwMLdGFibGVIZWFkZXIHAP+DyrINMAMHaGVhZGluZwcA/4PKsg0xBgQA/4PKsg0yDENlbGwgaGVhZGluZygA/4PKsg0xC3JlbGF5bWFya0lkAXchYmYwOTc4ZjM3NTdmMjQ4YmFhMGIwZDIxZmVhZGY4ZTdmKAD/g8qyDTEFbGV2ZWwBfQIoAP+DyrINMQloZWFkaW5nSWQBdyZoLTQ2NzBjM2I0LTdjYTgtNGQ4YS1iNmM5LWViZjlmZjBkMzQ4Y4f/g8qyDTEDCmJ1bGxldExpc3QHAP+DyrINQgMIbGlzdEl0ZW0HAP+DyrINQwMJcGFyYWdyYXBoBwD/g8qyDUQGBAD/g8qyDUUJQ2VsbCBsaXN0KAD/g8qyDUQLcmVsYXltYXJrSWQBdyFiYWU5ZmZhNTk1ZDZkNGRiYzkxOWMxMDljMmRkMDg4MTGH/4PKsg1EAwljb2RlQmxvY2sHAP+DyrINUAYEAP+DyrINUQ1sZXQgY291bnQgPSAxKAD/g8qyDVALcmVsYXltYXJrSWQBdyFiZDA3NmI1ZWI1MjU5NDg4YWIxMDZhNDNiMjFjMmRlNWIoAP+DyrINUAhsYW5ndWFnZQF3BXN3aWZ0KAD/g8qyDUMLcmVsYXltYXJrSWQBdyFiZDI3YTk2ZTQxODQ0NDkzMjhhZjUzNGYyMjAzMWJlOGEoAP+DyrINQgtyZWxheW1hcmtJZAF3IWIyZjBmYTIxZDRjZTU0ODFkYTZkY2JkMGM1ZGJkNmU1YigA/4PKsg0wC3JlbGF5bWFya0lkAXchYjVlNzVjMTc3ZWFlYzQxNzk4NTQwZDg1MDgyZDRhNTllKAD/g8qyDTAHY29sc3BhbgF9ASgA/4PKsg0wB3Jvd3NwYW4BfQGH/4PKsg0wAwl0YWJsZUNlbGwHAP+DyrINZgMIdGFza0xpc3QHAP+DyrINZwMIdGFza0l0ZW0HAP+DyrINaAMJcGFyYWdyYXBoBwD/g8qyDWkGBAD/g8qyDWoJQ2VsbCB0YXNrKAD/g8qyDWkLcmVsYXltYXJrSWQBdyFiMmE0NTAyNGI4MDlmNDExODgwM2YxZmEwOGIyOGFmMTKH/4PKsg1pAwdoZWFkaW5nBwD/g8qyDXUGBAD/g8qyDXYRQ2VsbCB0YXNrIGhlYWRpbmcoAP+DyrINdQtyZWxheW1hcmtJZAF3IWIwZDhkMmZkMmYyZDM0YWMyYmZlNjVlYmQ1NmU2MWQ5MigA/4PKsg11BWxldmVsAX0CKAD/g8qyDXUJaGVhZGluZ0lkAXcmaC1kM2E3YzI3ZC02YjljLTRlOWQtYmExMi1jZWM1ZTIwNzJhYzQoAP+DyrINaAtyZWxheW1hcmtJZAF3IWI4MWEwYjZiMGEzNmQ0ZTdmYmE2N2M5ZGE0N2ZiZWE3YSgA/4PKsg1oB2NoZWNrZWQBeSgA/4PKsg1nC3JlbGF5bWFya0lkAXchYjgyNjM0NjE3YjRhNjRjYzZiNjRjYzkyYTcwMWRkZDY1KAD/g8qyDWYLcmVsYXltYXJrSWQBdyFiN2QwZDQ3MzkwOTk0NDQ2YWEwZjgxMzdjOTZkNjIwYmYoAP+DyrINZgdjb2xzcGFuAX0BKAD/g8qyDWYHcm93c3BhbgF9ASgA/4PKsg0vC3JlbGF5bWFya0lkAXchYmIyYjc5NDg4NTlhYjRjOTI5ZWY4N2M0MTA3MjlmNzIzKAD/g8qyDS4LcmVsYXltYXJrSWQBdyFiNDc5ZjRlOWYyMTVkNDE2MmFlMDY4NDEzY2NkOTQ2M2YoAP+DyrINAQtyZWxheW1hcmtJZAF3IWI3MTUzNjlhZmIyMzc0MGUyODgxYTIyZWFiOTY5YTU0ZigA/4PKsg0BB2NoZWNrZWQBeCgA/4PKsg0BCGVudGl0eUlkAXckMTIzNDU2NzgtMTIzNC00MjM0LTgyMzQtMTIzNDU2Nzg5YWJjKAD/g8qyDQALcmVsYXltYXJrSWQBdyFiZGU5MDg0MDVkMmU2NDhkOWI0NTcyYmRiZDIxNDc1NGEA",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "bde908405d2e648d9b4572bdbd214754a",
+        "type": "task_list",
+        "content": [
+          {
+            "id": "b715369afb23740e2881a22eab969a54f",
+            "type": "task_item",
+            "props": {
+              "checked": true,
+              "entityId": "12345678-1234-4234-8234-123456789abc"
+            },
+            "content": [
+              {
+                "id": "b2beb68bbd62040969c9831586ea7f36c",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Rich task"
+                  }
+                ]
+              },
+              {
+                "id": "bb64402e581e842adaad5b7ee0057761c",
+                "type": "heading",
+                "props": {
+                  "level": 2,
+                  "headingId": "h-f345a9d2-3be1-4c20-b6ec-66ae1ae5098d"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Task heading"
+                  }
+                ]
+              },
+              {
+                "id": "be3e09042312443c59c63405a56aa9430",
+                "type": "quote",
+                "content": [
+                  {
+                    "id": "be4e4932e05de4eaa9ae1062dda832b9f",
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Task quote"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "b479f4e9f215d4162ae068413ccd9463f",
+                "type": "table",
+                "content": [
+                  {
+                    "id": "bb2b7948859ab4c929ef87c410729f723",
+                    "type": "table_row",
+                    "content": [
+                      {
+                        "id": "b5e75c177eaec41798540d85082d4a59e",
+                        "type": "table_cell",
+                        "props": {
+                          "header": true,
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "id": "bf0978f3757f248baa0b0d21feadf8e7f",
+                            "type": "heading",
+                            "props": {
+                              "level": 2,
+                              "headingId": "h-4670c3b4-7ca8-4d8a-b6c9-ebf9ff0d348c"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Cell heading"
+                              }
+                            ]
+                          },
+                          {
+                            "id": "b2f0fa21d4ce5481da6dcbd0c5dbd6e5b",
+                            "type": "list",
+                            "props": {
+                              "kind": "bullet"
+                            },
+                            "content": [
+                              {
+                                "id": "bd27a96e4184449328af534f22031be8a",
+                                "type": "list_item",
+                                "content": [
+                                  {
+                                    "id": "bae9ffa595d6d4dbc919c109c2dd08811",
+                                    "type": "paragraph",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Cell list"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "bd076b5eb5259488ab106a43b21c2de5b",
+                                    "type": "code",
+                                    "props": {
+                                      "language": "swift"
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "let count = 1"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "b7d0d47390994446aa0f8137c96d620bf",
+                        "type": "table_cell",
+                        "props": {
+                          "header": false,
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "id": "b82634617b4a64cc6b64cc92a701ddd65",
+                            "type": "task_list",
+                            "content": [
+                              {
+                                "id": "b81a0b6b0a36d4e7fba67c9da47fbea7a",
+                                "type": "task_item",
+                                "props": {
+                                  "checked": false,
+                                  "entityId": null
+                                },
+                                "content": [
+                                  {
+                                    "id": "b2a45024b809f4118803f1fa08b28af12",
+                                    "type": "paragraph",
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Cell task"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "id": "b0d8d2fd2f2d34ac2bfe65ebd56e61d92",
+                                    "type": "heading",
+                                    "props": {
+                                      "level": 2,
+                                      "headingId": "h-d3a7c27d-6b9c-4e9d-ba12-cec5e2072ac4"
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Cell task heading"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -208,7 +208,16 @@ defmodule RelayMark.SemanticValidator do
 
     if parent_type != "task_list" or not is_list(content) or length(content) < 1 or
          length(content) > 4_096 or hd(content)["type"] != "paragraph" or
-         Enum.any?(tl(content), &(&1["type"] not in ["paragraph", "task_list", "list"])) do
+         Enum.any?(tl(content), fn child ->
+           not block_node?(child) or
+             child["type"] in [
+               "list_item",
+               "task_item",
+               "table_row",
+               "table_cell",
+               "relay.callout_title"
+             ]
+         end) do
       append_error(
         diagnostics,
         "relaymark.task_item.children",
@@ -329,7 +338,11 @@ defmodule RelayMark.SemanticValidator do
               if RelayMark.PaperControlV3.valid_block?(block) do
                 diagnostics
               else
-                append_error(diagnostics, "relaymark.paper_control.source", "Paper control fields, source, and empty content must agree.")
+                append_error(
+                  diagnostics,
+                  "relaymark.paper_control.source",
+                  "Paper control fields, source, and empty content must agree."
+                )
               end
 
             "relay.video_embed" ->

@@ -24,6 +24,19 @@ defmodule RelayMarkTaskListV3DraftTest do
              ["paragraph", "paragraph", "task_list", "list"]
   end
 
+  test "community task and cell containers accept rich authored blocks" do
+    fixture =
+      Path.expand(
+        "../../swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/rich-containers-v3.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert :ok = Schema.validate_document_schema(fixture["expected_ast"])
+    assert :ok = RelayMark.validate_document(fixture["expected_ast"])
+  end
+
   test "task metadata and child grammar produce the same semantic diagnostics as JavaScript" do
     ast = @fixture |> File.read!() |> Jason.decode!() |> Map.fetch!("expected_ast")
 

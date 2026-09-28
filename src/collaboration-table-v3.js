@@ -260,15 +260,13 @@ function checkTaskProps(checked, linkedEntityId) {
 }
 
 function taskChildren(items, label) {
-  if (items[0]?.type !== "paragraph" ||
-      items.slice(1).some(item => !["paragraph", "taskList", "bulletList", "orderedList"].includes(item?.type))) {
+  if (items[0]?.type !== "paragraph") {
     throw new TypeError(`Unsupported ${label} children`);
   }
 }
 
 function portableTaskChildren(items, label) {
-  if (items[0]?.type !== "paragraph" ||
-      items.slice(1).some(item => !["paragraph", "task_list", "list"].includes(item?.type))) {
+  if (items[0]?.type !== "paragraph") {
     throw new TypeError(`Unsupported ${label} children`);
   }
 }
@@ -302,9 +300,8 @@ function mapTaskItem(node, seen, depth) {
   taskChildren(items, "task item");
   return { id: node.attrs.relaymarkId, type: "task_item",
     props: { checked: node.attrs.checked, entityId: node.attrs.entityId },
-    content: items.map(item => item.type === "paragraph" ? mapParagraph(item, seen) :
-      item.type === "taskList" ? mapTaskList(item, seen, depth + 1) :
-      mapList(item, seen, item.type === "orderedList", 0)) };
+    content: items.map(item => item.type === "taskList" ? mapTaskList(item, seen, depth + 1) :
+      mapBlock(item, seen, 0)) };
 }
 
 function unmapTaskItem(block, seen, depth) {
@@ -319,9 +316,8 @@ function unmapTaskItem(block, seen, depth) {
   if (items.length > maxTaskChildren) throw new TypeError("Task item exceeds the draft child limit");
   portableTaskChildren(items, "task item");
   return { type: "taskItem", attrs: { relaymarkId: block.id, ...block.props },
-    content: items.map(item => item.type === "paragraph" ? unmapParagraph(item, seen) :
-      item.type === "task_list" ? unmapTaskList(item, seen, depth + 1) :
-      unmapList(item, seen, 0)) };
+    content: items.map(item => item.type === "task_list" ? unmapTaskList(item, seen, depth + 1) :
+      unmapBlock(item, seen, 0)) };
 }
 
 function mapCode(node, seen) {
@@ -533,12 +529,8 @@ function mapCell(node, seen) {
     id: node.attrs.relaymarkId,
     type: "table_cell",
     props: { header: node.type === "tableHeader", colspan, rowspan, colwidth, align },
-    content: children(node, node.type, 1).map(paragraph => mapCellParagraph(paragraph, seen))
+    content: children(node, node.type, 1).map(child => mapBlock(child, seen, 0))
   };
-}
-
-function mapCellParagraph(node, seen) {
-  return mapParagraph(node, seen);
 }
 
 function mapParagraph(node, seen) {
@@ -585,12 +577,8 @@ function unmapCell(block, seen) {
       colwidth: props.colwidth,
       align: props.align
     },
-    content: children(block, "table_cell", 1).map(paragraph => unmapCellParagraph(paragraph, seen))
+    content: children(block, "table_cell", 1).map(child => unmapBlock(child, seen, 0))
   };
-}
-
-function unmapCellParagraph(block, seen) {
-  return unmapParagraph(block, seen);
 }
 
 function unmapParagraph(block, seen) {
