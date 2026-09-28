@@ -46,6 +46,25 @@ public final class RelayMarkNativeDocument {
         presence = RelayMarkNativePresence(awareness: document.makeAwareness())
     }
 
+    private var undoGroupDepth = 0
+
+    /// Closes the current undo item unless an enclosing group is open.
+    private func wrapUndo() {
+        if undoGroupDepth == 0 { undoManager.wrap() }
+    }
+
+    /// Runs several local edits as one undo item, as one ProseMirror
+    /// transaction would be (for example deleting a selection, then Return).
+    public func groupingUndo<T>(_ body: () throws -> T) rethrows -> T {
+        wrapUndo()
+        undoGroupDepth += 1
+        defer {
+            undoGroupDepth -= 1
+            wrapUndo()
+        }
+        return try body()
+    }
+
     public func applyUpdate(_ update: Data) throws {
         try document.transactSync { transaction in
             try transaction.transactionApplyUpdate(update: Array(update))
@@ -126,7 +145,7 @@ public final class RelayMarkNativeDocument {
             _ = try quote.insertElement(named: "paragraph", at: 1, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -158,7 +177,7 @@ public final class RelayMarkNativeDocument {
                     try leaf.insert(text, attributes: attributes, at: UInt32(localStart), in: transaction)
                     return Data(transaction.transactionEncodeUpdate())
                 }
-                undoManager.wrap()
+                wrapUndo()
                 return update
             }
             return try replaceText(at: localStart, length: localEnd - localStart, with: text, path: [0, index, 0])
@@ -229,7 +248,7 @@ public final class RelayMarkNativeDocument {
                 }
                 return Data(transaction.transactionEncodeUpdate())
             }
-            undoManager.wrap()
+            wrapUndo()
             return update
         }
         guard let first = Self.location(at: start, in: blocks),
@@ -276,7 +295,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -342,7 +361,7 @@ public final class RelayMarkNativeDocument {
                 }
                 return Data(transaction.transactionEncodeUpdate())
             }
-            undoManager.wrap()
+            wrapUndo()
             return update
         }
         guard let target = block.parts.first(where: { $0.isText && start >= $0.start && start <= $0.end }),
@@ -367,7 +386,7 @@ public final class RelayMarkNativeDocument {
                 }
                 return Data(transaction.transactionEncodeUpdate())
             }
-            undoManager.wrap()
+            wrapUndo()
             return update
         }
         if end <= target.end, let path = path(to: target.node, from: root) {
@@ -391,7 +410,7 @@ public final class RelayMarkNativeDocument {
             if !text.isEmpty { try target.node.insert(text, at: insertionIndex, in: transaction) }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -497,17 +516,17 @@ public final class RelayMarkNativeDocument {
     /// The host persists the returned update; the undo stack itself is not durable.
     public func undo() throws -> Data? {
         let before = stateVector()
-        undoManager.wrap()
+        wrapUndo()
         guard try undoManager.undo() else { return nil }
-        undoManager.wrap()
+        wrapUndo()
         return try encodeUpdate(since: before)
     }
 
     public func redo() throws -> Data? {
         let before = stateVector()
-        undoManager.wrap()
+        wrapUndo()
         guard try undoManager.redo() else { return nil }
-        undoManager.wrap()
+        wrapUndo()
         return try encodeUpdate(since: before)
     }
 
@@ -584,7 +603,7 @@ public final class RelayMarkNativeDocument {
             for (key, value) in attributes { try atom.setAttribute(key, value: value, in: transaction) }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -623,7 +642,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -690,7 +709,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -733,7 +752,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -806,7 +825,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -844,7 +863,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -867,7 +886,7 @@ public final class RelayMarkNativeDocument {
             try node.format(at: UInt32(index), length: UInt32(length), attributes: attributes, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -933,7 +952,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1048,7 +1067,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1114,7 +1133,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1166,7 +1185,7 @@ public final class RelayMarkNativeDocument {
             try leaf.insert("Title", at: 0, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1198,7 +1217,7 @@ public final class RelayMarkNativeDocument {
             if emphasis != expectedEmphasis { try callout.setAttribute("emphasis", value: emphasis, in: transaction) }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1214,7 +1233,7 @@ public final class RelayMarkNativeDocument {
             try heading.setAttribute("level", value: level, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1228,7 +1247,7 @@ public final class RelayMarkNativeDocument {
             try list.setAttribute("start", value: start, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1246,7 +1265,7 @@ public final class RelayMarkNativeDocument {
             try heading.setAttribute("level", value: level, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1265,7 +1284,7 @@ public final class RelayMarkNativeDocument {
             try list.setAttribute("start", value: start, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1306,7 +1325,7 @@ public final class RelayMarkNativeDocument {
                 try newText.insert(text, at: 0, in: transaction)
                 return Data(transaction.transactionEncodeUpdate())
             }
-            undoManager.wrap()
+            wrapUndo()
             return update
         }
         return try replaceText(at: start, length: end - start, with: text, path: path + [0])
@@ -1340,7 +1359,7 @@ public final class RelayMarkNativeDocument {
             _ = try next.insertElement(named: "paragraph", at: 0, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1438,7 +1457,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1523,7 +1542,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1564,7 +1583,7 @@ public final class RelayMarkNativeDocument {
             try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1606,7 +1625,7 @@ public final class RelayMarkNativeDocument {
             try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1732,7 +1751,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1842,7 +1861,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1905,7 +1924,7 @@ public final class RelayMarkNativeDocument {
             try record.node.setAttribute("checked", value: checked, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1946,7 +1965,7 @@ public final class RelayMarkNativeDocument {
             try node.setAttribute("checked", value: checked, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -1976,7 +1995,7 @@ public final class RelayMarkNativeDocument {
             if !text.isEmpty { try leaf.insert(text, at: UInt32(start), in: transaction) }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -2074,12 +2093,12 @@ public final class RelayMarkNativeDocument {
     /// Writes a transformed ProseMirror document through y-prosemirror's
     /// updateYFragment diff as one local transaction and one undo item.
     func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge) throws -> Data {
-        undoManager.wrap()
+        wrapUndo()
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try bridge.update(self.root, updated, source: source, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 
@@ -2143,7 +2162,7 @@ public final class RelayMarkNativeDocument {
                   first <= parent.length(), removed <= parent.length() - first else { throw Failure.invalidTextPath }
             return (parent, first, removed, replacement.nodes)
         }
-        undoManager.wrap()
+        wrapUndo()
         let update = try document.transactSync(origin: localOrigin) { transaction in
             func append(_ raw: [String: Any], to parent: YXmlNode, at index: UInt32) throws {
                 if raw["kind"] as? String == "text" {
@@ -2179,7 +2198,7 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
-        undoManager.wrap()
+        wrapUndo()
         return update
     }
 

@@ -163,3 +163,34 @@ final class RelayMarkNativeMarkdownV3InlineInsertionTests: XCTestCase {
         XCTAssertEqual(try peer.snapshot(), before)
     }
 }
+
+@MainActor
+final class RelayMarkNativeUndoGroupingTests: XCTestCase {
+    /// Deleting a selection and splitting at the caret, as Return over a
+    /// selection does in ProseMirror, undoes as one step.
+    func testGroupedDeleteAndReturnUndoTogether() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "native-replace-v3", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["seed"] as? String)))
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        let before = try native.snapshot(), vector = native.stateVector()
+        let prose = try native.markdownV3ProseProjection()
+        let alpha = (String(prose.text.characters) as NSString).range(of: "Alpha one")
+        try native.groupingUndo {
+            let deleted = try RelayMarkNativeMarkdownV3Editing.replace(document: native,
+                range: NSRange(location: alpha.location + 2, length: 3), runs: [], expectedSnapshot: native.snapshot())
+            let caret = try XCTUnwrap(deleted.caret)
+            _ = try RelayMarkNativeMarkdownV3Return.apply(document: native, blockPath: caret.blockPath,
+                utf16Offset: caret.offset, expectedSnapshot: native.snapshot())
+        }
+        let text = String(try native.markdownV3ProseProjection().text.characters)
+        XCTAssertTrue(text.hasPrefix("Al\n one\n"))
+        let peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(seed)
+        try peer.applyUpdate(try native.encodeUpdate(since: vector))
+        XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+        _ = try XCTUnwrap(native.undo())
+        XCTAssertEqual(try native.snapshot(), before)
+    }
+}
