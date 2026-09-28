@@ -1202,6 +1202,36 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
+    /// V3 attribute commands retain the existing XML containers and text.
+    /// Relative anchors fence the selected identity even when a peer shifts paths.
+    public func setMarkdownV3HeadingLevel(anchor: Data, expectedHeadingID: String?, level: Int) throws -> Data {
+        guard (1...6).contains(level), integrationStatus().isComplete,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (heading, _) = try anchoredElement(anchor)
+        guard heading.tag() == "heading",
+              try heading.attributes()["headingId"] as? String == expectedHeadingID else { throw Failure.invalidAnchor }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try heading.setAttribute("level", value: level, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
+    public func setMarkdownV3OrderedListStart(anchor: Data, expectedStart: Int, start: Int) throws -> Data {
+        guard (1...1_000_000).contains(start), integrationStatus().isComplete,
+              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (list, _) = try anchoredElement(anchor)
+        guard list.tag() == "orderedList",
+              (try list.attributes()["start"] as? Int ?? 1) == expectedStart else { throw Failure.invalidAnchor }
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try list.setAttribute("start", value: start, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     /// Change only an existing top-level heading's level. Its XML identity,
     /// headingId, inline marks and text are retained. The host binds the relative
     /// anchor to its authorized document/incarnation before calling this method.
