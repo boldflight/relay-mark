@@ -21,6 +21,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         let raw = try JSONSerialization.jsonObject(with: snapshot)
         let root = try object(raw, keys: ["kind", "children"])
         try require(root["kind"] as? String == "fragment", "root fragment")
+        try validateDepth(root, depth: 0)
         let nodes = try children(root, minimum: 1, maximum: 4_096)
         var ids = Set<String>()
         let blocks = try nodes.map { try block($0, depth: 0, ids: &ids) }
@@ -50,7 +51,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             try require(!children.isEmpty && children.count <= 4_096, "quote children")
             return ["id": id, "type": "quote", "content": try children.map { try paragraph($0, ids: &ids) }]
         case "bulletList", "orderedList":
-            try require(depth <= 1, "nested list depth")
+            try require(depth < 16, "nested list depth")
             let ordered = name == "orderedList"
             let id = try blockID(attrs, allowed: ordered ? ["relaymarkId", "start", "type"] : ["relaymarkId"], ids: &ids)
             var props: [String: Any] = ["kind": ordered ? "ordered" : "bullet"]
@@ -180,15 +181,22 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
 
     private static func listItem(_ raw: Any, depth: Int, ids: inout Set<String>) throws -> [String: Any] {
         let (name, attrs, children) = try element(raw)
-        try require(name == "listItem" && (1...2).contains(children.count), "list item")
+        try require(name == "listItem" && !children.isEmpty && children.count <= 4_096, "list item")
         let id = try blockID(attrs, allowed: ["relaymarkId"], ids: &ids)
         var content = [try paragraph(children[0], ids: &ids)]
-        if children.count == 2 {
-            let (nestedName, _, _) = try element(children[1])
-            try require(nestedName == "bulletList" || nestedName == "orderedList", "list item children")
-            content.append(try block(children[1], depth: depth + 1, ids: &ids))
+        for child in children.dropFirst() {
+            let (childName, _, _) = try element(child)
+            content.append(try block(child,
+                depth: ["bulletList", "orderedList"].contains(childName) ? depth + 1 : 0, ids: &ids))
         }
         return ["id": id, "type": "list_item", "content": content]
+    }
+
+    private static func validateDepth(_ node: [String: Any], depth: Int) throws {
+        try require(depth <= 64, "document nesting limit")
+        for child in node["children"] as? [[String: Any]] ?? [] {
+            try validateDepth(child, depth: depth + 1)
+        }
     }
 
     private static func taskItem(_ raw: Any, depth: Int, ids: inout Set<String>) throws -> [String: Any] {

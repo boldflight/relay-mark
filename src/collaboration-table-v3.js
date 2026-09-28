@@ -12,6 +12,8 @@ const maxCells = 4096;
 const headingId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u;
 const entityId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const maxTaskDepth = 16;
+const maxListDepth = 16;
+const maxDocumentDepth = 64;
 const maxTaskChildren = 4096;
 
 export function tableProseMirrorToRelayMark(prosemirror) {
@@ -26,6 +28,7 @@ export function proseMirrorV3ToRelayMark(prosemirror) {
   assertObject(prosemirror, "doc");
   onlyKeys(prosemirror, ["type", "content"], "doc");
   requireType(prosemirror, "doc");
+  assertContentDepth(prosemirror);
   const seen = new Set();
   const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen, 0));
   return { type: "relaymark.document", version: 1, blocks };
@@ -45,6 +48,7 @@ export function relayMarkV3ToProseMirror(document) {
   if (document.type !== "relaymark.document" || document.version !== 1) {
     throw new TypeError("Expected a RelayMark v1 AST document");
   }
+  assertContentDepth({ content: document.blocks });
   const seen = new Set();
   const blocks = children({ content: document.blocks }, "document", 1);
   return { type: "doc", content: blocks.map(block => unmapBlock(block, seen, 0)) };
@@ -192,7 +196,7 @@ function unmapQuote(block, seen) {
 }
 
 function mapList(node, seen, ordered, depth) {
-  if (depth > 1) throw new TypeError("Unsupported nested list depth");
+  if (depth >= maxListDepth) throw new TypeError("Unsupported nested list depth");
   checkNode(node, ordered ? "orderedList" : "bulletList", seen, ordered ? ["start", "type"] : []);
   if (ordered && node.attrs.type !== null) throw new TypeError("Unsupported ordered-list type");
   const props = ordered ? { kind: "ordered", start: node.attrs.start } : { kind: "bullet" };
@@ -202,7 +206,7 @@ function mapList(node, seen, ordered, depth) {
 }
 
 function unmapList(block, seen, depth) {
-  if (depth > 1) throw new TypeError("Unsupported nested list depth");
+  if (depth >= maxListDepth) throw new TypeError("Unsupported nested list depth");
   checkBlock(block, "list", seen, true);
   assertObject(block.props, "list.props");
   onlyKeys(block.props, ["kind", "start"], "list.props");
@@ -222,24 +226,30 @@ function checkListStart(start) {
 function mapListItem(node, seen, depth) {
   checkNode(node, "listItem", seen);
   const items = children(node, "listItem", 1);
-  if (items.length > 2 || items[0]?.type !== "paragraph" ||
-      (items.length === 2 && !["bulletList", "orderedList"].includes(items[1]?.type))) {
-    throw new TypeError("Unsupported list item children");
-  }
+  if (items[0]?.type !== "paragraph") throw new TypeError("List item must start with a paragraph");
   return { id: node.attrs.relaymarkId, type: "list_item",
-    content: [mapParagraph(items[0], seen), ...(items[1] ?
-      [mapList(items[1], seen, items[1].type === "orderedList", depth + 1)] : [])] };
+    content: [mapParagraph(items[0], seen), ...items.slice(1).map(item =>
+      ["bulletList", "orderedList"].includes(item.type)
+        ? mapList(item, seen, item.type === "orderedList", depth + 1)
+        : mapBlock(item, seen, 0))] };
 }
 
 function unmapListItem(block, seen, depth) {
   checkBlock(block, "list_item", seen);
   const items = children(block, "list_item", 1);
-  if (items.length > 2 || items[0]?.type !== "paragraph" ||
-      (items.length === 2 && items[1]?.type !== "list")) {
-    throw new TypeError("Unsupported list item children");
-  }
+  if (items[0]?.type !== "paragraph") throw new TypeError("List item must start with a paragraph");
   return { type: "listItem", attrs: { relaymarkId: block.id },
-    content: [unmapParagraph(items[0], seen), ...(items[1] ? [unmapList(items[1], seen, depth + 1)] : [])] };
+    content: [unmapParagraph(items[0], seen), ...items.slice(1).map(item =>
+      item.type === "list" ? unmapList(item, seen, depth + 1) : unmapBlock(item, seen, 0))] };
+}
+
+// Cross-container nesting (for example list/callout/list) has one physical
+// depth bound even when its individual container counters restart.
+function assertContentDepth(node, depth = 0) {
+  if (depth > maxDocumentDepth) throw new TypeError("V3 document nesting limit exceeded");
+  if (Array.isArray(node?.content)) {
+    for (const child of node.content) assertContentDepth(child, depth + 1);
+  }
 }
 
 function checkTaskProps(checked, linkedEntityId) {

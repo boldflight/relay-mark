@@ -1,0 +1,499 @@
+{
+  "schema": "relaymark-prosemirror-v3",
+  "root": "default",
+  "source": "Community TipTap ListItem/sinkListItem and Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "bulletList",
+        "attrs": {
+          "relaymarkId": "b61e9086b430d4f048ac7c064e21ec27b"
+        },
+        "content": [
+          {
+            "type": "listItem",
+            "attrs": {
+              "relaymarkId": "b6dd83dfa42084e7a845ae85c5108352d"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b0dd5f54bc4514339ad1e04517e2cfac4"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Outer"
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "attrs": {
+                  "relaymarkId": "b0c55ea8c7f514138a10966910b5902b5",
+                  "level": 2,
+                  "headingId": "h-9452b42e-9acb-4804-bde9-6cfda9df3f57"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "A heading"
+                  }
+                ]
+              },
+              {
+                "type": "codeBlock",
+                "attrs": {
+                  "relaymarkId": "b08c2a6d210aa414d80cfefe172605f0e",
+                  "language": "swift"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "let value = 1\nprint(value)"
+                  }
+                ]
+              },
+              {
+                "type": "table",
+                "attrs": {
+                  "relaymarkId": "bb2985d9bdebb4031b08c296c6ba5741c"
+                },
+                "content": [
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "relaymarkId": "bbb87cddc036145c6b2800df6fbcdf678"
+                    },
+                    "content": [
+                      {
+                        "type": "tableHeader",
+                        "attrs": {
+                          "relaymarkId": "bf55f4de9a8f64488933500ce76a50ce7",
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": "b3cf300a7f60b4eb28525d48b5f327bf6"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Name"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableHeader",
+                        "attrs": {
+                          "relaymarkId": "b6104341eff4047d5bfd7f80d81e745f2",
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": "b65372c031fd4491ea236db4f282f65ad"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Value"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "tableRow",
+                    "attrs": {
+                      "relaymarkId": "b1675583061c848a0a179ddb57a6bfb3c"
+                    },
+                    "content": [
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "relaymarkId": "be4083d6ad044449e8460ffa958027ec5",
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": "b95acbe8dddb3483a849f0b5eedc2f206"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Alpha"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "tableCell",
+                        "attrs": {
+                          "relaymarkId": "be8cda6b967f24a28b75a0bb7a7eb8f2f",
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": "b9364a58380d8463b9a4bb48be7064d5d"
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Beta"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "relaymarkId": "b9ffc22ed223a46d8ad4f0d18806c486e"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "relaymarkId": "b02be1c7d6ad34a099ff01bdf988a0d8f"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "relaymarkId": "bfd0000a7e6904c56a97f6055d3d87d99"
+                        },
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Second depth"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "orderedList",
+                        "attrs": {
+                          "relaymarkId": "bbe0b84a9cfcd473ca22573f1c5f8f9c2",
+                          "start": 3,
+                          "type": null
+                        },
+                        "content": [
+                          {
+                            "type": "listItem",
+                            "attrs": {
+                              "relaymarkId": "bee29f4a56bff408a8c284bcb439572b7"
+                            },
+                            "content": [
+                              {
+                                "type": "paragraph",
+                                "attrs": {
+                                  "relaymarkId": "b2b47552378eb458796325d0a5c271cb2"
+                                },
+                                "content": [
+                                  {
+                                    "type": "text",
+                                    "text": "Third depth"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "relaymarkId": "b51a0926b657846a59493fb55e0ce5834"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "relaymarkId": "ba6bf2661750d4a2a89af805b9f3448a3"
+                        },
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Sibling"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "update": "AVaq+rzECQAHAQdkZWZhdWx0AwpidWxsZXRMaXN0BwCq+rzECQADCGxpc3RJdGVtBwCq+rzECQEDCXBhcmFncmFwaAcAqvq8xAkCBgQAqvq8xAkDBU91dGVyKACq+rzECQILcmVsYXltYXJrSWQBdyFiMGRkNWY1NGJjNDUxNDMzOWFkMWUwNDUxN2UyY2ZhYzSHqvq8xAkCAwdoZWFkaW5nBwCq+rzECQoGBACq+rzECQsJQSBoZWFkaW5nKACq+rzECQoLcmVsYXltYXJrSWQBdyFiMGM1NWVhOGM3ZjUxNDEzOGExMDk2NjkxMGI1OTAyYjUoAKr6vMQJCgVsZXZlbAF9AigAqvq8xAkKCWhlYWRpbmdJZAF3JmgtOTQ1MmI0MmUtOWFjYi00ODA0LWJkZTktNmNmZGE5ZGYzZjU3h6r6vMQJCgMJY29kZUJsb2NrBwCq+rzECRgGBACq+rzECRkabGV0IHZhbHVlID0gMQpwcmludCh2YWx1ZSkoAKr6vMQJGAtyZWxheW1hcmtJZAF3IWIwOGMyYTZkMjEwYWE0MTRkODBjZmVmZTE3MjYwNWYwZSgAqvq8xAkYCGxhbmd1YWdlAXcFc3dpZnSHqvq8xAkYAwV0YWJsZQcAqvq8xAk2Awh0YWJsZVJvdwcAqvq8xAk3Awt0YWJsZUhlYWRlcgcAqvq8xAk4AwlwYXJhZ3JhcGgHAKr6vMQJOQYEAKr6vMQJOgROYW1lKACq+rzECTkLcmVsYXltYXJrSWQBdyFiM2NmMzAwYTdmNjBiNGViMjg1MjVkNDhiNWYzMjdiZjYoAKr6vMQJOAtyZWxheW1hcmtJZAF3IWJmNTVmNGRlOWE4ZjY0NDg4OTMzNTAwY2U3NmE1MGNlNygAqvq8xAk4B2NvbHNwYW4BfQEoAKr6vMQJOAdyb3dzcGFuAX0Bh6r6vMQJOAMLdGFibGVIZWFkZXIHAKr6vMQJQwMJcGFyYWdyYXBoBwCq+rzECUQGBACq+rzECUUFVmFsdWUoAKr6vMQJRAtyZWxheW1hcmtJZAF3IWI2NTM3MmMwMzFmZDQ0OTFlYTIzNmRiNGYyODJmNjVhZCgAqvq8xAlDC3JlbGF5bWFya0lkAXchYjYxMDQzNDFlZmY0MDQ3ZDViZmQ3ZjgwZDgxZTc0NWYyKACq+rzECUMHY29sc3BhbgF9ASgAqvq8xAlDB3Jvd3NwYW4BfQEoAKr6vMQJNwtyZWxheW1hcmtJZAF3IWJiYjg3Y2RkYzAzNjE0NWM2YjI4MDBkZjZmYmNkZjY3OIeq+rzECTcDCHRhYmxlUm93BwCq+rzECVADCXRhYmxlQ2VsbAcAqvq8xAlRAwlwYXJhZ3JhcGgHAKr6vMQJUgYEAKr6vMQJUwVBbHBoYSgAqvq8xAlSC3JlbGF5bWFya0lkAXchYjk1YWNiZThkZGRiMzQ4M2E4NDlmMGI1ZWVkYzJmMjA2KACq+rzECVELcmVsYXltYXJrSWQBdyFiZTQwODNkNmFkMDQ0NDQ5ZTg0NjBmZmE5NTgwMjdlYzUoAKr6vMQJUQdjb2xzcGFuAX0BKACq+rzECVEHcm93c3BhbgF9AYeq+rzECVEDCXRhYmxlQ2VsbAcAqvq8xAldAwlwYXJhZ3JhcGgHAKr6vMQJXgYEAKr6vMQJXwRCZXRhKACq+rzECV4LcmVsYXltYXJrSWQBdyFiOTM2NGE1ODM4MGQ4NDYzYjlhNGJiNDhiZTcwNjRkNWQoAKr6vMQJXQtyZWxheW1hcmtJZAF3IWJlOGNkYTZiOTY3ZjI0YTI4Yjc1YTBiYjdhN2ViOGYyZigAqvq8xAldB2NvbHNwYW4BfQEoAKr6vMQJXQdyb3dzcGFuAX0BKACq+rzECVALcmVsYXltYXJrSWQBdyFiMTY3NTU4MzA2MWM4NDhhMGExNzlkZGI1N2E2YmZiM2MoAKr6vMQJNgtyZWxheW1hcmtJZAF3IWJiMjk4NWQ5YmRlYmI0MDMxYjA4YzI5NmM2YmE1NzQxY4eq+rzECTYDCmJ1bGxldExpc3QHAKr6vMQJagMIbGlzdEl0ZW0HAKr6vMQJawMJcGFyYWdyYXBoBwCq+rzECWwGBACq+rzECW0MU2Vjb25kIGRlcHRoKACq+rzECWwLcmVsYXltYXJrSWQBdyFiZmQwMDAwYTdlNjkwNGM1NmE5N2Y2MDU1ZDNkODdkOTmHqvq8xAlsAwtvcmRlcmVkTGlzdAcAqvq8xAl7AwhsaXN0SXRlbQcAqvq8xAl8AwlwYXJhZ3JhcGgHAKr6vMQJfQYEAKr6vMQJfgtUaGlyZCBkZXB0aCgAqvq8xAl9C3JlbGF5bWFya0lkAXchYjJiNDc1NTIzNzhlYjQ1ODc5NjMyNWQwYTVjMjcxY2IyKACq+rzECXwLcmVsYXltYXJrSWQBdyFiZWUyOWY0YTU2YmZmNDA4YThjMjg0YmNiNDM5NTcyYjcoAKr6vMQJewtyZWxheW1hcmtJZAF3IWJiZTBiODRhOWNmY2Q0NzNjYTIyNTczZjFjNWY4ZjljMigAqvq8xAl7BXN0YXJ0AX0DKACq+rzECWsLcmVsYXltYXJrSWQBdyFiMDJiZTFjN2Q2YWQzNGEwOTlmZjAxYmRmOTg4YTBkOGYoAKr6vMQJagtyZWxheW1hcmtJZAF3IWI5ZmZjMjJlZDIyM2E0NmQ4YWQ0ZjBkMTg4MDZjNDg2ZSgAqvq8xAkBC3JlbGF5bWFya0lkAXchYjZkZDgzZGZhNDIwODRlN2E4NDVhZTg1YzUxMDgzNTJkh6r6vMQJAQMIbGlzdEl0ZW0HAKr6vMQJkQEDCXBhcmFncmFwaAcAqvq8xAmSAQYEAKr6vMQJkwEHU2libGluZygAqvq8xAmSAQtyZWxheW1hcmtJZAF3IWJhNmJmMjY2MTc1MGQ0YTJhODlhZjgwNWI5ZjM0NDhhMygAqvq8xAmRAQtyZWxheW1hcmtJZAF3IWI1MWEwOTI2YjY1Nzg0NmE1OTQ5M2ZiNTVlMGNlNTgzNCgAqvq8xAkAC3JlbGF5bWFya0lkAXchYjYxZTkwODZiNDMwZDRmMDQ4YWM3YzA2NGUyMWVjMjdih6r6vMQJawMIbGlzdEl0ZW0HAKr6vMQJngEDCXBhcmFncmFwaAcAqvq8xAmfAQYEAKr6vMQJoAEHU2libGluZygAqvq8xAmfAQtyZWxheW1hcmtJZAF3IWJhNmJmMjY2MTc1MGQ0YTJhODlhZjgwNWI5ZjM0NDhhMygAqvq8xAmeAQtyZWxheW1hcmtJZAF3IWI1MWEwOTI2YjY1Nzg0NmE1OTQ5M2ZiNTVlMGNlNTgzNAGq+rzECQGRAQw=",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b61e9086b430d4f048ac7c064e21ec27b",
+        "type": "list",
+        "props": {
+          "kind": "bullet"
+        },
+        "content": [
+          {
+            "id": "b6dd83dfa42084e7a845ae85c5108352d",
+            "type": "list_item",
+            "content": [
+              {
+                "id": "b0dd5f54bc4514339ad1e04517e2cfac4",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Outer"
+                  }
+                ]
+              },
+              {
+                "id": "b0c55ea8c7f514138a10966910b5902b5",
+                "type": "heading",
+                "props": {
+                  "level": 2,
+                  "headingId": "h-9452b42e-9acb-4804-bde9-6cfda9df3f57"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "A heading"
+                  }
+                ]
+              },
+              {
+                "id": "b08c2a6d210aa414d80cfefe172605f0e",
+                "type": "code",
+                "props": {
+                  "language": "swift"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "let value = 1\nprint(value)"
+                  }
+                ]
+              },
+              {
+                "id": "bb2985d9bdebb4031b08c296c6ba5741c",
+                "type": "table",
+                "content": [
+                  {
+                    "id": "bbb87cddc036145c6b2800df6fbcdf678",
+                    "type": "table_row",
+                    "content": [
+                      {
+                        "id": "bf55f4de9a8f64488933500ce76a50ce7",
+                        "type": "table_cell",
+                        "props": {
+                          "header": true,
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "id": "b3cf300a7f60b4eb28525d48b5f327bf6",
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Name"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "b6104341eff4047d5bfd7f80d81e745f2",
+                        "type": "table_cell",
+                        "props": {
+                          "header": true,
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "id": "b65372c031fd4491ea236db4f282f65ad",
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Value"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "b1675583061c848a0a179ddb57a6bfb3c",
+                    "type": "table_row",
+                    "content": [
+                      {
+                        "id": "be4083d6ad044449e8460ffa958027ec5",
+                        "type": "table_cell",
+                        "props": {
+                          "header": false,
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "id": "b95acbe8dddb3483a849f0b5eedc2f206",
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Alpha"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "id": "be8cda6b967f24a28b75a0bb7a7eb8f2f",
+                        "type": "table_cell",
+                        "props": {
+                          "header": false,
+                          "colspan": 1,
+                          "rowspan": 1,
+                          "colwidth": null,
+                          "align": null
+                        },
+                        "content": [
+                          {
+                            "id": "b9364a58380d8463b9a4bb48be7064d5d",
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Beta"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "b9ffc22ed223a46d8ad4f0d18806c486e",
+                "type": "list",
+                "props": {
+                  "kind": "bullet"
+                },
+                "content": [
+                  {
+                    "id": "b02be1c7d6ad34a099ff01bdf988a0d8f",
+                    "type": "list_item",
+                    "content": [
+                      {
+                        "id": "bfd0000a7e6904c56a97f6055d3d87d99",
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Second depth"
+                          }
+                        ]
+                      },
+                      {
+                        "id": "bbe0b84a9cfcd473ca22573f1c5f8f9c2",
+                        "type": "list",
+                        "props": {
+                          "kind": "ordered",
+                          "start": 3
+                        },
+                        "content": [
+                          {
+                            "id": "bee29f4a56bff408a8c284bcb439572b7",
+                            "type": "list_item",
+                            "content": [
+                              {
+                                "id": "b2b47552378eb458796325d0a5c271cb2",
+                                "type": "paragraph",
+                                "content": [
+                                  {
+                                    "type": "text",
+                                    "text": "Third depth"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "b51a0926b657846a59493fb55e0ce5834",
+                    "type": "list_item",
+                    "content": [
+                      {
+                        "id": "ba6bf2661750d4a2a89af805b9f3448a3",
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Sibling"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

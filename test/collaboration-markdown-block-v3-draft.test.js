@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -71,11 +72,16 @@ test('v3 Markdown block mapper rejects unsupported content before source project
   reject(doc => { quote(doc).content.push(clone(doc.content[3])); }, /paragraph/);
   reject(doc => { nestedList(doc).attrs.type = 'A'; }, /ordered-list type/);
   reject(doc => {
-    nestedList(doc).content[0].content.push({ type: 'bulletList',
-      attrs: { relaymarkId: doc.content[6].attrs.relaymarkId },
-      content: [clone(doc.content[3].content[1])] });
+    let current = nestedList(doc);
+    for (let depth = 2; depth <= 16; depth++) {
+      const child = { type: 'bulletList', attrs: { relaymarkId: `b${randomUUID().replaceAll('-', '')}` },
+        content: [{ type: 'listItem', attrs: { relaymarkId: `b${randomUUID().replaceAll('-', '')}` },
+          content: [{ type: 'paragraph', attrs: { relaymarkId: `b${randomUUID().replaceAll('-', '')}` }, content: [] }] }] };
+      current.content[0].content.push(child);
+      current = child;
+    }
   }, /nested list depth/);
-  reject(doc => { doc.content[3].content[0].content.push(clone(doc.content[0])); }, /list item children/);
+  reject(doc => { doc.content[3].content[0].content.push(clone(doc.content[0])); }, /Duplicate/);
   reject(doc => { code(doc).content[0].marks = [{ type: 'bold' }]; }, /Unsupported/);
   reject(doc => { rule(doc).content = [{ type: 'text', text: 'hidden' }]; }, /rule cannot/);
   reject(doc => { doc.content[0].content[1].attrs = { relaymarkId: 'extra' }; }, /Unsupported/);
@@ -97,4 +103,20 @@ test('inverse mapping rejects malformed portable block properties and nested sha
   reject(ast => { ast.blocks[5].props.language = 'swift\njs'; }, /code language/);
   reject(ast => { ast.blocks[6].content = [{ type: 'text', text: 'hidden' }]; }, /rule cannot/);
   reject(ast => { ast.blocks[0].content[1].id = 'hidden'; }, /Unsupported/);
+});
+
+
+test('community list-item blocks preserve headings code and multiple paragraphs', () => {
+  const doc = clone(fixture.normalized);
+  function copyWithIDs(node) {
+    const copy = clone(node);
+    if (copy.attrs?.relaymarkId) copy.attrs.relaymarkId = `b${randomUUID().replaceAll('-', '')}`;
+    if (copy.content) copy.content = copy.content.map(copyWithIDs);
+    return copy;
+  }
+  doc.content[3].content[0].content.push(...[doc.content[0], doc.content[1], doc.content[5]].map(copyWithIDs));
+  const ast = proseMirrorV3ToRelayMark(doc);
+  assert.deepEqual(validateDocument(ast), []);
+  assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
+  assert.deepEqual(relayMarkV3ToProseMirror(ast), doc);
 });

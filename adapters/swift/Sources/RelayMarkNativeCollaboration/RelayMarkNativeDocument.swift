@@ -1344,11 +1344,22 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// TipTap's end-of-item Return for a flat or one-level nested v3 list.
+    /// TipTap's end-of-item Return for an admitted v3 list at any nesting level.
     /// The caller binds the paragraph anchor to an exact displayed snapshot;
     /// a sibling insert or changed text rejects before the live transaction.
     /// Existing list/item/paragraph XML nodes and ordered starts stay intact.
     public func appendEmptyMarkdownV3ListItem(after paragraphAnchor: Data,
+                                               expectedSnapshot: Data) throws
+        -> (update: Data, itemID: String, paragraphID: String) {
+        try createEmptyMarkdownV3ListItem(relativeTo: paragraphAnchor, before: false, expectedSnapshot: expectedSnapshot)
+    }
+
+    public func prependEmptyMarkdownV3ListItem(before paragraphAnchor: Data, expectedSnapshot: Data) throws
+        -> (update: Data, itemID: String, paragraphID: String) {
+        try createEmptyMarkdownV3ListItem(relativeTo: paragraphAnchor, before: true, expectedSnapshot: expectedSnapshot)
+    }
+
+    private func createEmptyMarkdownV3ListItem(relativeTo paragraphAnchor: Data, before: Bool,
                                                expectedSnapshot: Data) throws
         -> (update: Data, itemID: String, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
@@ -1360,10 +1371,10 @@ public final class RelayMarkNativeDocument {
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
         _ = try scratch.insertEmptyMarkdownV3ListItem(after: paragraphAnchor, path: path,
-                                                      itemID: itemID, paragraphID: paragraphID)
+                                                      itemID: itemID, paragraphID: paragraphID, before: before)
         guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let update = try insertEmptyMarkdownV3ListItem(after: paragraphAnchor, path: path,
-                                                       itemID: itemID, paragraphID: paragraphID)
+                                                       itemID: itemID, paragraphID: paragraphID, before: before)
         return (update, itemID, paragraphID)
     }
 
@@ -1518,29 +1529,24 @@ public final class RelayMarkNativeDocument {
 
     private func markdownV3ListEndTarget(_ anchor: Data) throws -> (YXmlNode, [Int]) {
         let (paragraph, path) = try anchoredElement(anchor)
-        guard (path.count == 3 || path.count == 5), path.last == 0,
+        guard path.count >= 3, path.last == 0,
               paragraph.tag() == "paragraph", paragraph.length() == 1,
               let leaf = paragraph.child(at: 0), leaf.kind() == "text",
               try !leaf.delta().map(\.text).joined().isEmpty else { throw Failure.invalidAnchor }
-        var node = root
-        for (level, index) in path.enumerated() {
-            guard let child = node.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
-            let expected = level == path.count - 1 ? "paragraph" :
-                (level.isMultiple(of: 2) ? "list" : (node.tag() == "taskList" ? "taskItem" : "listItem"))
-            if expected == "list" {
-                guard ["bulletList", "orderedList", "taskList"].contains(child.tag() ?? "") else { throw Failure.invalidAnchor }
-            } else { guard child.tag() == expected else { throw Failure.invalidAnchor } }
-            node = child
+        var list = root
+        for index in path.dropLast(2) {
+            guard let child = list.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            list = child
         }
-        let itemPath = Array(path.dropLast())
-        var item = root
-        for index in itemPath { guard let child = item.child(at: UInt32(index)) else { throw Failure.invalidAnchor }; item = child }
-        guard item.length() == 1 else { throw Failure.unsupportedProseEdit }
+        guard ["bulletList", "orderedList", "taskList"].contains(list.tag() ?? ""),
+              let item = list.child(at: UInt32(path[path.count - 2])),
+              item.tag() == (list.tag() == "taskList" ? "taskItem" : "listItem"),
+              item.length() == 1 else { throw Failure.unsupportedProseEdit }
         return (paragraph, path)
     }
 
     private func insertEmptyMarkdownV3ListItem(after anchor: Data, path: [Int],
-                                                itemID: String, paragraphID: String) throws -> Data {
+                                                itemID: String, paragraphID: String, before: Bool = false) throws -> Data {
         let (_, resolvedPath) = try markdownV3ListEndTarget(anchor)
         guard resolvedPath == path else { throw Failure.invalidAnchor }
         var list = root
@@ -1548,7 +1554,7 @@ public final class RelayMarkNativeDocument {
             guard let child = list.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
             list = child
         }
-        let position = UInt32(path[path.count - 2] + 1)
+        let position = UInt32(path[path.count - 2] + (before ? 0 : 1))
         let task = list.tag() == "taskList"
         let update = try document.transactSync(origin: localOrigin) { transaction in
             let item = try list.insertElement(named: task ? "taskItem" : "listItem", at: position, in: transaction)
