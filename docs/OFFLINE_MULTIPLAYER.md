@@ -3,6 +3,18 @@
 The current branch is `codex/offline-multiplayer`. The [community-first implementation plan](https://github.com/boldflight/relay-elixir/blob/codex/offline-multiplayer/docs/plans/2026-09-14-community-first-multiplayer.md) is the single controlling scope, estimate and resume point. It supersedes the older custom lineage roadmap.
 
 
+## Current task/cell container checkpoint (September 28)
+
+V3 task items now retain community `paragraph block*` bodies and table cells
+retain `block+`. JavaScript, Swift and Elixir portable validation admit the
+same authored child blocks while preserving a task's first paragraph, checked
+state and canonical relationship. Native tables reuse the shared block mapper
+and preserve cell geometry through nested lists, tasks and quotes. The actual
+browser fixture carries task headings, quotes, code and a table containing rich
+lists and another task. Exact AST, native deep checkbox/Return operations,
+relationship preservation, peer replay and undo pass. These are container and
+editing checks; hosted v3 and broader acceptance remain gated.
+
 ## Current rich-container checkpoint (September 28)
 
 V3 quotes now use the community `block+` grammar in JavaScript, native and

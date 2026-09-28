@@ -17,28 +17,29 @@ and the exact expected portable AST. The additive block mappings are:
 | ProseMirror/XML | Portable AST |
 | --- | --- |
 | `heading` (`level`, nullable `headingId`) | `heading`, `props: {level, headingId}` |
-| `blockquote` with paragraphs | `quote` with paragraph blocks |
+| `blockquote` with `block+` | `quote` with authored child blocks |
 | `bulletList` | `list`, `props: {kind: "bullet"}` |
 | `orderedList` (`start`, `type: null`) | `list`, `props: {kind: "ordered", start}` |
-| `listItem` (paragraph, optional nested list) | `list_item` with the same blocks |
+| `listItem` (`paragraph block*`) | `list_item` with the same blocks |
 | `codeBlock` (nullable `language`, unmarked text) | `code`, `props: {language}` with text |
 | `horizontalRule` | `horizontal_rule`, empty content |
 | `hardBreak` (inline; no block ID) | inline `hard_break` |
 
-All block XML elements require stable `relaymarkId` values. An ordered list's
-nullable TipTap `type` attribute must be null for this slice; non-null list
-numbering variants fail. Only one nested list level, one paragraph per list item,
-paragraph-only quotes, and the [bounded v3 inline marks](inline-marks-v3-draft.md)
-are admitted. Other RelayMark elements and all product admission remain separate work.
-Table cell paragraphs use the same bounded inline grammar as ordinary v3
-paragraphs, including approved marks, hard breaks, and authored reference/tag
-atoms. Their host hydration stays outside the shared document.
+All block XML elements require stable `relaymarkId` values. Ordered-list
+`type` remains null; non-null numbering variants fail. Task/list nesting limits
+and the shared physical depth bound remain in force. Quotes carry the same
+root block grammar, including nested quotes, lists, code and authored atoms.
+Task items retain a required first paragraph and then authored block content
+(`paragraph block*`), with checked/entity metadata unchanged. Approved marks,
+hard breaks and reference/tag atoms use one inline contract; host hydration
+stays outside the shared document.
 
 The canonical collaborative structure is the community TipTap/ProseMirror
-`table → tableRow → tableHeader | tableCell → paragraph → inline` hierarchy in
-Yjs XML. The [pure mapping](../../../src/collaboration-table-v3.js) translates
-this admitted subset to existing RelayMark AST block types. Its mixed-document
-entry points also accept plain top-level paragraphs before or after tables;
+`table → tableRow → tableHeader | tableCell → block+` hierarchy in Yjs XML.
+Cell blocks use the same mapper as other containers, including headings, lists,
+quotes, code and tasks. The [pure mapping](../../../src/collaboration-table-v3.js)
+translates these structures to existing RelayMark AST block types. Mixed-document
+entry points accept the supported authored root blocks;
 the existing table-only entry points retain their stricter contract:
 
 | ProseMirror type | RelayMark AST type | Required AST properties |
