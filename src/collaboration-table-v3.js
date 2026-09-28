@@ -58,7 +58,7 @@ function mapBlock(node, seen, calloutDepth) {
   switch (node?.type) {
     case "paragraph": return mapParagraph(node, seen);
     case "heading": return mapHeading(node, seen);
-    case "blockquote": return mapQuote(node, seen);
+    case "blockquote": return mapQuote(node, seen, calloutDepth);
     case "bulletList": return mapList(node, seen, false, 0);
     case "orderedList": return mapList(node, seen, true, 0);
     case "taskList": return mapTaskList(node, seen, 0);
@@ -85,7 +85,7 @@ function unmapBlock(block, seen, calloutDepth) {
   switch (block?.type) {
     case "paragraph": return unmapParagraph(block, seen);
     case "heading": return unmapHeading(block, seen);
-    case "quote": return unmapQuote(block, seen);
+    case "quote": return unmapQuote(block, seen, calloutDepth);
     case "list": return unmapList(block, seen, 0);
     case "task_list": return unmapTaskList(block, seen, 0);
     case "code": return unmapCode(block, seen);
@@ -183,16 +183,16 @@ function checkHeading(level, anchor) {
   }
 }
 
-function mapQuote(node, seen) {
+function mapQuote(node, seen, calloutDepth) {
   checkNode(node, "blockquote", seen);
   return { id: node.attrs.relaymarkId, type: "quote", content: children(node, "blockquote", 1)
-    .map(child => mapParagraph(child, seen)) };
+    .map(child => mapBlock(child, seen, calloutDepth)) };
 }
 
-function unmapQuote(block, seen) {
+function unmapQuote(block, seen, calloutDepth) {
   checkBlock(block, "quote", seen);
   return { type: "blockquote", attrs: { relaymarkId: block.id },
-    content: children(block, "quote", 1).map(child => unmapParagraph(child, seen)) };
+    content: children(block, "quote", 1).map(child => unmapBlock(child, seen, calloutDepth)) };
 }
 
 function mapList(node, seen, ordered, depth) {

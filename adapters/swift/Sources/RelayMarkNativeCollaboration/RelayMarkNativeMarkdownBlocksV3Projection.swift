@@ -49,7 +49,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         case "blockquote":
             let id = try blockID(attrs, allowed: ["relaymarkId"], ids: &ids)
             try require(!children.isEmpty && children.count <= 4_096, "quote children")
-            return ["id": id, "type": "quote", "content": try children.map { try paragraph($0, ids: &ids) }]
+            return ["id": id, "type": "quote", "content": try children.map { try block($0, depth: 0, calloutDepth: calloutDepth, ids: &ids) }]
         case "bulletList", "orderedList":
             try require(depth < 16, "nested list depth")
             let ordered = name == "orderedList"

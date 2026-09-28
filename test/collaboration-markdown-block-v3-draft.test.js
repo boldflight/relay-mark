@@ -69,7 +69,7 @@ test('v3 Markdown block mapper rejects unsupported content before source project
   reject(doc => { heading(doc).attrs.relaymarkId = doc.content[0].attrs.relaymarkId; }, /Duplicate/);
   reject(doc => { heading(doc).attrs.level = 7; }, /heading level/);
   reject(doc => { heading(doc).attrs.headingId = 'space in anchor'; }, /headingId/);
-  reject(doc => { quote(doc).content.push(clone(doc.content[3])); }, /paragraph/);
+  reject(doc => { quote(doc).content.push(clone(doc.content[3])); }, /Duplicate/);
   reject(doc => { nestedList(doc).attrs.type = 'A'; }, /ordered-list type/);
   reject(doc => {
     let current = nestedList(doc);
@@ -97,7 +97,7 @@ test('inverse mapping rejects malformed portable block properties and nested sha
     assert.throws(() => relayMarkV3ToProseMirror(ast), reason);
   };
   reject(ast => { ast.blocks[1].props.level = 0; }, /heading level/);
-  reject(ast => { ast.blocks[2].content.push(clone(ast.blocks[3])); }, /paragraph/);
+  reject(ast => { ast.blocks[2].content.push(clone(ast.blocks[3])); }, /Duplicate/);
   reject(ast => { ast.blocks[3].props.start = 1; }, /Bullet list/);
   reject(ast => { ast.blocks[4].props.kind = 'bullet'; }, /Bullet list/);
   reject(ast => { ast.blocks[5].props.language = 'swift\njs'; }, /code language/);
@@ -119,4 +119,16 @@ test('community list-item blocks preserve headings code and multiple paragraphs'
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
   assert.deepEqual(relayMarkV3ToProseMirror(ast), doc);
+});
+
+
+test('current community rich quotes preserve all nested blocks and invert', () => {
+  const rich = JSON.parse(readFileSync(new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/rich-quote-v3.json', import.meta.url)));
+  const ast = proseMirrorV3ToRelayMark(rich.normalized);
+  assert.deepEqual(ast, rich.expected_ast);
+  assert.deepEqual(ast.blocks[0].content.map(node => node.type),
+    ['heading', 'list', 'quote', 'image', 'relay.callout', 'horizontal_rule', 'paragraph']);
+  assert.deepEqual(validateDocument(ast), []);
+  assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
+  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
 });

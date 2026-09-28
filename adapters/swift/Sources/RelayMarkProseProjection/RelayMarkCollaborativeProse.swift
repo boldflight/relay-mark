@@ -336,7 +336,7 @@ public struct RelayMarkCollaborativeProse {
                           let id = attributes["relaymarkId"] as? String,
                           let tone, ["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"].contains(tone),
                           let emphasis, ["soft", "strong"].contains(emphasis),
-                          !body.isEmpty, body.allSatisfy({ $0["name"] as? String == "paragraph" }) else {
+                          !body.isEmpty else {
                         supported = false; continue
                     }
                     let firstRange = ranges.count
@@ -371,14 +371,14 @@ public struct RelayMarkCollaborativeProse {
                 case "horizontalRule": kind = .thematicBreak
                 case "relayButton", "relayAnchor", "relayConnection":
                     kind = .thematicBreak
-                    if dialect == .markdownV3, path.isEmpty,
+                    if dialect == .markdownV3,
                        let validated = try? RelayMarkPaperControlContract.validate(nodeName: name, attributes: attributes),
                        children.isEmpty {
                         paperControl = validated
                     } else { supported = false }
                 case "relayEntityReference":
                     kind = .thematicBreak
-                    if dialect == .markdownV3, path.isEmpty, children.isEmpty,
+                    if dialect == .markdownV3, children.isEmpty,
                        Set(attributes.keys).isSubset(of: ["relaymarkId", "entityRef", "entityId",
                                                           "entityType", "label", "projection", "source"]),
                        let id = attributes["relaymarkId"] as? String,
@@ -397,14 +397,14 @@ public struct RelayMarkCollaborativeProse {
                     } else { supported = false }
                 case "agentSuggestion":
                     kind = .thematicBreak
-                    if dialect == .markdownV3, path.isEmpty,
+                    if dialect == .markdownV3,
                        let validated = try? RelayMarkAgentSuggestionV3Contract.validate(attributes: attributes),
                        children.isEmpty {
                         suggestion = validated
                     } else { supported = false }
                 case "image", "videoEmbed":
                     kind = .thematicBreak
-                    if dialect == .markdownV3, path.isEmpty, children.isEmpty,
+                    if dialect == .markdownV3, children.isEmpty,
                        let validated = try? RelayMarkMediaV3Contract.validate(
                            name: name, attributes: attributes, children: children) {
                         media = validated.kind

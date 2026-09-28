@@ -3,6 +3,19 @@
 The current branch is `codex/offline-multiplayer`. The [community-first implementation plan](https://github.com/boldflight/relay-elixir/blob/codex/offline-multiplayer/docs/plans/2026-09-14-community-first-multiplayer.md) is the single controlling scope, estimate and resume point. It supersedes the older custom lineage roadmap.
 
 
+## Current rich-container checkpoint (September 28)
+
+V3 quotes now use the community `block+` grammar in JavaScript, native and
+server projections: headings, rich lists, code, nested quotes, authored media,
+callouts and rules retain their structures and IDs. Existing physical depth,
+identity and metadata bounds still apply. A real browser-generated fixture
+projects exactly through YSwift/Yrs and Yex, validates as portable RelayMark,
+and supports native Return inside quoted headings, nested quotes and callouts
+with peer replay and undo. The shared native presentation map also admits valid
+nested callout bodies and authored atoms instead of requiring root-only atoms
+or paragraph-only bodies. These changes do not bypass host authorization or
+execute authored declarations; hosted v3 remains gated.
+
 ## Current native v3 rich Return checkpoint (September 28)
 
 `RelayMarkNativeMarkdownV3Return` is the shared structural Return operation
