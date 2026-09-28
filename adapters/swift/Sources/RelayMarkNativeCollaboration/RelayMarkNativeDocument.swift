@@ -1998,11 +1998,23 @@ public final class RelayMarkNativeDocument {
 
     /// Called only after the recovery adapter validates the complete prospective XML.
     func appendRecoveryNodes(_ nodes: [[String: Any]]) throws -> Data {
+        try replaceSnapshotNodes(parentPath: [], start: Int(root.length()), count: 0, nodes: nodes)
+    }
+
+    /// Shared XML insertion for validated editor/recovery operations, not a document codec.
+    func replaceSnapshotNodes(parentPath: [Int], start: Int, count: Int, nodes: [[String: Any]]) throws -> Data {
+        var parent = root
+        for index in parentPath {
+            guard let index = UInt32(exactly: index), let child = parent.child(at: index) else { throw Failure.invalidTextPath }
+            parent = child
+        }
+        guard let first = UInt32(exactly: start), let removed = UInt32(exactly: count),
+              first <= parent.length(), removed <= parent.length() - first else { throw Failure.invalidTextPath }
         undoManager.wrap()
         let update = try document.transactSync(origin: localOrigin) { transaction in
-            func append(_ raw: [String: Any], to parent: YXmlNode) throws {
+            func append(_ raw: [String: Any], to parent: YXmlNode, at index: UInt32) throws {
                 if raw["kind"] as? String == "text" {
-                    let leaf = try parent.insertText(at: parent.length(in: transaction), in: transaction)
+                    let leaf = try parent.insertText(at: index, in: transaction)
                     for run in raw["delta"] as? [[String: Any]] ?? [] {
                         guard let text = run["insert"] as? String else { throw Failure.unsupportedProseEdit }
                         try leaf.insert(text, attributes: run["attributes"] as? [String: Any] ?? [:],
@@ -2010,14 +2022,17 @@ public final class RelayMarkNativeDocument {
                     }
                 } else {
                     guard let name = raw["name"] as? String else { throw Failure.unsupportedProseEdit }
-                    let node = try parent.insertElement(named: name, at: parent.length(in: transaction), in: transaction)
+                    let node = try parent.insertElement(named: name, at: index, in: transaction)
                     for (key, value) in raw["attributes"] as? [String: Any] ?? [:] {
                         try node.setAttribute(key, value: value, in: transaction)
                     }
-                    for child in raw["children"] as? [[String: Any]] ?? [] { try append(child, to: node) }
+                    for child in raw["children"] as? [[String: Any]] ?? [] {
+                        try append(child, to: node, at: node.length(in: transaction))
+                    }
                 }
             }
-            for node in nodes { try append(node, to: self.root) }
+            if removed > 0 { try parent.removeChildren(start: first, length: removed, in: transaction) }
+            for (offset, node) in nodes.enumerated() { try append(node, to: parent, at: first + UInt32(offset)) }
             return Data(transaction.transactionEncodeUpdate())
         }
         undoManager.wrap()
