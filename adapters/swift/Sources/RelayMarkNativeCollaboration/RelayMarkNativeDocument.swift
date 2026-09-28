@@ -1632,11 +1632,15 @@ public final class RelayMarkNativeDocument {
         -> (paragraph: YXmlNode, path: [Int], text: String) {
         let (paragraph, path) = try anchoredElement(anchor)
         let attrs = try paragraph.attributes()
-        guard path.count == 1, ["paragraph", "heading"].contains(paragraph.tag() ?? ""), paragraph.length() <= 1,
+        guard path.count == 1, ["paragraph", "heading"].contains(paragraph.tag() ?? ""),
               attrs["relaymarkId"] is String else { throw Failure.invalidAnchor }
-        let leaf = paragraph.child(at: 0)
-        guard leaf == nil || leaf?.kind() == "text" else { throw Failure.invalidAnchor }
-        return (paragraph, path, try leaf?.delta().map(\.text).joined() ?? "")
+        let projection = try markdownV3ProseProjection()
+        guard projection.isEditable,
+              let row = projection.blockPaths.firstIndex(of: path),
+              let range = Range(projection.blockRanges[row], in: String(projection.text.characters)) else {
+            throw Failure.invalidAnchor
+        }
+        return (paragraph, path, String(String(projection.text.characters)[range]))
     }
 
     private func performMarkdownV3ParagraphReturn(anchor: Data, path: [Int], offset: Int,
@@ -1644,8 +1648,38 @@ public final class RelayMarkNativeDocument {
         let (paragraph, resolvedPath, old) = try markdownV3TopLevelParagraphTarget(anchor)
         guard resolvedPath == path, offset >= 0, offset <= old.utf16.count,
               Self.split(old, at: offset) != nil else { throw Failure.invalidAnchor }
-        let leaf = paragraph.child(at: 0)
-        let suffix = try leaf.map { try Self.suffixRuns(of: $0, after: offset) } ?? []
+        // Split at the rendered inline boundary. Keep all prefix XML nodes
+        // integrated; copy only the suffix that moves to the new sibling.
+        // References, tags and hard breaks occupy one native selection unit.
+        let children = paragraph.children()
+        var consumed = 0
+        var suffix: [[String: Any]] = []
+        var removedChildrenStart = children.count
+        var splitLeaf: (node: YXmlNode, offset: Int, length: Int)?
+        for (index, child) in children.enumerated() {
+            let width = child.kind() == "text" ? try child.delta().map(\.text).joined().utf16.count : 1
+            if consumed + width <= offset {
+                consumed += width
+                continue
+            }
+            if consumed < offset {
+                guard child.kind() == "text" else { throw Failure.invalidAnchor }
+                let localOffset = offset - consumed
+                let runs = try Self.suffixRuns(of: child, after: localOffset)
+                suffix.append(["kind": "text", "delta": runs.map { run -> [String: Any] in
+                    var value: [String: Any] = ["insert": run.text]
+                    if !run.attributes.isEmpty { value["attributes"] = run.attributes }
+                    return value
+                }])
+                splitLeaf = (child, localOffset, width - localOffset)
+                removedChildrenStart = index + 1
+            } else {
+                suffix.append(try snapshot(child))
+                removedChildrenStart = index
+            }
+            suffix.append(contentsOf: try children.dropFirst(index + 1).map(snapshot))
+            break
+        }
         let heading = paragraph.tag() == "heading"
         let headingLevel = try paragraph.attributes()["level"] as? Int ?? 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
@@ -1655,8 +1689,13 @@ public final class RelayMarkNativeDocument {
                 try preceding.setAttribute("relaymarkId", value: paragraphID, in: transaction)
                 return Data(transaction.transactionEncodeUpdate())
             }
-            if let leaf, offset < old.utf16.count {
-                try leaf.removeText(start: UInt32(offset), length: UInt32(old.utf16.count - offset), in: transaction)
+            if let splitLeaf {
+                try splitLeaf.node.removeText(start: UInt32(splitLeaf.offset),
+                    length: UInt32(splitLeaf.length), in: transaction)
+            }
+            if removedChildrenStart < children.count {
+                try paragraph.removeChildren(start: UInt32(removedChildrenStart),
+                    length: UInt32(children.count - removedChildrenStart), in: transaction)
             }
             let nextIsHeading = heading && offset < old.utf16.count
             let next = try self.root.insertElement(named: nextIsHeading ? "heading" : "paragraph", at: UInt32(path[0] + 1), in: transaction)
@@ -1665,12 +1704,24 @@ public final class RelayMarkNativeDocument {
                 try next.setAttribute("level", value: headingLevel, in: transaction)
                 try next.setAttribute("headingId", value: "h-" + paragraphID, in: transaction)
             }
-            if !suffix.isEmpty {
-                let destination = try next.insertText(at: 0, in: transaction)
-                var destinationOffset: UInt32 = 0
-                for run in suffix where !run.text.isEmpty {
-                    try destination.insert(run.text, attributes: run.attributes, at: destinationOffset, in: transaction)
-                    destinationOffset += UInt32(run.text.utf16.count)
+            for (index, raw) in suffix.enumerated() {
+                if raw["kind"] as? String == "text" {
+                    let leaf = try next.insertText(at: UInt32(index), in: transaction)
+                    var destinationOffset: UInt32 = 0
+                    for run in raw["delta"] as? [[String: Any]] ?? [] {
+                        guard let text = run["insert"] as? String else { throw Failure.unsupportedProseEdit }
+                        try leaf.insert(text, attributes: run["attributes"] as? [String: Any] ?? [:],
+                            at: destinationOffset, in: transaction)
+                        destinationOffset += UInt32(text.utf16.count)
+                    }
+                } else {
+                    guard let name = raw["name"] as? String,
+                          ["hardBreak", "relayReference", "relayTag"].contains(name),
+                          (raw["children"] as? [Any] ?? []).isEmpty else { throw Failure.unsupportedProseEdit }
+                    let atom = try next.insertElement(named: name, at: UInt32(index), in: transaction)
+                    for (key, value) in raw["attributes"] as? [String: Any] ?? [:] {
+                        try atom.setAttribute(key, value: value, in: transaction)
+                    }
                 }
             }
             return Data(transaction.transactionEncodeUpdate())
