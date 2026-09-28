@@ -24,6 +24,12 @@ unchanged, and installed dependency files are not modified. The hook runs after
 the actual inverse mutations and before the same transaction's cleanup; it does
 not extend UndoManager flags or use side effects in its delete predicate.
 
+The pinned source is the boldflight/yjs `v13.6.32-relay.1` release: Yjs 13.6.32
+plus only the UndoManager fix for yjs/yjs#806 (Yrs counterpart
+y-crdt/y-crdt#674), whose redone items can otherwise delete a merged neighbour
+on undo. Return to the npm 13.6.x release, and its SHA-256, once upstream ships
+that fix.
+
 A shared `deleteFilter` preserves containers whose descendants survive local
 child deletion. Undo can leave a peer-only paragraph in place; redo restores the
 local structure around the same peer identities. In the transaction hook,

@@ -169,7 +169,8 @@ operation metadata alongside the update. The root for this evidence contract is
 `default`. TipTap remains the browser presentation and selection owner; importing
 the singleton native runtime is not the browser integration path.
 
-History helpers require the exact supported Yjs 13.6.32 instance, including the
+History helpers require the exact supported Yjs 13.6.32 instance (the
+boldflight/yjs `v13.6.32-relay.1` build with the yjs/yjs#806 undo fix), including the
 verified transaction hook exported as `yjs-history-hook.mjs`. Browser build tools
 must apply `patchHistoryHook` to their single host Yjs module; the patch fails on
 an unexpected upstream source hash. Shipping these helpers neither installs that

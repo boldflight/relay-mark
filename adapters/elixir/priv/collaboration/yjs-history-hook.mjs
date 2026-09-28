@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-export const upstreamSHA256 = 'c7135b20429e98d6835dac1009a496efafc322bf67b354edbbf292efbeca0249'
+export const upstreamSHA256 = '5d411d02f1467b947dbb8db7ae39fefc4ae1ff881679c97e9e86d4fc33cd160f'
 export function patchHistoryHook(source) {
   if (createHash('sha256').update(source).digest('hex') !== upstreamSHA256) throw Error('Yjs 13.6.32 history hook source changed')
   const replacements = [
