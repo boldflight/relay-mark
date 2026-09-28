@@ -5,6 +5,7 @@ import RelayMarkSwift
 /// exact snapshot and selection; Yrs owns merging, transactions and undo.
 @MainActor
 public enum RelayMarkNativeMarkdownV3Return {
+    private typealias XML = RelayMarkNativeMarkdownV3XML
     public enum Kind: Sendable { case split, exit }
     public struct Result: Sendable {
         public let update: Data
@@ -23,17 +24,17 @@ public enum RelayMarkNativeMarkdownV3Return {
               let parentIndex = blockPath.last else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
         let range = projection.blockRanges[row]
         let source = (String(projection.text.characters) as NSString).substring(with: range)
-        guard isCharacterBoundary(utf16Offset, in: source) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let block = try node(at: blockPath, in: tree), name = block["name"] as? String ?? ""
+        guard XML.isCharacterBoundary(utf16Offset, in: source) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let block = try XML.node(at: blockPath, in: tree), name = block["name"] as? String ?? ""
         guard ["paragraph", "heading", "calloutTitle"].contains(name) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let parentPath = Array(blockPath.dropLast()), parent = try node(at: parentPath, in: tree)
-        let parentName = parent["name"] as? String ?? "fragment", body = try children(parent)
+        let parentPath = Array(blockPath.dropLast()), parent = try XML.node(at: parentPath, in: tree)
+        let parentName = parent["name"] as? String ?? "fragment", body = try XML.children(parent)
         let inList = ["listItem", "taskItem"].contains(parentName)
         let listPath = Array(parentPath.dropLast())
         let itemIndex = parentPath.last ?? 0
-        let list = inList ? try node(at: listPath, in: tree) : [:]
+        let list = inList ? try XML.node(at: listPath, in: tree) : [:]
         let listName = list["name"] as? String ?? ""
         let oldID = (block["attributes"] as? [String: Any])?["relaymarkId"] as? String ?? ""
         if inList {
@@ -64,8 +65,8 @@ public enum RelayMarkNativeMarkdownV3Return {
                 trim: nil, kind: .exit, blockID: oldID)
         }
 
-        let newID = freshID()
-        let newItemID = freshID()
+        let newID = XML.freshID()
+        let newItemID = XML.freshID()
         // The community list command uses its default first paragraph at the
         // end of a textblock. Interior heading Return instead splits its body.
         let splitItem = inList && (name == "paragraph" || utf16Offset == source.utf16.count)
@@ -87,7 +88,7 @@ public enum RelayMarkNativeMarkdownV3Return {
             return try perform(document: document, tree: tree, edits: [edit], trim: nil, kind: .split, blockID: newID)
         }
 
-        let split = try splitInline(try children(block), at: utf16Offset, path: blockPath)
+        let split = try XML.splitInline(try XML.children(block), at: utf16Offset, path: blockPath)
         let nextName = name == "heading" && !splitItem && utf16Offset < source.utf16.count ? "heading" : "paragraph"
         var attrs: [String: Any] = ["relaymarkId": newID]
         if nextName == "heading" {
@@ -96,7 +97,7 @@ public enum RelayMarkNativeMarkdownV3Return {
         }
         let next = element(nextName, attrs: attrs, children: split.suffix)
         var edits = [RelayMarkNativeDocument.SnapshotNodeReplacement(parentPath: blockPath,
-            start: split.removeFrom, count: try children(block).count - split.removeFrom, nodes: [])]
+            start: split.removeFrom, count: try XML.children(block).count - split.removeFrom, nodes: [])]
         if splitItem {
             let tail = Array(body.dropFirst(parentIndex + 1))
             if !tail.isEmpty {
@@ -109,112 +110,10 @@ public enum RelayMarkNativeMarkdownV3Return {
         return try perform(document: document, tree: tree, edits: edits, trim: split.trim, kind: .split, blockID: newID)
     }
 
-    private struct Trim {
-        let removal: RelayMarkNativeDocument.SnapshotTextRemoval
-        let prefixRuns: [[String: Any]]
-    }
-    private struct InlineSplit {
-        let suffix: [[String: Any]]
-        let removeFrom: Int
-        let trim: Trim?
-    }
-
-    private static func splitInline(_ children: [[String: Any]], at offset: Int, path: [Int]) throws -> InlineSplit {
-        var position = 0
-        for (index, child) in children.enumerated() {
-            let text = child["kind"] as? String == "text"
-            let runs = child["delta"] as? [[String: Any]] ?? []
-            let width = text ? try runs.map { run -> String in
-                guard let value = run["insert"] as? String else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-                return value
-            }.joined().utf16.count : 1
-            if position + width <= offset { position += width; continue }
-            if position >= offset {
-                return InlineSplit(suffix: Array(children.dropFirst(index)), removeFrom: index, trim: nil)
-            }
-            guard text else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-            let local = offset - position
-            let (left, right) = try splitRuns(runs, at: local)
-            let suffix: [String: Any] = ["kind": "text", "delta": right]
-            return InlineSplit(suffix: [suffix] + children.dropFirst(index + 1), removeFrom: index + 1,
-                trim: Trim(removal: .init(path: path + [index], start: local, count: width - local), prefixRuns: left))
-        }
-        guard position == offset else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        return InlineSplit(suffix: [], removeFrom: children.count, trim: nil)
-    }
-
-    private static func splitRuns(_ runs: [[String: Any]], at offset: Int) throws -> ([[String: Any]], [[String: Any]]) {
-        var left: [[String: Any]] = [], right: [[String: Any]] = [], position = 0
-        for run in runs {
-            guard let text = run["insert"] as? String else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-            let local = min(max(offset - position, 0), text.utf16.count)
-            guard let prefixRange = Range(NSRange(location: 0, length: local), in: text),
-                  let suffixRange = Range(NSRange(location: local, length: text.utf16.count - local), in: text) else {
-                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
-            }
-            if local > 0 { var value = run; value["insert"] = String(text[prefixRange]); left.append(value) }
-            if local < text.utf16.count { var value = run; value["insert"] = String(text[suffixRange]); right.append(value) }
-            position += text.utf16.count
-        }
-        return (left, right)
-    }
-
     private static func perform(document: RelayMarkNativeDocument, tree: [String: Any],
-                                edits: [RelayMarkNativeDocument.SnapshotNodeReplacement], trim: Trim?,
+                                edits: [RelayMarkNativeDocument.SnapshotNodeReplacement], trim: XML.Trim?,
                                 kind: Kind, blockID: String) throws -> Result {
-        var prospective = tree
-        if let trim {
-            try mutate(path: trim.removal.path[...], in: &prospective) { $0["delta"] = trim.prefixRuns }
-        }
-        for edit in edits {
-            try mutate(path: edit.parentPath[...], in: &prospective) { parent in
-                var content = try children(parent)
-                guard edit.start >= 0, edit.count >= 0, edit.start + edit.count <= content.count else {
-                    throw RelayMarkNativeDocument.Failure.invalidTextPath
-                }
-                content.replaceSubrange(edit.start..<(edit.start + edit.count), with: edit.nodes)
-                parent["children"] = content
-            }
-        }
-        let expected = try RelayMarkNativeMarkdownBlocksV3Projection.project(
-            snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
-        let removals = trim.map { [$0.removal] } ?? []
-        let scratch = RelayMarkNativeDocument()
-        try scratch.applyUpdate(document.encodeUpdate())
-        _ = try scratch.replaceSnapshotNodes(edits, textRemovals: removals)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
-              try scratch.markdownV3ProseProjection().isEditable else {
-            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
-        }
-        return Result(update: try document.replaceSnapshotNodes(edits, textRemovals: removals), kind: kind, blockID: blockID)
-    }
-
-    private static func node(at path: [Int], in tree: [String: Any]) throws -> [String: Any] {
-        var result = tree
-        for index in path {
-            let content = try children(result)
-            guard content.indices.contains(index) else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
-            result = content[index]
-        }
-        return result
-    }
-    private static func children(_ node: [String: Any]) throws -> [[String: Any]] {
-        guard let content = node["children"] as? [[String: Any]] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        return content
-    }
-    private static func mutate(path: ArraySlice<Int>, in node: inout [String: Any],
-                               change: (inout [String: Any]) throws -> Void) throws {
-        guard let index = path.first else { try change(&node); return }
-        var content = try children(node)
-        guard content.indices.contains(index) else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
-        try mutate(path: path.dropFirst(), in: &content[index], change: change)
-        node["children"] = content
-    }
-    private static func freshID() -> String { "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") }
-    private static func isCharacterBoundary(_ offset: Int, in value: String) -> Bool {
-        guard offset >= 0 else { return false }
-        var count = 0
-        for character in value { if count == offset { return true }; count += String(character).utf16.count }
-        return count == offset
+        Result(update: try XML.apply(document: document, tree: tree, edits: edits,
+                                     trims: trim.map { [$0] } ?? []), kind: kind, blockID: blockID)
     }
 }

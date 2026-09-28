@@ -56,4 +56,45 @@ final class RelayMarkNativeRichReturnTests: XCTestCase {
             XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
         }
     }
+    func testInlineAtomSelectionReplacementPreservesPeerTextAndUndo() throws {
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument(), source = try seed()
+        try native.applyUpdate(source); try peer.applyUpdate(source)
+        let before = try native.snapshot(), prose = try native.markdownV3ProseProjection()
+        let range = NSRange(location: prose.blockRanges[0].location + 3, length: 10)
+        let update = try RelayMarkNativeMarkdownV3Replacement.replace(document: native, range: range,
+            runs: [(" joined ", ["italic": [String: Any]()])], expectedSnapshot: before)
+        try peer.applyUpdate(update)
+        XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters),
+            (String(prose.text.characters) as NSString).replacingCharacters(in: range, with: " joined "))
+        XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try native.snapshot(), before)
+        XCTAssertEqual(try peer.snapshot(), before)
+    }
+
+    func testJoinSiblingItemsAndHeadingBodyKeepsRemainingRichBlocksAndUndo() throws {
+        for (path, offset) in [([0, 0, 0], 13), ([0, 0, 1], 3)] {
+            let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument(), source = try seed()
+            try native.applyUpdate(source); try peer.applyUpdate(source)
+            let initialText = String(try native.markdownV3ProseProjection().text.characters)
+            let split = try RelayMarkNativeMarkdownV3Return.apply(document: native, blockPath: path,
+                utf16Offset: offset, expectedSnapshot: native.snapshot())
+            try peer.applyUpdate(split.update)
+            let beforeJoin = try native.snapshot(), prose = try native.markdownV3ProseProjection()
+            let row = try XCTUnwrap(prose.blockPaths.firstIndex(of: path))
+            let range = NSRange(location: NSMaxRange(prose.blockRanges[row]), length: 1)
+            let update = try RelayMarkNativeMarkdownV3Replacement.replace(document: native,
+                range: range, runs: [], expectedSnapshot: beforeJoin)
+            try peer.applyUpdate(update)
+            XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters), initialText)
+            XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+            let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+            XCTAssertEqual(ast.blocks[0].childBlocks.count, 1)
+            XCTAssertEqual(ast.blocks[0].childBlocks[0].childBlocks.count, 5)
+            try peer.applyUpdate(try XCTUnwrap(native.undo()))
+            XCTAssertEqual(try native.snapshot(), beforeJoin)
+            XCTAssertEqual(try peer.snapshot(), beforeJoin)
+        }
+    }
+
 }

@@ -15,8 +15,14 @@ with independent peer replay and undo. Omitted hydration attributes are accepted
 just like null placeholders; non-null host presentation remains excluded.
 
 Native v3 remains enabled only for approved disposable localhost documents.
-Empty final secondary list paragraphs, cross-block replacements/joins and
-full table authoring remain work in progress; this checkpoint does not establish
+`RelayMarkNativeMarkdownV3Replacement` now replaces selections across inline
+atoms and sibling paragraph/heading blocks, and joins sibling list items while
+retaining their remaining rich body. Shared XML helpers keep Return and
+replacement on the same Yrs transaction/undo path. Linked task relationships
+remain guarded. Current browser-byte replay and exact undo checks pass.
+
+Empty final secondary list paragraphs, arbitrary cross-container selections,
+multiline paste and full table authoring remain work in progress; this checkpoint does not establish
 production readiness or change hosted admission.
 
 The September 24 integration spike is complete, and implementation has resumed.
