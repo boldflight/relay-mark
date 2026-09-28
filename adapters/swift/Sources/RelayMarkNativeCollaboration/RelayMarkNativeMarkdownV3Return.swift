@@ -43,9 +43,11 @@ public enum RelayMarkNativeMarkdownV3Return {
                 throw RelayMarkNativeDocument.Failure.invalidTextPath
             }
             if source.isEmpty && parentIndex == body.count - 1 {
-                // Existing list lifting preserves linked-task policy. An empty
-                // secondary body block needs a separate container-lift command.
-                guard parentIndex == 0 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+                if parentIndex > 0 {
+                    return try RelayMarkNativeMarkdownV3ListExit.apply(document: document,
+                        tree: tree, blockPath: blockPath, blockID: oldID)
+                }
+                // Whole-item lifting retains the existing linked-task policy.
                 let update = try document.changeMarkdownV3ListDepth(paragraphPath: blockPath,
                     change: .outdent, expectedSnapshot: expectedSnapshot)
                 return Result(update: update, kind: .exit, blockID: oldID)

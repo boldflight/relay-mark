@@ -120,4 +120,37 @@ final class RelayMarkNativeRichReturnTests: XCTestCase {
         }
     }
 
+    func testEmptySecondaryListReturnMatchesCommunityStructureAndPeerUndo() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "list-exit-v3", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let cases = try XCTUnwrap(fixture["receipts"] as? [[String: Any]])
+        func stripIDs(_ value: Any) -> Any {
+            if let nodes = value as? [Any] { return nodes.map(stripIDs) }
+            if let node = value as? [String: Any] {
+                return node.filter { $0.key != "id" }.mapValues(stripIDs)
+            }
+            return value
+        }
+        for receipt in cases {
+            let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument(), browser = RelayMarkNativeDocument()
+            let seed = try XCTUnwrap(Data(base64Encoded: XCTUnwrap(receipt["seed"] as? String)))
+            try native.applyUpdate(seed); try peer.applyUpdate(seed)
+            try browser.applyUpdate(XCTUnwrap(Data(base64Encoded: XCTUnwrap(receipt["after"] as? String))))
+            let before = try native.snapshot()
+            let change = try RelayMarkNativeMarkdownV3Return.apply(document: native,
+                blockPath: XCTUnwrap(receipt["path"] as? [Int]), utf16Offset: 0, expectedSnapshot: before)
+            XCTAssertEqual(change.kind, .exit)
+            try peer.applyUpdate(change.update)
+            let actual = try JSONEncoder().encode(RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+            let expected = try JSONEncoder().encode(RelayMarkNativeMarkdownBlocksV3Projection.project(document: browser))
+            let a = try JSONSerialization.data(withJSONObject: stripIDs(JSONSerialization.jsonObject(with: actual)), options: [.sortedKeys])
+            let b = try JSONSerialization.data(withJSONObject: stripIDs(JSONSerialization.jsonObject(with: expected)), options: [.sortedKeys])
+            XCTAssertEqual(a, b, receipt["name"] as? String ?? "")
+            XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+            try peer.applyUpdate(try XCTUnwrap(native.undo()))
+            XCTAssertEqual(try native.snapshot(), before)
+            XCTAssertEqual(try peer.snapshot(), before)
+        }
+    }
+
 }

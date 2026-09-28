@@ -3,6 +3,15 @@
 The current branch is `codex/offline-multiplayer`. The [community-first implementation plan](https://github.com/boldflight/relay-elixir/blob/codex/offline-multiplayer/docs/plans/2026-09-14-community-first-multiplayer.md) is the single controlling scope, estimate and resume point. It supersedes the older custom lineage roadmap.
 
 
+## Current native list-exit checkpoint (September 28)
+
+Empty final secondary paragraphs now exit rich list items using the community
+TipTap `splitListItem` / ProseMirror `liftEmptyBlock` shape. Native Return keeps
+the retained item, linked-task metadata and ordered-list start, splits trailing
+items into an identified list, and handles nested outer-item splits. Four real
+browser cases match native structure and pass peer replay and exact undo. This
+does not expand hosted admission or establish full editor readiness.
+
 ## Current task/cell container checkpoint (September 28)
 
 V3 task items now retain community `paragraph block*` bodies and table cells
@@ -49,8 +58,7 @@ paste creates identified paragraph siblings in the current container, preserves
 blank paragraphs, keeps suffix atoms and marks, and is one undo transaction.
 List-body, heading and table-cell cases pass with peer replay and exact undo.
 
-Empty final secondary list paragraphs, arbitrary cross-container selections,
-full table authoring and arbitrary cross-container paste remain work in progress; this checkpoint does not establish
+Arbitrary cross-container selections, full table authoring and arbitrary cross-container paste remain work in progress; this checkpoint does not establish
 production readiness or change hosted admission.
 
 The September 24 integration spike is complete, and implementation has resumed.
