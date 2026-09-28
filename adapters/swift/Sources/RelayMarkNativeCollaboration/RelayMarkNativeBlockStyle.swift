@@ -18,6 +18,10 @@ public extension RelayMarkNativeDocument {
               ["paragraph", "heading"].contains(blocks[index]["name"] as? String ?? ""),
               let attributes = blocks[index]["attributes"] as? [String: Any],
               let id = attributes["relaymarkId"] as? String else { throw Failure.unsupportedProseEdit }
+        if case .heading(let level) = style, blocks[index]["name"] as? String == "heading" {
+            return try setMarkdownV3HeadingLevel(anchor: anchor(path: [index], index: 0),
+                expectedHeadingID: attributes["headingId"] as? String, level: level)
+        }
         let children = blocks[index]["children"] as? [[String: Any]] ?? []
         func freshID() -> String { "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") }
         func element(_ name: String, _ attrs: [String: Any], _ content: [[String: Any]]) -> [String: Any] {

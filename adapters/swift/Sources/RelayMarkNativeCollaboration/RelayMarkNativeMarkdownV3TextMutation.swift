@@ -61,14 +61,18 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
     private static func replace(document: RelayMarkNativeDocument, path: [Int],
                                 start: Int, end: Int, text: String,
                                 insertionRuns: [(text: String, attributes: [String: Any])]?) throws -> Data {
+        let snapshot = try document.snapshot()
+        let tree = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
+        let current = tree.flatMap { node(at: path, in: $0) }
+        let parent = tree.flatMap { node(at: Array(path.dropLast()), in: $0) }
+        let code = current?["name"] as? String == "codeBlock" || parent?["name"] as? String == "codeBlock"
         guard end >= start, !text.unicodeScalars.contains(where: {
-            $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}"
+            $0 == "\u{FFFC}" || (!code && ($0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}"))
         }), text.utf16.count <= 131_072 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
 
         _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
-        let snapshot = try document.snapshot()
         let emptyParagraph = try isEmptyTextBlock(snapshot: snapshot, path: path) &&
             start == 0 && end == 0 && !text.isEmpty
         let validTextRun: Bool
@@ -103,7 +107,7 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
               let block = node(at: path, in: root),
               block["kind"] as? String == "element",
               (block["children"] as? [Any])?.isEmpty == true else { return false }
-        if block["name"] as? String == "paragraph" { return true }
+        if ["paragraph", "heading", "codeBlock"].contains(block["name"] as? String ?? "") { return true }
         guard block["name"] as? String == "calloutTitle", path.count == 2, path[1] == 0,
               let callout = node(at: [path[0]], in: root),
               callout["name"] as? String == "callout" else { return false }
