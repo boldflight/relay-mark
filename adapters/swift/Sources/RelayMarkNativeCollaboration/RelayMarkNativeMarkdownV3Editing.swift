@@ -88,71 +88,78 @@ public enum RelayMarkNativeMarkdownV3Editing {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document)
+        // deleteSelection places the caret with selectionToInsertionEnd;
+        // insertText and replaceRange map the TextSelection head.
+        let head: Int?
+        if length == 0, let (start, _, newSize) = transform.steps.last?.ranges.first {
+            head = (try? updated.resolve(start + newSize)).flatMap { PMCommands.near($0) }.flatMap {
+                if case .text(let pos) = $0 { return pos } else { return nil }
+            }
+        } else {
+            let mapped = transform.map(to, assoc: 1)
+            head = (try? updated.resolve(mapped))?.parent.inlineContent == true
+                ? mapped : (try? updated.resolve(mapped)).flatMap { PMCommands.near($0) }.flatMap {
+                    if case .text(let pos) = $0 { return pos } else { return nil }
+                }
+        }
+        return Change(update: update, caret: head.flatMap { caret($0, in: updated) })
+    }
+
+    public enum Key: Sendable {
+        case backspace, delete
+    }
+
+    /// Backspace or Delete at a collapsed projected caret through the
+    /// browser's keymap chain (TipTap Keymap, branching-list and blockquote
+    /// handlers, prosemirror-commands joinBackward/joinForward). Returns nil
+    /// when the browser would leave the document unchanged, including when
+    /// its handlers only select a node or throw.
+    public static func key(_ key: Key, document: RelayMarkNativeDocument, at offset: Int,
+                           expectedSnapshot: Data) throws -> Change? {
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let projection = try document.markdownV3ProseProjection()
+        guard projection.isEditable else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let bridge = try PMYXmlBridge.v3()
+        let doc = try bridge.document(fromSnapshot: tree)
+        let head = try position(offset, projection: projection, doc: doc)
+        let result: PMState
+        do {
+            let state = PMState(transform: PMTransform(doc), selection: .text(head))
+            result = key == .backspace ? try PMCommands.backspace(state) : try PMCommands.delete(state)
+        } catch is PMReplaceError {
+            return nil
+        }
+        guard !result.transform.steps.isEmpty else { return nil }
+        let (update, updated) = try commit(result.transform, source: doc, bridge: bridge, document: document)
+        guard case .text(let pos) = result.selection else { return Change(update: update, caret: nil) }
+        return Change(update: update, caret: caret(pos, in: updated))
+    }
+
+    /// Applies identity rules, validates the prospective document on a
+    /// scratch replica, then writes it through y-prosemirror's diff.
+    private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
+                               document: RelayMarkNativeDocument) throws -> (Data, PMNode) {
         var seen = Set<String>(), anchors = Set<String>()
         transform.doc.content.nodesBetween(0, transform.doc.content.size, { node, _, _, _ in
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
             return true
         })
         let updated = identified(transform.doc, seen: &seen, anchors: &anchors)
-
         let prospective = bridge.snapshot(updated)
         let expected = try RelayMarkNativeMarkdownBlocksV3Projection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
-        _ = try scratch.applyProseMirror(updated, source: doc, bridge: bridge)
+        _ = try scratch.applyProseMirror(updated, source: source, bridge: bridge)
         guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
               try scratch.markdownV3ProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let update = try document.applyProseMirror(updated, source: doc, bridge: bridge)
-        // deleteSelection places the caret with selectionToInsertionEnd;
-        // insertText and replaceRange map the TextSelection head.
-        let head: Int?
-        if length == 0, let (start, _, newSize) = transform.steps.last?.ranges.first {
-            head = selectionNear(updated, start + newSize, bias: 1)
-        } else {
-            let mapped = transform.map(to, assoc: 1)
-            head = (try? updated.resolve(mapped))?.parent.inlineContent == true
-                ? mapped : selectionNear(updated, mapped, bias: 1)
-        }
-        return Change(update: update, caret: head.flatMap { caret($0, in: updated) })
-    }
-
-    /// Selection.near restricted to text: nil when ProseMirror would select a node.
-    private static func selectionNear(_ doc: PMNode, _ pos: Int, bias: Int) -> Int? {
-        guard let resolved = try? doc.resolve(pos) else { return nil }
-        enum Found { case text(Int), node }
-        func within(_ node: PMNode, _ pos: Int, _ index: Int, _ dir: Int) -> Found? {
-            if node.inlineContent { return .text(pos) }
-            var i = index - (dir > 0 ? 0 : 1), pos = pos
-            while dir > 0 ? i < node.childCount : i >= 0 {
-                let child = node.child(i)
-                if !child.isAtom {
-                    if let inner = within(child, pos + dir, dir < 0 ? child.childCount : 0, dir) { return inner }
-                } else {
-                    return .node
-                }
-                pos += child.nodeSize * dir
-                i += dir
-            }
-            return nil
-        }
-        func from(_ dir: Int) -> Found? {
-            if let inner = resolved.parent.inlineContent ? .text(resolved.pos)
-                : within(resolved.parent, resolved.pos, resolved.index(), dir) { return inner }
-            var depth = resolved.depth - 1
-            while depth >= 0 {
-                let found = dir < 0
-                    ? within(resolved.node(depth), resolved.before(depth + 1), resolved.index(depth), dir)
-                    : within(resolved.node(depth), resolved.after(depth + 1), resolved.index(depth) + 1, dir)
-                if let found { return found }
-                depth -= 1
-            }
-            return nil
-        }
-        if case .text(let position)? = from(bias) ?? from(-bias) { return position }
-        return nil
+        return (try document.applyProseMirror(updated, source: source, bridge: bridge), updated)
     }
 
     /// The ProseMirror position of a projected offset inside a textblock.

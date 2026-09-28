@@ -57,7 +57,7 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
         let fixture = try fixture()
         let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["seed"] as? String)))
         let cases = try XCTUnwrap(fixture["cases"] as? [[String: Any]])
-        XCTAssertEqual(cases.count, 54)
+        XCTAssertEqual(cases.count, 89)
         var failures: [String] = []
         for (number, entry) in cases.enumerated() {
             let action = try XCTUnwrap(entry["action"] as? String)
@@ -76,11 +76,24 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
             let start = try location(from), end = try location(to)
             let runs: [(text: String, attributes: [String: Any])] = action == "delete" ? []
                 : action == "insertText" ? [("X", [:])] : [("P1\nP2", [:])]
+            let unchanged = (entry["update"] as? String).map { $0.count < 8 } ?? true
             let change: RelayMarkNativeMarkdownV3Editing.Change
             do {
-                change = try RelayMarkNativeMarkdownV3Editing.replace(document: native,
-                    range: NSRange(location: start, length: end - start), runs: runs,
-                    inheritMarks: action == "insertText", expectedSnapshot: before)
+                if action == "Backspace" || action == "Delete" {
+                    let keyed = try RelayMarkNativeMarkdownV3Editing.key(action == "Backspace" ? .backspace : .delete,
+                        document: native, at: start, expectedSnapshot: before)
+                    if unchanged {
+                        if keyed != nil { failures.append("\(label): changed where the browser did not") }
+                        if try native.snapshot() != before { failures.append("\(label): document changed") }
+                        continue
+                    }
+                    guard let keyed else { failures.append("\(label): no change"); continue }
+                    change = keyed
+                } else {
+                    change = try RelayMarkNativeMarkdownV3Editing.replace(document: native,
+                        range: NSRange(location: start, length: end - start), runs: runs,
+                        inheritMarks: action == "insertText", expectedSnapshot: before)
+                }
             } catch {
                 failures.append("\(label): threw \(error)")
                 continue

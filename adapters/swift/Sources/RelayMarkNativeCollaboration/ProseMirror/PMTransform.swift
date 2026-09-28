@@ -5,14 +5,20 @@ import Foundation
 // step maps they emit. Control flow mirrors the JavaScript source.
 
 enum PMStep {
-    case replace(from: Int, to: Int, slice: PMSlice)
-    case replaceAround(from: Int, to: Int, gapFrom: Int, gapTo: Int, slice: PMSlice, insert: Int)
+    case replace(from: Int, to: Int, slice: PMSlice, structure: Bool = false)
+    case replaceAround(from: Int, to: Int, gapFrom: Int, gapTo: Int, slice: PMSlice, insert: Int, structure: Bool = false)
 
     func apply(_ doc: PMNode) throws -> PMNode {
         switch self {
-        case let .replace(from, to, slice):
+        case let .replace(from, to, slice, structure):
+            if structure, try pmContentBetween(doc, from, to) {
+                throw PMReplaceError(message: "Structure replace would overwrite content")
+            }
             return try doc.replace(from, to, slice)
-        case let .replaceAround(from, to, gapFrom, gapTo, slice, insert):
+        case let .replaceAround(from, to, gapFrom, gapTo, slice, insert, structure):
+            if structure, try pmContentBetween(doc, from, gapFrom) || pmContentBetween(doc, gapTo, to) {
+                throw PMReplaceError(message: "Structure gap-replace would overwrite content")
+            }
             let gap = try doc.slice(gapFrom, gapTo)
             guard gap.openStart == 0, gap.openEnd == 0 else { throw PMReplaceError(message: "Gap is not a flat range") }
             guard let inserted = try slice.insertAt(insert, gap.content) else {
@@ -25,9 +31,9 @@ enum PMStep {
     /// StepMap ranges: (start, oldSize, newSize) triples.
     var ranges: [(Int, Int, Int)] {
         switch self {
-        case let .replace(from, to, slice):
+        case let .replace(from, to, slice, _):
             return [(from, to - from, slice.size)]
-        case let .replaceAround(from, to, gapFrom, gapTo, slice, insert):
+        case let .replaceAround(from, to, gapFrom, gapTo, slice, insert, _):
             return [(from, gapFrom - from, insert), (gapTo, to - gapTo, slice.size - insert)]
         }
     }
