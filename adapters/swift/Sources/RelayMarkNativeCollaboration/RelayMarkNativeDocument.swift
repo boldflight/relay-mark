@@ -2065,15 +2065,31 @@ public final class RelayMarkNativeDocument {
         try replaceSnapshotNodes(parentPath: [], start: Int(root.length()), count: 0, nodes: nodes)
     }
 
+    struct SnapshotNodeReplacement {
+        let parentPath: [Int]
+        let start: Int
+        let count: Int
+        let nodes: [[String: Any]]
+    }
+
     /// Shared XML insertion for validated editor/recovery operations, not a document codec.
     func replaceSnapshotNodes(parentPath: [Int], start: Int, count: Int, nodes: [[String: Any]]) throws -> Data {
-        var parent = root
-        for index in parentPath {
-            guard let index = UInt32(exactly: index), let child = parent.child(at: index) else { throw Failure.invalidTextPath }
-            parent = child
+        try replaceSnapshotNodes([SnapshotNodeReplacement(parentPath: parentPath, start: start, count: count, nodes: nodes)])
+    }
+
+    /// Resolve each existing parent before editing. A list lift/sink can then
+    /// retain untouched ancestors and change both locations in one undo item.
+    func replaceSnapshotNodes(_ replacements: [SnapshotNodeReplacement]) throws -> Data {
+        let targets = try replacements.map { replacement -> (YXmlNode, UInt32, UInt32, [[String: Any]]) in
+            var parent = root
+            for index in replacement.parentPath {
+                guard let index = UInt32(exactly: index), let child = parent.child(at: index) else { throw Failure.invalidTextPath }
+                parent = child
+            }
+            guard let first = UInt32(exactly: replacement.start), let removed = UInt32(exactly: replacement.count),
+                  first <= parent.length(), removed <= parent.length() - first else { throw Failure.invalidTextPath }
+            return (parent, first, removed, replacement.nodes)
         }
-        guard let first = UInt32(exactly: start), let removed = UInt32(exactly: count),
-              first <= parent.length(), removed <= parent.length() - first else { throw Failure.invalidTextPath }
         undoManager.wrap()
         let update = try document.transactSync(origin: localOrigin) { transaction in
             func append(_ raw: [String: Any], to parent: YXmlNode, at index: UInt32) throws {
@@ -2095,8 +2111,10 @@ public final class RelayMarkNativeDocument {
                     }
                 }
             }
-            if removed > 0 { try parent.removeChildren(start: first, length: removed, in: transaction) }
-            for (offset, node) in nodes.enumerated() { try append(node, to: parent, at: first + UInt32(offset)) }
+            for (parent, first, removed, nodes) in targets {
+                if removed > 0 { try parent.removeChildren(start: first, length: removed, in: transaction) }
+                for (offset, node) in nodes.enumerated() { try append(node, to: parent, at: first + UInt32(offset)) }
+            }
             return Data(transaction.transactionEncodeUpdate())
         }
         undoManager.wrap()
