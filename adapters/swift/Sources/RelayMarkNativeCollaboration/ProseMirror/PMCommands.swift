@@ -1,6 +1,6 @@
 import Foundation
 
-// prosemirror-commands (joinBackward, joinForward, deleteBarrier,
+// prosemirror-commands 1.7.2 (joinBackward, joinForward, deleteBarrier,
 // joinMaybeClear, selectNodeBackward/Forward, lift), prosemirror-schema-list
 // liftListItem, and the TipTap commands and keymaps the v3 browser editor
 // binds to Backspace and Delete, in the browser's plugin order.

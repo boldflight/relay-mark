@@ -1,6 +1,6 @@
 import Foundation
 
-// A port of prosemirror-transform 1.x replace.ts (replaceStep, Fitter,
+// A port of prosemirror-transform 1.12.2 replace.ts (replaceStep, Fitter,
 // replaceRange, deleteRange, replaceRangeWith) and the replace steps and
 // step maps they emit. Control flow mirrors the JavaScript source.
 
@@ -384,11 +384,11 @@ private final class PMFitter {
     }
 
     private func openMore() -> Bool {
-        let content = unplaced.content, openStart = unplaced.openStart, openEnd = unplaced.openEnd
-        let inner = pmContentAt(content, openStart)
-        guard inner.childCount > 0, !inner.firstChild!.isLeaf else { return false }
-        unplaced = PMSlice(content, openStart: openStart + 1,
-                           openEnd: max(openEnd, inner.size + openStart >= content.size - openEnd ? openStart + 1 : 0))
+        let content = unplaced.content, openStart = unplaced.openStart
+        var openEnd = unplaced.openEnd
+        if pmMaxOpen(content, -1) <= openStart { return false }
+        if unplaced.size > 1 && pmMaxOpen(content, 1) > openEnd { openEnd += 1 }
+        unplaced = PMSlice(content, openStart: openStart + 1, openEnd: openEnd)
         return true
     }
 
@@ -523,6 +523,15 @@ private func pmAddToFragment(_ fragment: PMFragment, _ depth: Int, _ content: PM
     if depth == 0 { return fragment.append(content) }
     return fragment.replaceChild(fragment.childCount - 1,
         fragment.lastChild!.copy(pmAddToFragment(fragment.lastChild!.content, depth - 1, content)))
+}
+
+private func pmMaxOpen(_ fragment: PMFragment, _ side: Int) -> Int {
+    var fragment = fragment, count = 0
+    while true {
+        guard let child = side < 0 ? fragment.firstChild : fragment.lastChild, !child.isAtom else { return count }
+        fragment = child.content
+        count += 1
+    }
 }
 
 private func pmContentAt(_ fragment: PMFragment, _ depth: Int) -> PMFragment {

@@ -1,6 +1,6 @@
 import Foundation
 
-// A port of the prosemirror-model 1.x pieces that prosemirror-transform's
+// A port of the prosemirror-model 1.25.12 pieces that prosemirror-transform's
 // replace algorithm depends on: schema compilation, content expressions,
 // nodes, fragments, marks, slices, resolved positions and Node.replace.
 // Names and control flow follow the JavaScript source so behavior can be

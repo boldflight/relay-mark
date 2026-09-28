@@ -34,6 +34,13 @@ it from the branch. When the branch is empty, return to the upstream release.
 | YSwift | native apps | boldflight/yswift branch `relay` | upstream `main` | RelayMark XML, relative positions and awareness bindings |
 | Yex | Relay server | boldflight/y_ex branch `relay` | 0.12.0 | bindings for the Yrs patches above |
 
+The browser editor uses upstream TipTap 3.31.3 and y-tiptap 3.0.9, unforked.
+The native editor ports the ProseMirror code TipTap runs, and each ported file
+names its release: prosemirror-model 1.25.12, prosemirror-transform 1.12.2 and
+prosemirror-commands 1.7.2. When TipTap moves ProseMirror, port the upstream
+changes, and regenerate the browser reference fixtures in Elixir. They must
+not change unless the upstream behaviour did.
+
 `scripts/yjs-history-hook.mjs` pins the SHA-256 of that Yjs build, and
 `history-lineage.js` names the one supported Yjs version. History snapshots
 written under Yjs 13.6.32 remain restorable.

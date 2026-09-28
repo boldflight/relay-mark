@@ -1,6 +1,6 @@
 import Foundation
 
-// prosemirror-model NodeRange/blockRange and prosemirror-transform
+// prosemirror-model 1.25.12 NodeRange/blockRange and prosemirror-transform 1.12.2
 // structure.ts (liftTarget, lift, canJoin, join, setNodeMarkup) as used by
 // prosemirror-commands and TipTap keymaps. The v3 schema declares no
 // linebreakReplacement, so join's newline conversion paths are absent.
