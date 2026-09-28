@@ -2071,6 +2071,18 @@ public final class RelayMarkNativeDocument {
         try replaceSnapshotNodes(parentPath: [], start: Int(root.length()), count: 0, nodes: nodes)
     }
 
+    /// Writes a transformed ProseMirror document through y-prosemirror's
+    /// updateYFragment diff as one local transaction and one undo item.
+    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge) throws -> Data {
+        undoManager.wrap()
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            try bridge.update(self.root, updated, source: source, in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     struct SnapshotNodeReplacement {
         let parentPath: [Int]
         let start: Int
