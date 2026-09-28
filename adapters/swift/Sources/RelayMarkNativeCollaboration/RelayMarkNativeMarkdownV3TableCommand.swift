@@ -27,19 +27,30 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
     public static func canApply(_ operation: Operation, document: RelayMarkNativeDocument,
                                 cellAnchor: Data, expectedCellID: String,
                                 headAnchor: Data? = nil, expectedHeadCellID: String? = nil) -> Bool {
-        guard let snapshot = try? document.snapshot() else { return false }
-        return (try? plan(operation, document: document, anchor: (cellAnchor, expectedCellID),
-                          head: headAnchor.map { ($0, expectedHeadCellID ?? "") },
-                          expectedSnapshot: snapshot)) != nil
+        availableOperations(document: document, cellAnchor: cellAnchor, expectedCellID: expectedCellID,
+                            headAnchor: headAnchor, expectedHeadCellID: expectedHeadCellID).contains(operation)
+    }
+
+    /// Every operation the current selection permits, resolving the document
+    /// once, like a toolbar asking ProseMirror `can()` for each command.
+    public static func availableOperations(document: RelayMarkNativeDocument, cellAnchor: Data,
+                                           expectedCellID: String, headAnchor: Data? = nil,
+                                           expectedHeadCellID: String? = nil) -> Set<Operation> {
+        guard let snapshot = try? document.snapshot(),
+              let context = try? context(document: document, anchor: (cellAnchor, expectedCellID),
+                                         head: headAnchor.map { ($0, expectedHeadCellID ?? "") },
+                                         expectedSnapshot: snapshot) else { return [] }
+        return Set(Operation.allCases.filter { (try? change($0, context: context)) != nil })
     }
 
     public static func apply(_ operation: Operation, document: RelayMarkNativeDocument,
                              cellAnchor: Data, expectedCellID: String,
                              headAnchor: Data? = nil, expectedHeadCellID: String? = nil,
                              expectedSnapshot: Data) throws -> Data {
-        let change = try plan(operation, document: document, anchor: (cellAnchor, expectedCellID),
-                              head: headAnchor.map { ($0, expectedHeadCellID ?? "") },
-                              expectedSnapshot: expectedSnapshot)
+        let context = try context(document: document, anchor: (cellAnchor, expectedCellID),
+                                  head: headAnchor.map { ($0, expectedHeadCellID ?? "") },
+                                  expectedSnapshot: expectedSnapshot)
+        let change = try change(operation, context: context)
         return try XML.apply(document: document, tree: change.tree, edits: change.edits,
                              attributeUpdates: change.attributes)
     }
@@ -50,9 +61,13 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
         var attributes: [AttributeUpdate] = []
     }
 
-    private static func plan(_ operation: Operation, document: RelayMarkNativeDocument,
-                             anchor: (Data, String), head: (Data, String)?,
-                             expectedSnapshot: Data) throws -> Change {
+    private struct Context {
+        let tree: [String: Any]
+        let anchorPath: [Int], headPath: [Int], tablePath: [Int]
+    }
+
+    private static func context(document: RelayMarkNativeDocument, anchor: (Data, String), head: (Data, String)?,
+                                expectedSnapshot: Data) throws -> Context {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
               try document.markdownV3ProseProjection().isEditable,
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
@@ -65,6 +80,12 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
             headPath = try cellPath(head, document: document, tree: tree)
             guard Array(headPath.dropLast(2)) == tablePath else { throw Failure.unsupportedProseEdit }
         }
+        return Context(tree: tree, anchorPath: anchorPath, headPath: headPath, tablePath: tablePath)
+    }
+
+    private static func change(_ operation: Operation, context: Context) throws -> Change {
+        let (tree, anchorPath, headPath, tablePath) =
+            (context.tree, context.anchorPath, context.headPath, context.tablePath)
         if operation == .deleteTable {
             let parentPath = Array(tablePath.dropLast())
             let siblings = try XML.children(XML.node(at: parentPath, in: tree))
