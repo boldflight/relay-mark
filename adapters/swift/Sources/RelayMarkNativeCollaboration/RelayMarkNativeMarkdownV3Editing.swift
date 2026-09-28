@@ -161,6 +161,91 @@ public enum RelayMarkNativeMarkdownV3Editing {
         return Change(update: update, caret: caret(head, in: updated))
     }
 
+    /// How a block is placed, matching the browser command that inserts it.
+    public enum BlockPlacement: Sendable {
+        /// ProseMirror replaceSelectionWith, as TipTap insertTable does.
+        case replaceSelection
+        /// TipTap insertContentAt: an empty textblock at the caret is replaced.
+        case insertContent
+    }
+
+    /// Inserts one block node, given as ProseMirror JSON (`type`, `attrs`,
+    /// `content`, text `marks`), at the projected range. Created nodes get
+    /// fresh relaymarkIds; the caret moves into the first text position of
+    /// the inserted block, or after it when the block has none.
+    public static func insertBlock(document: RelayMarkNativeDocument, range: NSRange, block json: [String: Any],
+                                   placement: BlockPlacement, expectedSnapshot: Data) throws -> Change {
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let projection = try document.markdownV3ProseProjection()
+        guard projection.isEditable, range.location >= 0, range.length >= 0 else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let bridge = try PMYXmlBridge.v3(), schema = bridge.schema
+        let doc = try bridge.document(fromSnapshot: tree)
+        var from = try position(range.location, projection: projection, doc: doc)
+        var to = try position(NSMaxRange(range), projection: projection, doc: doc)
+        func node(_ json: [String: Any]) throws -> PMNode {
+            guard let name = json["type"] as? String, let type = schema.nodes[name] else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            let marks = try (json["marks"] as? [[String: Any]] ?? []).map { mark -> PMMark in
+                guard let name = mark["type"] as? String, let type = schema.marks[name] else {
+                    throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+                }
+                return type.create(mark["attrs"] as? [String: Any] ?? [:])
+            }
+            if type.isText {
+                guard let text = json["text"] as? String, !text.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+                return schema.text(Array(text.utf16), marks: marks)
+            }
+            let attrs = json["attrs"] as? [String: Any] ?? [:]
+            guard Set(attrs.keys).isSubset(of: type.attrs.map(\.name)), JSONSerialization.isValidJSONObject(attrs) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            let content = PMFragment.fromArray(try (json["content"] as? [[String: Any]] ?? []).map(node))
+            guard let created = type.createAndFill(attrs, content, marks: marks), created.content.eq(content) || content.size == 0 else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            return created
+        }
+        let inserted = try node(json)
+        guard inserted.isBlock else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        var transform = PMTransform(doc)
+        do {
+            if placement == .insertContent {
+                let from$ = try doc.resolve(from)
+                if from == to, from$.parent.isTextblock, !from$.parent.type.flag("code"), from$.parent.childCount == 0 {
+                    from -= 1
+                    to += 1
+                }
+                try transform.replaceWith(from, to, PMFragment.from(inserted))
+            } else {
+                try transform.replaceRangeWith(from, to, inserted)
+            }
+        } catch is PMReplaceError {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document)
+        // selectionToInsertionEnd: the end of the last step's replaced range,
+        // biased backward for insertContent and forward for replaceSelectionWith.
+        var head: Int?
+        if let (start, _, size) = transform.steps.last?.ranges.first, let end$ = try? updated.resolve(start + size),
+           case .text(let pos)? = PMCommands.near(end$, bias: placement == .insertContent ? -1 : 1) {
+            head = pos
+        }
+        // TipTap insertTable selects near the original selection start + 1,
+        // unmapped, which lands in the first cell of the inserted table.
+        if inserted.type.name == "table", let next$ = try? updated.resolve(min(from + 1, updated.content.size)),
+           case .text(let inside)? = PMCommands.near(next$) {
+            head = inside
+        }
+        return Change(update: update, caret: head.flatMap { caret($0, in: updated) })
+    }
+
     public enum Key: Sendable {
         case backspace, delete
     }

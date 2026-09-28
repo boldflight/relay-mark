@@ -57,7 +57,7 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
         let fixture = try fixture()
         let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["seed"] as? String)))
         let cases = try XCTUnwrap(fixture["cases"] as? [[String: Any]])
-        XCTAssertEqual(cases.count, 89)
+        XCTAssertEqual(cases.count, 93)
         var failures: [String] = []
         for (number, entry) in cases.enumerated() {
             let action = try XCTUnwrap(entry["action"] as? String)
@@ -79,7 +79,18 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
             let unchanged = (entry["update"] as? String).map { $0.count < 8 } ?? true
             let change: RelayMarkNativeMarkdownV3Editing.Change
             do {
-                if action == "Backspace" || action == "Delete" {
+                if action == "insertTable" || action == "insertImage" {
+                    func cell(_ header: Bool) -> [String: Any] {
+                        ["type": header ? "tableHeader" : "tableCell", "content": [["type": "paragraph"]]]
+                    }
+                    let table: [String: Any] = ["type": "table", "content": (0..<3).map { row in
+                        ["type": "tableRow", "content": (0..<3).map { _ in cell(row == 0) }] as [String: Any]
+                    }]
+                    let image: [String: Any] = ["type": "image", "attrs": ["src": "https://example.com/b.png", "alt": "B"]]
+                    change = try RelayMarkNativeMarkdownV3Editing.insertBlock(document: native,
+                        range: NSRange(location: start, length: 0), block: action == "insertTable" ? table : image,
+                        placement: action == "insertTable" ? .replaceSelection : .insertContent, expectedSnapshot: before)
+                } else if action == "Backspace" || action == "Delete" {
                     let keyed = try RelayMarkNativeMarkdownV3Editing.key(action == "Backspace" ? .backspace : .delete,
                         document: native, at: start, expectedSnapshot: before)
                     if unchanged {
