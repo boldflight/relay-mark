@@ -32,29 +32,44 @@ public enum RelayMarkNativeMarkdownV3Replacement {
         let endOffset = NSMaxRange(range) - projection.blockRanges[last].location
         let prefix = try XML.splitInline(XML.children(startNode), at: startOffset, path: firstPath)
         let suffix = try XML.splitInline(XML.children(endNode), at: endOffset, path: lastPath).suffix
-        var insertedRuns: [[String: Any]] = [], length = 0
+        var segments: [[[String: Any]]] = [[]], length = 0
         for run in runs {
             guard !run.text.isEmpty, run.text.utf16.count <= 131_072 - length,
                   JSONSerialization.isValidJSONObject(run.attributes),
                   !run.text.unicodeScalars.contains(where: {
-                      $0 == "\u{FFFC}" || $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}"
+                      $0 == "\u{FFFC}" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}"
                   }) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
             length += run.text.utf16.count
-            insertedRuns.append(["insert": run.text, "attributes": run.attributes])
+            let parts = run.text.components(separatedBy: "\n")
+            for (index, part) in parts.enumerated() {
+                if index > 0 { segments.append([]) }
+                if !part.isEmpty { segments[segments.count - 1].append(["insert": part, "attributes": run.attributes]) }
+            }
+            guard segments.count <= 4_096 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         }
-        let inline = (insertedRuns.isEmpty ? [] : [["kind": "text", "delta": insertedRuns]]) + suffix
+        func textNodes(_ runs: [[String: Any]]) -> [[String: Any]] {
+            runs.isEmpty ? [] : [["kind": "text", "delta": runs]]
+        }
+        let inline = textNodes(segments[0]) + (segments.count == 1 ? suffix : [])
+        let newBlocks: [[String: Any]] = segments.dropFirst().enumerated().map { index, runs in
+            ["kind": "element", "name": "paragraph", "attributes": ["relaymarkId": XML.freshID()],
+             "children": textNodes(runs) + (index == segments.count - 2 ? suffix : [])]
+        }
         var edits = [RelayMarkNativeDocument.SnapshotNodeReplacement(parentPath: firstPath,
             start: prefix.removeFrom, count: try XML.children(startNode).count - prefix.removeFrom, nodes: inline)]
-        if firstPath != lastPath {
-            let parentPath = Array(firstPath.dropLast()), endParentPath = Array(lastPath.dropLast())
+        let parentPath = Array(firstPath.dropLast()), endParentPath = Array(lastPath.dropLast())
+        if firstPath != lastPath || !newBlocks.isEmpty {
             if parentPath == endParentPath {
-                guard let startIndex = firstPath.last, let endIndex = lastPath.last, startIndex < endIndex,
+                guard let startIndex = firstPath.last, let endIndex = lastPath.last, startIndex <= endIndex,
                       last - first == endIndex - startIndex else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
                 let parent = try XML.node(at: parentPath, in: tree), body = try XML.children(parent)
-                guard body[(startIndex + 1)...endIndex].allSatisfy({
-                    ["paragraph", "heading"].contains($0["name"] as? String ?? "")
-                }) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-                edits.append(.init(parentPath: parentPath, start: startIndex + 1, count: endIndex - startIndex, nodes: []))
+                if startIndex < endIndex {
+                    guard body[(startIndex + 1)...endIndex].allSatisfy({
+                        ["paragraph", "heading"].contains($0["name"] as? String ?? "")
+                    }) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+                }
+                edits.append(.init(parentPath: parentPath, start: startIndex + 1,
+                    count: endIndex - startIndex, nodes: newBlocks))
             } else {
                 // Joining sibling list items preserves the first item's identity,
                 // checked state and relationship. The right item's remaining
@@ -84,7 +99,9 @@ public enum RelayMarkNativeMarkdownV3Replacement {
                 }
                 guard last - first == endItem - startItem else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
                 let tail = Array(try XML.children(items[endItem]).dropFirst())
-                if !tail.isEmpty { edits.append(.init(parentPath: parentPath, start: firstBlock + 1, count: 0, nodes: tail)) }
+                let remaining = newBlocks + tail
+                if !remaining.isEmpty { edits.append(.init(parentPath: parentPath,
+                    start: firstBlock + 1, count: 0, nodes: remaining)) }
                 edits.append(.init(parentPath: listPath, start: startItem + 1, count: endItem - startItem, nodes: []))
             }
             // Synthetic cell delimiters and non-text block placeholders are not

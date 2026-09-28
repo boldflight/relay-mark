@@ -97,4 +97,27 @@ final class RelayMarkNativeRichReturnTests: XCTestCase {
         }
     }
 
+    func testMultilineRichPastePreservesBlankParagraphsAtomsAndUndoAcrossContainers() throws {
+        for (path, offset) in [([0, 0, 0], 3), ([0, 0, 1], 3), ([0, 0, 3, 1, 0, 0], 2)] {
+            let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument(), source = try seed()
+            try native.applyUpdate(source); try peer.applyUpdate(source)
+            let before = try native.snapshot(), prose = try native.markdownV3ProseProjection()
+            let row = try XCTUnwrap(prose.blockPaths.firstIndex(of: path))
+            let range = NSRange(location: prose.blockRanges[row].location + offset, length: 0)
+            let update = try RelayMarkNativeMarkdownV3Replacement.replace(document: native, range: range,
+                runs: [("bold\n", ["bold": [String: Any]()]), ("\nitalic\n", ["italic": [String: Any]()])],
+                expectedSnapshot: before)
+            try peer.applyUpdate(update)
+            XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters),
+                (String(prose.text.characters) as NSString).replacingCharacters(in: range, with: "bold\n\nitalic\n"))
+            XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+            let after = try native.markdownV3ProseProjection()
+            XCTAssertTrue(after.text.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true })
+            XCTAssertTrue(after.text.runs.contains { $0.inlinePresentationIntent?.contains(.emphasized) == true })
+            try peer.applyUpdate(try XCTUnwrap(native.undo()))
+            XCTAssertEqual(try native.snapshot(), before)
+            XCTAssertEqual(try peer.snapshot(), before)
+        }
+    }
+
 }
