@@ -51,9 +51,10 @@ private extension RelayMarkNativeDocument {
             guard let result = node["children"] as? [[String: Any]] else { throw Failure.unsupportedProseEdit }
             return result
         }
-        func freshList(_ list: [String: Any], items: [[String: Any]]) -> [String: Any] {
+        func freshList(_ list: [String: Any], items: [[String: Any]], startingAtOne: Bool = false) -> [String: Any] {
             var result = list
             var attrs = list["attributes"] as? [String: Any] ?? [:]
+            if startingAtOne && list["name"] as? String == "orderedList" { attrs["start"] = 1 }
             attrs["relaymarkId"] = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
             result["attributes"] = attrs
             result["children"] = items
@@ -81,7 +82,7 @@ private extension RelayMarkNativeDocument {
                     start: try children(last).count, count: 0, nodes: [item])
             } else {
                 destination = SnapshotNodeReplacement(parentPath: previousPath,
-                    start: previousChildren.count, count: 0, nodes: [freshList(list, items: [item])])
+                    start: previousChildren.count, count: 0, nodes: [freshList(list, items: [item], startingAtOne: true)])
             }
             edits = [destination, SnapshotNodeReplacement(parentPath: listPath, start: itemIndex, count: 1, nodes: [])]
         case .outdent:

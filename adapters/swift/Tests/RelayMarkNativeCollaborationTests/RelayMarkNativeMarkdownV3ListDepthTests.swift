@@ -25,6 +25,7 @@ final class RelayMarkNativeMarkdownV3ListDepthTests: XCTestCase {
         XCTAssertEqual(nested, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
         XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters), String(originalText.characters))
         XCTAssertEqual(nested.blocks[0].childBlocks.count, 1)
+        XCTAssertEqual(nested.blocks[0].childBlocks[0].childBlocks[1].props["start"]?.numberValue, 1)
         XCTAssertEqual(nested.blocks[0].childBlocks[0].childBlocks[1].childBlocks[0], before.blocks[0].childBlocks[1])
         let outdent = try native.changeMarkdownV3ListDepth(paragraphPath: [0, 0, 1, 0, 0], change: .outdent,
                                                           expectedSnapshot: native.snapshot())
