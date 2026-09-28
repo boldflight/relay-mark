@@ -1632,7 +1632,7 @@ public final class RelayMarkNativeDocument {
         -> (paragraph: YXmlNode, path: [Int], text: String) {
         let (paragraph, path) = try anchoredElement(anchor)
         let attrs = try paragraph.attributes()
-        guard path.count == 1, paragraph.tag() == "paragraph", paragraph.length() <= 1,
+        guard path.count == 1, ["paragraph", "heading"].contains(paragraph.tag() ?? ""), paragraph.length() <= 1,
               attrs["relaymarkId"] is String else { throw Failure.invalidAnchor }
         let leaf = paragraph.child(at: 0)
         guard leaf == nil || leaf?.kind() == "text" else { throw Failure.invalidAnchor }
@@ -1646,12 +1646,25 @@ public final class RelayMarkNativeDocument {
               Self.split(old, at: offset) != nil else { throw Failure.invalidAnchor }
         let leaf = paragraph.child(at: 0)
         let suffix = try leaf.map { try Self.suffixRuns(of: $0, after: offset) } ?? []
+        let heading = paragraph.tag() == "heading"
+        let headingLevel = try paragraph.attributes()["level"] as? Int ?? 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
+            // At the start, keep the original heading and its text identity intact.
+            if heading && offset == 0 && !old.isEmpty {
+                let preceding = try self.root.insertElement(named: "paragraph", at: UInt32(path[0]), in: transaction)
+                try preceding.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+                return Data(transaction.transactionEncodeUpdate())
+            }
             if let leaf, offset < old.utf16.count {
                 try leaf.removeText(start: UInt32(offset), length: UInt32(old.utf16.count - offset), in: transaction)
             }
-            let next = try self.root.insertElement(named: "paragraph", at: UInt32(path[0] + 1), in: transaction)
+            let nextIsHeading = heading && offset < old.utf16.count
+            let next = try self.root.insertElement(named: nextIsHeading ? "heading" : "paragraph", at: UInt32(path[0] + 1), in: transaction)
             try next.setAttribute("relaymarkId", value: paragraphID, in: transaction)
+            if nextIsHeading {
+                try next.setAttribute("level", value: headingLevel, in: transaction)
+                try next.setAttribute("headingId", value: "h-" + paragraphID, in: transaction)
+            }
             if !suffix.isEmpty {
                 let destination = try next.insertText(at: 0, in: transaction)
                 var destinationOffset: UInt32 = 0
