@@ -23,6 +23,6 @@
   "devDependencies": {
     "esbuild": "0.25.9",
     "y-protocols": "1.0.7",
-    "yjs": "https://github.com/boldflight/yjs/releases/download/v13.6.32-relay.1/yjs-13.6.32.tgz"
+    "yjs": "https://github.com/boldflight/yjs/releases/download/v13.6.33-relay.1/yjs-13.6.33.tgz"
   }
 }

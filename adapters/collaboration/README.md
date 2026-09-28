@@ -1,6 +1,6 @@
 # Optional native Yjs collaboration adapter
 
-`RelayMarkCollaboration` currently embeds the actual Yjs 13.6.32 runtime in JavaScriptCore. It does not render a WebView, download executable code, or own a database, account, authorization or transport. `RelayMarkSwift` remains free of this dependency. Rebuild the committed bundle with `npm ci && npm run build:collaboration`; the exact dependency lock and MIT notices are committed. The agreed replacement is a fork of y-crdt/YSwift over Yrs, with this adapter retaining RelayMark's XML/editor semantics. The JavaScriptCore implementation remains the interoperability reference until the native binding passes the same fixtures and Apple destination builds.
+`RelayMarkCollaboration` currently embeds the actual pinned Yjs runtime ([CRDT dependencies](../../spec/relaymark/collaboration/README.md#crdt-dependencies)) in JavaScriptCore. It does not render a WebView, download executable code, or own a database, account, authorization or transport. `RelayMarkSwift` remains free of this dependency. Rebuild the committed bundle with `npm ci && npm run build:collaboration`; the exact dependency lock and MIT notices are committed. The agreed replacement is a fork of y-crdt/YSwift over Yrs, with this adapter retaining RelayMark's XML/editor semantics. The JavaScriptCore implementation remains the interoperability reference until the native binding passes the same fixtures and Apple destination builds.
 
 ## Decision and upstream contribution path
 
@@ -169,8 +169,7 @@ operation metadata alongside the update. The root for this evidence contract is
 `default`. TipTap remains the browser presentation and selection owner; importing
 the singleton native runtime is not the browser integration path.
 
-History helpers require the exact supported Yjs 13.6.32 instance (the
-boldflight/yjs `v13.6.32-relay.1` build with the yjs/yjs#806 undo fix), including the
+History helpers require the exact pinned Yjs build, including the
 verified transaction hook exported as `yjs-history-hook.mjs`. Browser build tools
 must apply `patchHistoryHook` to their single host Yjs module; the patch fails on
 an unexpected upstream source hash. Shipping these helpers neither installs that

@@ -24,12 +24,6 @@ unchanged, and installed dependency files are not modified. The hook runs after
 the actual inverse mutations and before the same transaction's cleanup; it does
 not extend UndoManager flags or use side effects in its delete predicate.
 
-The pinned source is the boldflight/yjs `v13.6.32-relay.1` release: Yjs 13.6.32
-plus only the UndoManager fix for yjs/yjs#806 (Yrs counterpart
-y-crdt/y-crdt#674), whose redone items can otherwise delete a merged neighbour
-on undo. Return to the npm 13.6.x release, and its SHA-256, once upstream ships
-that fix.
-
 A shared `deleteFilter` preserves containers whose descendants survive local
 child deletion. Undo can leave a peer-only paragraph in place; redo restores the
 local structure around the same peer identities. In the transaction hook,
@@ -81,7 +75,8 @@ and caller supplied. The native store defines it as `paper-history-v1:` followed
 by SHA-256 of sorted-key JSON for the full source cut (scope ID, generation,
 local sequence, remote epoch). Mark checks exact equality, not authorization.
 
-The envelope contains `version:1`, `yjs_version:"13.6.32"`, `hook_version:1`,
+The envelope contains `version:1`, `yjs_version` (the supported Yjs release; restore
+also accepts `"13.6.32"`), `hook_version:1`,
 `scope_token`, `client_id` (exporter session identity), `state_update` (complete standard Yjs update bytes),
 `state_vector`, `undo`, `redo`, `redone`, and `retained`. Stack entries contain
 `insertions` and `deletions` as canonical client/clock/length intervals,

@@ -7,7 +7,7 @@ contract, provenance policy, or activation gate. Run from the registered checkou
 node scripts/contribution-identity-prototype.mjs
 ```
 
-The script imports the pinned Yjs 13.6.32 used by the collaboration bundle and
+The script imports the pinned Yjs used by the collaboration bundle and
 also loads the actual committed Swift `yjs-runtime.js` in an isolated JavaScript
 context. It uses public Yjs relative-position APIs only; it does not inspect
 internal structs or implement a CRDT merge. Its final JSON reports assertions and

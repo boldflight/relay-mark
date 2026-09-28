@@ -2,9 +2,11 @@ import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
-export const upstreamSHA256 = '5d411d02f1467b947dbb8db7ae39fefc4ae1ff881679c97e9e86d4fc33cd160f'
+// SHA-256 of dist/yjs.mjs in the Yjs build package.json installs:
+// boldflight/yjs v13.6.33-relay.1 (Yjs 13.6.33 + the yjs/yjs#806 undo fix).
+export const upstreamSHA256 = '105c7245ab478301529c7d034f59348e51e808f9144e3ea6614cea51b74af056'
 export function patchHistoryHook(source) {
-  if (createHash('sha256').update(source).digest('hex') !== upstreamSHA256) throw Error('Yjs 13.6.32 history hook source changed')
+  if (createHash('sha256').update(source).digest('hex') !== upstreamSHA256) throw Error('Pinned Yjs history hook source changed')
   const replacements = [
     ['      undoManager.currStackItem = performedChange ? stackItem : null;\n    }\n    transaction.changed.forEach',
      '      if (!performedChange && undoManager.beforeHistoryItemSkip !== null) {\n        performedChange = undoManager.beforeHistoryItemSkip({ transaction, stackItem, type: eventType }) === true;\n      }\n      undoManager.currStackItem = performedChange ? stackItem : null;\n    }\n    if (undoManager.currStackItem !== null && undoManager.beforeHistoryTransactionCommit !== null) {\n      undoManager.beforeHistoryTransactionCommit({ transaction, stackItem: undoManager.currStackItem, type: eventType });\n    }\n    transaction.changed.forEach'],

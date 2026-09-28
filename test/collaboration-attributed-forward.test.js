@@ -73,3 +73,15 @@ test('invalid forward requests, no-effects and duplicate identities refuse witho
  assert.deepEqual(h.a('exportHistorySnapshot',{scope_token:h.scope_token}),before)
  h.format(h.a,h.b,22,null);assert.deepEqual(h.delta(h.a),[{insert:'Hello'}])
 })
+
+test('history snapshots written under Yjs 13.6.32 restore and undo under the pinned Yjs',()=>{
+ const h=setup()
+ h.format(h.a,h.b,1,{})
+ const saved=h.a('exportHistorySnapshot',{scope_token:h.scope_token})
+ assert.equal(saved.yjs_version,'13.6.33')
+ const restored=h.client({...saved,yjs_version:'13.6.32'})
+ const inverse=restored('undoWithAttributedEvidence',{...h.input(),operation_id:id(2),reference_id:id(1)});h.accept(inverse,h.b)
+ assert.deepEqual(h.delta(restored),[{insert:'Hello'}])
+ assert.equal(restored('exportHistorySnapshot',{scope_token:h.scope_token}).yjs_version,'13.6.33')
+ assert.throws(()=>h.client({...saved,yjs_version:'13.6.31'}))
+})

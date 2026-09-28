@@ -1,4 +1,5 @@
 import * as Y from 'yjs'
+import yjsPackage from 'yjs/package.json' with { type: 'json' }
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -36,7 +37,7 @@ export function generate() {
   const dependencies = seeded('Start', 301), dependent = replica(Y.encodeStateAsUpdate(dependencies), 302)
   const first = changed(dependent, text => text.insert(text.length, ' one'))
   const second = changed(dependent, text => text.insert(text.length, ' two'))
-  return { fixture_version: 1, schema: 'relaymark-prosemirror-v1', root: 'default', update_encoding: 'yjs-v1', yjs: '13.6.32', cases: [
+  return { fixture_version: 1, schema: 'relaymark-prosemirror-v1', root: 'default', update_encoding: 'yjs-v1', yjs: yjsPackage.version, cases: [
     fixture('unicode-delete-only', unicode, [deletion, insertion], [[0,1,2], [2,1,0,1,2], [1,0,2,0]],
       { deletion_update_index: 1, state_vector_before_delete: before, state_vector_after_delete: bytes(Y.encodeStateVector(alice)) }),
     fixture('concurrent-mark-entity-reference', marks, [

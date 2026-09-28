@@ -3,7 +3,7 @@
   "schema": "relaymark-prosemirror-v1",
   "root": "default",
   "update_encoding": "yjs-v1",
-  "yjs": "13.6.32",
+  "yjs": "13.6.33",
   "cases": [
     {
       "id": "unicode-delete-only",

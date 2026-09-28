@@ -4,6 +4,12 @@ import { formatAttributionCut } from './format-attribution-cut.js'
 import { captureTextItems, resolveTextItems } from './text-items.js'
 import yjsPackage from 'yjs/package.json' with { type: 'json' }
 
+// The single Yjs release whose store and UndoManager internals this adapter
+// reads (package.json installs it). Snapshots from earlier supported releases
+// stay restorable: their update and stack encodings did not change.
+const supportedYjsVersion = '13.6.33'
+const restorableSnapshotYjsVersions = new Set(['13.6.32', supportedYjsVersion])
+
 const maximumStructs = 65536, maximumStack = 4096
 const equal = (a, b) => a.length === b.length && a.every((byte, i) => byte === b[i])
 const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)
@@ -214,7 +220,7 @@ function visibleAttributes(doc) {
 // Version-pinned effective marker observation. A removal marker has its own
 // identity; absence of any marker is represented by null, not an invented ID.
 export function captureHistoryMarkerState(doc) {
-  if (yjsPackage.version !== '13.6.32') throw Error('Unsupported history marker runtime')
+  if (yjsPackage.version !== supportedYjsVersion) throw Error('Unsupported history marker runtime')
   const visible = visibleAttributes(doc), leaves = new Set([...visible.values()].map(row => row.leaf))
   const found = new Map(); let visited = 0
   for (const leaf of leaves) {
@@ -501,7 +507,7 @@ export function prepareNoEffectHistory(live,owner,redo,input,lineageKey,plan) {
   owner.captureTimeout===0&&!owner.undoing&&!owner.redoing&&owner.currStackItem===null&&
   owner.beforeHistoryTransactionCommit===null&&owner.beforeHistoryItemSkip===null&&
   owner.relayHistoryTransactionHookVersion===1&&owner.relayHistoryItemSkipHookVersion===1&&owner.ignoreRemoteMapChanges===false
- if(yjsPackage.version!=='13.6.32'||!isolated()||!input||Object.keys(input).join(',')!=='operation_id'||!uuid(input.operation_id)||
+ if(yjsPackage.version!==supportedYjsVersion||!isolated()||!input||Object.keys(input).join(',')!=='operation_id'||!uuid(input.operation_id)||
     !plan||plan.kind!=='noop'||plan.prestate_sha256!==formatAttributionCut(live))throw Error('Unsupported no-effect history owner')
  const source=redo?owner.redoStack:owner.undoStack,destination=redo?owner.undoStack:owner.redoStack
  const selected=source.at(-1),metadata=selected?.meta.get(lineageKey)
@@ -560,7 +566,7 @@ export function prepareHistoryEvidence(live, owner, redo, input, lineageKey, for
 export function prepareHistoryLineage(live, owner, redo, input, lineageKey, formatting = false, formattingPlan = null) {
   assertCounterpartRetention(live)
   if (typeof Y.relayCleanupContextlessFormattingGap !== 'function') throw Error('Missing pinned history cleanup hook')
-  if (yjsPackage.version !== '13.6.32' || !input || Object.keys(input).join(',') !== 'operation_id' || !uuid(input.operation_id) ||
+  if (yjsPackage.version !== supportedYjsVersion || !input || Object.keys(input).join(',') !== 'operation_id' || !uuid(input.operation_id) ||
       owner.relayHistoryTransactionHookVersion !== 1 || owner.beforeHistoryTransactionCommit !== null || owner.beforeHistoryItemSkip != null ||
       owner.doc !== live || owner.captureTimeout !== 0 || owner.undoing || owner.redoing || owner.currStackItem !== null ||
       owner.scope.length !== 1 || owner.scope[0] !== live.getXmlFragment('default') || owner.ignoreRemoteMapChanges !== false) {
@@ -786,7 +792,7 @@ export function exportHistorySnapshot(doc, owner, input, lineageKey) {
       doc.store.pendingStructs !== null || doc.store.pendingDs !== null) throw Error('History owner is not settled')
   const values = structs(doc), state = Y.encodeStateAsUpdate(doc)
   if (state.length > maximumStateBytes) throw Error('History checkpoint limit')
-  const snapshot = { version: snapshotVersion, yjs_version: '13.6.32', hook_version: 1, scope_token: input.scope_token,
+  const snapshot = { version: snapshotVersion, yjs_version: supportedYjsVersion, hook_version: 1, scope_token: input.scope_token,
     client_id: doc.clientID, state_update: Array.from(state), state_vector: Array.from(Y.encodeStateVector(doc)),
     undo: snapshotStack(owner.undoStack, lineageKey), redo: snapshotStack(owner.redoStack, lineageKey),
     redone: values.filter(item => item instanceof Y.Item && item.redone !== null).map(item => ({
@@ -802,7 +808,7 @@ export function restoreHistorySnapshot(doc, owner, input, lineageKey) {
   const snapshot = input.snapshot
   if (new TextEncoder().encode(JSON.stringify(snapshot)).length > maximumSnapshotBytes) throw Error('History snapshot limit')
   exactKeys(snapshot, ['version', 'yjs_version', 'hook_version', 'scope_token', 'client_id', 'state_update', 'state_vector', 'undo', 'redo', 'redone', 'retained'])
-  if (snapshot.version !== snapshotVersion || snapshot.yjs_version !== '13.6.32' || snapshot.hook_version !== 1 ||
+  if (snapshot.version !== snapshotVersion || !restorableSnapshotYjsVersions.has(snapshot.yjs_version) || snapshot.hook_version !== 1 ||
       snapshot.scope_token !== input.scope_token || !Number.isSafeInteger(snapshot.client_id) || snapshot.client_id < 0 ||
       !Array.isArray(input.transaction_ids) || input.transaction_ids.length > 16384 ||
       input.transaction_ids.some(value => !uuid(value)) || new Set(input.transaction_ids).size !== input.transaction_ids.length ||

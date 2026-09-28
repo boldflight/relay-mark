@@ -14,11 +14,29 @@ this v1 profile or current v2 admission.
 | Document schema | `relaymark-prosemirror-v1` | Exact negotiated XML/mark meaning |
 | XML root | `default` | One `Y.XmlFragment` per document incarnation |
 | Binary update encoding | Yjs update v1 | `encodeStateAsUpdate` / `applyUpdate`, not their V2 variants |
-| Reference implementation | Yjs `13.6.32` | Bundled offline in the optional native adapter |
+| Reference implementation | Yjs `13.6.33` | See [CRDT dependencies](#crdt-dependencies) |
 | Awareness implementation | `y-protocols` `1.0.7` | Ephemeral presence and relative selections |
 | Fixture format | `fixture_version: 1` | This directory's binary convergence fixture format |
 | Relay host document protocol | `protocol_version: 2` | Host channel negotiation; distinct from Yjs encoding |
 | Portable RelayMark suite | `0.6.0-draft` | Existing AST/source conformance identity, unchanged by this additive document boundary |
+
+### CRDT dependencies
+
+Every Relay client and the server run community Yjs/Yrs. Where a fix is still
+pending upstream, Relay uses one boldflight fork branch per library: the latest
+upstream release plus only those patches. When upstream releases a patch, drop
+it from the branch. When the branch is empty, return to the upstream release.
+
+| Library | Used by | Relay source | Base release | Patches pending upstream |
+| --- | --- | --- | --- | --- |
+| Yjs | browsers, the JavaScriptCore adapter | boldflight/yjs release `v13.6.33-relay.1` | 13.6.33 | yjs/yjs#806 undo of merged redone items |
+| Yrs | YSwift (native), Yex (server) | boldflight/y-crdt branch `relay` | 0.28.0 | y-crdt/y-crdt#656 text-item resolution, #657 format events, #674 (the #806 counterpart) |
+| YSwift | native apps | boldflight/yswift branch `codex/relaymark-native-xml` | upstream `main` | RelayMark XML, relative positions and awareness bindings |
+| Yex | Relay server | boldflight/y_ex branch `relay` | 0.12.0 | bindings for the Yrs patches above |
+
+`scripts/yjs-history-hook.mjs` pins the SHA-256 of that Yjs build, and
+`history-lineage.js` names the one supported Yjs version. History snapshots
+written under Yjs 13.6.32 remain restorable.
 
 Schema negotiation must be exact before binding an editor. A client must not silently accept an unknown schema, switch root fields, flatten unknown content, or recreate another incarnation from rendered text. Changing document identity, incarnation, accepted grammar, or semantics requires an explicit migration/negotiation decision. Compatible adapter distribution releases do not themselves change these identities.
 
@@ -159,7 +177,7 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
 ```
 
 API provenance: [Yjs relative positions](https://docs.yjs.dev/api/relative-positions)
-and the pinned Yjs 13.6.32 `src/utils/RelativePosition.js` implementation, including
+and the pinned Yjs `src/utils/RelativePosition.js` implementation, including
 its documented cross-peer `followUndoneDeletions` behavior. This primitive does
 not yet associate human contributions with ranges or implement a contribution
 ledger, synthesis reduction, or Enhanced transport.

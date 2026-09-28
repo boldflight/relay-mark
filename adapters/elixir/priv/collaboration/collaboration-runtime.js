@@ -657,7 +657,7 @@ function call(command, input) {
       anchor: state.cursor?.anchor ? safeAnchor(state.cursor.anchor) : null,
       head: state.cursor?.head ? safeAnchor(state.cursor.head) : null
     }))
-    // Yjs 13.6.32 retains unresolved structures and deletes independently.
+    // Yjs retains unresolved structures and deletes independently.
     // Fail closed if the bundled store shape changes; a state vector alone does
     // not cover pending deletes. This is completeness, never source authority.
     case 'integrationStatus': {
