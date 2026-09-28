@@ -83,8 +83,16 @@ enum RelayMarkNativeMarkdownV3XML {
     }
 
     static func apply(document: RelayMarkNativeDocument, tree: [String: Any],
-                      edits: [RelayMarkNativeDocument.SnapshotNodeReplacement], trims: [Trim] = []) throws -> Data {
+                      edits: [RelayMarkNativeDocument.SnapshotNodeReplacement], trims: [Trim] = [],
+                      attributeUpdates: [RelayMarkNativeDocument.SnapshotAttributeUpdate] = []) throws -> Data {
         var prospective = tree
+        for update in attributeUpdates {
+            try mutate(path: update.path[...], in: &prospective) { node in
+                var attributes = node["attributes"] as? [String: Any] ?? [:]
+                for (key, value) in update.attributes { attributes[key] = value is NSNull ? nil : value }
+                node["attributes"] = attributes
+            }
+        }
         for trim in trims {
             try mutate(path: trim.removal.path[...], in: &prospective) { $0["delta"] = trim.prefixRuns }
         }
@@ -103,12 +111,12 @@ enum RelayMarkNativeMarkdownV3XML {
         let removals = trims.map(\.removal)
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
-        _ = try scratch.replaceSnapshotNodes(edits, textRemovals: removals)
+        _ = try scratch.replaceSnapshotNodes(edits, textRemovals: removals, attributeUpdates: attributeUpdates)
         guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
               try scratch.markdownV3ProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        return try document.replaceSnapshotNodes(edits, textRemovals: removals)
+        return try document.replaceSnapshotNodes(edits, textRemovals: removals, attributeUpdates: attributeUpdates)
     }
 
 }

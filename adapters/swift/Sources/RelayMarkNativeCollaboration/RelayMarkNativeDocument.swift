@@ -962,7 +962,8 @@ public final class RelayMarkNativeDocument {
     public func canAddMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String) -> Bool {
         guard integrationStatus().isComplete,
               let projection = try? markdownV3ProseProjection(), projection.isEditable else { return false }
-        return (try? markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)) != nil
+        guard let target = try? markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID) else { return false }
+        return target.table.length() < 256
     }
 
     public func addMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String,
@@ -971,6 +972,7 @@ public final class RelayMarkNativeDocument {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
               try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let path = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
+        guard path.table.length() < 256 else { throw Failure.unsupportedProseEdit }
         let rowID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
         let cellIDs = (0..<path.width).map { _ in
             "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
@@ -992,19 +994,23 @@ public final class RelayMarkNativeDocument {
     private func markdownV3TableRowTarget(_ anchor: Data, expectedCellID: String) throws
         -> (table: YXmlNode, row: YXmlNode, width: Int, rowIndex: Int) {
         let (cell, path) = try anchoredElement(anchor)
-        guard path.count == 3, cell.tag() == "tableCell",
-              try cell.attributes()["relaymarkId"] as? String == expectedCellID,
-              let table = root.child(at: UInt32(path[0])), table.tag() == "table",
-              let row = table.child(at: UInt32(path[1])), row.tag() == "tableRow",
-              table.length() < 256, (1...256).contains(row.length()) else { throw Failure.invalidAnchor }
+        guard path.count >= 3, ["tableCell", "tableHeader"].contains(cell.tag() ?? ""),
+              try cell.attributes()["relaymarkId"] as? String == expectedCellID else { throw Failure.invalidAnchor }
+        var table = root
+        for index in path.dropLast(2) {
+            guard let child = table.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            table = child
+        }
+        let rowIndex = path[path.count - 2]
+        guard table.tag() == "table", let row = table.child(at: UInt32(rowIndex)), row.tag() == "tableRow",
+              (1...256).contains(table.length()), (1...256).contains(row.length()) else { throw Failure.invalidAnchor }
         let width = Int(row.length())
         for candidate in table.children() {
             guard candidate.tag() == "tableRow", candidate.length() == width else {
                 throw Failure.unsupportedProseEdit
             }
             for entry in candidate.children() {
-                guard ["tableCell", "tableHeader"].contains(entry.tag() ?? ""),
-                      entry.length() == 1, entry.child(at: 0)?.tag() == "paragraph" else {
+                guard ["tableCell", "tableHeader"].contains(entry.tag() ?? "") else {
                     throw Failure.unsupportedProseEdit
                 }
                 let attrs = try entry.attributes()
@@ -1013,10 +1019,7 @@ public final class RelayMarkNativeDocument {
                 }
             }
         }
-        guard row.children().allSatisfy({ $0.tag() == "tableCell" }) else {
-            throw Failure.unsupportedProseEdit
-        }
-        return (table, row, width, path[1])
+        return (table, row, width, rowIndex)
     }
 
     private func insertMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String,
@@ -1026,11 +1029,14 @@ public final class RelayMarkNativeDocument {
             throw Failure.unsupportedProseEdit
         }
         let sourceAttrs = try target.row.children().map { try $0.attributes() }
+        let referenceRow = target.row.children().allSatisfy { $0.tag() == "tableHeader" }
+            ? target.table.child(at: UInt32(target.rowIndex + 1)) : target.row
+        let cellTags = (0..<target.width).map { referenceRow?.child(at: UInt32($0))?.tag() ?? "tableCell" }
         let update = try document.transactSync(origin: localOrigin) { transaction in
             let row = try target.table.insertElement(named: "tableRow", at: UInt32(target.rowIndex + 1), in: transaction)
             try row.setAttribute("relaymarkId", value: rowID, in: transaction)
             for index in 0..<target.width {
-                let cell = try row.insertElement(named: "tableCell", at: UInt32(index), in: transaction)
+                let cell = try row.insertElement(named: cellTags[index], at: UInt32(index), in: transaction)
                 try cell.setAttribute("relaymarkId", value: cellIDs[index], in: transaction)
                 for key in ["colspan", "rowspan", "colwidth", "align"] {
                     if let value = sourceAttrs[index][key], !(value is NSNull) {
@@ -1084,14 +1090,7 @@ public final class RelayMarkNativeDocument {
         let target = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
         let (_, path) = try anchoredElement(anchor)
         guard target.width < 256 else { throw Failure.unsupportedProseEdit }
-        for row in target.table.children() {
-            let names = Set(row.children().compactMap { $0.tag() })
-            guard names.count == 1, let name = names.first,
-                  name == "tableCell" || name == "tableHeader" else {
-                throw Failure.unsupportedProseEdit
-            }
-        }
-        return (target.table, path[2], Int(target.table.length()))
+        return (target.table, path[path.count - 1], Int(target.table.length()))
     }
 
     private func insertMarkdownV3TableColumn(afterCell anchor: Data, expectedCellID: String,
@@ -1101,8 +1100,9 @@ public final class RelayMarkNativeDocument {
             throw Failure.unsupportedProseEdit
         }
         let rows = target.table.children()
-        let rowTags = rows.compactMap { $0.child(at: 0)?.tag() }
-        guard rowTags.count == target.rows else { throw Failure.unsupportedProseEdit }
+        let headerColumn = rows.allSatisfy { $0.child(at: UInt32(target.columnIndex))?.tag() == "tableHeader" }
+        let referenceColumn = headerColumn ? target.columnIndex + 1 : target.columnIndex
+        let rowTags = rows.map { $0.child(at: UInt32(referenceColumn))?.tag() ?? "tableCell" }
         let update = try document.transactSync(origin: localOrigin) { transaction in
             for (index, row) in rows.enumerated() {
                 let cell = try row.insertElement(named: rowTags[index], at: UInt32(target.columnIndex + 1), in: transaction)
@@ -2078,6 +2078,13 @@ public final class RelayMarkNativeDocument {
         let nodes: [[String: Any]]
     }
 
+    /// Attribute-only change on an existing element, as y-prosemirror emits for
+    /// setNodeMarkup without a type change. NSNull removes the attribute.
+    struct SnapshotAttributeUpdate {
+        let path: [Int]
+        let attributes: [String: Any]
+    }
+
     struct SnapshotTextRemoval {
         let path: [Int]
         let start: Int
@@ -2092,7 +2099,17 @@ public final class RelayMarkNativeDocument {
     /// Resolve each existing parent before editing. A list lift/sink can then
     /// retain untouched ancestors and change both locations in one undo item.
     func replaceSnapshotNodes(_ replacements: [SnapshotNodeReplacement],
-                              textRemovals: [SnapshotTextRemoval] = []) throws -> Data {
+                              textRemovals: [SnapshotTextRemoval] = [],
+                              attributeUpdates: [SnapshotAttributeUpdate] = []) throws -> Data {
+        let attributeTargets = try attributeUpdates.map { update -> (YXmlNode, [String: Any]) in
+            var node = root
+            for index in update.path {
+                guard let index = UInt32(exactly: index), let child = node.child(at: index) else { throw Failure.invalidTextPath }
+                node = child
+            }
+            guard node.kind() == "element" else { throw Failure.invalidTextPath }
+            return (node, update.attributes)
+        }
         let textTargets = try textRemovals.map { removal -> (YXmlNode, UInt32, UInt32) in
             var leaf = root
             for index in removal.path {
@@ -2133,6 +2150,12 @@ public final class RelayMarkNativeDocument {
                     for child in raw["children"] as? [[String: Any]] ?? [] {
                         try append(child, to: node, at: node.length(in: transaction))
                     }
+                }
+            }
+            for (node, attributes) in attributeTargets {
+                for (key, value) in attributes {
+                    if value is NSNull { try node.removeAttribute(key, in: transaction) }
+                    else { try node.setAttribute(key, value: value, in: transaction) }
                 }
             }
             for (leaf, start, count) in textTargets where count > 0 {
