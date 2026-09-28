@@ -1960,6 +1960,34 @@ public final class RelayMarkNativeDocument {
         return node.children().contains(where: containsTaskNode)
     }
 
+    /// Called only after the recovery adapter validates the complete prospective XML.
+    func appendRecoveryNodes(_ nodes: [[String: Any]]) throws -> Data {
+        undoManager.wrap()
+        let update = try document.transactSync(origin: localOrigin) { transaction in
+            func append(_ raw: [String: Any], to parent: YXmlNode) throws {
+                if raw["kind"] as? String == "text" {
+                    let leaf = try parent.insertText(at: parent.length(in: transaction), in: transaction)
+                    for run in raw["delta"] as? [[String: Any]] ?? [] {
+                        guard let text = run["insert"] as? String else { throw Failure.unsupportedProseEdit }
+                        try leaf.insert(text, attributes: run["attributes"] as? [String: Any] ?? [:],
+                            at: leaf.length(in: transaction), in: transaction)
+                    }
+                } else {
+                    guard let name = raw["name"] as? String else { throw Failure.unsupportedProseEdit }
+                    let node = try parent.insertElement(named: name, at: parent.length(in: transaction), in: transaction)
+                    for (key, value) in raw["attributes"] as? [String: Any] ?? [:] {
+                        try node.setAttribute(key, value: value, in: transaction)
+                    }
+                    for child in raw["children"] as? [[String: Any]] ?? [] { try append(child, to: node) }
+                }
+            }
+            for node in nodes { try append(node, to: self.root) }
+            return Data(transaction.transactionEncodeUpdate())
+        }
+        undoManager.wrap()
+        return update
+    }
+
     private func snapshot(_ node: YXmlNode) throws -> [String: Any] {
         switch node.kind() {
         case "fragment":
