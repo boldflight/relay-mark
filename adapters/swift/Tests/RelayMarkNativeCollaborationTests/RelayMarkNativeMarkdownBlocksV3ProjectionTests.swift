@@ -939,6 +939,32 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try native.encodeUpdate(), checkpoint)
     }
 
+    func testCommunityParagraphJoinFixtureConvergesButDoesNotRecoverConcurrentRemovedNodeTyping() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "paragraph-join-v3", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        func bytes(_ key: String) throws -> Data {
+            try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture[key] as? String)))
+        }
+        let left = RelayMarkNativeDocument(), right = RelayMarkNativeDocument()
+        try left.applyUpdate(bytes("seed")); try right.applyUpdate(bytes("seed"))
+        try left.applyUpdate(bytes("browser_join_update")); try left.applyUpdate(bytes("peer_update"))
+        try right.applyUpdate(bytes("peer_update")); try right.applyUpdate(bytes("browser_join_update"))
+        XCTAssertTrue(left.integrationStatus().isComplete && right.integrationStatus().isComplete)
+        let merged = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: left)
+        XCTAssertEqual(merged, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: right))
+        XCTAssertEqual(merged.blocks.count, 1)
+        XCTAssertEqual(merged.blocks[0].plainText, "Left Right")
+        // Compatibility receipt only. This is explicitly NOT the product's
+        // no-loss acceptance gate: the concurrent raw update remains a fixture,
+        // but neither the merged view nor the browser's normal Undo places it.
+        XCTAssertEqual(fixture["concurrent_right_text_visible"] as? Bool, false)
+        try left.applyUpdate(bytes("browser_undo_update")); try right.applyUpdate(bytes("browser_undo_update"))
+        let undone = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: left)
+        XCTAssertEqual(undone, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: right))
+        XCTAssertEqual(undone.blocks.map(\.plainText), ["Left ", "Right"])
+        XCTAssertEqual(fixture["recovered_concurrent_text"] as? Bool, false)
+    }
+
     func testMixedRunPasteKeepsConcurrentPeerTypingAndUndoInOneTransaction() throws {
         let (seed, _) = try fixture()
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
