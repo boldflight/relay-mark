@@ -84,6 +84,12 @@ public final class RelayMarkNativeDocument {
         try YDocument.mergeUpdatesV1(updates)
     }
 
+    /// Read community deletion metadata; callers must distinguish original
+    /// updates from reconstructed state before interpreting sender observation.
+    public static func hasAdditionalDeletionsV1(before: Data, after: Data, declaredBy: Data) throws -> Bool {
+        try YDocument.hasAdditionalDeletionsV1(before: before, after: after, declaredBy: declaredBy)
+    }
+
     /// The same lossless XML JSON shape used by the existing collaboration adapter.
     public func snapshot() throws -> Data {
         let object = try snapshot(root)
