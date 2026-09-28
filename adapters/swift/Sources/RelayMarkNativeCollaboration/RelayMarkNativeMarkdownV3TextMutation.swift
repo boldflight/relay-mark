@@ -29,7 +29,7 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
     public static func replace(document: RelayMarkNativeDocument, path: [Int],
                                start: Int, end: Int, text: String) throws -> Data {
         try replace(document: document, path: path, start: start, end: end, text: text,
-                    insertionAttributes: nil)
+                    insertionRuns: nil)
     }
 
     /// Explicit typing marks permit replacement across existing formatting runs.
@@ -37,16 +37,30 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
     public static func replace(document: RelayMarkNativeDocument, path: [Int],
                                start: Int, end: Int, text: String,
                                attributes: [String: Any]) throws -> Data {
-        guard JSONSerialization.isValidJSONObject(attributes) else {
-            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        try replace(document: document, path: path, start: start, end: end,
+                    runs: text.isEmpty ? [] : [(text, attributes)])
+    }
+
+    /// Preserve every authored run in an inline rich-text paste. The operation
+    /// remains one Yrs transaction; surrounding blocks and surviving marks stay intact.
+    public static func replace(document: RelayMarkNativeDocument, path: [Int],
+                               start: Int, end: Int,
+                               runs: [(text: String, attributes: [String: Any])]) throws -> Data {
+        var length = 0
+        for run in runs {
+            guard !run.text.isEmpty, run.text.utf16.count <= 131_072 - length,
+                  JSONSerialization.isValidJSONObject(run.attributes) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            length += run.text.utf16.count
         }
         return try replace(document: document, path: path, start: start, end: end,
-                           text: text, insertionAttributes: attributes)
+                           text: runs.map(\.text).joined(), insertionRuns: runs)
     }
 
     private static func replace(document: RelayMarkNativeDocument, path: [Int],
                                 start: Int, end: Int, text: String,
-                                insertionAttributes: [String: Any]?) throws -> Data {
+                                insertionRuns: [(text: String, attributes: [String: Any])]?) throws -> Data {
         guard end >= start, !text.unicodeScalars.contains(where: {
             $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}"
         }), text.utf16.count <= 131_072 else {
@@ -61,19 +75,19 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
         if emptyParagraph { validTextRun = true }
         else {
             validTextRun = try staysWithinOneTextRun(snapshot: snapshot, path: path,
-                                                    start: start, end: end, text: text, explicitMarks: insertionAttributes != nil)
+                                                    start: start, end: end, text: text, explicitMarks: insertionRuns != nil)
         }
         guard validTextRun else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         func apply(to target: RelayMarkNativeDocument) throws -> Data {
             if emptyParagraph {
-                return try target.insertTextIntoEmptyParagraph(text, path: path,
-                                                              attributes: insertionAttributes ?? [:])
+                return try target.insertTextIntoEmptyParagraph(path: path,
+                    runs: insertionRuns ?? [(text, [:])])
             }
-            if let insertionAttributes {
-                return try target.replaceText(at: start, length: end - start, with: text,
-                                              attributes: insertionAttributes, path: path)
+            if let insertionRuns {
+                return try target.replaceText(at: start, length: end - start,
+                                              runs: insertionRuns, path: path)
             }
             return try target.replaceText(at: start, length: end - start, with: text, path: path)
         }

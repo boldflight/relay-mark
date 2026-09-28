@@ -939,6 +939,36 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try native.encodeUpdate(), checkpoint)
     }
 
+    func testMixedRunPasteKeepsConcurrentPeerTypingAndUndoInOneTransaction() throws {
+        let (seed, _) = try fixture()
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed); try peer.applyUpdate(seed)
+        let remote = try RelayMarkNativeMarkdownV3TextMutation.replace(document: peer,
+            path: [0, 0], start: 0, end: 0, text: "Peer ", attributes: [:])
+        let peerBeforePaste = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer)
+        let pasted = try RelayMarkNativeMarkdownV3TextMutation.replace(document: native,
+            path: [0, 0], start: 1, end: 5, runs: [
+                ("bold", ["bold": [String: Any]()]),
+                (" 👩🏽‍💻 ", [:]),
+                ("italic", ["italic": [String: Any]()])])
+        try peer.applyUpdate(pasted); try native.applyUpdate(remote)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(after.blocks.map(\.id), peerBeforePaste.blocks.map(\.id))
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(native.encodeUpdate())
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: reopened), after)
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), peerBeforePaste)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), peerBeforePaste)
+        try peer.applyUpdate(try XCTUnwrap(native.redo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+        let checkpoint = try native.encodeUpdate()
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(document: native,
+            path: [0, 0], start: 0, end: 0, runs: [("good", [:]), ("bad", ["unknown": [:]])]))
+        XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+    }
+
     func testExplicitTypingMarksReplaceAcrossRunsAndRejectInvalidMarksBeforeMutation() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-marks-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
