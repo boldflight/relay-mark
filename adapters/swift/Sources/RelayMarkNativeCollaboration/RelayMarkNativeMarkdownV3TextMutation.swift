@@ -28,6 +28,25 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
 
     public static func replace(document: RelayMarkNativeDocument, path: [Int],
                                start: Int, end: Int, text: String) throws -> Data {
+        try replace(document: document, path: path, start: start, end: end, text: text,
+                    insertionAttributes: nil)
+    }
+
+    /// Explicit typing marks permit replacement across existing formatting runs.
+    /// The full v3 projection rejects unsupported marks before live mutation.
+    public static func replace(document: RelayMarkNativeDocument, path: [Int],
+                               start: Int, end: Int, text: String,
+                               attributes: [String: Any]) throws -> Data {
+        guard JSONSerialization.isValidJSONObject(attributes) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return try replace(document: document, path: path, start: start, end: end,
+                           text: text, insertionAttributes: attributes)
+    }
+
+    private static func replace(document: RelayMarkNativeDocument, path: [Int],
+                                start: Int, end: Int, text: String,
+                                insertionAttributes: [String: Any]?) throws -> Data {
         guard end >= start, !text.unicodeScalars.contains(where: {
             $0 == "\n" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}"
         }), text.utf16.count <= 131_072 else {
@@ -42,18 +61,27 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
         if emptyParagraph { validTextRun = true }
         else {
             validTextRun = try staysWithinOneTextRun(snapshot: snapshot, path: path,
-                                                    start: start, end: end, text: text)
+                                                    start: start, end: end, text: text, explicitMarks: insertionAttributes != nil)
         }
         guard validTextRun else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
+        func apply(to target: RelayMarkNativeDocument) throws -> Data {
+            if emptyParagraph {
+                return try target.insertTextIntoEmptyParagraph(text, path: path,
+                                                              attributes: insertionAttributes ?? [:])
+            }
+            if let insertionAttributes {
+                return try target.replaceText(at: start, length: end - start, with: text,
+                                              attributes: insertionAttributes, path: path)
+            }
+            return try target.replaceText(at: start, length: end - start, with: text, path: path)
+        }
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
-        if emptyParagraph { _ = try scratch.insertTextIntoEmptyParagraph(text, path: path) }
-        else { _ = try scratch.replaceText(at: start, length: end - start, with: text, path: path) }
+        _ = try apply(to: scratch)
         _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch)
-        if emptyParagraph { return try document.insertTextIntoEmptyParagraph(text, path: path) }
-        return try document.replaceText(at: start, length: end - start, with: text, path: path)
+        return try apply(to: document)
     }
 
     private static func isEmptyTextBlock(snapshot: Data, path: [Int]) throws -> Bool {
@@ -69,7 +97,7 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
     }
 
     private static func staysWithinOneTextRun(snapshot: Data, path: [Int],
-                                              start: Int, end: Int, text: String) throws -> Bool {
+                                              start: Int, end: Int, text: String, explicitMarks: Bool) throws -> Bool {
         guard start >= 0, path.count >= 2,
               let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any] else {
             return false
@@ -84,10 +112,9 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
             return false
         }
         if runs.isEmpty { return start == 0 && end == 0 && !text.isEmpty }
-        if text.isEmpty && end > start {
-            // Deleting a selection has no typing-mark decision. Do not fence it
-            // merely because bold/link/etc. runs differ: Yrs removes exactly
-            // these characters and retains the attributes of all survivors.
+        if explicitMarks || (text.isEmpty && end > start) {
+            // Explicit typing marks resolve boundary styling; deletion needs none.
+            // Yrs keeps all surviving characters and their existing attributes.
             let fragments = runs.compactMap { $0["insert"] as? String }
             guard fragments.count == runs.count else { return false }
             let value = fragments.joined()

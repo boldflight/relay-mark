@@ -733,6 +733,20 @@ public final class RelayMarkNativeDocument {
 
     /// Deletion and insertion share one transaction and one undo item.
     public func replaceText(at index: Int, length: Int, with text: String, path: [Int]) throws -> Data {
+        try replaceText(at: index, length: length, with: text, path: path, insertionAttributes: nil)
+    }
+
+    /// Replace text using explicit authored typing marks supplied by the editor.
+    /// Schema-specific callers validate their complete candidate before invoking this primitive.
+    public func replaceText(at index: Int, length: Int, with text: String,
+                            attributes: [String: Any], path: [Int]) throws -> Data {
+        guard JSONSerialization.isValidJSONObject(attributes) else { throw Failure.unsupportedProseEdit }
+        return try replaceText(at: index, length: length, with: text, path: path,
+                               insertionAttributes: attributes)
+    }
+
+    private func replaceText(at index: Int, length: Int, with text: String, path: [Int],
+                             insertionAttributes: [String: Any]?) throws -> Data {
         let update = try document.transactSync(origin: localOrigin) { transaction in
             var node = self.root
             for component in path {
@@ -767,7 +781,7 @@ public final class RelayMarkNativeDocument {
                 offset = end
             }
             if length > 0 { try node.removeText(start: UInt32(index), length: UInt32(length), in: transaction) }
-            if !text.isEmpty { try node.insert(text, attributes: attributes, at: UInt32(index), in: transaction) }
+            if !text.isEmpty { try node.insert(text, attributes: insertionAttributes ?? attributes, at: UInt32(index), in: transaction) }
             return Data(transaction.transactionEncodeUpdate())
         }
         undoManager.wrap()
@@ -777,7 +791,7 @@ public final class RelayMarkNativeDocument {
     /// Seed one existing empty XML paragraph or first-child callout title without changing its stable block
     /// identity. The v3 adapter validates the surrounding document on a scratch
     /// replica before this operation reaches the live Yrs transaction.
-    func insertTextIntoEmptyParagraph(_ text: String, path: [Int]) throws -> Data {
+    func insertTextIntoEmptyParagraph(_ text: String, path: [Int], attributes: [String: Any] = [:]) throws -> Data {
         guard !text.isEmpty else { throw Failure.unsupportedProseEdit }
         let update = try document.transactSync(origin: localOrigin) { transaction in
             var node = self.root
@@ -796,7 +810,7 @@ public final class RelayMarkNativeDocument {
                 throw Failure.invalidTextPath
             }
             let leaf = try node.insertText(at: 0, in: transaction)
-            try leaf.insert(text, at: 0, in: transaction)
+            try leaf.insert(text, attributes: attributes, at: 0, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
         }
         undoManager.wrap()

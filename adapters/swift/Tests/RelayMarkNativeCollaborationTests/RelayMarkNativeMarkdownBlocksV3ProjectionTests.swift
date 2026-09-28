@@ -939,6 +939,37 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try native.encodeUpdate(), checkpoint)
     }
 
+    func testExplicitTypingMarksReplaceAcrossRunsAndRejectInvalidMarksBeforeMutation() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-marks-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed); try peer.applyUpdate(seed)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let update = try RelayMarkNativeMarkdownV3TextMutation.replace(document: native,
+            path: [0, 0], start: 5, end: 8, text: "NEW", attributes: ["underline": [String: Any]()])
+        try peer.applyUpdate(update)
+        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(after.blocks.map(\.id), before.blocks.map(\.id))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        let blocks = try XCTUnwrap(root["children"] as? [[String: Any]])
+        let children = try XCTUnwrap(blocks[0]["children"] as? [[String: Any]])
+        let runs = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+        let inserted = try XCTUnwrap(runs.first { $0["insert"] as? String == "NEW" })
+        XCTAssertEqual(Set(try XCTUnwrap(inserted["attributes"] as? [String: Any]).keys), ["underline"])
+        let checkpoint = try native.encodeUpdate()
+        for marks: [String: Any] in [["unknown": [:]], ["code": [:], "bold": [:]], ["highlight": ["color": "red"]]] {
+            XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(document: native,
+                path: [0, 0], start: 0, end: 0, text: "bad", attributes: marks))
+            XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+        }
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+        try peer.applyUpdate(try XCTUnwrap(native.redo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+    }
+
     func testCrossMarkDeletionPreservesPeerTypingBlockIdentityAndSelectiveUndo() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-marks-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
