@@ -106,6 +106,61 @@ public enum RelayMarkNativeMarkdownV3Editing {
         return Change(update: update, caret: head.flatMap { caret($0, in: updated) })
     }
 
+    /// Inline content for insertion: marked text or an inline node such as
+    /// relayTag, relayReference or hardBreak, with its authored attributes.
+    public enum Inline {
+        case text(String, attributes: [String: Any] = [:])
+        case node(String, attributes: [String: Any] = [:])
+    }
+
+    /// TipTap insertContent for inline content: replaces the projected range
+    /// with the given nodes in one transaction and places the caret after
+    /// them. Unknown node types, attributes or marks are refused.
+    public static func insert(document: RelayMarkNativeDocument, range: NSRange, content: [Inline],
+                              expectedSnapshot: Data) throws -> Change {
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any], !content.isEmpty else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let projection = try document.markdownV3ProseProjection()
+        guard projection.isEditable, range.location >= 0, range.length >= 0 else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let bridge = try PMYXmlBridge.v3(), schema = bridge.schema
+        let doc = try bridge.document(fromSnapshot: tree)
+        let from = try position(range.location, projection: projection, doc: doc)
+        let to = try position(NSMaxRange(range), projection: projection, doc: doc)
+        let nodes = try content.map { item -> PMNode in
+            switch item {
+            case let .text(text, attributes):
+                guard !text.isEmpty, !text.contains("\n"), JSONSerialization.isValidJSONObject(attributes) else {
+                    throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+                }
+                return schema.text(Array(text.utf16), marks: try PMMark.setFrom(attributes.map { key, value in
+                    guard let type = schema.marks[key] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+                    return type.create(value as? [String: Any] ?? [:])
+                }))
+            case let .node(name, attributes):
+                guard let type = schema.nodes[name], type.isInline, !type.isText,
+                      Set(attributes.keys).isSubset(of: type.attrs.map(\.name)),
+                      JSONSerialization.isValidJSONObject(attributes) else {
+                    throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+                }
+                return try type.create(attributes)
+            }
+        }
+        var transform = PMTransform(doc)
+        do {
+            try transform.replaceRange(from, to, PMSlice(PMFragment.fromArray(nodes), openStart: 0, openEnd: 0))
+        } catch is PMReplaceError {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document)
+        let head = transform.map(to, assoc: 1)
+        return Change(update: update, caret: caret(head, in: updated))
+    }
+
     public enum Key: Sendable {
         case backspace, delete
     }

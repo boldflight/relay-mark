@@ -122,3 +122,44 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, "\(failures.count) of \(cases.count) cases failed:\n" + failures.joined(separator: "\n"))
     }
 }
+
+@MainActor
+final class RelayMarkNativeMarkdownV3InlineInsertionTests: XCTestCase {
+    /// A #tag reference and a linked entity label insert at a caret inside a
+    /// list item, as the browser's tag and entity suggestions insert them.
+    func testTagAndEntityLinkInsertInOneTransaction() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "native-replace-v3", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["seed"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(seed)
+        try peer.applyUpdate(seed)
+        let before = try native.snapshot()
+        let prose = try native.markdownV3ProseProjection()
+        let text = String(prose.text.characters) as NSString
+        let bullet = text.range(of: "Bullet one")
+        let caret = NSRange(location: bullet.location + 6, length: 0)
+        let tagID = "11111111-2222-4333-8444-555555555555", entityID = "66666666-7777-4888-8999-aaaaaaaaaaaa"
+        let link: [String: Any] = ["href": "relay:entity/\(entityID)", "target": "_blank",
+                                   "rel": "noopener noreferrer nofollow", "class": NSNull(), "title": NSNull()]
+        let change = try RelayMarkNativeMarkdownV3Editing.insert(document: native, range: caret, content: [
+            .node("relayTag", attributes: ["id": tagID, "name": "native-proof",
+                                           "source": "[[Tag: \(tagID) | #native-proof]]"]),
+            .text(" "),
+            .text("Alex", attributes: ["link": link]),
+            .text(" "),
+        ], expectedSnapshot: before)
+        let after = try native.markdownV3ProseProjection()
+        XCTAssertTrue(String(after.text.characters).contains("Bullet\u{FFFC} Alex  one"))
+        XCTAssertEqual(after.inlineAtoms.filter { $0.id == tagID }.count, 1)
+        let block = try XCTUnwrap(after.blockRanges.firstIndex { NSLocationInRange(bullet.location, $0) })
+        XCTAssertEqual(change.caret, .init(blockPath: after.blockPaths[block], offset: 13))
+        try peer.applyUpdate(change.update)
+        XCTAssertEqual(try native.snapshot(), try peer.snapshot())
+        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3Editing.insert(document: native, range: caret,
+            content: [.node("relayTag", attributes: ["color": "red"])], expectedSnapshot: native.snapshot()))
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try native.snapshot(), before)
+        XCTAssertEqual(try peer.snapshot(), before)
+    }
+}
