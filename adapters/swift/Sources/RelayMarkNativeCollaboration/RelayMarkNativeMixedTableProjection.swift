@@ -83,7 +83,7 @@ public enum RelayMarkNativeMixedTableProjection {
             guard let list = widths as? [Any], list.count == colspan else {
                 throw Failure.unsupported("colwidth")
             }
-            colwidth = try list.map { try positiveInteger($0, "colwidth") }
+            colwidth = try list.map { try positiveInteger($0, "colwidth", minimum: 0) }
         } else {
             colwidth = NSNull()
         }
@@ -131,10 +131,11 @@ public enum RelayMarkNativeMixedTableProjection {
         return id
     }
 
-    private static func positiveInteger(_ raw: Any?, _ label: String) throws -> Int {
+    /// `minimum: 0` admits prosemirror-tables' unspecified column width.
+    private static func positiveInteger(_ raw: Any?, _ label: String, minimum: Double = 1) throws -> Int {
         guard let value = raw as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(),
               value.doubleValue.isFinite, value.doubleValue.rounded() == value.doubleValue,
-              value.doubleValue >= 1, value.doubleValue <= 9_007_199_254_740_991 else {
+              value.doubleValue >= minimum, value.doubleValue <= 9_007_199_254_740_991 else {
             throw Failure.unsupported(label)
         }
         return value.intValue

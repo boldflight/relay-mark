@@ -620,8 +620,8 @@ function checkCellProps(props) {
   }
   if (props.colwidth !== null &&
       (!Array.isArray(props.colwidth) || props.colwidth.length !== props.colspan ||
-       props.colwidth.some(width => !Number.isSafeInteger(width) || width < 1))) {
-    throw new TypeError("Cell colwidth must be null or one positive width per spanned column");
+       props.colwidth.some(width => !Number.isSafeInteger(width) || width < 0))) {
+    throw new TypeError("Cell colwidth must be null or one non-negative width per spanned column");
   }
   if (!alignments.has(props.align)) {
     throw new TypeError("Cell align must be null, left, center, or right");

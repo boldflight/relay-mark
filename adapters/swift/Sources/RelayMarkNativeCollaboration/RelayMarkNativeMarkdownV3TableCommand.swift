@@ -121,7 +121,11 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
         case .deleteTable:
             throw Failure.unsupportedProseEdit
         }
+        // Browser order: tableEditing's fixTables, PaperTableRow, then
+        // fixTables again for the appended transaction.
+        try fixColumnWidths(&table)
         try removeCoveredRows(&table)
+        try fixColumnWidths(&table)
         var change = Change(tree: tree)
         var levels: [[Replacement]] = [[], [], []]
         try diff(old: XML.children(original), new: XML.children(table), relative: [], tablePath: tablePath,
@@ -158,7 +162,7 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
             let index = row * grid.width + column
             if column > 0, column < grid.width, grid.slots[index - 1] == grid.slots[index] {
                 let key = grid.slots[index], span = grid.rect(of: key)
-                try updateCell(&rows, key) { $0 = addColSpan($0, count: 1) }
+                try updateCell(&rows, key) { $0 = addColSpan($0, at: column - span.left, count: 1) }
                 row += span.bottom - span.top
             } else {
                 let name = reference.map { grid.name(of: grid.slots[index + $0], in: table) } ?? "tableCell"
@@ -302,7 +306,7 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
         guard let target, !removals.isEmpty else { throw Failure.unsupportedProseEdit }
         let span = grid.rect(of: target)
         try updateCell(&rows, target) { attrs in
-            attrs = addColSpan(attrs, count: rect.right - rect.left - (span.right - span.left))
+            attrs = addColSpan(attrs, at: span.right - span.left, count: rect.right - rect.left - (span.right - span.left))
             attrs["rowspan"] = rect.bottom - rect.top
         }
         if !content.isEmpty {
@@ -379,23 +383,71 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
         rows[key.row]["children"] = cells
     }
 
-    /// RelayMark requires positive widths, so the zero placeholders
-    /// prosemirror-tables inserts for widened cells clear colwidth instead.
-    private static func addColSpan(_ attrs: [String: Any], count: Int) -> [String: Any] {
+    private static func widths(_ attrs: [String: Any]) -> [Int]? {
+        (attrs["colwidth"] as? [Any])?.map { ($0 as? NSNumber)?.intValue ?? 0 }
+    }
+
+    /// prosemirror-tables addColSpan. Its zero placeholders are not valid
+    /// RelayMark widths, so the final projection refuses such a result.
+    private static func addColSpan(_ attrs: [String: Any], at position: Int, count: Int) -> [String: Any] {
         var result = attrs
         result["colspan"] = span(attrs["colspan"]) + count
-        if count > 0, attrs["colwidth"] is [Any] { result["colwidth"] = nil }
+        if var list = widths(attrs) {
+            list.insert(contentsOf: Array(repeating: 0, count: count), at: min(max(position, 0), list.count))
+            result["colwidth"] = list
+        }
         return result
     }
 
     private static func removeColSpan(_ attrs: [String: Any], at position: Int) -> [String: Any] {
         var result = attrs
         result["colspan"] = span(attrs["colspan"]) - 1
-        if var widths = attrs["colwidth"] as? [Any], widths.indices.contains(position) {
-            widths.remove(at: position)
-            result["colwidth"] = widths.contains { (($0 as? NSNumber)?.intValue ?? 0) > 0 } ? widths as Any : nil
+        if var list = widths(attrs) {
+            if list.indices.contains(position) { list.remove(at: position) }
+            result["colwidth"] = list.contains { $0 > 0 } ? list : nil
         }
         return result
+    }
+
+    /// The colwidth repair of prosemirror-tables' fixTables (computeMap and
+    /// findBadColWidths). The browser applies it to every table change,
+    /// including received ones, so native output must already satisfy it.
+    private static func fixColumnWidths(_ table: inout [String: Any]) throws {
+        let grid = try Grid(table)
+        var rows = try XML.children(table)
+        var known = [(width: Int, count: Int)?](repeating: nil, count: grid.width)
+        for (row, rowNode) in rows.enumerated() {
+            for index in try XML.children(rowNode).indices {
+                let key = Grid.Key(row: row, index: index), rect = grid.rect(of: key)
+                guard let list = widths(attributes(try XML.children(rowNode)[index])) else { continue }
+                for _ in rect.top..<rect.bottom {
+                    for offset in 0..<(rect.right - rect.left) where offset < list.count && list[offset] != 0 {
+                        let column = rect.left + offset, value = list[offset]
+                        if let previous = known[column], previous.width == value {
+                            known[column] = (value, previous.count + 1)
+                        } else if known[column] == nil || known[column]!.count == 1 {
+                            known[column] = (value, 1)
+                        }
+                    }
+                }
+            }
+        }
+        guard known.contains(where: { $0 != nil && $0!.count < grid.height }) else { return }
+        var seen = Set<Grid.Key>()
+        for (slot, key) in grid.slots.enumerated() where seen.insert(key).inserted {
+            let attrs = attributes(try XML.children(rows[key.row])[key.index])
+            let colspan = span(attrs["colspan"]), current = widths(attrs)
+            var updated: [Int]?
+            for offset in 0..<colspan {
+                guard let width = known[(slot + offset) % grid.width]?.width else { continue }
+                if current == nil || offset >= current!.count || current![offset] != width {
+                    if updated == nil { updated = current ?? Array(repeating: 0, count: colspan) }
+                    if offset < updated!.count { updated![offset] = width } else { updated!.append(width) }
+                }
+            }
+            if let updated { try updateCell(&rows, key) { $0["colwidth"] = updated } }
+        }
+        table["children"] = rows
     }
 
     private static func emptyCell(_ name: String) -> [String: Any] {

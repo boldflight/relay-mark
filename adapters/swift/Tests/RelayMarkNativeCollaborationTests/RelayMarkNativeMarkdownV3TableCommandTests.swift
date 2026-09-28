@@ -58,7 +58,7 @@ final class RelayMarkNativeMarkdownV3TableCommandTests: XCTestCase {
     /// same XML, same retained identities, peer convergence and exact undo.
     func testSpannedCommandsMatchCommunityTableKitAndReplayUndo() throws {
         let cases = try cases()
-        XCTAssertEqual(cases.count, 16)
+        XCTAssertEqual(cases.count, 23)
         for entry in cases {
             let command = try XCTUnwrap(entry["command"] as? String)
             let operation = try XCTUnwrap(Self.operations[command])
@@ -80,8 +80,14 @@ final class RelayMarkNativeMarkdownV3TableCommandTests: XCTestCase {
                 expectedCellID: "b00000000000040008000000000000999", headAnchor: head,
                 expectedHeadCellID: headID, expectedSnapshot: before), command)
 
-            let update = try Command.apply(operation, document: native, cellAnchor: anchor, expectedCellID: anchorID,
+            let update: Data
+            do {
+                update = try Command.apply(operation, document: native, cellAnchor: anchor, expectedCellID: anchorID,
                                            headAnchor: head, expectedHeadCellID: headID, expectedSnapshot: before)
+            } catch {
+                XCTFail("\(command) \(entry["table"] ?? "spanned"): \(error)")
+                continue
+            }
             try peer.applyUpdate(update)
             let after = try tree(native)
             let expected = try XCTUnwrap(entry["after_xml"] as? [String: Any])

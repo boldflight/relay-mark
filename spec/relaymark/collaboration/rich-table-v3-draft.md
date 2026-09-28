@@ -57,8 +57,9 @@ shape](block-identity-v3-draft.md). It becomes the AST `id`. The mapper does
 not generate or backfill IDs. IDs must be unique across the projected document.
 
 Cell `colspan` and `rowspan` are positive integers. `colwidth` is either
-`null` or an array of positive integer pixel widths with one entry per spanned
-column. `align` is `null`, `left`, `center`, or `right`, matching installed
+`null` or an array of non-negative integer pixel widths with one entry per
+spanned column; `0` is prosemirror-tables' unspecified width, which its
+`addColumn`, `mergeCells` and `fixTables` store beside known widths. `align` is `null`, `left`, `center`, or `right`, matching installed
 TipTap table attributes. Header identity is the explicit `header` Boolean;
 the existing AST schema has `table_cell` but no `table_header` type. Each cell
 contains at least one paragraph; its inline content follows the same strict

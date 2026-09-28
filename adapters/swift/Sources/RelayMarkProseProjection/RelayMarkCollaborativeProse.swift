@@ -466,7 +466,7 @@ public struct RelayMarkCollaborativeProse {
                     let widths: [Int]?
                     if let raw = attributes["colwidth"], !(raw is NSNull) {
                         guard let values = raw as? [Int], values.count == span,
-                              values.allSatisfy({ $0 > 0 }) else { supported = false; continue }
+                              values.allSatisfy({ $0 >= 0 }) else { supported = false; continue }
                         widths = values
                     } else { widths = nil }
                     let alignment: String?
