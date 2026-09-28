@@ -4,7 +4,9 @@ import Foundation
 ///
 /// The host still gates v3 admission. This command keeps an edit inside one
 /// existing XmlText leaf and validates the complete candidate document before
-/// mutating the live replica. It does not reinterpret or rebuild block nodes.
+/// mutating the live replica. Deletion may span formatting runs within that
+/// leaf; surviving formatting remains owned by the community Yrs text type.
+/// It does not reinterpret or rebuild block nodes.
 @MainActor
 public enum RelayMarkNativeMarkdownV3TextMutation {
     /// Address a paragraph by its durable RelayMark ID rather than a possibly
@@ -82,6 +84,16 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
             return false
         }
         if runs.isEmpty { return start == 0 && end == 0 && !text.isEmpty }
+        if text.isEmpty && end > start {
+            // Deleting a selection has no typing-mark decision. Do not fence it
+            // merely because bold/link/etc. runs differ: Yrs removes exactly
+            // these characters and retains the attributes of all survivors.
+            let fragments = runs.compactMap { $0["insert"] as? String }
+            guard fragments.count == runs.count else { return false }
+            let value = fragments.joined()
+            return end <= value.utf16.count && isCharacterBoundary(start, in: value) &&
+                isCharacterBoundary(end, in: value)
+        }
         // YSwift inserts explicit empty attributes at an exact run boundary.
         // At the beginning of a plain first run this is the same semantic
         // style; a styled first run remains fenced rather than losing marks.

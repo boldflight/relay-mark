@@ -939,6 +939,52 @@ final class RelayMarkNativeMarkdownBlocksV3ProjectionTests: XCTestCase {
         XCTAssertEqual(try native.encodeUpdate(), checkpoint)
     }
 
+    func testCrossMarkDeletionPreservesPeerTypingBlockIdentityAndSelectiveUndo() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-marks-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let baseline = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(baseline); try peer.applyUpdate(baseline)
+        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+        let blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
+        let children = try XCTUnwrap(blocks[0]["children"] as? [[String: Any]])
+        let runs = try XCTUnwrap(children[0]["delta"] as? [[String: Any]])
+        let total = runs.compactMap { $0["insert"] as? String }.joined().utf16.count
+        let peerUpdate = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: peer, path: [0, 0], start: total, end: total, text: " peer")
+        let peerBeforeDeletion = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer)
+        let deletion = try RelayMarkNativeMarkdownV3TextMutation.replace(
+            document: native, path: [0, 0], start: 5, end: 8, text: "")
+        try native.applyUpdate(peerUpdate); try peer.applyUpdate(deletion)
+        let merged = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(merged, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        XCTAssertEqual(merged.blocks.map(\.id), before.blocks.map(\.id))
+        XCTAssertEqual(merged.blocks[0].plainText,
+            (peerBeforeDeletion.blocks[0].plainText as NSString).replacingCharacters(
+                in: NSRange(location: 5, length: 3), with: ""))
+        try peer.applyUpdate(try XCTUnwrap(native.undo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), peerBeforeDeletion)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), peerBeforeDeletion)
+        try peer.applyUpdate(try XCTUnwrap(native.redo()))
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), merged)
+        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), merged)
+    }
+
+    func testCrossMarkDeletionRejectsSplitGraphemeBeforeMutating() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "inline-marks-v3-draft", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String))))
+        _ = try native.insertText("👩🏽‍💻", at: 0, path: [0, 0])
+        let before = try native.encodeUpdate()
+        for range in [1..<2, 2..<4, 0..<6] {
+            XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(document: native,
+                path: [0, 0], start: range.lowerBound, end: range.upperBound, text: ""))
+            XCTAssertEqual(try native.encodeUpdate(), before)
+        }
+    }
+
     func testRejectsUnknownMetadataMarksDuplicateIDsAndDeeperLists() throws {
         let (update, _) = try fixture()
         let native = RelayMarkNativeDocument()
