@@ -194,3 +194,23 @@ final class RelayMarkNativeUndoGroupingTests: XCTestCase {
         XCTAssertEqual(try native.snapshot(), before)
     }
 }
+
+@MainActor
+final class RelayMarkNativeEmptyParagraphPasteTests: XCTestCase {
+    /// A lone newline pastes two empty open paragraphs; ProseMirror's
+    /// replaceRange tolerates the empty open level instead of failing.
+    func testNewlineOverSelectionSplitsTheParagraph() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "native-replace-v3", withExtension: "json"))
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let native = RelayMarkNativeDocument()
+        try native.applyUpdate(try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["seed"] as? String))))
+        let before = try native.snapshot()
+        let prose = try native.markdownV3ProseProjection()
+        let alpha = (String(prose.text.characters) as NSString).range(of: "Alpha one")
+        _ = try RelayMarkNativeMarkdownV3Editing.replace(document: native,
+            range: NSRange(location: alpha.location + 2, length: 3), runs: [("\n", [:])], expectedSnapshot: before)
+        XCTAssertTrue(String(try native.markdownV3ProseProjection().text.characters).hasPrefix("Al\n one\n"))
+        _ = try XCTUnwrap(native.undo())
+        XCTAssertEqual(try native.snapshot(), before)
+    }
+}

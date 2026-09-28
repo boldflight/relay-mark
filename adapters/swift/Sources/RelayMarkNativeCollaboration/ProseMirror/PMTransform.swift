@@ -95,18 +95,21 @@ struct PMTransform {
             pos -= 1
         }
         let preferredTargetIndex = targetDepths.firstIndex(of: preferredTarget)!
-        var leftNodes: [PMNode] = [], preferredDepth = slice.openStart
+        // As in JavaScript, an empty open level contributes a null left node.
+        var leftNodes: [PMNode?] = [], preferredDepth = slice.openStart
         var content = slice.content, i = 0
         while true {
-            let node = content.firstChild!
+            let node = content.firstChild
             leftNodes.append(node)
             if i == slice.openStart { break }
+            guard let node else { throw PMReplaceError(message: "Open slice level has no content") }
             content = node.content
             i += 1
         }
         var depth = preferredDepth - 1
         while depth >= 0 {
-            let leftNode = leftNodes[depth], defines = pmDefinesContent(leftNode.type)
+            guard let leftNode = leftNodes[depth] else { break }
+            let defines = pmDefinesContent(leftNode.type)
             if defines, !leftNode.sameMarkup(from$.node(abs(preferredTarget) - 1)) { preferredDepth = depth }
             else if defines || !leftNode.type.isTextblock { break }
             depth -= 1
@@ -114,8 +117,7 @@ struct PMTransform {
         var j = slice.openStart
         while j >= 0 {
             let openDepth = (j + preferredDepth + 1) % (slice.openStart + 1)
-            if leftNodes.indices.contains(openDepth) {
-                let insert = leftNodes[openDepth]
+            if leftNodes.indices.contains(openDepth), let insert = leftNodes[openDepth] {
                 for k in 0..<targetDepths.count {
                     var targetDepth = targetDepths[(k + preferredTargetIndex) % targetDepths.count], expand = true
                     if targetDepth < 0 { expand = false; targetDepth = -targetDepth }
