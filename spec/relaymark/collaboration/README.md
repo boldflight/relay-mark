@@ -29,9 +29,9 @@ it from the branch. When the branch is empty, return to the upstream release.
 
 | Library | Used by | Relay source | Base release | Patches pending upstream |
 | --- | --- | --- | --- | --- |
-| Yjs | browsers, the JavaScriptCore adapter | boldflight/yjs release `v13.6.33-relay.1` | 13.6.33 | yjs/yjs#806 undo of merged redone items |
+| Yjs | browsers, the JavaScriptCore adapter | boldflight/yjs release `v13.6.33-relay.1` (branch `relay`) | 13.6.33 | yjs/yjs#806 undo of merged redone items |
 | Yrs | YSwift (native), Yex (server) | boldflight/y-crdt branch `relay` | 0.28.0 | y-crdt/y-crdt#656 text-item resolution, #657 format events, #674 (the #806 counterpart) |
-| YSwift | native apps | boldflight/yswift branch `codex/relaymark-native-xml` | upstream `main` | RelayMark XML, relative positions and awareness bindings |
+| YSwift | native apps | boldflight/yswift branch `relay` | upstream `main` | RelayMark XML, relative positions and awareness bindings |
 | Yex | Relay server | boldflight/y_ex branch `relay` | 0.12.0 | bindings for the Yrs patches above |
 
 `scripts/yjs-history-hook.mjs` pins the SHA-256 of that Yjs build, and
