@@ -2,6 +2,23 @@
 
 The current branch is `codex/offline-multiplayer`. The [community-first implementation plan](https://github.com/boldflight/relay-elixir/blob/codex/offline-multiplayer/docs/plans/2026-09-14-community-first-multiplayer.md) is the single controlling scope, estimate and resume point. It supersedes the older custom lineage roadmap.
 
+
+## Current native v3 rich Return checkpoint (September 28)
+
+`RelayMarkNativeMarkdownV3Return` is the shared structural Return operation
+for paragraphs and headings in admitted containers, including full community
+list-item bodies and table cells. It preserves prefix XML, suffix formatting,
+reference/tag identities and following rich blocks in one Yrs undo transaction.
+The app consumes this operation through its existing native editor. Current
+browser-generated rich-list bytes cover atom boundaries, headings and cells
+with independent peer replay and undo. Omitted hydration attributes are accepted
+just like null placeholders; non-null host presentation remains excluded.
+
+Native v3 remains enabled only for approved disposable localhost documents.
+Empty final secondary list paragraphs, cross-block replacements/joins and
+full table authoring remain work in progress; this checkpoint does not establish
+production readiness or change hosted admission.
+
 The September 24 integration spike is complete, and implementation has resumed.
 The chosen native direction is a maintained fork of y-crdt/YSwift with Yrs as its
 CRDT engine. Add the missing XML, relative-position, and Apple platform bindings

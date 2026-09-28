@@ -2078,6 +2078,12 @@ public final class RelayMarkNativeDocument {
         let nodes: [[String: Any]]
     }
 
+    struct SnapshotTextRemoval {
+        let path: [Int]
+        let start: Int
+        let count: Int
+    }
+
     /// Shared XML insertion for validated editor/recovery operations, not a document codec.
     func replaceSnapshotNodes(parentPath: [Int], start: Int, count: Int, nodes: [[String: Any]]) throws -> Data {
         try replaceSnapshotNodes([SnapshotNodeReplacement(parentPath: parentPath, start: start, count: count, nodes: nodes)])
@@ -2085,7 +2091,19 @@ public final class RelayMarkNativeDocument {
 
     /// Resolve each existing parent before editing. A list lift/sink can then
     /// retain untouched ancestors and change both locations in one undo item.
-    func replaceSnapshotNodes(_ replacements: [SnapshotNodeReplacement]) throws -> Data {
+    func replaceSnapshotNodes(_ replacements: [SnapshotNodeReplacement],
+                              textRemovals: [SnapshotTextRemoval] = []) throws -> Data {
+        let textTargets = try textRemovals.map { removal -> (YXmlNode, UInt32, UInt32) in
+            var leaf = root
+            for index in removal.path {
+                guard let index = UInt32(exactly: index), let child = leaf.child(at: index) else { throw Failure.invalidTextPath }
+                leaf = child
+            }
+            guard leaf.kind() == "text", let start = UInt32(exactly: removal.start),
+                  let count = UInt32(exactly: removal.count), start <= leaf.length(),
+                  count <= leaf.length() - start else { throw Failure.invalidTextPath }
+            return (leaf, start, count)
+        }
         let targets = try replacements.map { replacement -> (YXmlNode, UInt32, UInt32, [[String: Any]]) in
             var parent = root
             for index in replacement.parentPath {
@@ -2116,6 +2134,9 @@ public final class RelayMarkNativeDocument {
                         try append(child, to: node, at: node.length(in: transaction))
                     }
                 }
+            }
+            for (leaf, start, count) in textTargets where count > 0 {
+                try leaf.removeText(start: start, length: count, in: transaction)
             }
             for (parent, first, removed, nodes) in targets {
                 if removed > 0 { try parent.removeChildren(start: first, length: removed, in: transaction) }

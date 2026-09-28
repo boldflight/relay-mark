@@ -37,7 +37,7 @@ export function mapV3Atom(node) {
   if (node.type === 'relayReference') {
     only(node.attrs, ['entityType', 'entityId', 'label', 'source', 'status', 'subtitle'], 'reference attrs');
     const { entityType: type, entityId: id, label, source, status, subtitle } = node.attrs;
-    if (status !== null || subtitle !== null || source !== referenceSource(type, id, label)) {
+    if (status != null || subtitle != null || source !== referenceSource(type, id, label)) {
       throw new TypeError('Unsupported reference hydration or source');
     }
     return { type: 'relay.entity_ref', id, label, props: { entityType: type, source } };
@@ -45,7 +45,7 @@ export function mapV3Atom(node) {
   if (node.type === 'relayTag') {
     only(node.attrs, ['id', 'name', 'color', 'source'], 'tag attrs');
     const { id, name, color, source } = node.attrs;
-    if (color !== null || source !== tagSource(id, name)) throw new TypeError('Unsupported tag color or source');
+    if (color != null || source !== tagSource(id, name)) throw new TypeError('Unsupported tag color or source');
     return { type: 'relay.tag_ref', id, label: `#${name}`, props: { name, source } };
   }
   throw new TypeError(`Unsupported inline atom ${String(node.type)}`);

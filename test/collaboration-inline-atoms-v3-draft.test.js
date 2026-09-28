@@ -56,3 +56,14 @@ test('v3 atom mapping rejects unresolved identity, inconsistent source and host 
   const plain = compileRelayMark('[[unknown]]\n').document.blocks[0].content;
   assert.deepEqual(plain, [{ type: 'text', text: '[[unknown]]' }]);
 });
+
+// Collaboration excludes presentation attributes rather than persisting null placeholders.
+test('v3 atoms accept omitted hydration fields from the current collaboration schema', () => {
+  const document = clone(fixture.normalized);
+  delete document.content[0].content[1].attrs.status;
+  delete document.content[0].content[1].attrs.subtitle;
+  delete document.content[0].content[3].attrs.color;
+  const ast = proseMirrorV3ToRelayMark(document);
+  assert.deepEqual(ast, fixture.expected_ast);
+  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
+});
