@@ -1,6 +1,6 @@
 # Offline multiplayer: start here
 
-The current branch is `codex/offline-multiplayer`. The [community-first implementation plan](https://github.com/boldflight/relay-elixir/blob/codex/offline-multiplayer/docs/plans/2026-09-14-community-first-multiplayer.md) is the single controlling scope, estimate and resume point. It supersedes the older custom lineage roadmap.
+The offline multiplayer work is integrated into `main`. The [community-first implementation plan](https://github.com/boldflight/relay-elixir/blob/staging/docs/plans/2026-09-14-community-first-multiplayer.md) remains the single controlling scope, estimate and resume point. It supersedes the older custom lineage roadmap. Hosted admission remains gated.
 
 
 ## Current native list-exit checkpoint (September 28)
