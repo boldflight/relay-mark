@@ -14,10 +14,11 @@ const mode = process.argv[3];
 if (!assets || !['--write', '--check'].includes(mode)) {
   throw new Error('Usage: node scripts/collaboration-mixed-table-v3-fixture.mjs /absolute/web/assets --write|--check');
 }
+// Reviewed regeneration pins; retain the fixture's original provenance below.
 for (const [name, version] of Object.entries({
-  '@tiptap/core': '3.30.5', '@tiptap/starter-kit': '3.30.5',
-  '@tiptap/extension-table': '3.30.5', '@tiptap/extension-unique-id': '3.30.5',
-  '@tiptap/y-tiptap': '3.0.9', yjs: '13.6.32',
+  '@tiptap/core': '3.31.3', '@tiptap/starter-kit': '3.31.3',
+  '@tiptap/extension-table': '3.31.3', '@tiptap/extension-unique-id': '3.31.3',
+  '@tiptap/y-tiptap': '3.0.9', yjs: '13.6.33',
 })) {
   const installed = JSON.parse(readFileSync(resolve(assets, 'node_modules', name, 'package.json')));
   assert.equal(installed.version, version, `Re-review fixture against ${name}`);
