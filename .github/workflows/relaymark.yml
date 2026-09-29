@@ -29,6 +29,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Restore exact JavaScript dependencies
+        run: npm ci
+
       - name: Verify portable contract
         run: |
           npm run check:contract

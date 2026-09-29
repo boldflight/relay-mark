@@ -124,9 +124,8 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
         case .toggleHeaderRow, .toggleHeaderColumn:
             // Row/column toggles always address the first row/column and skip
             // the corner cell another enabled header already owns.
-            let header = { (keys: [Grid.Key]) in keys.allSatisfy { grid.name(of: $0, in: table) == "tableHeader" } }
-            let rowEnabled = header(grid.cellsInRect(.init(left: 0, top: 0, right: grid.width, bottom: 1)))
-            let columnEnabled = header(grid.cellsInRect(.init(left: 0, top: 0, right: 1, bottom: grid.height)))
+            let rowEnabled = grid.rowIsHeader(0, in: table)
+            let columnEnabled = grid.columnIsHeader(0, in: table)
             let isRow = operation == .toggleHeaderRow
             let target: Grid.Rect = isRow
                 ? .init(left: columnEnabled ? 1 : 0, top: 0, right: grid.width, bottom: 1)
