@@ -41,6 +41,12 @@ defmodule RelayMark.ContentEdit do
 
   def prepare_witness(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Derive exact relocation-copy and human selectors from maintained StepMaps and trusted identity snapshots."
+  def build_witness(runtime, evidence) when is_map(evidence),
+    do: execute_arguments(runtime, "buildContentEditWitness", [evidence])
+
+  def build_witness(_, _), do: {:error, :invalid_content_edit}
+
   defp execute_arguments(runtime, function, values) do
     with {:ok, arguments} <- Jason.encode(values) do
       code = "RelayMarkContentEditRuntime." <> function <> "(..." <> arguments <> ")"

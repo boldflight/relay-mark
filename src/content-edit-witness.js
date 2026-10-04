@@ -68,3 +68,26 @@ export function prepareWitness(evidence,interpret){
  const unproven_mutations={structs:footprint.structs.filter(r=>r.content.kind!=='string'),declared_deletes:footprint.declared_deletes,deleted_items:footprint.deleted_items};
  return {document:expected.document,authored_document:{...sender.document,blocks:expected.authored_document.blocks},retained_ranges:expected.retained_ranges,proven_copies,fresh_items:plain(fresh),text_items:plain(human),unproven_mutations,requires_mutation_correspondence:true};
 }
+
+/** Derive relocation witnesses from actual maintained StepMaps and fresh item
+ * identities. Text equality never discovers a source. Clipboard/source authority
+ * for inserted Slice content remains an independent host obligation. */
+export function buildWitness(evidence,interpret){
+ keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint']);
+ keys(evidence.operation,['kind','steps','history'],['kind','steps']);
+ const sender=index(evidence.sender_before_snapshot),after=index(evidence.sender_after_snapshot),frontier=clocks(evidence.before_state_vector),expected=interpret(sender.pm,{...evidence.operation,copies:[]});
+ if(!same(after.pm,expected.document))throw TypeError('Actual sender disagrees with maintained command');
+ const copies=[],human=[];
+ for(const run of after.runs){const start=Math.max(run.item.clock,frontier.get(run.item.client)||0),n=run.item.clock+run.count-start;if(n<=0)continue;let uncovered=[[run.position+start-run.item.clock,run.position+run.count]];
+  for(const mapped of expected.retained_ranges){const from=Math.max(run.position+start-run.item.clock,mapped.destination_from),to=Math.min(run.position+run.count,mapped.destination_from+mapped.length);if(from>=to)continue;
+   const sourceFrom=mapped.source_from+from-mapped.destination_from,sourceTo=sourceFrom+to-from;
+   for(const original of sender.runs){const a=Math.max(original.position,sourceFrom),b=Math.min(original.position+original.count,sourceTo);if(a>=b)continue;const destination=from+a-sourceFrom,count=b-a;
+    copies.push({source:{runs:[{type:original.type,item:{client:original.item.client,clock:original.item.clock+a-original.position},count}]},destination:{runs:[{type:run.type,item:{client:run.item.client,clock:run.item.clock+destination-run.position},count}]}});
+    uncovered=uncovered.flatMap(([left,right])=>destination>=right||destination+count<=left?[[left,right]]:[...(left<destination?[[left,destination]]:[]),...(destination+count<right?[[destination+count,right]]:[])]);
+   }
+  }
+  for(const [from,to]of uncovered)human.push({type:run.type,item:{client:run.item.client,clock:run.item.clock+from-run.position},count:to-from});
+ }
+ const operation={...evidence.operation,copies},text_items={runs:human},prepared=prepareWitness({...evidence,operation,text_items},interpret);
+ return {...prepared,operation,text_items};
+}

@@ -65,3 +65,6 @@ export function applyDocumentContentEdit(admittedDocument,operation,options) {
 import {prepareWitness} from './content-edit-witness.js';
 /** Prepare exact causal text/copy evidence; complete mutation/history admission is separately required. */
 export function prepareContentEditWitness(evidence){return prepareWitness(evidence,applyContentEdit);}
+
+import {buildWitness} from './content-edit-witness.js';
+export function buildContentEditWitness(evidence){return buildWitness(evidence,applyContentEdit);}

@@ -34,3 +34,12 @@ test('real rich Enter proves relocated suffix by maintained maps and refuses hid
  const hidden=captureContentEditFootprint(doc,Y.encodeStateAsUpdate(doc,badBefore));
  assert.throws(()=>prepareContentEditWitness({...evidence,footprint:{...footprint,structs:[...footprint.structs,...hidden.structs],deleted_items:[...footprint.deleted_items,...hidden.deleted_items],declared_deletes:[...footprint.declared_deletes,...hidden.declared_deletes]}}));
 });
+
+test('actual maintained Enter derives generated suffix copy IDs without a client claim',async()=>{
+ const {readFileSync}=await import('node:fs'),{buildContentEditWitness}=await import('../src/content-edit.js');
+ const {evidence,expected}=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-enter-witness.json',import.meta.url)));
+ const {text_items,...input}=evidence;input.operation={kind:'content_edit',steps:input.operation.steps};
+ const result=buildContentEditWitness(input);assert.deepEqual(result.operation.copies,expected.proven_copies);assert.deepEqual(result.text_items,{runs:[]});
+ const falseSource=structuredClone(input);falseSource.sender_before_snapshot.children[0].children[0].runs[0].attributes={bold:{}};
+ assert.throws(()=>buildContentEditWitness(falseSource));
+});
