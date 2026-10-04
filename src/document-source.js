@@ -33,10 +33,11 @@ function importAtomSource(source){
 }
 function bareLinkedTaskLine(line){return /^ {0,3}\[[ xX]\]\s+.*\[\[Task:/u.test(line)?line.replace(/^( {0,3})/u,'$1- '):line;}
 function linkedTask(item){
- const paragraph=item.content[0],parts=paragraph?.type==='paragraph'?paragraph.content:null,last=parts?.at(-1);
+ const paragraph=item.content[0],parts=paragraph?.type==='paragraph'?paragraph.content:null;if(!parts)return;
+ const boundary=parts.findIndex(n=>n.type==='text'&&n.text.includes('\n')),index=(boundary<0?parts.length:boundary)-1,last=parts[index];
  if(last?.type!=='relay.entity_ref'||last.props.entityType!=='Task')return;
- item.props.entityId=last.id;parts.pop();
- const previous=parts.at(-1);if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)parts.pop();}
+ item.props.entityId=last.id;parts.splice(index,1);
+ const previous=parts[index-1];if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)parts.splice(index-1,1);}
 }
 
 const marksOrder=['link','bold','code','italic','strike','underline','highlight','superscript','subscript'];

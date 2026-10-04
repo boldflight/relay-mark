@@ -159,3 +159,9 @@ test('historical non-navigation link and unsafe image declarations remain litera
  const ast=parseDocument(source,{namespace:'inert-declarations'});assert.equal(ast.blocks[0].type,'paragraph');assert.equal(ast.blocks[0].content[0].text,'![Image](relay:entity/11111111-1111-4111-8111-111111111111)');
  const html=renderDocument(ast);assert.doesNotMatch(html,/<img|<a/);assert.match(html,/\[Query\]/);
 });
+
+test('historical task identity at first line survives lazy rich paragraph continuation and repeated context reference',()=>{
+ const id='11111111-1111-4111-8111-111111111111';const ast=parseDocument(`- [ ] Keep deleted identity [[Task: ${id}]]\nSee [[Task: ${id} | Deleted task context]] for the decision history.\n`,{namespace:'linked-continuation'});
+ const item=ast.blocks[0].content[0];assert.equal(item.props.entityId,id);assert.equal(item.content[0].content.filter(n=>n.type==='relay.entity_ref').length,1);assert.equal(item.content[0].content.find(n=>n.type==='relay.entity_ref').label,'Deleted task context');
+ assert.equal(item.content[0].content[0].text,'Keep deleted identity');assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+});

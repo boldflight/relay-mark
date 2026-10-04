@@ -307,4 +307,23 @@ defmodule RelayMark.DocumentSourceTest do
     refute html =~ "<a"
     assert html =~ "[Query]"
   end
+
+  test "linked task first-line identity survives lazy continuation with the same context reference" do
+    id = "11111111-1111-4111-8111-111111111111"
+
+    assert {:ok, ast} =
+             RelayMark.parse_document(
+               "- [ ] Keep deleted identity [[Task: #{id}]]\nSee [[Task: #{id} | Deleted task context]] for the decision history.\n",
+               namespace: "linked-continuation"
+             )
+
+    item = hd(hd(ast["blocks"])["content"])
+    assert item["props"]["entityId"] == id
+    refs = hd(item["content"])["content"] |> Enum.filter(&(&1["type"] == "relay.entity_ref"))
+    assert length(refs) == 1
+    assert hd(refs)["label"] == "Deleted task context"
+    assert hd(hd(item["content"])["content"])["text"] == "Keep deleted identity"
+    assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
+  end
 end

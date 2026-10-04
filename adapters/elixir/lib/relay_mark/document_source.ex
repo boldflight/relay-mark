@@ -552,15 +552,25 @@ defmodule RelayMark.DocumentSource do
   end
 
   defp linked_task([%{"type" => "paragraph", "content" => parts} = paragraph | rest] = content) do
-    case List.last(parts) do
+    boundary =
+      Enum.find_index(parts, fn node ->
+        node["type"] == "text" and String.contains?(node["text"], "\n")
+      end)
+
+    index = (boundary || length(parts)) - 1
+
+    case if(index >= 0, do: Enum.at(parts, index), else: nil) do
       %{"type" => "relay.entity_ref", "id" => id, "props" => %{"entityType" => "Task"}} ->
-        parts = Enum.drop(parts, -1)
+        parts = List.delete_at(parts, index)
 
         parts =
-          case List.last(parts) do
+          case if(index > 0, do: Enum.at(parts, index - 1), else: nil) do
             %{"type" => "text", "text" => text} = node ->
               text = String.replace_suffix(text, " ", "")
-              Enum.drop(parts, -1) ++ if(text == "", do: [], else: [%{node | "text" => text}])
+
+              if text == "",
+                do: List.delete_at(parts, index - 1),
+                else: List.replace_at(parts, index - 1, %{node | "text" => text})
 
             _ ->
               parts
