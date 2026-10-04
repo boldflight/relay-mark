@@ -34,8 +34,30 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     public struct NativeContentEdit: Codable, Equatable, Sendable {
         public let beforeSnapshot: Data
         public let steps: Data
-        public init(beforeSnapshot: Data, steps: Data) {
-            self.beforeSnapshot = beforeSnapshot; self.steps = steps
+        /// Exact actual maintained StackItem membership captured before persistence.
+        /// Nil retains unproven ordinary command evidence; no membership is inferred.
+        public let ownedGroup: OwnedGroup?
+        public init(beforeSnapshot: Data, steps: Data, ownedGroup: OwnedGroup? = nil) {
+            self.beforeSnapshot = beforeSnapshot; self.steps = steps; self.ownedGroup = ownedGroup
+        }
+
+        public struct OwnedGroup: Codable, Equatable, Sendable {
+            public let reference: UUID
+            public let operationIDs: [UUID]
+            public init(reference: UUID, operationIDs: [UUID]) throws {
+                guard !operationIDs.isEmpty, operationIDs.count <= 4096,
+                      operationIDs.first == reference,
+                      Set(operationIDs).count == operationIDs.count else {
+                    throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid maintained command membership"))
+                }
+                self.reference = reference; self.operationIDs = operationIDs
+            }
+            enum CodingKeys: String, CodingKey { case reference, operationIDs }
+            public init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                try self.init(reference: container.decode(UUID.self, forKey: .reference),
+                              operationIDs: container.decode([UUID].self, forKey: .operationIDs))
+            }
         }
     }
 
