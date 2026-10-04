@@ -39,8 +39,7 @@ defmodule RelayMark.DocumentSource do
             if frontmatter == %{}, do: ast, else: Map.put(ast, "frontmatter", frontmatter)
         end
 
-      ensure!(ast)
-      ast
+      normalize!(ast)
     end)
   end
 
@@ -83,7 +82,7 @@ defmodule RelayMark.DocumentSource do
 
   def serialize(ast) do
     attempt(fn ->
-      ensure!(ast)
+      ast = normalize!(ast)
       json = Jason.encode!(ast)
       fence = String.duplicate("`", max(3, longest_ticks(json) + 1))
       fence <> "relaymark-ast\n" <> json <> "\n" <> fence <> "\n"
@@ -95,6 +94,13 @@ defmodule RelayMark.DocumentSource do
       ensure!(ast)
       Enum.map_join(ast["blocks"], "\n\n", &markdown/1) <> "\n"
     end)
+  end
+
+  defp normalize!(ast) do
+    case RelayMark.DocumentXML.normalize_document(ast) do
+      {:ok, document} -> document
+      {:error, diagnostics} -> throw({:source_diagnostics, diagnostics})
+    end
   end
 
   defp ensure!(ast) do

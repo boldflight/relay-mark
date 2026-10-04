@@ -1,7 +1,8 @@
 /** Canonical text-run mapping. Each mark wraps exactly one child, in schema order. */
 import { safeLinkHref } from './document-links.js';
 import { mapAtom, unmapAtom } from './document-atoms.js';
-const markTypes = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
+export const textMarkNames = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
+const markTypes = textMarkNames;
 const inlineTypes = { link: "link", bold: "strong", code: "code_span",
   italic: "emphasis", strike: "strikethrough", underline: "underline",
   highlight: "highlight", superscript: "superscript", subscript: "subscript" };

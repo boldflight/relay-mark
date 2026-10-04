@@ -30,7 +30,7 @@ defmodule RelayMark.DocumentImport do
     {blocks, state} = Enum.map_reduce(document["blocks"], state, &block/2)
     document = document |> Map.put("blocks", blocks) |> references(state.ids)
 
-    with {:ok, _} <- RelayMark.DocumentXML.from_document(document) do
+    with {:ok, document} <- RelayMark.DocumentXML.normalize_document(document) do
       {:ok,
        %{
          document: document,

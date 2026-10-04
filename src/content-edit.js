@@ -1,21 +1,12 @@
 /** Pure maintained ProseMirror operation interpreter. The host supplies its
  * admitted pre-document and verifies CRDT anchors/copy authority independently.
  * No client pre-document, persistence, transport, or alternate editor lives here. */
-import {Schema} from 'prosemirror-model';
 import {Step} from 'prosemirror-transform';
-import {canonicalEditorSchema} from './editor-schema.js';
+import {createCanonicalEditorSchema} from './editor-model.js';
+export {createCanonicalEditorSchema} from './editor-model.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.js';
 import {stableStringify} from './canonical-json.js';
 
-export function createCanonicalEditorSchema() {
- const nodes=Object.fromEntries(canonicalEditorSchema.nodes.map(({name,markSet,...spec})=>[
-  name,{...spec,...(markSet===null?{}:{marks:markSet.join(' ')})}
- ]));
- const marks=Object.fromEntries(canonicalEditorSchema.marks.map(({name,excludes,...spec})=>[
-  name,{...spec,excludes:excludes.join(' ')}
- ]));
- return new Schema({topNode:canonicalEditorSchema.top,nodes,marks});
-}
 const schema=createCanonicalEditorSchema();
 
 export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={}) {

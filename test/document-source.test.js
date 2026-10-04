@@ -163,7 +163,7 @@ test('historical non-navigation link and unsafe image declarations remain litera
 test('historical task identity at first line survives lazy rich paragraph continuation and repeated context reference',()=>{
  const id='11111111-1111-4111-8111-111111111111';const ast=parseDocument(`- [ ] Keep deleted identity [[Task: ${id}]]\nSee [[Task: ${id} | Deleted task context]] for the decision history.\n`,{namespace:'linked-continuation'});
  const item=ast.blocks[0].content[0];assert.equal(item.props.entityId,id);assert.equal(item.content[0].content.filter(n=>n.type==='relay.entity_ref').length,1);assert.equal(item.content[0].content.find(n=>n.type==='relay.entity_ref').label,'Deleted task context');
- assert.equal(item.content[0].content[0].text,'Keep deleted identity');assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+ assert.equal(item.content[0].content[0].text,'Keep deleted identity\nSee ');assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
 });
 
 test('finite XML migration adds identities only and leaves rich peer text and metadata exact',()=>{
@@ -210,4 +210,18 @@ test('finite inline media boundary repair preserves rich text, media title and s
  const ast=parseDocument(f.source,{namespace:f.namespace});assert.deepEqual(ast,f.expected_ast);
  assert.deepEqual(parseDocument(serializeDocument(ast)),ast);assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
  assert.throws(()=>parseDocument('**before ![diagram](/images/diagram.png) after**',{namespace:f.namespace}),/inline|image/i);
+});
+
+test('canonical snapshot projection coalesces real CRDT text segmentation but preserves marks and atoms',async()=>{
+ const {snapshotToDocument}=await import('../src/document-source.js');
+ const id='b00000000000040008000000000000001';
+ const snapshot={kind:'fragment',children:[{kind:'element',name:'paragraph',attributes:{relaymarkId:id},children:[
+  {kind:'text',delta:[{insert:'A'},{insert:'🌍Z'}]},
+  {kind:'text',delta:[{insert:'B',attributes:{bold:{}}},{insert:'C',attributes:{bold:{}}}]},
+  {kind:'element',name:'hardBreak',attributes:{},children:[]},
+  {kind:'text',delta:[{insert:'D',attributes:{bold:{}}}]}
+ ]}]};
+ assert.deepEqual(snapshotToDocument(snapshot),{type:'relaymark.document',blocks:[{id,type:'paragraph',content:[
+  {type:'text',text:'A🌍Z'},{type:'strong',content:[{type:'text',text:'BC'}]},{type:'hard_break'},{type:'strong',content:[{type:'text',text:'D'}]}
+ ]}]});
 });

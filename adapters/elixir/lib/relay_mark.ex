@@ -19,6 +19,9 @@ defmodule RelayMark do
   @doc "Imports CommonMark/directives or the exact relaymark-ast source declaration."
   def parse_document(source, options \\ []), do: RelayMark.DocumentSource.parse(source, options)
 
+  @doc "Normalize authored semantics while preserving all block/option IDs and envelope metadata."
+  def normalize_document(document), do: RelayMark.DocumentXML.normalize_document(document)
+
   @doc "Converts finite historical AST input once; callers retain originals and the identity mapping."
   def import_document(document, options \\ []),
     do: RelayMark.DocumentImport.import(document, options)

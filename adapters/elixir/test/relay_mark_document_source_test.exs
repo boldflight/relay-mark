@@ -322,7 +322,7 @@ defmodule RelayMark.DocumentSourceTest do
     refs = hd(item["content"])["content"] |> Enum.filter(&(&1["type"] == "relay.entity_ref"))
     assert length(refs) == 1
     assert hd(refs)["label"] == "Deleted task context"
-    assert hd(hd(item["content"])["content"])["text"] == "Keep deleted identity"
+    assert hd(hd(item["content"])["content"])["text"] == "Keep deleted identity\nSee "
     assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
     assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
   end

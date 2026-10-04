@@ -157,4 +157,49 @@ defmodule RelayMark.DocumentXMLTest do
     assert html =~ "<strong>Résumé 世界</strong>"
     assert html =~ "<table>"
   end
+
+  test "CRDT split runs project one canonical equal-mark text without changing inline boundaries" do
+    id = "b00000000000040008000000000000001"
+
+    snapshot = %{
+      "kind" => "fragment",
+      "children" => [
+        %{
+          "kind" => "element",
+          "name" => "paragraph",
+          "attributes" => %{"relaymarkId" => id},
+          "children" => [
+            %{"kind" => "text", "delta" => [%{"insert" => "A"}, %{"insert" => "🌍Z"}]},
+            %{
+              "kind" => "text",
+              "delta" => [
+                %{"insert" => "B", "attributes" => %{"bold" => %{}}},
+                %{"insert" => "C", "attributes" => %{"bold" => %{}}}
+              ]
+            },
+            %{"kind" => "element", "name" => "hardBreak", "attributes" => %{}, "children" => []},
+            %{"kind" => "text", "delta" => [%{"insert" => "D", "attributes" => %{"bold" => %{}}}]}
+          ]
+        }
+      ]
+    }
+
+    expected = %{
+      "type" => "relaymark.document",
+      "blocks" => [
+        %{
+          "id" => id,
+          "type" => "paragraph",
+          "content" => [
+            %{"type" => "text", "text" => "A🌍Z"},
+            %{"type" => "strong", "content" => [%{"type" => "text", "text" => "BC"}]},
+            %{"type" => "hard_break"},
+            %{"type" => "strong", "content" => [%{"type" => "text", "text" => "D"}]}
+          ]
+        }
+      ]
+    }
+
+    assert RelayMark.DocumentXML.to_document(snapshot) == {:ok, expected}
+  end
 end

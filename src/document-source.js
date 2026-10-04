@@ -3,7 +3,10 @@ import MarkdownIt from 'markdown-it';
 import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex} from '@noble/hashes/utils.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror,identifiedDocumentNodeNames} from './document-adapter.js';
-import {mapInline} from './document-inline.js';
+import {mapInline,textMarkNames} from './document-inline.js';
+import {cloneCanonicalJSON as cloneJSON} from './canonical-json.js';
+import {documentToSnapshot,snapshotToDocument,normalizeDocument} from './document-snapshot.js';
+export {documentToSnapshot,snapshotToDocument,normalizeDocument} from './document-snapshot.js';
 export {validateTextAttributes} from './document-inline.js';
 import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
@@ -41,12 +44,12 @@ function linkedTask(item){
  const previous=parts[index-1];if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)parts.splice(index-1,1);}
 }
 
-const marksOrder=['link','bold','code','italic','strike','underline','highlight','superscript','subscript'];
-function valid(ast){relayMarkToProseMirror(ast);return ast;}
+const marksOrder=textMarkNames;
+function valid(ast){return normalizeDocument(ast);}
 function id(namespace,path){const hash=bytesToHex(sha256(utf8Bytes(namespace+'\0'+path.join('.'))));return 'b'+hash.slice(0,12)+'4'+hash.slice(13,16)+'8'+hash.slice(17,32);}
 function block(ns,path,type,content=[],props){return {id:id(ns,path),type,...(props?{props}:{}),content};}
 function longestTicks(s){return Math.max(0,...Array.from(s.matchAll(/`+/g),m=>m[0].length));}
-export function serializeDocument(ast){valid(ast);const json=JSON.stringify(ast),f='`'.repeat(Math.max(3,longestTicks(json)+1));return `${f}relaymark-ast\n${json}\n${f}\n`;}
+export function serializeDocument(ast){ast=valid(ast);const json=JSON.stringify(ast),f='`'.repeat(Math.max(3,longestTicks(json)+1));return `${f}relaymark-ast\n${json}\n${f}\n`;}
 export function parseDocument(source,{namespace}={}){
  if(typeof source!=='string')throw new TypeError('Invalid authored source');source=source.replace(/\r\n?/g,'\n');
  const exact=exactSourceAST(source);
@@ -66,20 +69,7 @@ export function importDocumentSource(source,{namespace}={}){
 }
 // UTF-8 encoding is portable across JSCore and browser hosts without Web API globals.
 function utf8Bytes(string){const bytes=[];for(const char of string){let c=char.codePointAt(0);if(c>=0xd800&&c<=0xdfff)c=0xfffd;if(c<128)bytes.push(c);else if(c<2048)bytes.push(192|(c>>6),128|(c&63));else if(c<65536)bytes.push(224|(c>>12),128|((c>>6)&63),128|(c&63));else bytes.push(240|(c>>18),128|((c>>12)&63),128|((c>>6)&63),128|(c&63));}return new Uint8Array(bytes);}
-function cloneJSON(value){if(value===null||typeof value==='string'||typeof value==='boolean')return value;if(typeof value==='number'&&Number.isFinite(value))return value;if(Array.isArray(value))return value.map(cloneJSON);if(value&&Object.getPrototypeOf(value)===Object.prototype)return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,cloneJSON(v)]));throw new TypeError('Invalid authored JSON value');}
 export function editorDirectiveDefinitions(){return canonicalDirectiveNodes;}
-const metadataKeys=['frontmatter','annotations','resources','meta'];
-export function documentToSnapshot(ast){valid(ast);const pm=relayMarkToProseMirror(ast);
- function node(n){if(n.type==='text')return {kind:'text',delta:[{insert:n.text,attributes:Object.fromEntries((n.marks||[]).map(m=>[m.type,m.attrs||{}]))}]};return {kind:'element',name:n.type,attributes:n.attrs||{},children:(n.content||[]).map(node)};}
- const metadata=Object.fromEntries(metadataKeys.filter(k=>Object.hasOwn(ast,k)).map(k=>[k,cloneJSON(ast[k])]));return {kind:'fragment',children:pm.content.map(node),...(Object.keys(metadata).length?{metadata}: {})};
-}
-export function snapshotToDocument(snapshot){
- const only=(value,keys)=>{if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!keys.includes(k)))throw new TypeError('Invalid portable snapshot shape');};
- only(snapshot,['kind','children','metadata']);if(snapshot.kind!=='fragment'||!Array.isArray(snapshot.children))throw new TypeError('Invalid portable fragment');
- function nodes(children,depth=0){if(depth>64||!Array.isArray(children))throw new TypeError('Invalid portable children');return children.flatMap(n=>{if(n.kind==='text'){only(n,['kind','delta']);if(!Array.isArray(n.delta))throw new TypeError('Invalid text delta');return n.delta.map(run=>{only(run,['insert','attributes']);if(typeof run.insert!=='string'||!run.insert)throw new TypeError('Invalid text insert');const attributes=run.attributes||{};only(attributes,['link','bold','code','italic','strike','underline','highlight','superscript','subscript']);const marks=Object.entries(attributes).map(([type,attrs])=>{only(attrs,type==='link'?['href','target','rel','class','title']:[]);return type==='link'?{type,attrs:{target:'_blank',rel:'noopener noreferrer nofollow',class:null,title:null,...attrs}}:{type};}).sort((a,b)=>marksOrder.indexOf(a.type)-marksOrder.indexOf(b.type));return {type:'text',text:run.insert,...(marks.length?{marks}: {})};});}
- only(n,['kind','name','attributes','children']);if(n.kind!=='element'||typeof n.name!=='string')throw new TypeError('Invalid portable element');only(n.attributes,Object.keys(n.attributes||{}));const content=nodes(n.children,depth+1),attributes={...({heading:{headingId:null},orderedList:{start:1,type:null},taskItem:{checked:false,entityId:null},codeBlock:{language:null},tableCell:{colspan:1,rowspan:1,colwidth:null,align:null},tableHeader:{colspan:1,rowspan:1,colwidth:null,align:null},image:{alt:null,title:null},callout:{tone:'neutral',emphasis:'soft'},questionBlock:{required:false,points:null,min:null,max:null,settings:{}},questionOption:{correct:false,points:null,settings:{}}}[n.name]||{}),...n.attributes};return [{type:n.name,...(Object.keys(attributes).length?{attrs:attributes}:{}),...(content.length?{content}: {})}];});}
- const document=proseMirrorToRelayMark({type:'doc',content:nodes(snapshot.children)});if(Object.hasOwn(snapshot,'metadata')){only(snapshot.metadata,metadataKeys);Object.assign(document,cloneJSON(snapshot.metadata));}return valid(document);
-}
 /** Finite XML migration. Returns edits for the host's existing CRDT transaction;
  * never allocates a replica or rewrites text/items/history. Unknown schemas fail. */
 export function importDocumentSnapshot(original,{namespace}={}){
@@ -132,7 +122,7 @@ export function importDocument(original,{namespace}={}){
  if(!Array.isArray(document.blocks))throw new TypeError('Historical document blocks');document.blocks=document.blocks.map((n,i)=>visit(n,[i]));
  // Only known AST block references are remapped; host entity/resource identities stay exact.
  function references(value){if(Array.isArray(value))return value.map(references);if(value&&typeof value==='object'){for(const[key,child]of Object.entries(value)){if(['block_id','start_block_id','end_block_id'].includes(key)&&typeof child==='string'&&ids.has(child))value[key]=ids.get(child);else if(key==='evidence'&&Array.isArray(child))value[key]=child.map(v=>ids.get(v)||v);else references(child);}}return value;}
- references(document);valid(document);return {document,identity_mapping};
+ references(document);document.blocks=valid(document).blocks;return {document,identity_mapping};
 }
 function sourceBlocks(source,ns,prefix){
  const segments=[];let plain=[],directive=null,fence=null;

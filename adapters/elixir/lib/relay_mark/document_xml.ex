@@ -104,6 +104,11 @@ defmodule RelayMark.DocumentXML do
 
   def from_document(_), do: error(:invalid_document)
 
+  @doc "Normalize semantic text segmentation through the canonical XML/mark owner, preserving identities and metadata."
+  def normalize_document(document) do
+    with {:ok, snapshot} <- from_document(document), do: to_document(snapshot)
+  end
+
   def to_document(snapshot) when is_map(snapshot),
     do: result(fn -> decode_snapshot!(snapshot) end)
 
@@ -892,7 +897,40 @@ defmodule RelayMark.DocumentXML do
     encode_inline_node(hd(content(node)), Map.put(marks, mark, attrs))
   end
 
-  defp decode_inline(nodes), do: Enum.flat_map(nodes, &decode_inline_node/1)
+  # Maintained PM fragments join adjacent equal-mark text. CRDT item splitting
+  # changes physical runs, never the authored inline semantics or item identities.
+  defp decode_inline(nodes) do
+    nodes
+    |> Enum.flat_map(&decode_inline_node/1)
+    |> Enum.reduce([], fn node, acc ->
+      case acc do
+        [previous | rest] ->
+          case join_inline(previous, node) do
+            nil -> [node | acc]
+            joined -> [joined | rest]
+          end
+
+        [] ->
+          [node]
+      end
+    end)
+    |> Enum.reverse()
+  end
+
+  defp join_inline(%{"type" => "text", "text" => left}, %{"type" => "text", "text" => right}),
+    do: %{"type" => "text", "text" => left <> right}
+
+  defp join_inline(%{"content" => [left]} = a, %{"content" => [right]} = b) do
+    if Map.drop(a, ["content"]) == Map.drop(b, ["content"]) and
+         Enum.any?(@marks, &(elem(&1, 1) == a["type"])) do
+      case join_inline(left, right) do
+        nil -> nil
+        joined -> Map.put(a, "content", [joined])
+      end
+    end
+  end
+
+  defp join_inline(_, _), do: nil
 
   defp decode_inline_node(%{"kind" => "text", "delta" => delta} = node) do
     only!(node, ~w(kind delta))
