@@ -38,4 +38,20 @@ defmodule RelayMark.ContentEditMutationTest do
                RelayMark.ContentEdit.replay_mutation(runtime, evidence)
     end
   end
+
+  test "actual maintained marked owner group restores through undo and redo with peer choice retained" do
+    fixture =
+      File.read!(Path.join(@root, "content-edit-owned-mark-history.json")) |> Jason.decode!()
+
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+
+    for key <- ~w(undo redo) do
+      assert {:ok, result} = RelayMark.ContentEdit.replay_mutation(runtime, fixture[key])
+      assert result["owned_history_correspondence"] == true
+      assert result["footprint"] == fixture[key]["footprint"]
+      assert is_list(result["restored_copies"])
+      assert is_list(result["retained_field_changes"]["allocated"])
+    end
+  end
 end

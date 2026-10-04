@@ -38,8 +38,18 @@ function readOwnedCommandGroup(manager, operationID) {
   if (!ids || ids.at(-1) !== operationID) throw TypeError("No actual owned command group");
   return validateOwnedCommandGroup({ reference: ids[0], operation_ids: ids.slice() });
 }
+function bindOwnedCommandHistory(manager, event) {
+  const undo = event?.type === "undo", redo = event?.type === "redo";
+  if (!manager || event.origin !== manager || !(undo && manager.undoing || redo && manager.redoing)) throw TypeError("Unavailable actual maintained inverse");
+  const ids = event.stackItem?.meta.get(key), inverse = (undo ? manager.redoStack : manager.undoStack).at(-1);
+  if (!ids || !inverse?.meta) throw TypeError("Unbound actual owned inverse");
+  const group = validateOwnedCommandGroup({ reference: ids[0], operation_ids: ids });
+  inverse.meta.set(key, Object.freeze(ids.slice()));
+  return { kind: event.type, ...group };
+}
 export {
   bindOwnedCommandGroup,
+  bindOwnedCommandHistory,
   readOwnedCommandGroup,
   validateOwnedCommandGroup,
   validateOwnedHistory

@@ -1,0 +1,87 @@
+{
+  "description": "Actual TipTap Enter sender update and accepted copy selectors retained for maintained inverse ownership proof",
+  "initial_state_base64": "AQplAAcBB2RlZmF1bHQDB2NhbGxvdXQHAGUAAwlwYXJhZ3JhcGgHAGUBBgYAZQIGaXRhbGljAnt9hGUDF0JlZm9yZSBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnQA",
+  "update_base64": "AQZlIIdlAQMJcGFyYWdyYXBoBwBlIAYGAGUhBml0YWxpYwJ7fYRlIhBnZW5lcmF0ZWQgc3VmZml4hmUyBml0YWxpYwRudWxsKABlIAtyZWxheW1hcmtJZAF3IWIyMjdmMWI4MTc1NDk0MTgzYTJhMjJlZDA5MGIxNjM0ZgFlAQsQ",
+  "operation": {
+    "kind": "content_edit",
+    "steps": [
+      {
+        "stepType": "replace",
+        "from": 9,
+        "to": 9,
+        "slice": {
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+              }
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+              }
+            }
+          ],
+          "openStart": 1,
+          "openEnd": 1
+        },
+        "structure": true
+      },
+      {
+        "stepType": "replaceAround",
+        "from": 10,
+        "to": 28,
+        "gapFrom": 11,
+        "gapTo": 27,
+        "insert": 1,
+        "slice": {
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b227f1b8175494183a2a22ed090b1634f"
+              }
+            }
+          ]
+        },
+        "structure": true
+      }
+    ],
+    "copies": [
+      {
+        "source": {
+          "runs": [
+            {
+              "type": {
+                "client": 101,
+                "clock": 2
+              },
+              "item": {
+                "client": 101,
+                "clock": 11
+              },
+              "count": 16
+            }
+          ]
+        },
+        "destination": {
+          "runs": [
+            {
+              "type": {
+                "client": 101,
+                "clock": 33
+              },
+              "item": {
+                "client": 101,
+                "clock": 35
+              },
+              "count": 16
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

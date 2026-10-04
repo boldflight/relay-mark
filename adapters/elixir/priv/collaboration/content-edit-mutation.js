@@ -9,9 +9,9 @@ var __commonJS = (cb, mod) => function __require() {
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    for (let key2 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key2) && key2 !== except)
+        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc = __getOwnPropDesc(from, key2)) || desc.enumerable });
   }
   return to;
 };
@@ -452,11 +452,11 @@ var require_define_global_property = __commonJS({
     "use strict";
     var globalThis2 = require_global_this();
     var defineProperty = Object.defineProperty;
-    module.exports = function(key, value) {
+    module.exports = function(key2, value) {
       try {
-        defineProperty(globalThis2, key, { value, configurable: true, writable: true });
+        defineProperty(globalThis2, key2, { value, configurable: true, writable: true });
       } catch (error) {
-        globalThis2[key] = value;
+        globalThis2[key2] = value;
       }
       return value;
     };
@@ -488,8 +488,8 @@ var require_shared = __commonJS({
     "use strict";
     var store = require_shared_store();
     var create = Object.create || Object;
-    module.exports = function(key, value) {
-      return store[key] || (store[key] = value || create(null));
+    module.exports = function(key2, value) {
+      return store[key2] || (store[key2] = value || create(null));
     };
   }
 });
@@ -513,8 +513,8 @@ var require_has_own_property = __commonJS({
     var uncurryThis = require_function_uncurry_this();
     var toObject = require_to_object();
     var hasOwnProperty = uncurryThis({}.hasOwnProperty);
-    module.exports = Object.hasOwn || function hasOwn(it, key) {
-      return hasOwnProperty(toObject(it), key);
+    module.exports = Object.hasOwn || function hasOwn(it, key2) {
+      return hasOwnProperty(toObject(it), key2);
     };
   }
 });
@@ -527,8 +527,8 @@ var require_uid = __commonJS({
     var id2 = 0;
     var postfix = Math.random();
     var toString = uncurryThis(1.1.toString);
-    module.exports = function(key) {
-      return "Symbol(" + (key === void 0 ? "" : key) + ")_" + toString(++id2 + postfix, 36);
+    module.exports = function(key2) {
+      return "Symbol(" + (key2 === void 0 ? "" : key2) + ")_" + toString(++id2 + postfix, 36);
     };
   }
 });
@@ -590,8 +590,8 @@ var require_to_property_key = __commonJS({
     var toPrimitive = require_to_primitive();
     var isSymbol = require_is_symbol();
     module.exports = function(argument) {
-      var key = toPrimitive(argument, "string");
-      return isSymbol(key) ? key : key + "";
+      var key2 = toPrimitive(argument, "string");
+      return isSymbol(key2) ? key2 : key2 + "";
     };
   }
 });
@@ -773,10 +773,10 @@ var require_create_non_enumerable_property = __commonJS({
     var DESCRIPTORS = require_descriptors();
     var definePropertyModule = require_object_define_property();
     var createPropertyDescriptor = require_create_property_descriptor();
-    module.exports = DESCRIPTORS ? function(object4, key, value) {
-      return definePropertyModule.f(object4, key, createPropertyDescriptor(1, value));
-    } : function(object4, key, value) {
-      object4[key] = value;
+    module.exports = DESCRIPTORS ? function(object4, key2, value) {
+      return definePropertyModule.f(object4, key2, createPropertyDescriptor(1, value));
+    } : function(object4, key2, value) {
+      object4[key2] = value;
       return object4;
     };
   }
@@ -824,16 +824,16 @@ var require_export = __commonJS({
       var target = GLOBAL ? path : path[TARGET] || createNonEnumerableProperty(path, TARGET, {})[TARGET];
       var targetPrototype = target.prototype;
       var FORCED, USE_NATIVE, VIRTUAL_PROTOTYPE;
-      var key, sourceProperty, targetProperty, nativeProperty, resultProperty, descriptor;
-      for (key in source) {
-        FORCED = isForced(GLOBAL ? key : TARGET + (STATIC ? "." : "#") + key, options.forced);
-        USE_NATIVE = !FORCED && nativeSource && hasOwn(nativeSource, key);
-        targetProperty = target[key];
+      var key2, sourceProperty, targetProperty, nativeProperty, resultProperty, descriptor;
+      for (key2 in source) {
+        FORCED = isForced(GLOBAL ? key2 : TARGET + (STATIC ? "." : "#") + key2, options.forced);
+        USE_NATIVE = !FORCED && nativeSource && hasOwn(nativeSource, key2);
+        targetProperty = target[key2];
         if (USE_NATIVE) if (options.dontCallGetSet) {
-          descriptor = getOwnPropertyDescriptor(nativeSource, key);
+          descriptor = getOwnPropertyDescriptor(nativeSource, key2);
           nativeProperty = descriptor && descriptor.value;
-        } else nativeProperty = nativeSource[key];
-        sourceProperty = USE_NATIVE && nativeProperty ? nativeProperty : source[key];
+        } else nativeProperty = nativeSource[key2];
+        sourceProperty = USE_NATIVE && nativeProperty ? nativeProperty : source[key2];
         if (!FORCED && !PROTO && typeof targetProperty == typeof sourceProperty) continue;
         if (options.bind && USE_NATIVE) resultProperty = bind(sourceProperty, globalThis2);
         else if (options.wrap && USE_NATIVE) resultProperty = wrapConstructor(sourceProperty);
@@ -842,15 +842,15 @@ var require_export = __commonJS({
         if (options.sham || sourceProperty && sourceProperty.sham || targetProperty && targetProperty.sham) {
           createNonEnumerableProperty(resultProperty, "sham", true);
         }
-        createNonEnumerableProperty(target, key, resultProperty);
+        createNonEnumerableProperty(target, key2, resultProperty);
         if (PROTO) {
           VIRTUAL_PROTOTYPE = TARGET + "Prototype";
           if (!hasOwn(path, VIRTUAL_PROTOTYPE)) {
             createNonEnumerableProperty(path, VIRTUAL_PROTOTYPE, {});
           }
-          createNonEnumerableProperty(path[VIRTUAL_PROTOTYPE], key, sourceProperty);
-          if (options.real && targetPrototype && (FORCED || !targetPrototype[key])) {
-            createNonEnumerableProperty(targetPrototype, key, sourceProperty);
+          createNonEnumerableProperty(path[VIRTUAL_PROTOTYPE], key2, sourceProperty);
+          if (options.real && targetPrototype && (FORCED || !targetPrototype[key2])) {
+            createNonEnumerableProperty(targetPrototype, key2, sourceProperty);
           }
         }
       }
@@ -883,9 +883,9 @@ var require_classof = __commonJS({
     var CORRECT_ARGUMENTS = classofRaw(/* @__PURE__ */ (function() {
       return arguments;
     })()) === "Arguments";
-    var tryGet = function(it, key) {
+    var tryGet = function(it, key2) {
       try {
-        return it[key];
+        return it[key2];
       } catch (error) {
       }
     };
@@ -1183,10 +1183,10 @@ var require_object_keys_internal = __commonJS({
       var O = toIndexedObject(object4);
       var i = 0;
       var result = [];
-      var key;
-      for (key in O) !hasOwn(hiddenKeys, key) && hasOwn(O, key) && push(result, key);
-      while (names2.length > i) if (hasOwn(O, key = names2[i++])) {
-        ~indexOf(result, key) || push(result, key);
+      var key2;
+      for (key2 in O) !hasOwn(hiddenKeys, key2) && hasOwn(O, key2) && push(result, key2);
+      while (names2.length > i) if (hasOwn(O, key2 = names2[i++])) {
+        ~indexOf(result, key2) || push(result, key2);
       }
       return result;
     };
@@ -1237,8 +1237,8 @@ var require_object_define_properties = __commonJS({
       var keys2 = objectKeys(Properties);
       var length = keys2.length;
       var index = 0;
-      var key;
-      while (length > index) definePropertyModule.f(O, key = keys2[index++], props[key]);
+      var key2;
+      while (length > index) definePropertyModule.f(O, key2 = keys2[index++], props[key2]);
       return O;
     };
   }
@@ -1260,8 +1260,8 @@ var require_shared_key = __commonJS({
     var shared = require_shared();
     var uid = require_uid();
     var keys2 = shared("keys");
-    module.exports = function(key) {
-      return keys2[key] || (keys2[key] = uid(key));
+    module.exports = function(key2) {
+      return keys2[key2] || (keys2[key2] = uid(key2));
     };
   }
 });
@@ -1337,9 +1337,9 @@ var require_define_built_in = __commonJS({
   "node_modules/core-js-pure/internals/define-built-in.js"(exports, module) {
     "use strict";
     var createNonEnumerableProperty = require_create_non_enumerable_property();
-    module.exports = function(target, key, value, options) {
-      if (options && options.enumerable) target[key] = value;
-      else createNonEnumerableProperty(target, key, value);
+    module.exports = function(target, key2, value, options) {
+      if (options && options.enumerable) target[key2] = value;
+      else createNonEnumerableProperty(target, key2, value);
       return target;
     };
   }
@@ -1617,9 +1617,9 @@ var require_web_dom_exception_constructor = __commonJS({
     var createGetterDescriptor = function(get) {
       return { enumerable: true, configurable: true, get };
     };
-    var getterFor = function(key2) {
+    var getterFor = function(key3) {
       return createGetterDescriptor(function() {
-        return getInternalState(this)[key2];
+        return getInternalState(this)[key3];
       });
     };
     if (DESCRIPTORS) {
@@ -1652,8 +1652,8 @@ var require_web_dom_exception_constructor = __commonJS({
         return codeFor(anObject(this).name);
       }));
     }
-    for (key in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key)) {
-      constant = DOMExceptionConstants[key];
+    for (key2 in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key2)) {
+      constant = DOMExceptionConstants[key2];
       constantName = constant.s;
       descriptor = createPropertyDescriptor(6, constant.c);
       if (!hasOwn(PolyfilledDOMException, constantName)) {
@@ -1666,7 +1666,7 @@ var require_web_dom_exception_constructor = __commonJS({
     var constant;
     var constantName;
     var descriptor;
-    var key;
+    var key2;
   }
 });
 
@@ -1676,9 +1676,9 @@ var require_function_uncurry_this_accessor = __commonJS({
     "use strict";
     var uncurryThis = require_function_uncurry_this();
     var aCallable = require_a_callable();
-    module.exports = function(object4, key, method) {
+    module.exports = function(object4, key2, method) {
       try {
-        return uncurryThis(aCallable(Object.getOwnPropertyDescriptor(object4, key)[method]));
+        return uncurryThis(aCallable(Object.getOwnPropertyDescriptor(object4, key2)[method]));
       } catch (error) {
       }
     };
@@ -1807,8 +1807,8 @@ var require_web_dom_exception_stack = __commonJS({
       if (!IS_PURE) {
         defineProperty(PolyfilledDOMExceptionPrototype, "constructor", createPropertyDescriptor(1, PolyfilledDOMException));
       }
-      for (key in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key)) {
-        constant = DOMExceptionConstants[key];
+      for (key2 in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key2)) {
+        constant = DOMExceptionConstants[key2];
         constantName = constant.s;
         if (!hasOwn(PolyfilledDOMException, constantName)) {
           defineProperty(PolyfilledDOMException, constantName, createPropertyDescriptor(6, constant.c));
@@ -1817,7 +1817,7 @@ var require_web_dom_exception_stack = __commonJS({
     }
     var constant;
     var constantName;
-    var key;
+    var key2;
   }
 });
 
@@ -2307,9 +2307,9 @@ var require_url_constructor_detection = __commonJS({
       var params2 = new URLSearchParams("a=1&a=2&b=3");
       var result = "";
       url.pathname = "c%20d";
-      params.forEach(function(value, key) {
+      params.forEach(function(value, key2) {
         params["delete"]("b");
-        result += key + value;
+        result += key2 + value;
       });
       params2["delete"]("a", 2);
       params2["delete"]("b", void 0);
@@ -2486,9 +2486,9 @@ var require_define_built_ins = __commonJS({
     "use strict";
     var defineBuiltIn = require_define_built_in();
     module.exports = function(target, src, options) {
-      for (var key in src) {
-        if (options && options.unsafe && target[key]) target[key] = src[key];
-        else defineBuiltIn(target, key, src[key], options);
+      for (var key2 in src) {
+        if (options && options.unsafe && target[key2]) target[key2] = src[key2];
+        else defineBuiltIn(target, key2, src[key2], options);
       }
       return target;
     };
@@ -2716,8 +2716,8 @@ var require_web_url_search_params_constructor = __commonJS({
             if ((first = call(entryNext, entryIterator)).done || (second = call(entryNext, entryIterator)).done || !call(entryNext, entryIterator).done) throw new TypeError2("Expected sequence with length 2");
             push(entries, { key: $toString(first.value), value: $toString(second.value) });
           }
-        } else for (var key in object4) if (hasOwn(object4, key)) {
-          push(entries, { key, value: $toString(object4[key]) });
+        } else for (var key2 in object4) if (hasOwn(object4, key2)) {
+          push(entries, { key: key2, value: $toString(object4[key2]) });
         }
       },
       parseQuery: function(query) {
@@ -2780,13 +2780,13 @@ var require_web_url_search_params_constructor = __commonJS({
         var state = getInternalParamsState(this);
         var length = validateArgumentsLength(arguments.length, 1);
         var entries = state.entries;
-        var key = $toString(name);
+        var key2 = $toString(name);
         var $value = length < 2 ? void 0 : arguments[1];
         var value = $value === void 0 ? $value : $toString($value);
         var index = 0;
         while (index < entries.length) {
           var entry = entries[index];
-          if (entry.key === key && (value === void 0 || entry.value === value)) {
+          if (entry.key === key2 && (value === void 0 || entry.value === value)) {
             splice(entries, index, 1);
           } else index++;
         }
@@ -2798,10 +2798,10 @@ var require_web_url_search_params_constructor = __commonJS({
       get: function get(name) {
         var entries = getInternalParamsState(this).entries;
         validateArgumentsLength(arguments.length, 1);
-        var key = $toString(name);
+        var key2 = $toString(name);
         var index = 0;
         for (; index < entries.length; index++) {
-          if (entries[index].key === key) return entries[index].value;
+          if (entries[index].key === key2) return entries[index].value;
         }
         return null;
       },
@@ -2810,11 +2810,11 @@ var require_web_url_search_params_constructor = __commonJS({
       getAll: function getAll(name) {
         var entries = getInternalParamsState(this).entries;
         validateArgumentsLength(arguments.length, 1);
-        var key = $toString(name);
+        var key2 = $toString(name);
         var result = [];
         var index = 0;
         for (; index < entries.length; index++) {
-          if (entries[index].key === key) push(result, entries[index].value);
+          if (entries[index].key === key2) push(result, entries[index].value);
         }
         return result;
       },
@@ -2823,13 +2823,13 @@ var require_web_url_search_params_constructor = __commonJS({
       has: function has(name) {
         var entries = getInternalParamsState(this).entries;
         var length = validateArgumentsLength(arguments.length, 1);
-        var key = $toString(name);
+        var key2 = $toString(name);
         var $value = length < 2 ? void 0 : arguments[1];
         var value = $value === void 0 ? $value : $toString($value);
         var index = 0;
         while (index < entries.length) {
           var entry = entries[index++];
-          if (entry.key === key && (value === void 0 || entry.value === value)) return true;
+          if (entry.key === key2 && (value === void 0 || entry.value === value)) return true;
         }
         return false;
       },
@@ -2840,13 +2840,13 @@ var require_web_url_search_params_constructor = __commonJS({
         validateArgumentsLength(arguments.length, 2);
         var entries = state.entries;
         var found = false;
-        var key = $toString(name);
+        var key2 = $toString(name);
         var val = $toString(value);
         var index = 0;
         var entry;
         for (; index < entries.length; index++) {
           entry = entries[index];
-          if (entry.key === key) {
+          if (entry.key === key2) {
             if (found) splice(entries, index--, 1);
             else {
               found = true;
@@ -2854,7 +2854,7 @@ var require_web_url_search_params_constructor = __commonJS({
             }
           }
         }
-        if (!found) push(entries, { key, value: val });
+        if (!found) push(entries, { key: key2, value: val });
         if (!DESCRIPTORS) this.size = entries.length;
         state.updateURL();
       },
@@ -3113,10 +3113,10 @@ var require_object_assign = __commonJS({
         var keys2 = getOwnPropertySymbols ? concat(objectKeys(S), getOwnPropertySymbols(S)) : objectKeys(S);
         var length = keys2.length;
         var j = 0;
-        var key;
+        var key2;
         while (length > j) {
-          key = keys2[j++];
-          if (!DESCRIPTORS || call(propertyIsEnumerable, S, key)) T[key] = S[key];
+          key2 = keys2[j++];
+          if (!DESCRIPTORS || call(propertyIsEnumerable, S, key2)) T[key2] = S[key2];
         }
       }
       return T;
@@ -3256,9 +3256,9 @@ var require_create_property = __commonJS({
     var DESCRIPTORS = require_descriptors();
     var definePropertyModule = require_object_define_property();
     var createPropertyDescriptor = require_create_property_descriptor();
-    module.exports = function(object4, key, value) {
-      if (DESCRIPTORS) definePropertyModule.f(object4, key, createPropertyDescriptor(0, value));
-      else object4[key] = value;
+    module.exports = function(object4, key2, value) {
+      if (DESCRIPTORS) definePropertyModule.f(object4, key2, createPropertyDescriptor(0, value));
+      else object4[key2] = value;
     };
   }
 });
@@ -4755,19 +4755,19 @@ function directiveNodeForName(name) {
 }
 function authoredDirectiveProps(shape, attrs) {
   if (!attrs || typeof attrs !== "object" || Array.isArray(attrs)) throw new TypeError("Invalid directive attrs");
-  for (const key of Object.keys(attrs)) if (key !== "relaymarkId" && !Object.hasOwn(shape.attributes, key)) throw new TypeError("Unsupported authored directive field " + key);
+  for (const key2 of Object.keys(attrs)) if (key2 !== "relaymarkId" && !Object.hasOwn(shape.attributes, key2)) throw new TypeError("Unsupported authored directive field " + key2);
   const props = {};
-  for (const [key, spec] of Object.entries(shape.attributes)) {
-    let value = attrs[key];
+  for (const [key2, spec] of Object.entries(shape.attributes)) {
+    let value = attrs[key2];
     if (value == null) {
       if (Object.hasOwn(spec, "default")) value = spec.default;
-      else if (spec.required) throw new TypeError("Missing authored directive " + key);
+      else if (spec.required) throw new TypeError("Missing authored directive " + key2);
       else continue;
     }
     const okay = ["string", "enum"].includes(spec.type) ? typeof value === "string" : spec.type === "boolean" ? typeof value === "boolean" : spec.type === "integer" ? Number.isSafeInteger(value) : spec.type === "number" ? typeof value === "number" && Number.isFinite(value) : spec.type === "array" ? Array.isArray(value) : spec.type === "object" ? value && typeof value === "object" && !Array.isArray(value) : false;
-    if (!okay || spec.type === "enum" && !spec.values.includes(value) || spec.items === "string" && value.some((v) => typeof v !== "string")) throw new TypeError("Invalid authored directive " + key);
+    if (!okay || spec.type === "enum" && !spec.values.includes(value) || spec.items === "string" && value.some((v) => typeof v !== "string")) throw new TypeError("Invalid authored directive " + key2);
     jsonValue(value);
-    props[key] = value;
+    props[key2] = value;
   }
   return props;
 }
@@ -4795,8 +4795,8 @@ function object(value, label) {
   return value;
 }
 function only(value, allowed, label) {
-  for (const key of Object.keys(object(value, label))) {
-    if (!allowed.includes(key)) throw new TypeError(`Unsupported ${label} field: ${key}`);
+  for (const key2 of Object.keys(object(value, label))) {
+    if (!allowed.includes(key2)) throw new TypeError(`Unsupported ${label} field: ${key2}`);
   }
 }
 function identity(id2) {
@@ -4858,8 +4858,8 @@ function object2(value, label) {
   return value;
 }
 function keys(value, allowed, label) {
-  for (const key of Object.keys(object2(value, label))) {
-    if (!allowed.includes(key)) throw new TypeError(`Unsupported ${label} field: ${key}`);
+  for (const key2 of Object.keys(object2(value, label))) {
+    if (!allowed.includes(key2)) throw new TypeError(`Unsupported ${label} field: ${key2}`);
   }
 }
 function href(value) {
@@ -4892,8 +4892,8 @@ function mapInline(node) {
     previous = rank;
     if (mark.type === "link") {
       keys(mark.attrs, ["href", ...Object.keys(linkDefaults)], "link attrs");
-      for (const [key, value] of Object.entries(linkDefaults)) {
-        if (mark.attrs[key] !== value) throw new TypeError(`Unsupported link ${key}`);
+      for (const [key2, value] of Object.entries(linkDefaults)) {
+        if (mark.attrs[key2] !== value) throw new TypeError(`Unsupported link ${key2}`);
       }
     } else if (mark.attrs !== void 0) {
       throw new TypeError(`Unsupported ${mark.type} attrs`);
@@ -4919,17 +4919,17 @@ function parseEntityReferenceSource(source) {
   const attrs = {};
   let rest = match[1].trim();
   while (rest) {
-    const key = rest.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*/u);
-    if (!key || !["id", "label", "projection"].includes(key[1]) || Object.hasOwn(attrs, key[1])) return null;
-    rest = rest.slice(key[0].length);
+    const key2 = rest.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*/u);
+    if (!key2 || !["id", "label", "projection"].includes(key2[1]) || Object.hasOwn(attrs, key2[1])) return null;
+    rest = rest.slice(key2[0].length);
     const value = rest.match(/^"(?:\\.|[^"\\])*"/u);
     if (!value) return null;
     try {
-      attrs[key[1]] = JSON.parse(value[0]);
+      attrs[key2[1]] = JSON.parse(value[0]);
     } catch {
       return null;
     }
-    if (typeof attrs[key[1]] !== "string") return null;
+    if (typeof attrs[key2[1]] !== "string") return null;
     rest = rest.slice(value[0].length).trimStart();
     if (!rest) break;
     if (!rest.startsWith(",")) return null;
@@ -4962,18 +4962,18 @@ function object3(value) {
 function canonicalPaperControlSource(control, authored) {
   object3(authored);
   const allowed = fields[control];
-  if (!allowed || Object.keys(authored).length !== allowed.length || Object.keys(authored).some((key) => !allowed.includes(key)) || allowed.some((key) => typeof authored[key] !== "string")) throw new TypeError("Invalid paper control fields");
+  if (!allowed || Object.keys(authored).length !== allowed.length || Object.keys(authored).some((key2) => !allowed.includes(key2)) || allowed.some((key2) => typeof authored[key2] !== "string")) throw new TypeError("Invalid paper control fields");
   if (control === "button" && (!authored.label.trim() || !["anchor", "link", "command"].includes(authored.kind) || !(authored.kind === "anchor" ? anchorName.test(authored.target) : authored.kind === "link" ? safeLink(authored.target) : command.test(authored.target)))) {
     throw new TypeError("Invalid paper button");
   }
   if (control === "anchor" && !anchorName.test(authored.name)) throw new TypeError("Invalid paper anchor");
   if (control === "connection" && !providerName.test(authored.provider)) throw new TypeError("Invalid paper connection");
-  const source = `@${names[control]}(${allowed.map((key) => `${key}: ${JSON.stringify(authored[key])}`).join(", ")})`;
+  const source = `@${names[control]}(${allowed.map((key2) => `${key2}: ${JSON.stringify(authored[key2])}`).join(", ")})`;
   if (source.length > 16384) throw new TypeError("Paper control source exceeds the draft limit");
   return source;
 }
 function paperControlKind(nodeName) {
-  return Object.keys(nodeNames).find((key) => nodeNames[key] === nodeName);
+  return Object.keys(nodeNames).find((key2) => nodeNames[key2] === nodeName);
 }
 
 // src/document-suggestion.js
@@ -5414,13 +5414,13 @@ function assertObject(value, label) {
   }
 }
 function onlyKeys(object4, allowed, label) {
-  for (const key of Object.keys(object4)) {
-    if (!allowed.includes(key)) throw new TypeError(`Unsupported ${label} field: ${key}`);
+  for (const key2 of Object.keys(object4)) {
+    if (!allowed.includes(key2)) throw new TypeError(`Unsupported ${label} field: ${key2}`);
   }
 }
 function checkDimensions(props) {
-  for (const key of ["width", "height"]) {
-    const value = props[key];
+  for (const key2 of ["width", "height"]) {
+    const value = props[key2];
     if (value != null && (!Number.isSafeInteger(value) || value <= 0)) throw new TypeError("Image dimensions must be positive safe integers");
   }
 }
@@ -5432,8 +5432,8 @@ function validateQuestionProps(props, option = false) {
   onlyKeys(props, option ? optionFields : questionFields, "form authored props");
   if (typeof props.id !== "string" || !props.id.trim() || /[\r\n\u0000]/u.test(props.id)) throw new TypeError("Invalid form identity");
   if (option ? typeof props.correct !== "boolean" : !questionTypes.has(props.type) || typeof props.required !== "boolean") throw new TypeError("Invalid form type or boolean");
-  for (const key of option ? ["points"] : ["points", "min", "max"]) {
-    if (props[key] != null && (typeof props[key] !== "number" || !Number.isFinite(props[key]))) throw new TypeError("Invalid form numeric setting");
+  for (const key2 of option ? ["points"] : ["points", "min", "max"]) {
+    if (props[key2] != null && (typeof props[key2] !== "number" || !Number.isFinite(props[key2]))) throw new TypeError("Invalid form numeric setting");
   }
   assertObject(props.settings, "form authored settings");
   validateJSONValue(props.settings);
@@ -5455,7 +5455,7 @@ function validateJSONValue(value, depth = 0) {
 function formProps(attrs, option) {
   const defaults = option ? { correct: false, points: null, settings: {} } : { required: false, points: null, min: null, max: null, settings: {} };
   const result = { ...defaults };
-  for (const key of option ? optionFields : questionFields) if (attrs[key] !== void 0) result[key] = attrs[key];
+  for (const key2 of option ? optionFields : questionFields) if (attrs[key2] !== void 0) result[key2] = attrs[key2];
   validateQuestionProps(result, option);
   return result;
 }
@@ -5477,13 +5477,13 @@ function mapQuestion(node, seen) {
 var dataViewFields = ["source", "projection", "columns", "filter", "sort", "group", "limit", "title"];
 function dataViewProps(attrs) {
   const props = {};
-  for (const key of dataViewFields) if (attrs[key] != null) props[key] = attrs[key];
+  for (const key2 of dataViewFields) if (attrs[key2] != null) props[key2] = attrs[key2];
   if (typeof props.source !== "string" || !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u.test(props.source) || !["list", "table", "feed", "calendar", "kanban", "chart"].includes(props.projection)) throw new TypeError("Invalid data view source/projection");
-  for (const key of ["columns", "sort"]) if (props[key] !== void 0 && (!Array.isArray(props[key]) || props[key].some((v) => typeof v !== "string"))) throw new TypeError("Invalid data view keys");
+  for (const key2 of ["columns", "sort"]) if (props[key2] !== void 0 && (!Array.isArray(props[key2]) || props[key2].some((v) => typeof v !== "string"))) throw new TypeError("Invalid data view keys");
   if (props.filter !== void 0) {
     assertObject(props.filter, "data view filter");
     const scalar = (v) => v === null || typeof v === "string" || typeof v === "boolean" || typeof v === "number" && Number.isFinite(v);
-    for (const [key, value] of Object.entries(props.filter)) if (!/^[a-z][a-z0-9_]*$/u.test(key) || !(scalar(value) || Array.isArray(value) && value.every(scalar))) throw new TypeError("Invalid declarative data view filter");
+    for (const [key2, value] of Object.entries(props.filter)) if (!/^[a-z][a-z0-9_]*$/u.test(key2) || !(scalar(value) || Array.isArray(value) && value.every(scalar))) throw new TypeError("Invalid declarative data view filter");
   }
   if (props.group !== void 0 && (typeof props.group !== "string" || !/^[a-z][a-z0-9_]*$/u.test(props.group))) throw new TypeError("Invalid data view group");
   if (props.limit !== void 0 && (!Number.isSafeInteger(props.limit) || props.limit < 1 || props.limit > 1e3)) throw new TypeError("Invalid data view limit");
@@ -5503,7 +5503,7 @@ function stableStringify(value) {
   }
   if (value && typeof value === "object") {
     const entries = Object.entries(value).filter(([, item]) => item !== void 0).sort(([a], [b]) => a.localeCompare(b));
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
+    return `{${entries.map(([key2, item]) => `${JSON.stringify(key2)}:${stableStringify(item)}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -5511,7 +5511,7 @@ function cloneCanonicalJSON(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (Array.isArray(value)) return value.map(cloneCanonicalJSON);
-  if (value && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneCanonicalJSON(item)]));
+  if (value && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) return Object.fromEntries(Object.entries(value).map(([key2, item]) => [key2, cloneCanonicalJSON(item)]));
   throw new TypeError("Invalid authored JSON value");
 }
 
@@ -5582,6 +5582,33 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   const json = JSON.parse(JSON.stringify(document2.toJSON()));
   const authored_document = proseMirrorToRelayMark(json);
   return { document: json, authored_document, step_maps, retained_ranges };
+}
+
+// adapters/collaboration/owned-command-group.js
+var key = "relaymark:operation_ids";
+function bindOwnedCommandGroup(manager, event, operationID) {
+  canonicalOperationID(operationID);
+  const item = event?.stackItem;
+  if (!manager || manager.undoing || manager.redoing || event.type !== "undo" || manager.undoStack.at(-1) !== item || !item?.meta) throw TypeError("Unavailable actual maintained command item");
+  const existing = item.meta.get(key);
+  let ids = existing ? validateOwnedCommandGroup({ reference: existing[0], operation_ids: existing }).operation_ids.slice() : [];
+  for (const entry of [...manager.undoStack, ...manager.redoStack]) if (entry !== item && entry.meta.get(key)?.includes(operationID)) throw TypeError("Duplicate owned operation UUID");
+  if (ids.at(-1) !== operationID) {
+    if (ids.includes(operationID)) throw TypeError("Out-of-order owned operation UUID");
+    ids.push(operationID);
+  }
+  const group = validateOwnedCommandGroup({ reference: ids[0], operation_ids: ids });
+  item.meta.set(key, Object.freeze(ids));
+  return group;
+}
+function bindOwnedCommandHistory(manager, event) {
+  const undo = event?.type === "undo", redo = event?.type === "redo";
+  if (!manager || event.origin !== manager || !(undo && manager.undoing || redo && manager.redoing)) throw TypeError("Unavailable actual maintained inverse");
+  const ids = event.stackItem?.meta.get(key), inverse = (undo ? manager.redoStack : manager.undoStack).at(-1);
+  if (!ids || !inverse?.meta) throw TypeError("Unbound actual owned inverse");
+  const group = validateOwnedCommandGroup({ reference: ids[0], operation_ids: ids });
+  inverse.meta.set(key, Object.freeze(ids.slice()));
+  return { kind: event.type, ...group };
 }
 
 // adapters/collaboration/content-edit-observer.js
@@ -5824,13 +5851,13 @@ function normalized(footprint, before, known, deleted) {
   return { state_vector: footprint.state_vector, structs: mergeRecords(structs, true), declared_deletes: effective, deleted_items: mergeRecords(deleted_items, false) };
 }
 function replayContentEditMutation(evidence) {
+  if (evidence.operation?.history) return replayOwnedHistory(evidence);
   fields2(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint"]);
   const senderBytes = bytes(evidence.sender_state_base64), currentBytes = bytes(evidence.current_state_base64), sender = owner(senderBytes), current = owner(currentBytes);
   try {
     const before = Y2.decodeStateVector(Y2.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
     for (const r of evidence.footprint.structs ?? []) if (r.item.clock + r.count > (before.get(r.item.client) || 0)) clients.add(r.item.client);
     if (clients.size > 1 || (clients.size === 0 ? evidence.writer_client !== null : !clients.has(evidence.writer_client) || !Number.isSafeInteger(evidence.writer_client) || evidence.writer_client < 0)) throw TypeError("Replay writer must be independently observed from fresh structs");
-    if (evidence.operation.history) throw TypeError("Owned inverse requires maintained accepted-history replay");
     const initialized = initProseMirrorDoc(sender.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), evidence.operation);
     let result = initialized.doc;
     for (const json of evidence.operation.steps) {
@@ -5856,10 +5883,157 @@ function replayContentEditMutation(evidence) {
     Y2.applyUpdate(current, update);
     const footprint = captureContentEditFootprint(current, update), actual = normalized(evidence.footprint, before, known, deleted), replayed = normalized(footprint, before, known, deleted);
     if (!same(actual, replayed)) throw TypeError("Original mutation differs from executed maintained command");
-    return { footprint, expected_update_base64: toBase64(update), complete_mutation_correspondence: true };
+    return { footprint, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, retained_field_changes: fieldChanges(replayed) };
   } finally {
     sender.destroy();
     current.destroy();
+  }
+}
+function observedWriter(footprint, doc) {
+  const clocks = Y2.decodeStateVector(Y2.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
+  for (const item of footprint.structs) if (item.item.clock + item.count > (clocks.get(item.item.client) || 0)) clients.add(item.item.client);
+  if (clients.size > 1) throw TypeError("Multiple actual command writers");
+  return clients.size ? [...clients][0] : null;
+}
+function compareUpdate(current, originalFootprint, update) {
+  const state = Y2.encodeStateAsUpdate(current), before = Y2.decodeStateVector(Y2.encodeStateVector(current)), known = /* @__PURE__ */ new Map();
+  for (const record of captureContentEditFootprint(current, state).structs) {
+    const list = known.get(record.item.client) || [];
+    list.push(record);
+    known.set(record.item.client, list);
+  }
+  const deleted = [];
+  for (const [client, ranges] of Y2.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
+  Y2.applyUpdate(current, update);
+  const footprint = captureContentEditFootprint(current, update);
+  if (!same(normalized(originalFootprint, before, known, deleted), normalized(footprint, before, known, deleted))) throw TypeError("Original mutation differs from maintained owned history");
+  return { footprint, retained_field_changes: fieldChanges(normalized(footprint, before, known, deleted)) };
+}
+function fieldChanges(footprint) {
+  const field = (r) => r.key !== null || r.content.kind === "format";
+  return { allocated: footprint.structs.filter(field), deleted: footprint.deleted_items.filter(field) };
+}
+function redoneLinks(doc) {
+  const result = /* @__PURE__ */ new Map();
+  let remaining = 1e6;
+  for (const structs of doc.store.clients.values()) for (const item of structs) {
+    if (--remaining < 0) throw TypeError("Owned history observation budget exhausted");
+    if (item instanceof Y2.Item) result.set(item.id.client + ":" + item.id.clock, item.redone ? item.redone.client + ":" + item.redone.clock : null);
+  }
+  return result;
+}
+function restoredCopies(doc, prior, links) {
+  const copies = [], snapshot = captureContentEditSnapshot(doc.getXmlFragment("default")), visible = /* @__PURE__ */ new Set();
+  let remaining = 1e6;
+  function visit(node) {
+    if (node.kind === "text") visible.add(node.type.client + ":" + node.type.clock);
+    else for (const child of node.children) visit(child);
+  }
+  visit(snapshot);
+  for (const structs of doc.store.clients.values()) for (const source of structs) {
+    if (--remaining < 0) throw TypeError("Restored copy observation budget exhausted");
+    if (!(source instanceof Y2.Item) || !(source.content instanceof Y2.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
+    const destination = Y2.getItem(doc.store, source.redone);
+    if (!(destination instanceof Y2.Item) || destination.id.clock !== source.redone.clock || destination.length !== source.length || !(destination.content instanceof Y2.ContentString) || destination.content.str !== source.content.str || !(source.parent instanceof Y2.XmlText) || !(destination.parent instanceof Y2.XmlText) || !source.parent._item || !destination.parent._item) throw TypeError("Unavailable exact maintained restored copy");
+    if (destination.deleted || destination.id.clock < (prior.get(destination.id.client) || 0) || !visible.has(destination.parent._item.id.client + ":" + destination.parent._item.id.clock)) throw TypeError("Unreachable maintained restored copy");
+    const selected = (item) => ({ runs: [{ type: { client: item.parent._item.id.client, clock: item.parent._item.id.clock }, item: { client: item.id.client, clock: item.id.clock }, count: item.length }] });
+    copies.push({ source: selected(source), destination: selected(destination) });
+  }
+  return copies;
+}
+function replayOwnedHistory(evidence) {
+  fields2(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint", "initial_state_base64", "receipts"]);
+  validateOwnedHistory(evidence.operation.history);
+  if (!Array.isArray(evidence.receipts) || evidence.receipts.length < 1 || evidence.receipts.length > 4096) throw TypeError("Unavailable bounded accepted history");
+  const doc = owner(bytes(evidence.initial_state_base64)), origin = {}, manager = new Y2.UndoManager(doc.getXmlFragment("default"), { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+  let activeID = null, popped = null, lastRestored = [];
+  const event = (e) => {
+    if (!manager.undoing && !manager.redoing && activeID) bindOwnedCommandGroup(manager, e, activeID);
+  };
+  manager.on("stack-item-added", event);
+  manager.on("stack-item-updated", event);
+  manager.on("stack-item-popped", (e) => {
+    popped = e.stackItem;
+    bindOwnedCommandHistory(manager, e);
+  });
+  const inverse = (operation, writer) => {
+    validateOwnedHistory(operation.history);
+    const stack = operation.history.kind === "undo" ? manager.undoStack : manager.redoStack, ids = stack.at(-1)?.meta.get("relaymark:operation_ids");
+    if (!ids || !same({ reference: ids[0], operation_ids: ids }, { reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
+    const prior = Y2.decodeStateVector(Y2.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
+    doc.clientID = writer ?? 0;
+    popped = null;
+    doc.on("update", capture);
+    try {
+      if (operation.history.kind === "undo") manager.undo();
+      else manager.redo();
+    } finally {
+      doc.off("update", capture);
+    }
+    if (!popped || updates.length !== 1 || !same(initProseMirrorDoc(doc.getXmlFragment("default"), schema4).doc.toJSON(), expected.document)) throw TypeError("Actual maintained inverse disagrees with supplied steps");
+    lastRestored = restoredCopies(doc, prior, links);
+    return updates[0];
+  };
+  try {
+    let total = bytes(evidence.initial_state_base64).length;
+    const seen = /* @__PURE__ */ new Set();
+    for (const receipt of evidence.receipts) {
+      fields2(receipt, ["transaction_id", "operation", "update_base64", "sender_state_base64"]);
+      if (seen.has(receipt.transaction_id)) throw TypeError("Duplicate accepted command receipt");
+      seen.add(receipt.transaction_id);
+      const sender2 = bytes(receipt.sender_state_base64), update = bytes(receipt.update_base64);
+      validateOwnedCommandGroup({ reference: receipt.transaction_id, operation_ids: [receipt.transaction_id] });
+      total += sender2.length + update.length;
+      if (total > 32 * 1024 * 1024) throw TypeError("Oversized accepted history replay");
+      Y2.applyUpdate(doc, sender2);
+      if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled accepted sender frontier");
+      const beforeBytes = Y2.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
+      try {
+        Y2.applyUpdate(candidate, update);
+        const footprint = captureContentEditFootprint(candidate, update), writer = observedWriter(footprint, doc);
+        if (receipt.operation.history) {
+          const actual = inverse(receipt.operation, writer), locked = owner(beforeBytes);
+          try {
+            compareUpdate(locked, footprint, actual);
+          } finally {
+            locked.destroy();
+          }
+        } else {
+          const group = validateOwnedCommandGroup(receipt.operation.group);
+          if (group.operation_ids.at(-1) !== receipt.transaction_id) throw TypeError("Accepted group does not end in command receipt");
+          replayContentEditMutation({ sender_state_base64: receipt.sender_state_base64, current_state_base64: toBase64(beforeBytes), writer_client: writer, operation: receipt.operation, footprint });
+          if (group.reference === receipt.transaction_id) manager.stopCapturing();
+          activeID = receipt.transaction_id;
+          try {
+            Y2.applyUpdate(doc, update, origin);
+          } finally {
+            activeID = null;
+          }
+          const ids = manager.undoStack.at(-1)?.meta.get("relaymark:operation_ids");
+          if (!ids || !same({ reference: ids[0], operation_ids: ids }, group)) throw TypeError("Accepted prefix differs from maintained group");
+        }
+      } finally {
+        candidate.destroy();
+      }
+    }
+    Y2.applyUpdate(doc, bytes(evidence.sender_state_base64));
+    const candidateFrontier = Y2.decodeStateVector(Y2.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
+    try {
+      if (!same([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y2.decodeStateVector(Y2.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same(intervals(captureContentEditFootprint(doc, Y2.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y2.encodeStateAsUpdate(sender)).declared_deletes)) || !same(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
+    } finally {
+      sender.destroy();
+    }
+    const current = owner(bytes(evidence.current_state_base64));
+    try {
+      if (observedWriter(evidence.footprint, current) !== evidence.writer_client) throw TypeError("History writer is not independently observed");
+      const update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update);
+      return { ...proof, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: lastRestored };
+    } finally {
+      current.destroy();
+    }
+  } finally {
+    manager.destroy();
+    doc.destroy();
   }
 }
 export {

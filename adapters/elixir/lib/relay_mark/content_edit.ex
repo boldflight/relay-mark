@@ -47,7 +47,7 @@ defmodule RelayMark.ContentEdit do
 
   def build_witness(_, _), do: {:error, :invalid_content_edit}
 
-  @doc "Replay actual maintained PM/Yjs command and compare its complete original mutation footprint. Does not authorize source or history."
+  @doc "Replay actual maintained PM/Yjs command and compare its complete original mutation footprint. Optional private accepted-owner receipts reconstruct the same maintained UndoManager for inverse correspondence. Hosts still authorize source, scope, receipt membership and accepted undo/redo cycles."
   def replay_mutation(runtime, evidence) when is_map(evidence),
     do: execute_arguments(runtime, "replayContentEditMutation", [evidence])
 

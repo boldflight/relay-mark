@@ -14,3 +14,11 @@ export function bindOwnedCommandGroup(manager,event,operationID){
 }
 export function readOwnedCommandGroup(manager,operationID){canonicalOperationID(operationID);const item=manager?.undoStack.at(-1),ids=item?.meta.get(key);if(!ids||ids.at(-1)!==operationID)throw TypeError('No actual owned command group');return validateOwnedCommandGroup({reference:ids[0],operation_ids:ids.slice()});}
 export {validateOwnedCommandGroup,validateOwnedHistory} from '../../src/owned-command-group.js';
+/** Transfer the same accepted group onto the actual inverse item created by the
+ * maintained manager, preserving its separately owned selection metadata. */
+export function bindOwnedCommandHistory(manager,event){
+ const undo=event?.type==='undo',redo=event?.type==='redo';
+ if(!manager||event.origin!==manager||!(undo&&manager.undoing||redo&&manager.redoing))throw TypeError('Unavailable actual maintained inverse');
+ const ids=event.stackItem?.meta.get(key),inverse=(undo?manager.redoStack:manager.undoStack).at(-1);if(!ids||!inverse?.meta)throw TypeError('Unbound actual owned inverse');
+ const group=validateOwnedCommandGroup({reference:ids[0],operation_ids:ids});inverse.meta.set(key,Object.freeze(ids.slice()));return{kind:event.type,...group};
+}
