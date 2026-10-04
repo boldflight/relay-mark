@@ -1,5 +1,5 @@
-defmodule RelayMark.AgentSuggestionV3 do
-  @moduledoc "Authored-only v3 AgentSuggestion atom; proposal review and actions belong to hosts."
+defmodule RelayMark.AgentSuggestion do
+  @moduledoc "Authored-only canonical AgentSuggestion atom; proposal review and actions belong to hosts."
 
   @block_id ~r/\Ab[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}\z/u
   @reviews ["draft", "ready"]

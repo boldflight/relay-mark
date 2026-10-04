@@ -1,7 +1,7 @@
 import Foundation
 import RelayMarkProseProjection
 
-/// A narrow v3 XML sibling command. The caller supplies the authored source;
+/// A narrow canonical XML sibling command. The caller supplies the authored source;
 /// the portable projection checks its exact identity and spelling.
 @MainActor
 public enum RelayMarkNativeInlineAtomMutation {
@@ -29,7 +29,7 @@ public enum RelayMarkNativeInlineAtomMutation {
     public static func insert(document: RelayMarkNativeDocument, blockID: String,
                               childIndex: Int, utf16Offset: Int,
                               expectedLeafText: String, atom: Atom) throws -> Data {
-        let prose = try document.markdownV3ProseProjection()
+        let prose = try document.richProseProjection()
         guard prose.isEditable, childIndex >= 0,
               let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
               let path = path(to: blockID, in: root, prefix: []),
@@ -55,8 +55,8 @@ public enum RelayMarkNativeInlineAtomMutation {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        let candidateAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: candidateData)
-        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .markdownV3).isEditable else {
+        let candidateAST = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let scratch = RelayMarkNativeDocument()
@@ -64,9 +64,9 @@ public enum RelayMarkNativeInlineAtomMutation {
         _ = try scratch.insertInlineAtom(in: path + [childIndex], at: utf16Offset,
                                          expectedText: expectedLeafText,
                                          tag: atom.kind.rawValue, attributes: atom.attributes)
-        let scratchAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch)
+        let scratchAST = try RelayMarkNativeDocumentProjection.project(document: scratch)
         guard scratchAST == candidateAST,
-              try scratch.markdownV3ProseProjection().isEditable else {
+              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return try document.insertInlineAtom(in: path + [childIndex], at: utf16Offset,
@@ -78,7 +78,7 @@ public enum RelayMarkNativeInlineAtomMutation {
     /// their XML identities. The range is the current native selection range.
     public static func replace(document: RelayMarkNativeDocument, range: NSRange,
                                expectedID: String, atom: Atom) throws -> Data {
-        let prose = try document.markdownV3ProseProjection()
+        let prose = try document.richProseProjection()
         guard prose.isEditable,
               let current = prose.inlineAtoms.first(where: { $0.range == range && $0.id == expectedID }),
               let snapshot = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
@@ -93,7 +93,7 @@ public enum RelayMarkNativeInlineAtomMutation {
 
     private static func mutate(document: RelayMarkNativeDocument, blockID: String,
                                childIndex: Int, replacing: Bool, atom: Atom) throws -> Data {
-        let prose = try document.markdownV3ProseProjection()
+        let prose = try document.richProseProjection()
         guard prose.isEditable, childIndex >= 0,
               let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
               let path = path(to: blockID, in: root, prefix: []),
@@ -119,8 +119,8 @@ public enum RelayMarkNativeInlineAtomMutation {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: candidateData)
-        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .markdownV3).isEditable else {
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
 
@@ -128,7 +128,7 @@ public enum RelayMarkNativeInlineAtomMutation {
         try scratch.applyUpdate(document.encodeUpdate())
         _ = try scratch.mutateInlineAtom(path: path + [childIndex], replacing: replacing,
                                          tag: atom.kind.rawValue, attributes: atom.attributes)
-        _ = try scratch.markdownV3ProseProjection()
+        _ = try scratch.richProseProjection()
         return try document.mutateInlineAtom(path: path + [childIndex], replacing: replacing,
                                              tag: atom.kind.rawValue, attributes: atom.attributes)
     }

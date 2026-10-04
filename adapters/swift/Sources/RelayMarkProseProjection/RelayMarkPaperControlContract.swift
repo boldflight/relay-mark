@@ -1,6 +1,6 @@
 import Foundation
 
-/// The authored, inert v3 Paper control contract shared by portable AST and
+/// The authored, inert canonical Paper control contract shared by portable AST and
 /// native prose projections. The host owns presentation and execution.
 public enum RelayMarkPaperControlContract {
     public enum Control: String, Sendable {

@@ -9,17 +9,17 @@ public extension RelayMarkNativeDocument {
     /// Converts the selected top-level paragraph/heading through ordinary Yrs XML.
     /// Child runs, semantic references and authored IDs are copied intact. Wrapper
     /// IDs are fresh. This is an explicit structural command and one undo item.
-    func setMarkdownV3BlockStyle(at index: Int, style: RelayMarkNativeBlockStyle,
+    func setRichBlockStyle(at index: Int, style: RelayMarkNativeBlockStyle,
                                 expectedSnapshot: Data) throws -> Data {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable,
+              try richProseProjection().isEditable,
               var root = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
               var blocks = root["children"] as? [[String: Any]], blocks.indices.contains(index),
               ["paragraph", "heading"].contains(blocks[index]["name"] as? String ?? ""),
               let attributes = blocks[index]["attributes"] as? [String: Any],
               let id = attributes["relaymarkId"] as? String else { throw Failure.unsupportedProseEdit }
         if case .heading(let level) = style, blocks[index]["name"] as? String == "heading" {
-            return try setMarkdownV3HeadingLevel(anchor: anchor(path: [index], index: 0),
+            return try setRichHeadingLevel(anchor: anchor(path: [index], index: 0),
                 expectedHeadingID: attributes["headingId"] as? String, level: level)
         }
         let children = blocks[index]["children"] as? [[String: Any]] ?? []
@@ -48,12 +48,12 @@ public extension RelayMarkNativeDocument {
         blocks[index] = replacement
         root["children"] = blocks
         let prospective = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
-        let expected = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: prospective)
+        let expected = try RelayMarkNativeDocumentProjection.project(snapshot: prospective)
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         _ = try scratch.replaceSnapshotNodes(parentPath: [], start: index, count: 1, nodes: [replacement])
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
-              try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
+              try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         return try replaceSnapshotNodes(parentPath: [], start: index, count: 1, nodes: [replacement])
     }
 }

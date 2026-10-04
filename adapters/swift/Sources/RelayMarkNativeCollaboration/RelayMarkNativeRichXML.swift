@@ -2,7 +2,7 @@ import Foundation
 
 /// Shared XML operations over community Yrs. Hosts own selection and authorization.
 @MainActor
-enum RelayMarkNativeMarkdownV3XML {
+enum RelayMarkNativeRichXML {
     struct Trim {
         let removal: RelayMarkNativeDocument.SnapshotTextRemoval
         let prefixRuns: [[String: Any]]
@@ -106,14 +106,14 @@ enum RelayMarkNativeMarkdownV3XML {
                 parent["children"] = content
             }
         }
-        let expected = try RelayMarkNativeMarkdownBlocksV3Projection.project(
+        let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
         let removals = trims.map(\.removal)
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
         _ = try scratch.replaceSnapshotNodes(edits, textRemovals: removals, attributeUpdates: attributeUpdates)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
-              try scratch.markdownV3ProseProjection().isEditable else {
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
+              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return try document.replaceSnapshotNodes(edits, textRemovals: removals, attributeUpdates: attributeUpdates)

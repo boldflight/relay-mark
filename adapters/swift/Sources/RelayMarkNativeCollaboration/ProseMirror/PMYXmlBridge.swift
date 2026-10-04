@@ -2,7 +2,7 @@ import Foundation
 import Yniffi
 import YSwift
 
-/// The y-prosemirror binding between a v3 Y.XmlFragment and a ProseMirror
+/// The y-prosemirror binding between a canonical Y.XmlFragment and a ProseMirror
 /// document: createNodeFromYElement for reading, and updateYFragment /
 /// updateYText for writing a transformed document back, so retained
 /// subtrees keep their Yrs identity exactly as a browser peer's edit would.
@@ -13,8 +13,8 @@ final class PMYXmlBridge {
         case text([PMNode])
     }
 
-    nonisolated(unsafe) private static let cachedSchemaV3: PMSchema? = {
-        guard let data = RelayMarkNativeProseMirrorSchemaV3.json.data(using: .utf8),
+    nonisolated(unsafe) private static let cachedSchema: PMSchema? = {
+        guard let data = RelayMarkNativeProseMirrorSchema.json.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return try? PMSchema(json: json)
     }()
@@ -27,7 +27,7 @@ final class PMYXmlBridge {
     init(schema: PMSchema) { self.schema = schema }
 
     static func v3() throws -> PMYXmlBridge {
-        guard let schema = cachedSchemaV3 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        guard let schema = cachedSchema else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         return PMYXmlBridge(schema: schema)
     }
 

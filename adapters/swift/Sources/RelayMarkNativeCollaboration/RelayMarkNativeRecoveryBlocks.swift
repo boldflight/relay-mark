@@ -4,14 +4,14 @@ import Foundation
 /// XML operations; RelayMark validates the existing portable editor schema.
 @MainActor
 public extension RelayMarkNativeDocument {
-    func appendRecoveredMarkdownV3Blocks(from sourceSnapshot: Data, indices: [Int],
+    func appendRecoveredRichBlocks(from sourceSnapshot: Data, indices: [Int],
                                          expectedSnapshot: Data) throws -> Data {
         guard try snapshot() == expectedSnapshot, integrationStatus().isComplete,
               !indices.isEmpty, indices == indices.sorted(), Set(indices).count == indices.count else {
             throw Failure.unsupportedProseEdit
         }
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: sourceSnapshot)
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: expectedSnapshot)
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: sourceSnapshot)
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: expectedSnapshot)
         guard let source = try JSONSerialization.jsonObject(with: sourceSnapshot) as? [String: Any],
               let blocks = source["children"] as? [[String: Any]],
               indices.allSatisfy({ blocks.indices.contains($0) }),
@@ -32,7 +32,7 @@ public extension RelayMarkNativeDocument {
         current["children"] = existing + additions
         let prospective = try JSONSerialization.data(withJSONObject: current, options: [.sortedKeys])
         // Validate the whole result before a community transaction can mutate it.
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: prospective)
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: prospective)
         return try appendRecoveryNodes(additions)
     }
 }

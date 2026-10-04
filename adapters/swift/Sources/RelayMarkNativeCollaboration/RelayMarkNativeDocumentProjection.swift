@@ -3,9 +3,9 @@ import Foundation
 import RelayMarkProseProjection
 import RelayMarkSwift
 
-/// Read-only, bounded projection of the draft v3 Markdown blocks carried by YSwift XML.
-/// This does not admit v3 collaboration or editing in the native host.
-public enum RelayMarkNativeMarkdownBlocksV3Projection {
+/// Read-only, bounded projection of the draft canonical Markdown blocks carried by YSwift XML.
+/// This does not admit canonical collaboration or editing in the native host.
+public enum RelayMarkNativeDocumentProjection {
     public enum Failure: Error, Equatable {
         case unsupported(String)
     }
@@ -85,7 +85,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             return ["id": id, "type": "horizontal_rule", "content": [[String: Any]]()]
         case "image":
             let id = try blockID(attrs, allowed: ["relaymarkId", "src", "alt", "title", "width", "height"], ids: &ids)
-            let media = try RelayMarkMediaV3Contract.validate(name: name, attributes: attrs, children: [])
+            let media = try RelayMarkMediaContract.validate(name: name, attributes: attrs, children: [])
             try require(children.isEmpty, "image children")
             return ["id": id, "type": "image",
                     "props": ["src": media.source, "alt": media.alt.map { $0 as Any } ?? NSNull(),
@@ -96,7 +96,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
                                                    "source", "thumbnailUrl", "status", "youtubeId",
                                                    "uploadPercent"], ids: &ids)
             try require(children.isEmpty, "video children")
-            let media = try RelayMarkMediaV3Contract.validate(name: name, attributes: attrs, children: [])
+            let media = try RelayMarkMediaContract.validate(name: name, attributes: attrs, children: [])
             return ["id": id, "type": "relay.video_embed", "props": ["videoId": media.source],
                     "content": [[String: Any]]()]
         case "relayEntityReference":
@@ -125,7 +125,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
             return ["id": id, "type": "relay.paper_control", "props": props,
                     "content": [[String: Any]]()]
         case "agentSuggestion":
-            let authored = try RelayMarkAgentSuggestionV3Contract.validate(attributes: attrs)
+            let authored = try RelayMarkAgentSuggestionContract.validate(attributes: attrs)
             let id = try blockID(attrs, allowed: Set(attrs.keys), ids: &ids)
             try require(children.isEmpty, "AgentSuggestion children")
             var props: [String: Any] = ["review": authored.review, "kind": authored.kind,

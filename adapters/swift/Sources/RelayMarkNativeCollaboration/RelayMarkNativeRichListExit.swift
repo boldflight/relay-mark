@@ -3,11 +3,11 @@ import Foundation
 /// Empty secondary-paragraph Enter follows TipTap splitListItem and the
 /// ProseMirror liftEmptyBlock fallback. Yrs still owns transactions and undo.
 @MainActor
-enum RelayMarkNativeMarkdownV3ListExit {
-    private typealias XML = RelayMarkNativeMarkdownV3XML
+enum RelayMarkNativeRichListExit {
+    private typealias XML = RelayMarkNativeRichXML
 
     static func apply(document: RelayMarkNativeDocument, tree: [String: Any],
-                      blockPath: [Int], blockID: String) throws -> RelayMarkNativeMarkdownV3Return.Result {
+                      blockPath: [Int], blockID: String) throws -> RelayMarkNativeRichReturn.Result {
         let itemPath = Array(blockPath.dropLast()), listPath = Array(itemPath.dropLast())
         let containingPath = Array(listPath.dropLast())
         guard let paragraphIndex = blockPath.last, let itemIndex = itemPath.last,

@@ -32,7 +32,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
     }
 
     func testAcceptBrowserAuthoredBoldParagraphReplaysAndUndoesAsOneChange() throws {
-        // The source and initial Yjs update are produced by the browser v3 fixture.
+        // The source and initial Yjs update are produced by the browser canonical fixture.
         // The browser Accept test replaces its atom with parsed Markdown, whose
         // first paragraph carries three text runs and a strong mark on "this".
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
@@ -46,9 +46,9 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         try peer.applyUpdate(update)
         try browser.applyUpdate(update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
-        let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
+        let ast = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(ast.blocks.map(\.id), ["b00000000000040008000000000000081",
                                               "b00000000000040008000000000000084",
                                               "b00000000000040008000000000000083"])
@@ -60,18 +60,18 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         if case let .inline(strong) = ast.blocks[1].content[1] {
             XCTAssertEqual(strong.content.map(\.text), ["this"])
         } else { XCTFail("missing strong run") }
-        XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters),
+        XCTAssertEqual(String(try native.richProseProjection().text.characters),
                        "Before\nCheck this source.\nAfter")
         let restored = try XCTUnwrap(native.undo())
         try peer.applyUpdate(restored)
         try browser.applyUpdate(restored)
         XCTAssertEqual(try native.snapshot(), before)
         XCTAssertEqual(try peer.snapshot(), before)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
     }
 
-    func testAcceptOneHeadingKeepsBrowserV3HeadingShapeAndRestoresSuggestionOnUndo() throws {
+    func testAcceptOneHeadingKeepsBrowserHeadingShapeAndRestoresSuggestionOnUndo() throws {
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         let browser = try RelayMarkCollaborationDocument()
         let baseline = try fixture()
@@ -88,7 +88,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         try peer.applyUpdate(accepted)
         try browser.applyUpdate(accepted)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-        let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let ast = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "heading", "paragraph"])
         XCTAssertEqual(ast.blocks[1].id, "b00000000000040008000000000000084")
         XCTAssertEqual(ast.blocks[1].props["level"], .number(2))
@@ -97,7 +97,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         else { anchor = nil }
         XCTAssertNotNil(anchor?.range(of: #"^h-[0-9a-f]{8}-[0-9a-f-]{27}$"#,
                                       options: .regularExpression))
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()), ast)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()), ast)
         let browserHeadingURL = try XCTUnwrap(Bundle.module.url(
             forResource: "markdown-blocks-v3-draft", withExtension: "json"))
         let browserHeadingFixture = try XCTUnwrap(JSONSerialization.jsonObject(
@@ -116,7 +116,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         XCTAssertEqual(Set(acceptedAttributes.keys), Set(browserAttributes.keys))
         XCTAssertEqual(acceptedAttributes["level"] as? Int, browserAttributes["level"] as? Int)
         XCTAssertTrue(acceptedAttributes["headingId"] is String)
-        let nullable = try RelayMarkNativeMarkdownV3SingleBlock.parse(content)
+        let nullable = try RelayMarkNativeRichSingleBlock.parse(content)
         XCTAssertTrue(nullable.attributes(id: "b00000000000040008000000000000084",
                                           headingID: nil)["headingId"] is NSNull)
         let restored = try XCTUnwrap(native.undo())
@@ -124,7 +124,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         try browser.applyUpdate(restored)
         XCTAssertEqual(try native.snapshot(), before)
         XCTAssertEqual(try peer.snapshot(), before)
-        XCTAssertEqual(try native.markdownV3ProseProjection().suggestionAtoms.first?.content, content)
+        XCTAssertEqual(try native.richProseProjection().suggestionAtoms.first?.content, content)
     }
 
     func testAcceptSingleQuoteCodeAndRuleMatchBrowserBlockShapesAndUndo() throws {
@@ -163,10 +163,10 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
             try peer.applyUpdate(update)
             try browser.applyUpdate(update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-            let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+            let ast = try RelayMarkNativeDocumentProjection.project(document: native)
             XCTAssertEqual(ast.blocks[1].type, scenario.type)
             XCTAssertEqual(ast.blocks[1].plainText, scenario.expectedText)
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()), ast)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()), ast)
             let current = try XCTUnwrap(JSONSerialization.jsonObject(
                 with: native.snapshot()) as? [String: Any])
             let nodes = try XCTUnwrap(current["children"] as? [[String: Any]])
@@ -223,11 +223,11 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
             try peer.applyUpdate(update)
             try browser.applyUpdate(update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-            let ast = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+            let ast = try RelayMarkNativeDocumentProjection.project(document: native)
             XCTAssertEqual(ast.blocks[1].type, "list")
             XCTAssertEqual(ast.blocks[1].props["kind"], .string(scenario.start == nil ? "bullet" : "ordered"))
             if let start = scenario.start { XCTAssertEqual(ast.blocks[1].props["start"], .number(Double(start))) }
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()), ast)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()), ast)
             let current = try XCTUnwrap(JSONSerialization.jsonObject(
                 with: native.snapshot()) as? [String: Any])
             let nodes = try XCTUnwrap(current["children"] as? [[String: Any]])
@@ -289,19 +289,19 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         try peer.applyUpdate(removed)
         try browser.applyUpdate(removed)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-        XCTAssertEqual(try native.markdownV3ProseProjection().suggestionAtoms, [])
-        XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters), "Before\nAfter")
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try native.richProseProjection().suggestionAtoms, [])
+        XCTAssertEqual(String(try native.richProseProjection().text.characters), "Before\nAfter")
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
 
         let restored = try XCTUnwrap(native.undo())
         try peer.applyUpdate(restored)
         try browser.applyUpdate(restored)
         XCTAssertEqual(try native.snapshot(), before)
         XCTAssertEqual(try peer.snapshot(), before)
-        XCTAssertEqual(try native.markdownV3ProseProjection().suggestionAtoms.first?.id, id)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try native.richProseProjection().suggestionAtoms.first?.id, id)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
     }
 
     func testStaleSelectionAndChangedAuthoredStateDoNotMutate() throws {

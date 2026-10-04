@@ -1,7 +1,7 @@
-defmodule RelayMarkPaperControlsV3DraftTest do
+defmodule RelayMarkPaperControlsDraftTest do
   use ExUnit.Case, async: true
 
-  alias RelayMark.PaperControlV3
+  alias RelayMark.PaperControl
   alias RelayMark.Schema
 
   @fixture Path.expand(
@@ -15,16 +15,22 @@ defmodule RelayMarkPaperControlsV3DraftTest do
 
     assert :ok = Schema.validate_document_schema(ast)
     assert :ok = RelayMark.validate_document(ast)
+
     assert Enum.map(ast["blocks"], & &1["type"]) == [
-             "paragraph", "relay.paper_control", "relay.paper_control", "relay.paper_control",
-             "relay.paper_control", "relay.paper_control", "paragraph"
+             "paragraph",
+             "relay.paper_control",
+             "relay.paper_control",
+             "relay.paper_control",
+             "relay.paper_control",
+             "relay.paper_control",
+             "paragraph"
            ]
 
     for block <- Enum.filter(ast["blocks"], &(&1["type"] == "relay.paper_control")) do
       props = block["props"]
       assert block["content"] == []
-      assert {:ok, props["source"]} == PaperControlV3.canonical_source(Map.delete(props, "source"))
-      assert PaperControlV3.valid_block?(block)
+      assert {:ok, props["source"]} == PaperControl.canonical_source(Map.delete(props, "source"))
+      assert PaperControl.valid_block?(block)
     end
   end
 

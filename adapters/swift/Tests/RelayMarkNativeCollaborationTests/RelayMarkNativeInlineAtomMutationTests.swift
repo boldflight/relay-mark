@@ -54,15 +54,15 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         XCTAssertEqual(try native.resolve(anchor: originalLeaf)?.path, [0, 0])
         XCTAssertEqual(try native.resolve(anchor: adjacentAtom)?.path, [0, 3])
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
         let undone = try XCTUnwrap(native.undo())
         try peer.applyUpdate(undone)
         try browser.applyUpdate(undone)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try native.markdownV3ProseProjection().inlineAtoms.count, 3)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try native.richProseProjection().inlineAtoms.count, 3)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
     }
 
     func testMidLeafUnicodeBoundaryAndStalePositionsFailClosed() throws {
@@ -93,7 +93,7 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         _ = try RelayMarkNativeInlineAtomMutation.insert(
             document: native, blockID: "b00000000000040008000000000000031",
             childIndex: 0, utf16Offset: 4, expectedLeafText: "Me🌍et ", atom: tag())
-        XCTAssertEqual(try native.markdownV3ProseProjection().inlineAtoms.count, 4)
+        XCTAssertEqual(try native.richProseProjection().inlineAtoms.count, 4)
     }
 
     func testBrowserFixtureInsertReplacePeerConvergenceAndUndo() throws {
@@ -108,22 +108,22 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
             "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "name": "followup",
             "source": "[[Tag: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa | #followup]]"
         ])
-        let before = try native.markdownV3ProseProjection()
+        let before = try native.richProseProjection()
         let originalIDs = before.inlineAtoms.map(\.id)
         let protectedTagAnchor = try native.anchor(path: [0, 3], index: 0)
         let inserted = try RelayMarkNativeInlineAtomMutation.insert(
             document: native, blockID: "b00000000000040008000000000000031", childIndex: 2, atom: tag)
         try peer.applyUpdate(inserted)
         try browser.applyUpdate(inserted)
-        let insertedProse = try native.markdownV3ProseProjection()
+        let insertedProse = try native.richProseProjection()
         XCTAssertEqual(insertedProse.inlineAtoms.map(\.id),
                        [originalIDs[0], "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", originalIDs[1], originalIDs[2]])
         XCTAssertEqual(String(insertedProse.text.characters),
                        "Meet \u{FFFC}\u{FFFC} for \u{FFFC}. [[unknown]] stays text.\n\u{FFFC}")
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try native.resolve(anchor: protectedTagAnchor)?.path, [0, 4])
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
         let replacement = RelayMarkNativeInlineAtomMutation.Atom(kind: .relayReference, attributes: [
             "entityType": "Person", "entityId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
             "label": "Grace Hopper",
@@ -135,28 +135,28 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
                                                                      atom: replacement)
         try peer.applyUpdate(replaced)
         try browser.applyUpdate(replaced)
-        let final = try native.markdownV3ProseProjection()
+        let final = try native.richProseProjection()
         XCTAssertEqual(final.inlineAtoms.map(\.id),
                        ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
                         originalIDs[1], originalIDs[2]])
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try native.resolve(anchor: protectedTagAnchor)?.path, [0, 4])
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
         let undo = try XCTUnwrap(native.undo())
         try peer.applyUpdate(undo)
         try browser.applyUpdate(undo)
-        XCTAssertEqual(try native.markdownV3ProseProjection().inlineAtoms.map(\.id),
+        XCTAssertEqual(try native.richProseProjection().inlineAtoms.map(\.id),
                        insertedProse.inlineAtoms.map(\.id))
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
         let undoInsertion = try XCTUnwrap(native.undo())
         try peer.applyUpdate(undoInsertion)
         try browser.applyUpdate(undoInsertion)
-        XCTAssertEqual(try native.markdownV3ProseProjection().inlineAtoms.map(\.id), originalIDs)
+        XCTAssertEqual(try native.richProseProjection().inlineAtoms.map(\.id), originalIDs)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
     }
 
     func testMalformedSourceAndStaleRangeLeaveReplicaUntouched() throws {

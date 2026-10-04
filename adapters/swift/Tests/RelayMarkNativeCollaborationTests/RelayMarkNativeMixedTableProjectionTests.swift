@@ -65,12 +65,12 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertFalse(try native.proseProjection().isEditable)
     }
 
-    func testV3CellTextUsesTheSameNativeSelectionAndYrsMutationPath() throws {
+    func testCellTextUsesTheSameNativeSelectionAndYrsMutationPath() throws {
         let (seed, _) = try fixture()
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         try native.applyUpdate(seed)
         try peer.applyUpdate(seed)
-        let before = try native.markdownV3ProseProjection()
+        let before = try native.richProseProjection()
         XCTAssertTrue(before.isEditable)
         let header = try XCTUnwrap(before.tableCells.first)
         XCTAssertEqual(header.columns, 2)
@@ -92,13 +92,13 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertEqual(slice.path, [1, 1, 0, 0, 0])
         XCTAssertEqual(slice.length, alice.length)
 
-        let original = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-        let update = try RelayMarkNativeMarkdownV3TextMutation.replace(
+        let original = try RelayMarkNativeDocumentProjection.project(document: native)
+        let update = try RelayMarkNativeRichTextMutation.replace(
             document: native, path: slice.path, start: slice.index,
             end: slice.index + slice.length, text: "Alicia")
         try peer.applyUpdate(update)
-        let edited = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-        XCTAssertEqual(edited, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        let edited = try RelayMarkNativeDocumentProjection.project(document: native)
+        XCTAssertEqual(edited, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(edited.blocks[1].childBlocks[1].childBlocks[0].plainText, "Alicia")
         XCTAssertEqual(edited.blocks[1].childBlocks[0], original.blocks[1].childBlocks[0])
         XCTAssertEqual(edited.blocks[1].childBlocks[1].childBlocks[1], original.blocks[1].childBlocks[1].childBlocks[1])
@@ -106,11 +106,11 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         let bold = try native.formatText(at: 0, length: 1, attributes: ["bold": [:]],
                                          path: [1, 0, 0, 0, 0])
         try peer.applyUpdate(bold)
-        let appended = try RelayMarkNativeMarkdownV3TextMutation.replace(
+        let appended = try RelayMarkNativeRichTextMutation.replace(
             document: native, path: [1, 0, 0, 0, 0], start: 1, end: 1, text: "!")
         try peer.applyUpdate(appended)
-        let styled = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-        XCTAssertEqual(styled, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        let styled = try RelayMarkNativeDocumentProjection.project(document: native)
+        XCTAssertEqual(styled, try RelayMarkNativeDocumentProjection.project(document: peer))
         let headerParagraph = styled.blocks[1].childBlocks[0].childBlocks[0].childBlocks[0]
         guard case .inline(let strong)? = headerParagraph.content.first else {
             return XCTFail("Expected bold table header")
@@ -119,21 +119,21 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         XCTAssertEqual(strong.plainText, "A!")
     }
 
-    func testV3TypingSeedsAnEmptyTableCellWithoutReplacingItsParagraph() throws {
+    func testTypingSeedsAnEmptyTableCellWithoutReplacingItsParagraph() throws {
         let (seed, _) = try fixture()
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         try native.applyUpdate(seed)
         try peer.applyUpdate(seed)
-        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let before = try RelayMarkNativeDocumentProjection.project(document: native)
         let path = [1, 2, 0, 0]
-        let projection = try native.markdownV3ProseProjection()
+        let projection = try native.richProseProjection()
         let index = try XCTUnwrap(projection.blockPaths.firstIndex(of: path))
         XCTAssertEqual(projection.blockRanges[index].length, 0)
-        let update = try RelayMarkNativeMarkdownV3TextMutation.replace(
+        let update = try RelayMarkNativeRichTextMutation.replace(
             document: native, path: path, start: 0, end: 0, text: "First")
         try peer.applyUpdate(update)
-        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        let after = try RelayMarkNativeDocumentProjection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[1].childBlocks[2].childBlocks[0].plainText, "First")
         XCTAssertEqual(after.blocks[1].childBlocks[2].childBlocks[0].id,
                        before.blocks[1].childBlocks[2].childBlocks[0].id)
@@ -195,7 +195,7 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
             return XCTFail("Expected marked table cell text")
         }
         XCTAssertEqual(inline.type, "strong")
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: marked), markedAST)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: marked), markedAST)
 
         let unknownMark = try changed { snapshot in
             nodes(&snapshot) { blocks in
@@ -233,7 +233,7 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
                 blocks[1]["children"] = rows
             }
         }
-        let alignedProse = try RelayMarkCollaborativeProse(snapshot: aligned, dialect: .markdownV3)
+        let alignedProse = try RelayMarkCollaborativeProse(snapshot: aligned, dialect: .rich)
         XCTAssertTrue(alignedProse.isEditable)
         XCTAssertEqual(alignedProse.tableCells.first(where: { $0.row == 1 && $0.column == 0 })?.alignment, "right")
 

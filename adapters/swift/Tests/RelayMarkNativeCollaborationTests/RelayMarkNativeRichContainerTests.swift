@@ -15,15 +15,15 @@ final class RelayMarkNativeRichContainerTests: XCTestCase {
     func testRichTaskAndCellProjectionRetainsGrammarAndCellGeometry() throws {
         let (seed, expected) = try fixture(), native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         try native.applyUpdate(seed); try peer.applyUpdate(seed)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
-        let prose = try native.markdownV3ProseProjection()
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), expected)
+        let prose = try native.richProseProjection()
         XCTAssertTrue(prose.isEditable)
         XCTAssertEqual(prose.taskItems.count, 2)
         XCTAssertEqual(prose.tableCells.count, 5)
         XCTAssertEqual(prose.tableCells.map(\.column), [0, 0, 0, 1, 1])
         let task = try XCTUnwrap(prose.taskItems.first { $0.path.count > 2 })
         let before = try native.snapshot()
-        let update = try native.setMarkdownV3TaskItemChecked(path: task.path, expectedID: task.id,
+        let update = try native.setRichTaskItemChecked(path: task.path, expectedID: task.id,
             expectedEntityID: task.entityID, expectedChecked: task.checked, checked: !task.checked)
         try peer.applyUpdate(update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
@@ -37,16 +37,16 @@ final class RelayMarkNativeRichContainerTests: XCTestCase {
                                ([0, 0, 3, 0, 1, 0, 0, 1], 4)] {
             let (seed, _) = try fixture(), native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
             try native.applyUpdate(seed); try peer.applyUpdate(seed)
-            let before = try native.snapshot(), prose = try native.markdownV3ProseProjection()
+            let before = try native.snapshot(), prose = try native.richProseProjection()
             let row = try XCTUnwrap(prose.blockPaths.firstIndex(of: path))
-            let update = try RelayMarkNativeMarkdownV3Return.apply(document: native,
+            let update = try RelayMarkNativeRichReturn.apply(document: native,
                 blockPath: path, utf16Offset: offset, expectedSnapshot: before).update
             try peer.applyUpdate(update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-            XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters),
+            XCTAssertEqual(String(try native.richProseProjection().text.characters),
                 (String(prose.text.characters) as NSString).replacingCharacters(in:
                     NSRange(location: prose.blockRanges[row].location + offset, length: 0), with: "\n"))
-            let outer = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native).blocks[0].childBlocks[0]
+            let outer = try RelayMarkNativeDocumentProjection.project(document: native).blocks[0].childBlocks[0]
             XCTAssertEqual(outer.props["entityId"]?.stringValue, "12345678-1234-4234-8234-123456789abc")
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
             XCTAssertEqual(try native.snapshot(), before)

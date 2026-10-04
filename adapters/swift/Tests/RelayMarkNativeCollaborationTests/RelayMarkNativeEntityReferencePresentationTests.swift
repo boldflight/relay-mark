@@ -10,8 +10,8 @@ final class RelayMarkNativeEntityReferencePresentationTests: XCTestCase {
         let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
         let document = RelayMarkNativeDocument()
         try document.applyUpdate(seed)
-        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
-        let prose = try document.markdownV3ProseProjection()
+        let before = try RelayMarkNativeDocumentProjection.project(document: document)
+        let prose = try document.richProseProjection()
         XCTAssertTrue(prose.isEditable)
         let atom = try XCTUnwrap(prose.entityReferenceAtoms.first)
         XCTAssertEqual(prose.entityReferenceAtoms.count, 1)
@@ -21,11 +21,11 @@ final class RelayMarkNativeEntityReferencePresentationTests: XCTestCase {
         XCTAssertEqual((String(prose.text.characters) as NSString).substring(with: atom.range), "\u{FFFC}")
         let peer = RelayMarkNativeDocument()
         try peer.applyUpdate(seed)
-        let update = try RelayMarkNativeMarkdownV3TextMutation.replace(
+        let update = try RelayMarkNativeRichTextMutation.replace(
             document: document, path: [0, 0], start: 6, end: 6, text: "!")
         try peer.applyUpdate(update)
-        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
-        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        let after = try RelayMarkNativeDocumentProjection.project(document: document)
+        XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[1], before.blocks[1])
     }
 }

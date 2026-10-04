@@ -2,7 +2,7 @@ import Foundation
 
 /// Authored media shape shared by native text admission and portable AST projection.
 /// Media bytes, upload progress, playback and authorization stay with the host.
-public enum RelayMarkMediaV3Contract {
+public enum RelayMarkMediaContract {
     public struct Validated {
         public let kind: RelayMarkCollaborativeProse.MediaAtom.Kind
         public let id: String

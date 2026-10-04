@@ -3,8 +3,8 @@ import XCTest
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
-final class RelayMarkNativeMarkdownV3TableCommandTests: XCTestCase {
-    private typealias Command = RelayMarkNativeMarkdownV3TableCommand
+final class RelayMarkNativeRichTableCommandTests: XCTestCase {
+    private typealias Command = RelayMarkNativeRichTableCommand
 
     private static let operations: [String: Command.Operation] = [
         "addRowAfter": .addRowAfter, "addRowBefore": .addRowBefore,
@@ -97,7 +97,7 @@ final class RelayMarkNativeMarkdownV3TableCommandTests: XCTestCase {
             XCTAssertEqual(Set(nativeIDs).count, nativeIDs.count, command)
             XCTAssertEqual(Set(ids(expected)).count, ids(expected).count, command)
             XCTAssertEqual(Set(nativeIDs).intersection(original), Set(ids(expected)).intersection(original), command)
-            XCTAssertTrue(try native.markdownV3ProseProjection().isEditable, command)
+            XCTAssertTrue(try native.richProseProjection().isEditable, command)
 
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
             XCTAssertEqual(try native.snapshot(), before, command)
@@ -116,11 +116,11 @@ final class RelayMarkNativeMarkdownV3TableCommandTests: XCTestCase {
         let peerTree = try tree(peer)
         let dCell = try XCTUnwrap(ids(peerTree).first { id in
             guard let found = path(of: id, in: peerTree),
-                  let node = try? RelayMarkNativeMarkdownV3XML.node(at: found, in: peerTree) else { return false }
+                  let node = try? RelayMarkNativeRichXML.node(at: found, in: peerTree) else { return false }
             return node["name"] as? String == "paragraph" &&
                 (try? canonical(node))?.contains("\"insert\":\"D\"") == true
         })
-        let peerUpdate = try RelayMarkNativeMarkdownV3TextMutation.replace(document: peer, blockID: dCell,
+        let peerUpdate = try RelayMarkNativeRichTextMutation.replace(document: peer, blockID: dCell,
             childIndex: 0, start: 1, end: 1, text: " concurrent")
         let anchorID = try XCTUnwrap(entry["anchor_id"] as? String)
         let anchorPath = try XCTUnwrap(path(of: anchorID, in: try tree(native)))
@@ -130,6 +130,6 @@ final class RelayMarkNativeMarkdownV3TableCommandTests: XCTestCase {
         try native.applyUpdate(peerUpdate)
         try peer.applyUpdate(update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-        XCTAssertTrue(String(try native.markdownV3ProseProjection().text.characters).contains("D concurrent"))
+        XCTAssertTrue(String(try native.richProseProjection().text.characters).contains("D concurrent"))
     }
 }

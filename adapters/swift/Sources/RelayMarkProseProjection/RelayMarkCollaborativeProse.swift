@@ -5,7 +5,7 @@ import CoreFoundation
 public struct RelayMarkCollaborativeProse {
     public enum Dialect: Sendable {
         case legacy
-        case markdownV3
+        case rich
     }
 
     public let text: AttributedString
@@ -58,7 +58,7 @@ public struct RelayMarkCollaborativeProse {
     }
     public let inlineAtoms: [InlineAtom]
 
-    /// Inert v3 Paper controls projected as one UTF-16 block unit.
+    /// Inert canonical Paper controls projected as one UTF-16 block unit.
     public struct BlockAtom: Equatable, Sendable {
         public typealias Control = RelayMarkPaperControlContract.Control
         public let id: String
@@ -110,7 +110,7 @@ public struct RelayMarkCollaborativeProse {
     }
     public let mediaAtoms: [MediaAtom]
 
-    /// Authored v3 suggestion as one inert block unit; review actions remain host-owned.
+    /// Authored canonical suggestion as one inert block unit; review actions remain host-owned.
     public struct SuggestionAtom: Equatable, Sendable {
         public let id: String
         public let review: String
@@ -172,18 +172,18 @@ public struct RelayMarkCollaborativeProse {
             for run in delta {
                 guard let insert = run["insert"] as? String else { supported = false; continue }
                 let attributes = run["attributes"] as? [String: Any] ?? [:]
-                let offered = Set(RelayMarkV3OfferedMark.allCases.map(\.rawValue))
+                let offered = Set(RelayMarkOfferedMark.allCases.map(\.rawValue))
                 let allowed = Set(["bold", "italic", "strike", "code", "link"])
-                    .union(dialect == .markdownV3 ? offered : [])
+                    .union(dialect == .rich ? offered : [])
                 if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 if codeBlock && !attributes.isEmpty { supported = false }
                 if attributes["code"] != nil && (attributes.count > 1 || insert.contains("\r") || insert.contains("\n")) { supported = false }
                 for key in ["bold", "italic", "strike", "code"] where attributes[key] != nil {
                     if !(attributes[key] is [String: Any]) { supported = false }
                 }
-                var offeredMarks = Set<RelayMarkV3OfferedMark>()
-                if dialect == .markdownV3 {
-                    for mark in RelayMarkV3OfferedMark.allCases where attributes[mark.rawValue] != nil {
+                var offeredMarks = Set<RelayMarkOfferedMark>()
+                if dialect == .rich {
+                    for mark in RelayMarkOfferedMark.allCases where attributes[mark.rawValue] != nil {
                         if (attributes[mark.rawValue] as? [String: Any])?.isEmpty == true {
                             offeredMarks.insert(mark)
                         } else { supported = false }
@@ -196,12 +196,12 @@ public struct RelayMarkCollaborativeProse {
                 if attributes["strike"] != nil { intent.insert(.strikethrough) }
                 if attributes["code"] != nil { intent.insert(.code) }
                 part.inlinePresentationIntent = intent
-                if !offeredMarks.isEmpty { part[RelayMarkV3OfferedMarksAttribute.self] = offeredMarks }
+                if !offeredMarks.isEmpty { part[RelayMarkOfferedMarksAttribute.self] = offeredMarks }
                 if let mark = attributes["link"] {
                     if let link = mark as? [String: Any], let href = link["href"] as? String,
-                        Set(link.keys).isSubset(of: dialect == .markdownV3
+                        Set(link.keys).isSubset(of: dialect == .rich
                             ? ["href", "target", "rel", "class", "title"] : ["href", "target", "rel", "class"]),
-                        (dialect != .markdownV3 || link["title"] == nil || link["title"] is NSNull),
+                        (dialect != .rich || link["title"] == nil || link["title"] is NSNull),
                         !href.contains("\n"), !href.contains("<"), !href.contains(">"), let url = URL(string: href) {
                         part.link = url
                     } else { supported = false }
@@ -212,7 +212,7 @@ public struct RelayMarkCollaborativeProse {
                 text: true, afterPath: path, afterIndex: length() - start, atom: false))
         }
         func inlineAtom(_ leaf: [String: Any], path: [Int]) -> InlineAtom? {
-            guard dialect == .markdownV3, leaf["kind"] as? String == "element",
+            guard dialect == .rich, leaf["kind"] as? String == "element",
                   let name = leaf["name"] as? String,
                   let kind = InlineAtom.Kind(rawValue: name),
                   let attributes = leaf["attributes"] as? [String: Any],
@@ -310,7 +310,7 @@ public struct RelayMarkCollaborativeProse {
                         checkedValue.map { CFGetTypeID($0) == CFBooleanGetTypeID() } == true
                     let validEntity = attributes["entityId"] == nil ||
                         entityID.map { UUID(uuidString: $0)?.uuidString.lowercased() == $0 } == true
-                    guard dialect == .markdownV3,
+                    guard dialect == .rich,
                           let id = attributes["relaymarkId"] as? String,
                           Set(attributes.keys).isSubset(of: ["relaymarkId", "checked", "entityId"]),
                           validChecked, validEntity,
@@ -331,7 +331,7 @@ public struct RelayMarkCollaborativeProse {
                     let emphasis = attributes["emphasis"] as? String
                     let title = children.first?["name"] as? String == "calloutTitle"
                     let body = title ? children.dropFirst() : children[...]
-                    guard dialect == .markdownV3,
+                    guard dialect == .rich,
                           Set(attributes.keys) == Set(["relaymarkId", "tone", "emphasis"]),
                           let id = attributes["relaymarkId"] as? String,
                           let tone, ["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"].contains(tone),
@@ -354,7 +354,7 @@ public struct RelayMarkCollaborativeProse {
                 var table: (width: Int, starts: [[Int]])?
                 var paperControl: RelayMarkPaperControlContract.Validated?
                 var entityReference: EntityReferenceAtom?
-                var suggestion: RelayMarkAgentSuggestionV3Contract.Validated?
+                var suggestion: RelayMarkAgentSuggestionContract.Validated?
                 var media: MediaAtom.Kind?
                 switch name {
                 case "paragraph": kind = .paragraph
@@ -371,14 +371,14 @@ public struct RelayMarkCollaborativeProse {
                 case "horizontalRule": kind = .thematicBreak
                 case "relayButton", "relayAnchor", "relayConnection":
                     kind = .thematicBreak
-                    if dialect == .markdownV3,
+                    if dialect == .rich,
                        let validated = try? RelayMarkPaperControlContract.validate(nodeName: name, attributes: attributes),
                        children.isEmpty {
                         paperControl = validated
                     } else { supported = false }
                 case "relayEntityReference":
                     kind = .thematicBreak
-                    if dialect == .markdownV3, children.isEmpty,
+                    if dialect == .rich, children.isEmpty,
                        Set(attributes.keys).isSubset(of: ["relaymarkId", "entityRef", "entityId",
                                                           "entityType", "label", "projection", "source"]),
                        let id = attributes["relaymarkId"] as? String,
@@ -397,22 +397,22 @@ public struct RelayMarkCollaborativeProse {
                     } else { supported = false }
                 case "agentSuggestion":
                     kind = .thematicBreak
-                    if dialect == .markdownV3,
-                       let validated = try? RelayMarkAgentSuggestionV3Contract.validate(attributes: attributes),
+                    if dialect == .rich,
+                       let validated = try? RelayMarkAgentSuggestionContract.validate(attributes: attributes),
                        children.isEmpty {
                         suggestion = validated
                     } else { supported = false }
                 case "image", "videoEmbed":
                     kind = .thematicBreak
-                    if dialect == .markdownV3, children.isEmpty,
-                       let validated = try? RelayMarkMediaV3Contract.validate(
+                    if dialect == .rich, children.isEmpty,
+                       let validated = try? RelayMarkMediaContract.validate(
                            name: name, attributes: attributes, children: children) {
                         media = validated.kind
                     } else { supported = false }
                 case "blockquote": kind = .blockQuote
                 case "bulletList": kind = .unorderedList
                 case "taskList":
-                    if dialect != .markdownV3 || !Set(attributes.keys).isSubset(of: ["relaymarkId"]) ||
+                    if dialect != .rich || !Set(attributes.keys).isSubset(of: ["relaymarkId"]) ||
                         attributes["relaymarkId"] as? String == nil { supported = false }
                     kind = .unorderedList
                 case "orderedList":
@@ -429,12 +429,12 @@ public struct RelayMarkCollaborativeProse {
                 case "tableHeader", "tableCell":
                     kind = .tableCell(columnIndex: tableColumns?[index] ?? index)
                 case "calloutTitle":
-                    if dialect != .markdownV3 || !allowCalloutTitle { supported = false }
+                    if dialect != .rich || !allowCalloutTitle { supported = false }
                     kind = .paragraph
                 default: supported = false; kind = .paragraph
                 }
                 var allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
-                if dialect == .markdownV3 {
+                if dialect == .rich {
                     allowed.insert("relaymarkId")
                     if name == "orderedList" { allowed.insert("type") }
                     if name == "tableHeader" || name == "tableCell" {
@@ -450,15 +450,15 @@ public struct RelayMarkCollaborativeProse {
                     if name == "taskList", children.contains(where: { $0["name"] as? String != "taskItem" }) { supported = false }
                     walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1, cellContext: cellContext)
                 } else if name == "table" {
-                    guard dialect == .markdownV3, let table, table.width > 0 else { supported = false; continue }
+                    guard dialect == .rich, let table, table.width > 0 else { supported = false; continue }
                     walk(children, path: blockPath, parent: intent, tableRows: table.starts,
                          tableIdentity: identity, tableWidth: table.width)
                 } else if name == "tableRow" {
-                    guard dialect == .markdownV3, let columns = tableRows?[index] else { supported = false; continue }
+                    guard dialect == .rich, let columns = tableRows?[index] else { supported = false; continue }
                     walk(children, path: blockPath, parent: intent, tableColumns: columns,
                          tableIdentity: tableIdentity, tableWidth: tableWidth, tableRow: index)
                 } else if name == "tableHeader" || name == "tableCell" {
-                    guard dialect == .markdownV3, let tableIdentity, let tableWidth, let tableRow,
+                    guard dialect == .rich, let tableIdentity, let tableWidth, let tableRow,
                           let column = tableColumns?[index], !children.isEmpty else {
                         supported = false; continue
                     }

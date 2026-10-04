@@ -30,7 +30,7 @@ public enum RelayMarkNativeMediaMutation {
                               expectedPreviousID: String?, expectedNextID: String?,
                               block: Block) throws -> Data {
         guard document.integrationStatus().isComplete,
-              try document.markdownV3ProseProjection().isEditable else {
+              try document.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let (root, blocks) = try snapshot(document)
@@ -49,8 +49,8 @@ public enum RelayMarkNativeMediaMutation {
             tag: block.kind.rawValue, attributes: attributes)
         let scratch = try replica(of: document)
         _ = try scratch.mutatePaperControl(at: index, change: change)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
-              try scratch.markdownV3ProseProjection().mediaAtoms.contains(where: {
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
+              try scratch.richProseProjection().mediaAtoms.contains(where: {
                   $0.id == block.id && $0.source == block.source && $0.path == [index]
               }) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         return try document.mutatePaperControl(at: index, change: change)
@@ -63,7 +63,7 @@ public enum RelayMarkNativeMediaMutation {
         guard document.integrationStatus().isComplete else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let prose = try document.markdownV3ProseProjection()
+        let prose = try document.richProseProjection()
         let (root, blocks) = try snapshot(document)
         guard blocks.indices.contains(index), blockID(blocks[index]) == expectedID,
               let media = prose.mediaAtoms.first(where: {
@@ -76,16 +76,16 @@ public enum RelayMarkNativeMediaMutation {
         children.remove(at: index)
         candidate["children"] = children
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        let expected = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: candidateData)
-        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .markdownV3).isEditable else {
+        let expected = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let change = RelayMarkNativeDocument.PaperControlChange.remove(
             tag: media.kind.rawValue, expectedID: expectedID)
         let scratch = try replica(of: document)
         _ = try scratch.mutatePaperControl(at: index, change: change)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
-              try scratch.markdownV3ProseProjection().isEditable else {
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
+              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return try document.mutatePaperControl(at: index, change: change)
@@ -123,7 +123,7 @@ public enum RelayMarkNativeMediaMutation {
     }
 
     private static func project(_ snapshot: [String: Any]) throws -> RelayMarkDocument {
-        try RelayMarkNativeMarkdownBlocksV3Projection.project(
+        try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: snapshot))
     }
 

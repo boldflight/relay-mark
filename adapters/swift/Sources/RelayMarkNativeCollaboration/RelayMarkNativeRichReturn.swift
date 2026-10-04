@@ -4,8 +4,8 @@ import RelayMarkSwift
 /// Structural Return over the existing YSwift XML. The editor/host supplies an
 /// exact snapshot and selection; Yrs owns merging, transactions and undo.
 @MainActor
-public enum RelayMarkNativeMarkdownV3Return {
-    private typealias XML = RelayMarkNativeMarkdownV3XML
+public enum RelayMarkNativeRichReturn {
+    private typealias XML = RelayMarkNativeRichXML
     public enum Kind: Sendable { case split, exit }
     public struct Result: Sendable {
         public let update: Data
@@ -19,7 +19,7 @@ public enum RelayMarkNativeMarkdownV3Return {
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let projection = try document.markdownV3ProseProjection()
+        let projection = try document.richProseProjection()
         guard projection.isEditable, let row = projection.blockPaths.firstIndex(of: blockPath),
               let parentIndex = blockPath.last else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
         let range = projection.blockRanges[row]
@@ -44,11 +44,11 @@ public enum RelayMarkNativeMarkdownV3Return {
             }
             if source.isEmpty && parentIndex == body.count - 1 {
                 if parentIndex > 0 {
-                    return try RelayMarkNativeMarkdownV3ListExit.apply(document: document,
+                    return try RelayMarkNativeRichListExit.apply(document: document,
                         tree: tree, blockPath: blockPath, blockID: oldID)
                 }
                 // Whole-item lifting retains the existing linked-task policy.
-                let update = try document.changeMarkdownV3ListDepth(paragraphPath: blockPath,
+                let update = try document.changeRichListDepth(paragraphPath: blockPath,
                     change: .outdent, expectedSnapshot: expectedSnapshot)
                 return Result(update: update, kind: .exit, blockID: oldID)
             }

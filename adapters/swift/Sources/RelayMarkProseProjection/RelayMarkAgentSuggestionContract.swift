@@ -1,8 +1,8 @@
 import CoreFoundation
 import Foundation
 
-/// Authored-only v3 suggestion. Proposal identity, review actions and UI state are host-owned.
-public enum RelayMarkAgentSuggestionV3Contract {
+/// Authored-only canonical suggestion. Proposal identity, review actions and UI state are host-owned.
+public enum RelayMarkAgentSuggestionContract {
     public struct Validated: Sendable {
         public let id: String
         public let review: String

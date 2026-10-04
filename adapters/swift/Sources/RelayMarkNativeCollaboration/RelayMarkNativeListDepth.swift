@@ -7,32 +7,32 @@ public enum RelayMarkNativeListDepthChange: Sendable {
 
 @MainActor
 public extension RelayMarkNativeDocument {
-    func canChangeMarkdownV3ListDepth(paragraphPath: [Int], change: RelayMarkNativeListDepthChange) -> Bool {
-        (try? markdownV3ListDepthPlan(paragraphPath: paragraphPath, change: change, expectedSnapshot: snapshot())) != nil
+    func canChangeRichListDepth(paragraphPath: [Int], change: RelayMarkNativeListDepthChange) -> Bool {
+        (try? richListDepthPlan(paragraphPath: paragraphPath, change: change, expectedSnapshot: snapshot())) != nil
     }
 
     /// Native equivalents of ProseMirror sinkListItem/liftListItem. Only moved
     /// items are copied; unaffected lists, items and text retain their Yrs IDs.
     /// Following siblings become children of an outdented item, preserving order.
-    func changeMarkdownV3ListDepth(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,
+    func changeRichListDepth(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,
                                   expectedSnapshot: Data) throws -> Data {
-        let (edits, expected) = try markdownV3ListDepthPlan(paragraphPath: paragraphPath,
+        let (edits, expected) = try richListDepthPlan(paragraphPath: paragraphPath,
             change: change, expectedSnapshot: expectedSnapshot)
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         _ = try scratch.replaceSnapshotNodes(edits)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
-              try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
+              try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         return try replaceSnapshotNodes(edits)
     }
 }
 
 @MainActor
 private extension RelayMarkNativeDocument {
-    func markdownV3ListDepthPlan(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,
+    func richListDepthPlan(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,
                                 expectedSnapshot: Data) throws -> ([SnapshotNodeReplacement], RelayMarkDocument) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable, paragraphPath.count >= 3,
+              try richProseProjection().isEditable, paragraphPath.count >= 3,
               paragraphPath.last == 0,
               var tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
             throw Failure.unsupportedProseEdit
@@ -140,7 +140,7 @@ private extension RelayMarkNativeDocument {
             raw["children"] = content
         }
         for edit in edits { try apply(edit, to: &tree, path: edit.parentPath[...]) }
-        let expected = try RelayMarkNativeMarkdownBlocksV3Projection.project(
+        let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: tree, options: [.sortedKeys]))
         return (edits, expected)
     }

@@ -1,7 +1,7 @@
 import Foundation
 import RelayMarkProseProjection
 
-/// Authored v3 suggestion commands over the existing YSwift/Yrs document.
+/// Authored canonical suggestion commands over the existing YSwift/Yrs document.
 /// The host owns proposal actions and authorization; these commands change
 /// only the exact authored block the editor displayed.
 @MainActor
@@ -9,14 +9,14 @@ public enum RelayMarkNativeAgentSuggestionMutation {
     /// A bounded shared converter handles one ordinary Markdown block. The host
     /// can hide Accept for every shape it cannot preserve.
     public static func canAccept(_ content: String) -> Bool {
-        RelayMarkNativeMarkdownV3SingleBlock.canConvert(content)
+        RelayMarkNativeRichSingleBlock.canConvert(content)
     }
 
     public static func accept(document: RelayMarkNativeDocument, atRootIndex index: Int,
                               expectedID: String, expectedReview: String, expectedKind: String,
                               expectedConfidence: Double?, expectedEvidence: [String],
                               expectedContent: String, newBlockID: String) throws -> Data {
-        let prose = try document.markdownV3ProseProjection()
+        let prose = try document.richProseProjection()
         guard prose.isEditable,
               let atom = prose.suggestionAtoms.first(where: { $0.path == [index] }),
               atom.id == expectedID, atom.review == expectedReview,
@@ -29,19 +29,19 @@ public enum RelayMarkNativeAgentSuggestionMutation {
               !blocks.contains(where: {
                   ($0["attributes"] as? [String: Any])?["relaymarkId"] as? String == newBlockID
               }) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let authored = try RelayMarkAgentSuggestionV3Contract.validate(attributes: attributes)
+        let authored = try RelayMarkAgentSuggestionContract.validate(attributes: attributes)
         guard authored.id == expectedID, authored.review == expectedReview,
               authored.kind == expectedKind, authored.confidence == expectedConfidence,
               authored.evidence == expectedEvidence, authored.content == expectedContent else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let block = try RelayMarkNativeMarkdownV3SingleBlock.parse(expectedContent)
+        let block = try RelayMarkNativeRichSingleBlock.parse(expectedContent)
         let headingID: String?
         switch block.kind {
         case .paragraph, .quote, .code, .rule, .bulletList, .orderedList: headingID = nil
         case .heading:
             // Browser PaperHeading assigns a fresh h-UUID on insertion. Keep
-            // the same v3 attribute shape and avoid anchors already in paper.
+            // the same canonical attribute shape and avoid anchors already in paper.
             var candidate: String
             repeat { candidate = "h-" + UUID().uuidString.lowercased() }
             while blocks.contains(where: {
@@ -62,8 +62,8 @@ public enum RelayMarkNativeAgentSuggestionMutation {
         var candidate = root
         candidate["children"] = blocks
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        let expectedAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: candidateData)
-        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .markdownV3).isEditable else {
+        let expectedAST = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let scratch = RelayMarkNativeDocument()
@@ -72,8 +72,8 @@ public enum RelayMarkNativeAgentSuggestionMutation {
                                                block: block, newBlockID: newBlockID,
                                                headingID: headingID,
                                                quoteParagraphID: quoteParagraphID, listIDs: listIDs)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expectedAST,
-              try scratch.markdownV3ProseProjection().isEditable else {
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expectedAST,
+              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return try document.acceptAgentSuggestion(at: index, expectedID: expectedID,
@@ -86,7 +86,7 @@ public enum RelayMarkNativeAgentSuggestionMutation {
                                expectedID: String, expectedReview: String, expectedKind: String,
                                expectedConfidence: Double?, expectedEvidence: [String],
                                expectedContent: String) throws -> Data {
-        let prose = try document.markdownV3ProseProjection()
+        let prose = try document.richProseProjection()
         guard prose.isEditable,
               let atom = prose.suggestionAtoms.first(where: { $0.path == [index] }),
               atom.id == expectedID, atom.review == expectedReview,
@@ -98,7 +98,7 @@ public enum RelayMarkNativeAgentSuggestionMutation {
               let attributes = blocks[index]["attributes"] as? [String: Any] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let authored = try RelayMarkAgentSuggestionV3Contract.validate(attributes: attributes)
+        let authored = try RelayMarkAgentSuggestionContract.validate(attributes: attributes)
         guard authored.id == expectedID, authored.review == expectedReview,
               authored.kind == expectedKind, authored.confidence == expectedConfidence,
               authored.evidence == expectedEvidence, authored.content == expectedContent else {
@@ -109,20 +109,20 @@ public enum RelayMarkNativeAgentSuggestionMutation {
         var candidate = root
         candidate["children"] = blocks
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        let expectedAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: candidateData)
-        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .markdownV3).isEditable else {
+        let expectedAST = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
 
         // The scratch replica proves that the Yrs mutation produces precisely
-        // the canonical v3 result before touching the live document.
+        // the canonical canonical result before touching the live document.
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
         let change = RelayMarkNativeDocument.PaperControlChange.remove(
             tag: "agentSuggestion", expectedID: expectedID)
         _ = try scratch.mutatePaperControl(at: index, change: change)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expectedAST,
-              try scratch.markdownV3ProseProjection().isEditable else {
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expectedAST,
+              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return try document.mutatePaperControl(at: index, change: change)

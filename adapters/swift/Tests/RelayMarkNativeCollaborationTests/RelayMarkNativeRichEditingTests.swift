@@ -3,7 +3,7 @@ import XCTest
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
-final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
+final class RelayMarkNativeRichEditingTests: XCTestCase {
     private func fixture() throws -> [String: Any] {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "native-replace-v3", withExtension: "json"))
         return try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
@@ -45,7 +45,7 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
 
     func testEmbeddedSchemaIsTheBrowserSchema() throws {
         let exported = try XCTUnwrap(fixture()["schema"])
-        let embedded = try JSONSerialization.jsonObject(with: Data(RelayMarkNativeProseMirrorSchemaV3.json.utf8))
+        let embedded = try JSONSerialization.jsonObject(with: Data(RelayMarkNativeProseMirrorSchema.json.utf8))
         XCTAssertEqual(try canonical(embedded), try canonical(exported))
         XCTAssertNoThrow(try PMYXmlBridge.v3())
     }
@@ -67,7 +67,7 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
             try native.applyUpdate(seed)
             try peer.applyUpdate(seed)
             let before = try native.snapshot(), beforeTree = try tree(native)
-            let prose = try native.markdownV3ProseProjection()
+            let prose = try native.richProseProjection()
             func location(_ endpoint: [String: Any]) throws -> Int {
                 let blockPath = try XCTUnwrap(path(of: try XCTUnwrap(endpoint["id"] as? String), in: beforeTree))
                 let block = try XCTUnwrap(prose.blockPaths.firstIndex(of: blockPath))
@@ -77,7 +77,7 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
             let runs: [(text: String, attributes: [String: Any])] = action == "delete" ? []
                 : action == "insertText" ? [("X", [:])] : [("P1\nP2", [:])]
             let unchanged = (entry["update"] as? String).map { $0.count < 8 } ?? true
-            let change: RelayMarkNativeMarkdownV3Editing.Change
+            let change: RelayMarkNativeRichEditing.Change
             do {
                 if action == "insertTable" || action == "insertImage" {
                     func cell(_ header: Bool) -> [String: Any] {
@@ -87,11 +87,11 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
                         ["type": "tableRow", "content": (0..<3).map { _ in cell(row == 0) }] as [String: Any]
                     }]
                     let image: [String: Any] = ["type": "image", "attrs": ["src": "https://example.com/b.png", "alt": "B"]]
-                    change = try RelayMarkNativeMarkdownV3Editing.insertBlock(document: native,
+                    change = try RelayMarkNativeRichEditing.insertBlock(document: native,
                         range: NSRange(location: start, length: 0), block: action == "insertTable" ? table : image,
                         placement: action == "insertTable" ? .replaceSelection : .insertContent, expectedSnapshot: before)
                 } else if action == "Backspace" || action == "Delete" {
-                    let keyed = try RelayMarkNativeMarkdownV3Editing.key(action == "Backspace" ? .backspace : .delete,
+                    let keyed = try RelayMarkNativeRichEditing.key(action == "Backspace" ? .backspace : .delete,
                         document: native, at: start, expectedSnapshot: before)
                     if unchanged {
                         if keyed != nil { failures.append("\(label): changed where the browser did not") }
@@ -101,7 +101,7 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
                     guard let keyed else { failures.append("\(label): no change"); continue }
                     change = keyed
                 } else {
-                    change = try RelayMarkNativeMarkdownV3Editing.replace(document: native,
+                    change = try RelayMarkNativeRichEditing.replace(document: native,
                         range: NSRange(location: start, length: end - start), runs: runs,
                         inheritMarks: action == "insertText", expectedSnapshot: before)
                 }
@@ -135,7 +135,7 @@ final class RelayMarkNativeMarkdownV3EditingTests: XCTestCase {
 }
 
 @MainActor
-final class RelayMarkNativeMarkdownV3InlineInsertionTests: XCTestCase {
+final class RelayMarkNativeRichInlineInsertionTests: XCTestCase {
     /// A #tag reference and a linked entity label insert at a caret inside a
     /// list item, as the browser's tag and entity suggestions insert them.
     func testTagAndEntityLinkInsertInOneTransaction() throws {
@@ -146,28 +146,28 @@ final class RelayMarkNativeMarkdownV3InlineInsertionTests: XCTestCase {
         try native.applyUpdate(seed)
         try peer.applyUpdate(seed)
         let before = try native.snapshot()
-        let prose = try native.markdownV3ProseProjection()
+        let prose = try native.richProseProjection()
         let text = String(prose.text.characters) as NSString
         let bullet = text.range(of: "Bullet one")
         let caret = NSRange(location: bullet.location + 6, length: 0)
         let tagID = "11111111-2222-4333-8444-555555555555", entityID = "66666666-7777-4888-8999-aaaaaaaaaaaa"
         let link: [String: Any] = ["href": "relay:entity/\(entityID)", "target": "_blank",
                                    "rel": "noopener noreferrer nofollow", "class": NSNull(), "title": NSNull()]
-        let change = try RelayMarkNativeMarkdownV3Editing.insert(document: native, range: caret, content: [
+        let change = try RelayMarkNativeRichEditing.insert(document: native, range: caret, content: [
             .node("relayTag", attributes: ["id": tagID, "name": "native-proof",
                                            "source": "[[Tag: \(tagID) | #native-proof]]"]),
             .text(" "),
             .text("Alex", attributes: ["link": link]),
             .text(" "),
         ], expectedSnapshot: before)
-        let after = try native.markdownV3ProseProjection()
+        let after = try native.richProseProjection()
         XCTAssertTrue(String(after.text.characters).contains("Bullet\u{FFFC} Alex  one"))
         XCTAssertEqual(after.inlineAtoms.filter { $0.id == tagID }.count, 1)
         let block = try XCTUnwrap(after.blockRanges.firstIndex { NSLocationInRange(bullet.location, $0) })
         XCTAssertEqual(change.caret, .init(blockPath: after.blockPaths[block], offset: 13))
         try peer.applyUpdate(change.update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3Editing.insert(document: native, range: caret,
+        XCTAssertThrowsError(try RelayMarkNativeRichEditing.insert(document: native, range: caret,
             content: [.node("relayTag", attributes: ["color": "red"])], expectedSnapshot: native.snapshot()))
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
         XCTAssertEqual(try native.snapshot(), before)
@@ -186,16 +186,16 @@ final class RelayMarkNativeUndoGroupingTests: XCTestCase {
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(seed)
         let before = try native.snapshot(), vector = native.stateVector()
-        let prose = try native.markdownV3ProseProjection()
+        let prose = try native.richProseProjection()
         let alpha = (String(prose.text.characters) as NSString).range(of: "Alpha one")
         try native.groupingUndo {
-            let deleted = try RelayMarkNativeMarkdownV3Editing.replace(document: native,
+            let deleted = try RelayMarkNativeRichEditing.replace(document: native,
                 range: NSRange(location: alpha.location + 2, length: 3), runs: [], expectedSnapshot: native.snapshot())
             let caret = try XCTUnwrap(deleted.caret)
-            _ = try RelayMarkNativeMarkdownV3Return.apply(document: native, blockPath: caret.blockPath,
+            _ = try RelayMarkNativeRichReturn.apply(document: native, blockPath: caret.blockPath,
                 utf16Offset: caret.offset, expectedSnapshot: native.snapshot())
         }
-        let text = String(try native.markdownV3ProseProjection().text.characters)
+        let text = String(try native.richProseProjection().text.characters)
         XCTAssertTrue(text.hasPrefix("Al\n one\n"))
         let peer = RelayMarkNativeDocument()
         try peer.applyUpdate(seed)
@@ -216,11 +216,11 @@ final class RelayMarkNativeEmptyParagraphPasteTests: XCTestCase {
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["seed"] as? String))))
         let before = try native.snapshot()
-        let prose = try native.markdownV3ProseProjection()
+        let prose = try native.richProseProjection()
         let alpha = (String(prose.text.characters) as NSString).range(of: "Alpha one")
-        _ = try RelayMarkNativeMarkdownV3Editing.replace(document: native,
+        _ = try RelayMarkNativeRichEditing.replace(document: native,
             range: NSRange(location: alpha.location + 2, length: 3), runs: [("\n", [:])], expectedSnapshot: before)
-        XCTAssertTrue(String(try native.markdownV3ProseProjection().text.characters).hasPrefix("Al\n one\n"))
+        XCTAssertTrue(String(try native.richProseProjection().text.characters).hasPrefix("Al\n one\n"))
         _ = try XCTUnwrap(native.undo())
         XCTAssertEqual(try native.snapshot(), before)
     }

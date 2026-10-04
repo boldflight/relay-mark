@@ -4,7 +4,7 @@ import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
-final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
+final class RelayMarkNativeRichParagraphReturnTests: XCTestCase {
     private func seed() throws -> Data {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "rich-image-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
@@ -22,18 +22,18 @@ final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
                 let mark = try native.formatText(at: 0, length: 8, attributes: ["bold": [:]], path: [0, 0])
                 try peer.applyUpdate(mark)
             }
-            let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+            let before = try RelayMarkNativeDocumentProjection.project(document: native)
             let anchor = try native.anchor(path: [0], index: 0)
             let snapshot = try native.snapshot()
-            XCTAssertThrowsError(try native.returnInMarkdownV3Paragraph(at: anchor,
+            XCTAssertThrowsError(try native.returnInRichParagraph(at: anchor,
                 utf16Offset: 99, expectedSnapshot: snapshot))
-            XCTAssertThrowsError(try native.returnInMarkdownV3Paragraph(at: anchor,
+            XCTAssertThrowsError(try native.returnInRichParagraph(at: anchor,
                 utf16Offset: offset, expectedSnapshot: Data()))
-            let change = try native.returnInMarkdownV3Paragraph(at: anchor,
+            let change = try native.returnInRichParagraph(at: anchor,
                 utf16Offset: offset, expectedSnapshot: snapshot)
             try peer.applyUpdate(change.update)
-            let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-            XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+            let after = try RelayMarkNativeDocumentProjection.project(document: native)
+            XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
             XCTAssertEqual(after.blocks[0].id, before.blocks[0].id)
             XCTAssertEqual(after.blocks[1].id, change.paragraphID)
             XCTAssertEqual(after.blocks[0].plainText, String(original.prefix(offset)))
@@ -45,8 +45,8 @@ final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
                 XCTAssertEqual(marked.type, "strong")
             }
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), before)
         }
     }
 
@@ -55,26 +55,26 @@ final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         try native.applyUpdate(source)
         try peer.applyUpdate(source)
-        let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let before = try RelayMarkNativeDocumentProjection.project(document: native)
         let anchor = try native.anchor(path: [0], index: 0)
         let snapshot = try native.snapshot()
-        XCTAssertThrowsError(try native.insertEmptyMarkdownV3TaskList(after: anchor,
+        XCTAssertThrowsError(try native.insertEmptyRichTaskList(after: anchor,
             expectedSnapshot: Data()))
 
-        let change = try native.insertEmptyMarkdownV3TaskList(after: anchor,
+        let change = try native.insertEmptyRichTaskList(after: anchor,
             expectedSnapshot: snapshot)
         try peer.applyUpdate(change.update)
-        let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-        XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+        let after = try RelayMarkNativeDocumentProjection.project(document: native)
+        XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[0], before.blocks[0])
         XCTAssertEqual(after.blocks[1].id, change.listID)
         XCTAssertEqual(after.blocks[1].type, "task_list")
-        let tasks = try native.markdownV3ProseProjection().taskItems
+        let tasks = try native.richProseProjection().taskItems
         XCTAssertEqual(tasks.count, 1)
         XCTAssertEqual(tasks[0].id, change.itemID)
         XCTAssertFalse(tasks[0].checked)
         XCTAssertNil(tasks[0].entityID)
-        if let path = ProcessInfo.processInfo.environment["RELAY_TASK_V3_FIXTURE_OUTPUT"] {
+        if let path = ProcessInfo.processInfo.environment["RELAY_TASK__FIXTURE_OUTPUT"] {
             let fixture = ["schema": "relaymark-prosemirror-v3", "root": "default",
                            "seed": source.base64EncodedString(),
                            "native_update": change.update.base64EncodedString(),
@@ -86,8 +86,8 @@ final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
         }
 
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), before)
     }
 
     func testBrowserContinuesNativeInsertedTaskThroughYjs() throws {
@@ -98,13 +98,13 @@ final class RelayMarkNativeMarkdownV3ParagraphReturnTests: XCTestCase {
             try document.applyUpdate(XCTUnwrap(Data(base64Encoded: XCTUnwrap(fixture[key]))))
         }
         XCTAssertTrue(document.integrationStatus().isComplete)
-        let projected = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
+        let projected = try RelayMarkNativeDocumentProjection.project(document: document)
         XCTAssertEqual(projected.blocks.map(\.type), ["paragraph", "task_list", "image", "paragraph"])
         XCTAssertEqual(projected.blocks[0].plainText, "Before image")
         XCTAssertEqual(projected.blocks[1].id, fixture["list_id"])
         XCTAssertEqual(projected.blocks[1].childBlocks[0].id, fixture["item_id"])
         XCTAssertEqual(projected.blocks[1].childBlocks[0].plainText, "From browser")
-        let item = try XCTUnwrap(document.markdownV3ProseProjection().taskItems.first)
+        let item = try XCTUnwrap(document.richProseProjection().taskItems.first)
         XCTAssertEqual(item.id, fixture["item_id"])
         XCTAssertFalse(item.checked)
         XCTAssertNil(item.entityID)

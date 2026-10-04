@@ -18,8 +18,8 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         let browser = try RelayMarkCollaborationDocument()
         for replica in [native, peer] { try replica.applyUpdate(seed) }
         try browser.applyUpdate(seed)
-        let original = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-        let media = try XCTUnwrap(native.markdownV3ProseProjection().mediaAtoms.first)
+        let original = try RelayMarkNativeDocumentProjection.project(document: native)
+        let media = try XCTUnwrap(native.richProseProjection().mediaAtoms.first)
         let beforeID = "bc5e20755a10547d08d9054f33618c548"
         let afterID = "b29908e62e7c2496580e5aea7bb8e4f14"
 
@@ -27,10 +27,10 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
             expectedID: media.id, expectedSource: media.source)
         try peer.applyUpdate(removed)
         try browser.applyUpdate(removed)
-        XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
+        XCTAssertTrue(try native.richProseProjection().isEditable)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
 
         let inserted = try RelayMarkNativeMediaMutation.insert(document: native, atRootIndex: 1,
             expectedPreviousID: beforeID, expectedNextID: afterID,
@@ -38,26 +38,26 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
                          alt: media.alt, title: media.title))
         try peer.applyUpdate(inserted)
         try browser.applyUpdate(inserted)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), original)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), original)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()), original)
-        XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()), original)
+        XCTAssertTrue(try native.richProseProjection().isEditable)
 
         let undone = try XCTUnwrap(native.undo())
         try peer.applyUpdate(undone)
         try browser.applyUpdate(undone)
-        XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
+        XCTAssertTrue(try native.richProseProjection().isEditable)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
     }
 
     func testVideoIdentityAndInvalidMediaAreRejectedBeforeMutation() throws {
         let seed = try update("rich-video-v3-draft")
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         for replica in [native, peer] { try replica.applyUpdate(seed) }
-        let media = try XCTUnwrap(native.markdownV3ProseProjection().mediaAtoms.first)
-        let original = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let media = try XCTUnwrap(native.richProseProjection().mediaAtoms.first)
+        let original = try RelayMarkNativeDocumentProjection.project(document: native)
         let checkpoint = try native.encodeUpdate()
         XCTAssertThrowsError(try RelayMarkNativeMediaMutation.remove(document: native, atRootIndex: 1,
             expectedID: media.id, expectedSource: "another-video"))
@@ -88,7 +88,7 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
             expectedPreviousID: beforeID, expectedNextID: afterID,
             block: .init(id: media.id, kind: .videoEmbed, source: media.source))
         try peer.applyUpdate(inserted)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), original)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), original)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
     }
 
@@ -98,10 +98,10 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         let browser = try RelayMarkCollaborationDocument()
         for replica in [native, peer] { try replica.applyUpdate(seed) }
         try browser.applyUpdate(seed)
-        let first = try XCTUnwrap(native.markdownV3ProseProjection().mediaAtoms.first)
-        XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
+        let first = try XCTUnwrap(native.richProseProjection().mediaAtoms.first)
+        XCTAssertTrue(try native.richProseProjection().isEditable)
 
-        let proseUpdate = try RelayMarkNativeMarkdownV3TextMutation.replace(
+        let proseUpdate = try RelayMarkNativeRichTextMutation.replace(
             document: native, path: [0, 0], start: 12, end: 12, text: " together")
         try peer.applyUpdate(proseUpdate)
         try browser.applyUpdate(proseUpdate)
@@ -111,9 +111,9 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
             block: .init(id: secondID, kind: .image, source: "https://images.example.org/second.png"))
         try peer.applyUpdate(added)
         try browser.applyUpdate(added)
-        XCTAssertEqual(try native.markdownV3ProseProjection().mediaAtoms.count, 2)
+        XCTAssertEqual(try native.richProseProjection().mediaAtoms.count, 2)
         let checkpoint = try native.encodeUpdate()
-        XCTAssertThrowsError(try RelayMarkNativeMarkdownV3TextMutation.replace(
+        XCTAssertThrowsError(try RelayMarkNativeRichTextMutation.replace(
             document: native, path: [1], start: 0, end: 1, text: "lost"))
         XCTAssertEqual(try native.encodeUpdate(), checkpoint)
 
@@ -121,10 +121,10 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
             expectedID: first.id, expectedSource: first.source)
         try peer.applyUpdate(removed)
         try browser.applyUpdate(removed)
-        let final = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+        let final = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(final.blocks[0].plainText, "Before image together")
-        XCTAssertEqual(try native.markdownV3ProseProjection().mediaAtoms.map(\.id), [secondID])
-        XCTAssertEqual(final, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
-        XCTAssertEqual(final, try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()))
+        XCTAssertEqual(try native.richProseProjection().mediaAtoms.map(\.id), [secondID])
+        XCTAssertEqual(final, try RelayMarkNativeDocumentProjection.project(document: peer))
+        XCTAssertEqual(final, try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()))
     }
 }

@@ -1,4 +1,4 @@
-defmodule RelayMarkEntityReferenceV3DraftTest do
+defmodule RelayMarkEntityReferenceDraftTest do
   use ExUnit.Case, async: true
 
   alias RelayMark.Schema
@@ -24,7 +24,7 @@ defmodule RelayMarkEntityReferenceV3DraftTest do
     assert reference["props"]["projection"] == "card"
     assert reference["props"]["source"] == fixture["authored_source"]
     assert reference["content"] == []
-    assert {:ok, parsed} = RelayMark.parse_v3_entity_reference_source(fixture["authored_source"])
+    assert {:ok, parsed} = RelayMark.parse_entity_reference_source(fixture["authored_source"])
 
     assert Map.take(parsed, ["id", "entityId", "label", "projection", "source"]) == %{
              "id" => reference["props"]["id"],
@@ -53,14 +53,14 @@ defmodule RelayMarkEntityReferenceV3DraftTest do
           ),
           String.replace(source, "Authored fallback", "[[Task: hidden]]")
         ] do
-      assert :error = RelayMark.parse_v3_entity_reference_source(changed)
+      assert :error = RelayMark.parse_entity_reference_source(changed)
     end
   end
 
   test "bounded parser preserves multiline authored defaults" do
     entity_id = "9f815b37-67b3-4101-868c-5335351feb6a"
     source = "@EntityRef(\r\n  id: \"entity:#{entity_id}\"\r\n) {\r\n  Fallback\r\n}"
-    assert {:ok, parsed} = RelayMark.parse_v3_entity_reference_source(source)
+    assert {:ok, parsed} = RelayMark.parse_entity_reference_source(source)
     assert parsed["entityId"] == entity_id
     assert parsed["label"] == "Fallback"
     assert parsed["projection"] == "link"

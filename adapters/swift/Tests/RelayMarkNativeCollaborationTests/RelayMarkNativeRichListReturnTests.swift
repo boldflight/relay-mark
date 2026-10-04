@@ -4,7 +4,7 @@ import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
-final class RelayMarkNativeMarkdownV3ListReturnTests: XCTestCase {
+final class RelayMarkNativeRichListReturnTests: XCTestCase {
     private func cases() throws -> [String: Any] {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "list-end-return-v3", withExtension: "json"))
         return try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
@@ -17,19 +17,19 @@ final class RelayMarkNativeMarkdownV3ListReturnTests: XCTestCase {
             let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
             try native.applyUpdate(seed)
             try peer.applyUpdate(seed)
-            let before = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+            let before = try RelayMarkNativeDocumentProjection.project(document: native)
             let snapshot = try native.snapshot()
             let anchor = try native.anchor(path: path, index: 0)
             let originalState = try native.encodeUpdate()
-            XCTAssertThrowsError(try native.appendEmptyMarkdownV3ListItem(
+            XCTAssertThrowsError(try native.appendEmptyRichListItem(
                 after: Data([255]), expectedSnapshot: snapshot))
-            XCTAssertThrowsError(try native.appendEmptyMarkdownV3ListItem(
+            XCTAssertThrowsError(try native.appendEmptyRichListItem(
                 after: anchor, expectedSnapshot: Data()))
             XCTAssertEqual(try native.encodeUpdate(), originalState)
 
-            let change = try native.appendEmptyMarkdownV3ListItem(after: anchor, expectedSnapshot: snapshot)
+            let change = try native.appendEmptyRichListItem(after: anchor, expectedSnapshot: snapshot)
             try peer.applyUpdate(change.update)
-            let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
+            let after = try RelayMarkNativeDocumentProjection.project(document: native)
             var raw = try XCTUnwrap(fixture["expected_ast"] as? [String: Any])
             var blocks = try XCTUnwrap(raw["blocks"] as? [[String: Any]])
             if name == "flat_ordered" {
@@ -53,16 +53,16 @@ final class RelayMarkNativeMarkdownV3ListReturnTests: XCTestCase {
             }
             raw["blocks"] = blocks
             XCTAssertEqual(after, try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: raw)))
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), after)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), after)
             let afterState = try native.encodeUpdate()
-            XCTAssertThrowsError(try native.appendEmptyMarkdownV3ListItem(after: anchor, expectedSnapshot: snapshot))
+            XCTAssertThrowsError(try native.appendEmptyRichListItem(after: anchor, expectedSnapshot: snapshot))
             let emptyPath = name == "flat_ordered" ? [0, 1, 0] : [0, 0, 1, 1, 0]
-            XCTAssertThrowsError(try native.appendEmptyMarkdownV3ListItem(
+            XCTAssertThrowsError(try native.appendEmptyRichListItem(
                 after: native.anchor(path: emptyPath, index: 0), expectedSnapshot: native.snapshot()))
             XCTAssertEqual(try native.encodeUpdate(), afterState)
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), before)
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), before)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), before)
         }
     }
 }

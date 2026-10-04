@@ -1,4 +1,4 @@
-defmodule RelayMark.PaperControlV3 do
+defmodule RelayMark.PaperControl do
   @moduledoc "Bounded authored Paper control contract; host interactions stay outside the AST."
 
   @fields %{
@@ -16,11 +16,14 @@ defmodule RelayMark.PaperControlV3 do
          true <- Enum.sort(Map.keys(props)) == Enum.sort(["control" | fields]),
          true <- Enum.all?(fields, &is_binary(props[&1])),
          true <- valid?(control, props) do
-      source = "@#{@names[control]}(" <>
-         Enum.map_join(fields, ", ", fn field -> "#{field}: #{Jason.encode!(props[field])}" end) <>
-         ")"
+      source =
+        "@#{@names[control]}(" <>
+          Enum.map_join(fields, ", ", fn field -> "#{field}: #{Jason.encode!(props[field])}" end) <>
+          ")"
 
-      utf16_size = source |> :unicode.characters_to_binary(:utf8, {:utf16, :little}) |> byte_size()
+      utf16_size =
+        source |> :unicode.characters_to_binary(:utf8, {:utf16, :little}) |> byte_size()
+
       if utf16_size <= 32_768, do: {:ok, source}, else: :error
     else
       _ -> :error

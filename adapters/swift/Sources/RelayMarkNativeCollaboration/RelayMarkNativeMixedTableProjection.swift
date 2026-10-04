@@ -2,7 +2,7 @@ import CoreFoundation
 import Foundation
 import RelayMarkSwift
 
-/// Read-only projection for the unregistered v3 plain-prose/table subset.
+/// Read-only projection for the unregistered canonical plain-prose/table subset.
 /// The Yrs replica remains the document owner; this never rewrites its XML.
 public enum RelayMarkNativeMixedTableProjection {
     public enum Failure: Error, Equatable {
@@ -13,7 +13,7 @@ public enum RelayMarkNativeMixedTableProjection {
         let raw = try JSONSerialization.jsonObject(with: snapshot)
         let root = try object(raw, keys: ["kind", "children"])
         try require(root["kind"] as? String == "fragment", "root fragment")
-        try RelayMarkNativeMarkdownBlocksV3Projection.validateDepth(root, depth: 0)
+        try RelayMarkNativeDocumentProjection.validateDepth(root, depth: 0)
         let nodes = try children(root, minimum: 1)
         var ids = Set<String>()
         let blocks = try nodes.map { node -> [String: Any] in
@@ -98,7 +98,7 @@ public enum RelayMarkNativeMixedTableProjection {
         }
         try require(!rawParagraphs.isEmpty, "cell paragraphs")
         let paragraphs = try rawParagraphs.map {
-            try RelayMarkNativeMarkdownBlocksV3Projection.block($0, depth: 0, ids: &ids)
+            try RelayMarkNativeDocumentProjection.block($0, depth: 0, ids: &ids)
         }
         let props: [String: Any] = ["header": name == "tableHeader", "colspan": colspan,
                                     "rowspan": rowspan, "colwidth": colwidth, "align": align]
@@ -113,7 +113,7 @@ public enum RelayMarkNativeMixedTableProjection {
         // A table cell uses the same TipTap inline grammar as an ordinary v3
         // paragraph. Keep one validator so marks and links cannot diverge.
         return ["id": id, "type": "paragraph",
-                "content": try RelayMarkNativeMarkdownBlocksV3Projection.inline(rawLeaves, breaks: true)]
+                "content": try RelayMarkNativeDocumentProjection.inline(rawLeaves, breaks: true)]
     }
 
     private static func blockID(_ attrs: [String: Any], allowed: Set<String>,

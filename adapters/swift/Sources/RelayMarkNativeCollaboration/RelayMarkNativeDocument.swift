@@ -119,11 +119,11 @@ public final class RelayMarkNativeDocument {
         try RelayMarkCollaborativeProse(snapshot: snapshot())
     }
 
-    /// Basic v3 Markdown read/selection map after strict whole-document AST
+    /// Basic canonical Markdown read/selection map after strict whole-document AST
     /// validation. Tables and other unsupported presentation shapes stay gated.
-    public func markdownV3ProseProjection() throws -> RelayMarkCollaborativeProse {
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: self)
-        return try RelayMarkCollaborativeProse(snapshot: snapshot(), dialect: .markdownV3)
+    public func richProseProjection() throws -> RelayMarkCollaborativeProse {
+        _ = try RelayMarkNativeDocumentProjection.project(document: self)
+        return try RelayMarkCollaborativeProse(snapshot: snapshot(), dialect: .rich)
     }
 
     /// One quote with one or two flat paragraphs; no wrapping, splitting or joins.
@@ -577,7 +577,7 @@ public final class RelayMarkNativeDocument {
     }
 
     /// Change one identified inline XML sibling in a single Yrs transaction.
-    /// The v3 command validates a candidate on a scratch replica first.
+    /// The canonical command validates a candidate on a scratch replica first.
     func mutateInlineAtom(path: [Int], replacing: Bool, tag: String,
                           attributes: [String: String]) throws -> Data {
         guard path.count >= 2, let index = path.last, index >= 0,
@@ -613,7 +613,7 @@ public final class RelayMarkNativeDocument {
         case remove(tag: String, expectedID: String)
     }
 
-    /// One root-sibling transaction after the v3 command has validated a
+    /// One root-sibling transaction after the canonical command has validated a
     /// scratch replica. Updates retain the existing Y.XmlElement identity.
     func mutatePaperControl(at index: Int, change: PaperControlChange) throws -> Data {
         guard let childIndex = UInt32(exactly: index) else { throw Failure.invalidTextPath }
@@ -649,7 +649,7 @@ public final class RelayMarkNativeDocument {
     /// Replace one authored suggestion with one ordinary Markdown block in one
     /// local-origin Yrs transaction, so undo restores the complete atom.
     func acceptAgentSuggestion(at index: Int, expectedID: String,
-                               block: RelayMarkNativeMarkdownV3SingleBlock.Block,
+                               block: RelayMarkNativeRichSingleBlock.Block,
                                newBlockID: String, headingID: String?,
                                quoteParagraphID: String?,
                                listIDs: [(item: String, paragraph: String)]) throws -> Data {
@@ -830,7 +830,7 @@ public final class RelayMarkNativeDocument {
     }
 
     /// Seed one existing empty XML paragraph or first-child callout title without changing its stable block
-    /// identity. The v3 adapter validates the surrounding document on a scratch
+    /// identity. The canonical adapter validates the surrounding document on a scratch
     /// replica before this operation reaches the live Yrs transaction.
     func insertTextIntoEmptyParagraph(_ text: String, path: [Int], attributes: [String: Any] = [:]) throws -> Data {
         try insertTextIntoEmptyParagraph(path: path, runs: [(text, attributes)])
@@ -974,23 +974,23 @@ public final class RelayMarkNativeDocument {
         return attributes.keys.allSatisfy { booleanMarks.contains($0) || $0 == "link" }
     }
 
-    /// TipTap's `addRowAfter` for a rectangular v3 table without merged cells.
+    /// TipTap's `addRowAfter` for a rectangular canonical table without merged cells.
     /// Existing rows and text stay in place; the new empty cells copy the
     /// selected body row's column widths and alignment. The relative cell
     /// anchor and full displayed snapshot reject stale or retargeted actions.
-    public func canAddMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String) -> Bool {
+    public func canAddRichTableRow(afterCell anchor: Data, expectedCellID: String) -> Bool {
         guard integrationStatus().isComplete,
-              let projection = try? markdownV3ProseProjection(), projection.isEditable else { return false }
-        guard let target = try? markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID) else { return false }
+              let projection = try? richProseProjection(), projection.isEditable else { return false }
+        guard let target = try? richTableRowTarget(anchor, expectedCellID: expectedCellID) else { return false }
         return target.table.length() < 256
     }
 
-    public func addMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String,
+    public func addRichTableRow(afterCell anchor: Data, expectedCellID: String,
                                       expectedSnapshot: Data) throws
         -> (update: Data, rowID: String, cellIDs: [String], paragraphIDs: [String]) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let path = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let path = try richTableRowTarget(anchor, expectedCellID: expectedCellID)
         guard path.table.length() < 256 else { throw Failure.unsupportedProseEdit }
         let rowID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
         let cellIDs = (0..<path.width).map { _ in
@@ -1002,15 +1002,15 @@ public final class RelayMarkNativeDocument {
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.insertMarkdownV3TableRow(afterCell: anchor, expectedCellID: expectedCellID,
+        _ = try scratch.insertRichTableRow(afterCell: anchor, expectedCellID: expectedCellID,
             rowID: rowID, cellIDs: cellIDs, paragraphIDs: paragraphIDs)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try insertMarkdownV3TableRow(afterCell: anchor, expectedCellID: expectedCellID,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertRichTableRow(afterCell: anchor, expectedCellID: expectedCellID,
             rowID: rowID, cellIDs: cellIDs, paragraphIDs: paragraphIDs)
         return (update, rowID, cellIDs, paragraphIDs)
     }
 
-    private func markdownV3TableRowTarget(_ anchor: Data, expectedCellID: String) throws
+    private func richTableRowTarget(_ anchor: Data, expectedCellID: String) throws
         -> (table: YXmlNode, row: YXmlNode, width: Int, rowIndex: Int) {
         let (cell, path) = try anchoredElement(anchor)
         guard path.count >= 3, ["tableCell", "tableHeader"].contains(cell.tag() ?? ""),
@@ -1041,9 +1041,9 @@ public final class RelayMarkNativeDocument {
         return (table, row, width, rowIndex)
     }
 
-    private func insertMarkdownV3TableRow(afterCell anchor: Data, expectedCellID: String,
+    private func insertRichTableRow(afterCell anchor: Data, expectedCellID: String,
                                           rowID: String, cellIDs: [String], paragraphIDs: [String]) throws -> Data {
-        let target = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
+        let target = try richTableRowTarget(anchor, expectedCellID: expectedCellID)
         guard cellIDs.count == target.width, paragraphIDs.count == target.width else {
             throw Failure.unsupportedProseEdit
         }
@@ -1075,18 +1075,18 @@ public final class RelayMarkNativeDocument {
     /// receives a fresh empty cell/paragraph of that row's header or body
     /// type. Existing cells, marks, IDs, and widths remain untouched; the
     /// community command leaves the caret in the originally selected cell.
-    public func canAddMarkdownV3TableColumn(afterCell anchor: Data, expectedCellID: String) -> Bool {
+    public func canAddRichTableColumn(afterCell anchor: Data, expectedCellID: String) -> Bool {
         guard integrationStatus().isComplete,
-              let projection = try? markdownV3ProseProjection(), projection.isEditable else { return false }
-        return (try? markdownV3TableColumnTarget(anchor, expectedCellID: expectedCellID)) != nil
+              let projection = try? richProseProjection(), projection.isEditable else { return false }
+        return (try? richTableColumnTarget(anchor, expectedCellID: expectedCellID)) != nil
     }
 
-    public func addMarkdownV3TableColumn(afterCell anchor: Data, expectedCellID: String,
+    public func addRichTableColumn(afterCell anchor: Data, expectedCellID: String,
                                          expectedSnapshot: Data) throws
         -> (update: Data, cellIDs: [String], paragraphIDs: [String]) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let target = try markdownV3TableColumnTarget(anchor, expectedCellID: expectedCellID)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let target = try richTableColumnTarget(anchor, expectedCellID: expectedCellID)
         let cellIDs = (0..<target.rows).map { _ in
             "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
         }
@@ -1096,25 +1096,25 @@ public final class RelayMarkNativeDocument {
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.insertMarkdownV3TableColumn(afterCell: anchor, expectedCellID: expectedCellID,
+        _ = try scratch.insertRichTableColumn(afterCell: anchor, expectedCellID: expectedCellID,
             cellIDs: cellIDs, paragraphIDs: paragraphIDs)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try insertMarkdownV3TableColumn(afterCell: anchor, expectedCellID: expectedCellID,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertRichTableColumn(afterCell: anchor, expectedCellID: expectedCellID,
             cellIDs: cellIDs, paragraphIDs: paragraphIDs)
         return (update, cellIDs, paragraphIDs)
     }
 
-    private func markdownV3TableColumnTarget(_ anchor: Data, expectedCellID: String) throws
+    private func richTableColumnTarget(_ anchor: Data, expectedCellID: String) throws
         -> (table: YXmlNode, columnIndex: Int, rows: Int) {
-        let target = try markdownV3TableRowTarget(anchor, expectedCellID: expectedCellID)
+        let target = try richTableRowTarget(anchor, expectedCellID: expectedCellID)
         let (_, path) = try anchoredElement(anchor)
         guard target.width < 256 else { throw Failure.unsupportedProseEdit }
         return (target.table, path[path.count - 1], Int(target.table.length()))
     }
 
-    private func insertMarkdownV3TableColumn(afterCell anchor: Data, expectedCellID: String,
+    private func insertRichTableColumn(afterCell anchor: Data, expectedCellID: String,
                                              cellIDs: [String], paragraphIDs: [String]) throws -> Data {
-        let target = try markdownV3TableColumnTarget(anchor, expectedCellID: expectedCellID)
+        let target = try richTableColumnTarget(anchor, expectedCellID: expectedCellID)
         guard cellIDs.count == target.rows, paragraphIDs.count == target.rows else {
             throw Failure.unsupportedProseEdit
         }
@@ -1146,7 +1146,7 @@ public final class RelayMarkNativeDocument {
                                 expectedSnapshot: Data) throws -> (update: Data, titleID: String) {
         guard integrationStatus().isComplete,
               try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else {
+              try richProseProjection().isEditable else {
             throw Failure.unsupportedProseEdit
         }
         let (callout, path) = try anchoredElement(anchor)
@@ -1162,7 +1162,7 @@ public final class RelayMarkNativeDocument {
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
         _ = try scratch.insertCalloutTitle(anchor: anchor, expectedID: expectedID, titleID: titleID)
-        guard try scratch.markdownV3ProseProjection().isEditable else {
+        guard try scratch.richProseProjection().isEditable else {
             throw Failure.unsupportedProseEdit
         }
         let update = try insertCalloutTitle(anchor: anchor, expectedID: expectedID, titleID: titleID)
@@ -1189,7 +1189,7 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Change only the appearance of one existing, editable v3 callout.
+    /// Change only the appearance of one existing, editable canonical callout.
     /// The host binds this relative anchor to its authorized document and
     /// captures the ID and appearance from the same displayed revision. A
     /// changed/deleted callout is rejected rather than retargeting its path.
@@ -1201,7 +1201,7 @@ public final class RelayMarkNativeDocument {
         guard tones.contains(tone), emphases.contains(emphasis),
               tone != expectedTone || emphasis != expectedEmphasis,
               integrationStatus().isComplete,
-              try markdownV3ProseProjection().isEditable else {
+              try richProseProjection().isEditable else {
             throw Failure.unsupportedProseEdit
         }
         let (callout, path) = try anchoredElement(anchor)
@@ -1221,11 +1221,11 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// V3 attribute commands retain the existing XML containers and text.
+    ///  attribute commands retain the existing XML containers and text.
     /// Relative anchors fence the selected identity even when a peer shifts paths.
-    public func setMarkdownV3HeadingLevel(anchor: Data, expectedHeadingID: String?, level: Int) throws -> Data {
+    public func setRichHeadingLevel(anchor: Data, expectedHeadingID: String?, level: Int) throws -> Data {
         guard (1...6).contains(level), integrationStatus().isComplete,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let (heading, _) = try anchoredElement(anchor)
         guard heading.tag() == "heading",
               try heading.attributes()["headingId"] as? String == expectedHeadingID else { throw Failure.invalidAnchor }
@@ -1237,9 +1237,9 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    public func setMarkdownV3OrderedListStart(anchor: Data, expectedStart: Int, start: Int) throws -> Data {
+    public func setRichOrderedListStart(anchor: Data, expectedStart: Int, start: Int) throws -> Data {
         guard (1...1_000_000).contains(start), integrationStatus().isComplete,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let (list, _) = try anchoredElement(anchor)
         guard list.tag() == "orderedList",
               (try list.attributes()["start"] as? Int ?? 1) == expectedStart else { throw Failure.invalidAnchor }
@@ -1363,49 +1363,49 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// TipTap's end-of-item Return for an admitted v3 list at any nesting level.
+    /// TipTap's end-of-item Return for an admitted canonical list at any nesting level.
     /// The caller binds the paragraph anchor to an exact displayed snapshot;
     /// a sibling insert or changed text rejects before the live transaction.
     /// Existing list/item/paragraph XML nodes and ordered starts stay intact.
-    public func appendEmptyMarkdownV3ListItem(after paragraphAnchor: Data,
+    public func appendEmptyRichListItem(after paragraphAnchor: Data,
                                                expectedSnapshot: Data) throws
         -> (update: Data, itemID: String, paragraphID: String) {
-        try createEmptyMarkdownV3ListItem(relativeTo: paragraphAnchor, before: false, expectedSnapshot: expectedSnapshot)
+        try createEmptyRichListItem(relativeTo: paragraphAnchor, before: false, expectedSnapshot: expectedSnapshot)
     }
 
-    public func prependEmptyMarkdownV3ListItem(before paragraphAnchor: Data, expectedSnapshot: Data) throws
+    public func prependEmptyRichListItem(before paragraphAnchor: Data, expectedSnapshot: Data) throws
         -> (update: Data, itemID: String, paragraphID: String) {
-        try createEmptyMarkdownV3ListItem(relativeTo: paragraphAnchor, before: true, expectedSnapshot: expectedSnapshot)
+        try createEmptyRichListItem(relativeTo: paragraphAnchor, before: true, expectedSnapshot: expectedSnapshot)
     }
 
-    private func createEmptyMarkdownV3ListItem(relativeTo paragraphAnchor: Data, before: Bool,
+    private func createEmptyRichListItem(relativeTo paragraphAnchor: Data, before: Bool,
                                                expectedSnapshot: Data) throws
         -> (update: Data, itemID: String, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let (_, path) = try markdownV3ListEndTarget(paragraphAnchor)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (_, path) = try richListEndTarget(paragraphAnchor)
         let itemID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
         let paragraphID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.insertEmptyMarkdownV3ListItem(after: paragraphAnchor, path: path,
+        _ = try scratch.insertEmptyRichListItem(after: paragraphAnchor, path: path,
                                                       itemID: itemID, paragraphID: paragraphID, before: before)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try insertEmptyMarkdownV3ListItem(after: paragraphAnchor, path: path,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertEmptyRichListItem(after: paragraphAnchor, path: path,
                                                        itemID: itemID, paragraphID: paragraphID, before: before)
         return (update, itemID, paragraphID)
     }
 
-    /// Split one existing nonempty v3 list paragraph at an interior grapheme
+    /// Split one existing nonempty canonical list paragraph at an interior grapheme
     /// boundary. The prefix keeps its XML text and stable IDs; suffix runs are
     /// copied with their original marks into a fresh sibling item/paragraph.
-    public func splitMarkdownV3ListItem(at paragraphAnchor: Data, utf16Offset: Int,
+    public func splitRichListItem(at paragraphAnchor: Data, utf16Offset: Int,
                                          expectedSnapshot: Data) throws
         -> (update: Data, itemID: String, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let (paragraph, path) = try markdownV3ListEndTarget(paragraphAnchor)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (paragraph, path) = try richListEndTarget(paragraphAnchor)
         guard let leaf = paragraph.child(at: 0), leaf.kind() == "text" else { throw Failure.invalidAnchor }
         let old = try leaf.delta().map(\.text).joined()
         guard utf16Offset > 0, utf16Offset < old.utf16.count,
@@ -1415,17 +1415,17 @@ public final class RelayMarkNativeDocument {
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.insertSplitMarkdownV3ListItem(at: paragraphAnchor, path: path,
+        _ = try scratch.insertSplitRichListItem(at: paragraphAnchor, path: path,
             offset: utf16Offset, itemID: itemID, paragraphID: paragraphID)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try insertSplitMarkdownV3ListItem(at: paragraphAnchor, path: path,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try insertSplitRichListItem(at: paragraphAnchor, path: path,
             offset: utf16Offset, itemID: itemID, paragraphID: paragraphID)
         return (update, itemID, paragraphID)
     }
 
-    private func insertSplitMarkdownV3ListItem(at anchor: Data, path: [Int], offset: Int,
+    private func insertSplitRichListItem(at anchor: Data, path: [Int], offset: Int,
                                                 itemID: String, paragraphID: String) throws -> Data {
-        let (paragraph, resolvedPath) = try markdownV3ListEndTarget(anchor)
+        let (paragraph, resolvedPath) = try richListEndTarget(anchor)
         guard resolvedPath == path, let leaf = paragraph.child(at: 0), leaf.kind() == "text" else {
             throw Failure.invalidAnchor
         }
@@ -1465,26 +1465,26 @@ public final class RelayMarkNativeDocument {
     /// top-level paragraph, or leave a one-item nested list for an outer item.
     /// The empty paragraph keeps its authored ID even though Yjs recreates its
     /// XML type; nested exit gives the new outer item a fresh ID.
-    public func exitEmptyMarkdownV3ListItem(at paragraphAnchor: Data,
+    public func exitEmptyRichListItem(at paragraphAnchor: Data,
                                              expectedSnapshot: Data) throws
         -> (update: Data, newItemID: String?) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let (path, paragraphID) = try markdownV3EmptyListExitTarget(paragraphAnchor)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (path, paragraphID) = try richEmptyListExitTarget(paragraphAnchor)
         let newItemID = path.count == 5 ?
             "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") : nil
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.performMarkdownV3ListExit(anchor: paragraphAnchor, path: path,
+        _ = try scratch.performRichListExit(anchor: paragraphAnchor, path: path,
                                                   paragraphID: paragraphID, newItemID: newItemID)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try performMarkdownV3ListExit(anchor: paragraphAnchor, path: path,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performRichListExit(anchor: paragraphAnchor, path: path,
                                                    paragraphID: paragraphID, newItemID: newItemID)
         return (update, newItemID)
     }
 
-    private func markdownV3EmptyListExitTarget(_ anchor: Data) throws -> ([Int], String) {
+    private func richEmptyListExitTarget(_ anchor: Data) throws -> ([Int], String) {
         let (paragraph, path) = try anchoredElement(anchor)
         guard (path.count == 3 || path.count == 5), path.last == 0,
               paragraph.tag() == "paragraph", paragraph.length() == 0,
@@ -1510,9 +1510,9 @@ public final class RelayMarkNativeDocument {
         return (path, paragraphID)
     }
 
-    private func performMarkdownV3ListExit(anchor: Data, path: [Int],
+    private func performRichListExit(anchor: Data, path: [Int],
                                             paragraphID: String, newItemID: String?) throws -> Data {
-        let (resolvedPath, resolvedID) = try markdownV3EmptyListExitTarget(anchor)
+        let (resolvedPath, resolvedID) = try richEmptyListExitTarget(anchor)
         guard resolvedPath == path, resolvedID == paragraphID,
               (path.count == 5) == (newItemID != nil),
               let top = root.child(at: UInt32(path[0])) else { throw Failure.invalidAnchor }
@@ -1546,7 +1546,7 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    private func markdownV3ListEndTarget(_ anchor: Data) throws -> (YXmlNode, [Int]) {
+    private func richListEndTarget(_ anchor: Data) throws -> (YXmlNode, [Int]) {
         let (paragraph, path) = try anchoredElement(anchor)
         guard path.count >= 3, path.last == 0,
               paragraph.tag() == "paragraph", paragraph.length() == 1,
@@ -1564,9 +1564,9 @@ public final class RelayMarkNativeDocument {
         return (paragraph, path)
     }
 
-    private func insertEmptyMarkdownV3ListItem(after anchor: Data, path: [Int],
+    private func insertEmptyRichListItem(after anchor: Data, path: [Int],
                                                 itemID: String, paragraphID: String, before: Bool = false) throws -> Data {
-        let (_, resolvedPath) = try markdownV3ListEndTarget(anchor)
+        let (_, resolvedPath) = try richListEndTarget(anchor)
         guard resolvedPath == path else { throw Failure.invalidAnchor }
         var list = root
         for index in path.dropLast(2) {
@@ -1590,30 +1590,30 @@ public final class RelayMarkNativeDocument {
     /// Insert a new task list after an existing top-level paragraph. The
     /// paragraph is never rebuilt or removed, so concurrent edits to its Yjs
     /// text are not discarded by creating the list.
-    public func insertEmptyMarkdownV3TaskList(after paragraphAnchor: Data,
+    public func insertEmptyRichTaskList(after paragraphAnchor: Data,
                                                expectedSnapshot: Data) throws
         -> (update: Data, listID: String, itemID: String, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let (_, path, _) = try markdownV3TopLevelParagraphTarget(paragraphAnchor)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (_, path, _) = try richTopLevelParagraphTarget(paragraphAnchor)
         guard root.length() < 4_096 else { throw Failure.unsupportedProseEdit }
         func newID() -> String { "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") }
         let listID = newID(), itemID = newID(), paragraphID = newID()
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.performMarkdownV3TaskListInsertion(after: paragraphAnchor, path: path,
+        _ = try scratch.performRichTaskListInsertion(after: paragraphAnchor, path: path,
             listID: listID, itemID: itemID, paragraphID: paragraphID)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try performMarkdownV3TaskListInsertion(after: paragraphAnchor, path: path,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performRichTaskListInsertion(after: paragraphAnchor, path: path,
             listID: listID, itemID: itemID, paragraphID: paragraphID)
         return (update, listID, itemID, paragraphID)
     }
 
-    private func performMarkdownV3TaskListInsertion(after anchor: Data, path: [Int],
+    private func performRichTaskListInsertion(after anchor: Data, path: [Int],
                                                     listID: String, itemID: String,
                                                     paragraphID: String) throws -> Data {
-        let (_, resolvedPath, _) = try markdownV3TopLevelParagraphTarget(anchor)
+        let (_, resolvedPath, _) = try richTopLevelParagraphTarget(anchor)
         guard resolvedPath == path else { throw Failure.invalidAnchor }
         let update = try document.transactSync(origin: localOrigin) { transaction in
             let list = try self.root.insertElement(named: "taskList", at: UInt32(path[0] + 1), in: transaction)
@@ -1629,15 +1629,15 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Return in a top-level v3 paragraph creates one identified XML sibling.
+    /// Return in a top-level canonical paragraph creates one identified XML sibling.
     /// The original paragraph keeps its ID and any suffix carries its marks.
     /// A caller must bind the anchor and caret to an exact projected snapshot.
-    public func returnInMarkdownV3Paragraph(at paragraphAnchor: Data, utf16Offset: Int,
+    public func returnInRichParagraph(at paragraphAnchor: Data, utf16Offset: Int,
                                             expectedSnapshot: Data) throws
         -> (update: Data, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let (_, path, old) = try markdownV3TopLevelParagraphTarget(paragraphAnchor)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (_, path, old) = try richTopLevelParagraphTarget(paragraphAnchor)
         guard utf16Offset >= 0, utf16Offset <= old.utf16.count,
               Self.split(old, at: utf16Offset) != nil,
               root.length() < 4_096 else { throw Failure.unsupportedProseEdit }
@@ -1645,21 +1645,21 @@ public final class RelayMarkNativeDocument {
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.performMarkdownV3ParagraphReturn(anchor: paragraphAnchor, path: path,
+        _ = try scratch.performRichParagraphReturn(anchor: paragraphAnchor, path: path,
             offset: utf16Offset, paragraphID: paragraphID)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try performMarkdownV3ParagraphReturn(anchor: paragraphAnchor, path: path,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performRichParagraphReturn(anchor: paragraphAnchor, path: path,
             offset: utf16Offset, paragraphID: paragraphID)
         return (update, paragraphID)
     }
 
-    private func markdownV3TopLevelParagraphTarget(_ anchor: Data) throws
+    private func richTopLevelParagraphTarget(_ anchor: Data) throws
         -> (paragraph: YXmlNode, path: [Int], text: String) {
         let (paragraph, path) = try anchoredElement(anchor)
         let attrs = try paragraph.attributes()
         guard path.count == 1, ["paragraph", "heading"].contains(paragraph.tag() ?? ""),
               attrs["relaymarkId"] is String else { throw Failure.invalidAnchor }
-        let projection = try markdownV3ProseProjection()
+        let projection = try richProseProjection()
         guard projection.isEditable,
               let row = projection.blockPaths.firstIndex(of: path),
               let range = Range(projection.blockRanges[row], in: String(projection.text.characters)) else {
@@ -1668,9 +1668,9 @@ public final class RelayMarkNativeDocument {
         return (paragraph, path, String(String(projection.text.characters)[range]))
     }
 
-    private func performMarkdownV3ParagraphReturn(anchor: Data, path: [Int], offset: Int,
+    private func performRichParagraphReturn(anchor: Data, path: [Int], offset: Int,
                                                    paragraphID: String) throws -> Data {
-        let (paragraph, resolvedPath, old) = try markdownV3TopLevelParagraphTarget(anchor)
+        let (paragraph, resolvedPath, old) = try richTopLevelParagraphTarget(anchor)
         guard resolvedPath == path, offset >= 0, offset <= old.utf16.count,
               Self.split(old, at: offset) != nil else { throw Failure.invalidAnchor }
         // Split at the rendered inline boundary. Keep all prefix XML nodes
@@ -1755,19 +1755,19 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Return inside a v3 quote uses the same identified paragraph shape as
+    /// Return inside a canonical quote uses the same identified paragraph shape as
     /// TipTap. The existing quote and paragraph retain their IDs; only the
     /// new paragraph receives an ID. The host binds the anchor to one exact
     /// snapshot and caret position before invoking this command.
-    public func returnInMarkdownV3Quote(at paragraphAnchor: Data, utf16Offset: Int,
+    public func returnInRichQuote(at paragraphAnchor: Data, utf16Offset: Int,
                                         expectedSnapshot: Data) throws
-        -> (update: Data, kind: MarkdownV3QuoteReturnKind, paragraphID: String) {
+        -> (update: Data, kind: RichQuoteReturnKind, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
-              try markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let (paragraph, quote, path, old) = try markdownV3QuoteTarget(paragraphAnchor)
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let (paragraph, quote, path, old) = try richQuoteTarget(paragraphAnchor)
         guard utf16Offset >= 0, utf16Offset <= old.utf16.count,
               Self.split(old, at: utf16Offset) != nil else { throw Failure.unsupportedProseEdit }
-        let kind: MarkdownV3QuoteReturnKind
+        let kind: RichQuoteReturnKind
         if old.isEmpty {
             guard path[1] == Int(quote.length()) - 1 else { throw Failure.unsupportedProseEdit }
             kind = .exit
@@ -1785,22 +1785,22 @@ public final class RelayMarkNativeDocument {
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(encodeUpdate())
         guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.performMarkdownV3QuoteReturn(anchor: paragraphAnchor, path: path,
+        _ = try scratch.performRichQuoteReturn(anchor: paragraphAnchor, path: path,
             offset: utf16Offset, kind: kind, paragraphID: paragraphID)
-        guard try scratch.markdownV3ProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try performMarkdownV3QuoteReturn(anchor: paragraphAnchor, path: path,
+        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        let update = try performRichQuoteReturn(anchor: paragraphAnchor, path: path,
             offset: utf16Offset, kind: kind, paragraphID: paragraphID)
         return (update, kind, paragraphID)
     }
 
-    public enum MarkdownV3QuoteReturnKind: Equatable { case append, split, exit }
+    public enum RichQuoteReturnKind: Equatable { case append, split, exit }
 
     private func quoteParagraphID(_ paragraph: YXmlNode) throws -> String {
         guard let id = try paragraph.attributes()["relaymarkId"] as? String else { throw Failure.invalidAnchor }
         return id
     }
 
-    private func markdownV3QuoteTarget(_ anchor: Data) throws
+    private func richQuoteTarget(_ anchor: Data) throws
         -> (paragraph: YXmlNode, quote: YXmlNode, path: [Int], text: String) {
         let (paragraph, path) = try anchoredElement(anchor)
         guard path.count == 2, paragraph.tag() == "paragraph",
@@ -1812,10 +1812,10 @@ public final class RelayMarkNativeDocument {
         return (paragraph, quote, path, try leaf?.delta().map(\.text).joined() ?? "")
     }
 
-    private func performMarkdownV3QuoteReturn(anchor: Data, path: [Int], offset: Int,
-                                               kind: MarkdownV3QuoteReturnKind,
+    private func performRichQuoteReturn(anchor: Data, path: [Int], offset: Int,
+                                               kind: RichQuoteReturnKind,
                                                paragraphID: String) throws -> Data {
-        let (paragraph, quote, resolvedPath, old) = try markdownV3QuoteTarget(anchor)
+        let (paragraph, quote, resolvedPath, old) = try richQuoteTarget(anchor)
         guard resolvedPath == path, offset >= 0, offset <= old.utf16.count,
               Self.split(old, at: offset) != nil else { throw Failure.invalidAnchor }
         let suffix: [TextRun]
@@ -1909,17 +1909,17 @@ public final class RelayMarkNativeDocument {
     /// Read task lists without making them eligible for the ordinary prose
     /// editor. Unknown task/item metadata and unsupported nested content fail
     /// closed; no XML is flattened or rewritten.
-    public func taskItems(markdownV3: Bool = false) throws -> [TaskItem] {
-        try taskRecords(markdownV3: markdownV3).map(\.item)
+    public func taskItems(rich: Bool = false) throws -> [TaskItem] {
+        try taskRecords(rich: rich).map(\.item)
     }
 
     /// Toggle a specific existing XML item. Resolve its relative position and
     /// revalidate its UUID immediately before mutation, so sibling insertion
     /// cannot retarget an unlinked item through a stale numeric path.
     public func setTaskItemChecked(anchor: Data, expectedEntityID: String?, checked: Bool,
-                                   markdownV3: Bool = false) throws -> Data {
+                                   rich: Bool = false) throws -> Data {
         let record = try taskRecord(anchor: anchor, expectedEntityID: expectedEntityID,
-                                    markdownV3: markdownV3)
+                                    rich: rich)
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try record.node.setAttribute("checked", value: checked, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
@@ -1928,17 +1928,17 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Toggle an identified v3 task at any supported nesting depth. The
+    /// Toggle an identified canonical task at any supported nesting depth. The
     /// current whole-document contract and the item's stable ID guard a path
     /// that may have shifted after a remote insertion.
-    public func setMarkdownV3TaskItemChecked(path: [Int], expectedID: String,
+    public func setRichTaskItemChecked(path: [Int], expectedID: String,
                                              expectedEntityID: String?, expectedChecked: Bool,
                                              checked: Bool) throws -> Data {
         guard integrationStatus().isComplete, path.count >= 2, checked != expectedChecked,
-              Self.validV3TaskID(["relaymarkId": expectedID]) else {
+              Self.validTaskID(["relaymarkId": expectedID]) else {
             throw Failure.unsupportedProseEdit
         }
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: self)
+        _ = try RelayMarkNativeDocumentProjection.project(document: self)
         var node = root
         var parent: YXmlNode?
         for index in path {
@@ -1973,12 +1973,12 @@ public final class RelayMarkNativeDocument {
     /// container or its UUID. More complex nested content remains read-only.
     public func replaceTaskItemText(anchor: Data, expectedEntityID: String?,
                                     start: Int, end: Int, text: String,
-                                    markdownV3: Bool = false) throws -> Data {
+                                    rich: Bool = false) throws -> Data {
         let record = try taskRecord(anchor: anchor, expectedEntityID: expectedEntityID,
-                                    markdownV3: markdownV3)
+                                    rich: rich)
         guard record.node.length() == 1,
               let paragraph = record.node.child(at: 0), paragraph.tag() == "paragraph",
-              (try markdownV3 ? Self.validV3TaskID(paragraph.attributes()) : paragraph.attributes().isEmpty),
+              (try rich ? Self.validTaskID(paragraph.attributes()) : paragraph.attributes().isEmpty),
               paragraph.length() == 1,
               let leaf = paragraph.child(at: 0), leaf.kind() == "text",
               let old = record.item.paragraphs.first,
@@ -2000,16 +2000,16 @@ public final class RelayMarkNativeDocument {
     }
 
     private func taskRecord(anchor: Data, expectedEntityID: String?,
-                            markdownV3: Bool) throws -> TaskRecord {
+                            rich: Bool) throws -> TaskRecord {
         guard let resolved = try document.resolveXmlRelativePosition(anchor), resolved.index == 0,
-              let record = try taskRecords(markdownV3: markdownV3).first(where: { $0.node.isSameNode(as: resolved.node) }),
+              let record = try taskRecords(rich: rich).first(where: { $0.node.isSameNode(as: resolved.node) }),
               record.item.entityID == expectedEntityID else { throw Failure.invalidAnchor }
         return record
     }
 
-    private func taskRecords(markdownV3: Bool) throws -> [TaskRecord] {
+    private func taskRecords(rich: Bool) throws -> [TaskRecord] {
         guard integrationStatus().isComplete else { throw Failure.unsupportedProseEdit }
-        if markdownV3 { _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: self) }
+        if rich { _ = try RelayMarkNativeDocumentProjection.project(document: self) }
         var result: [TaskRecord] = []
         for list in root.children() {
             guard list.tag() == "taskList" else {
@@ -2017,15 +2017,15 @@ public final class RelayMarkNativeDocument {
                 continue
             }
             guard list.kind() == "element",
-                  (try markdownV3 ? Self.validV3TaskID(list.attributes()) : list.attributes().isEmpty) else {
+                  (try rich ? Self.validTaskID(list.attributes()) : list.attributes().isEmpty) else {
                 throw Failure.unsupportedProseEdit
             }
             for item in list.children() {
                 guard item.kind() == "element", item.tag() == "taskItem" else { throw Failure.unsupportedProseEdit }
                 let attributes = try item.attributes()
-                let allowed = markdownV3 ? Set(["relaymarkId", "checked", "entityId"]) : Set(["checked", "entityId"])
+                let allowed = rich ? Set(["relaymarkId", "checked", "entityId"]) : Set(["checked", "entityId"])
                 guard Set(attributes.keys).isSubset(of: allowed),
-                      (!markdownV3 || Self.validV3TaskID(attributes)), item.length() > 0 else {
+                      (!rich || Self.validTaskID(attributes)), item.length() > 0 else {
                     throw Failure.unsupportedProseEdit
                 }
                 let checked: Bool
@@ -2044,7 +2044,7 @@ public final class RelayMarkNativeDocument {
                 var paragraphs: [String] = []
                 for paragraph in item.children() {
                     guard paragraph.kind() == "element", paragraph.tag() == "paragraph",
-                          (try markdownV3 ? Self.validV3TaskID(paragraph.attributes()) : paragraph.attributes().isEmpty) else {
+                          (try rich ? Self.validTaskID(paragraph.attributes()) : paragraph.attributes().isEmpty) else {
                         throw Failure.unsupportedProseEdit
                     }
                     var content = ""
@@ -2072,7 +2072,7 @@ public final class RelayMarkNativeDocument {
         return result
     }
 
-    private static func validV3TaskID(_ attributes: [String: Any]) -> Bool {
+    private static func validTaskID(_ attributes: [String: Any]) -> Bool {
         guard let id = attributes["relaymarkId"] as? String,
               id.range(of: #"\Ab[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}\z"#,
                        options: .regularExpression) != nil else { return false }

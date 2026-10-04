@@ -1,20 +1,20 @@
 import Foundation
 
-/// A bounded v3 text-leaf command over the existing YSwift/Yrs replica.
+/// A bounded canonical text-leaf command over the existing YSwift/Yrs replica.
 ///
-/// The host still gates v3 admission. This command keeps an edit inside one
+/// The host still gates canonical admission. This command keeps an edit inside one
 /// existing XmlText leaf and validates the complete candidate document before
 /// mutating the live replica. Deletion may span formatting runs within that
 /// leaf; surviving formatting remains owned by the community Yrs text type.
 /// It does not reinterpret or rebuild block nodes.
 @MainActor
-public enum RelayMarkNativeMarkdownV3TextMutation {
+public enum RelayMarkNativeRichTextMutation {
     /// Address a paragraph by its durable RelayMark ID rather than a possibly
     /// shifted table/list path. The child index selects one existing XmlText
     /// leaf inside that paragraph; callers bind it to their current selection.
     public static func replace(document: RelayMarkNativeDocument, blockID: String,
                                childIndex: Int, start: Int, end: Int, text: String) throws -> Data {
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
+        _ = try RelayMarkNativeDocumentProjection.project(document: document)
         guard childIndex >= 0,
               let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
               let path = path(to: blockID, in: root, prefix: []),
@@ -33,7 +33,7 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
     }
 
     /// Explicit typing marks permit replacement across existing formatting runs.
-    /// The full v3 projection rejects unsupported marks before live mutation.
+    /// The full canonical projection rejects unsupported marks before live mutation.
     public static func replace(document: RelayMarkNativeDocument, path: [Int],
                                start: Int, end: Int, text: String,
                                attributes: [String: Any]) throws -> Data {
@@ -72,7 +72,7 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
 
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: document)
+        _ = try RelayMarkNativeDocumentProjection.project(document: document)
         let emptyParagraph = try isEmptyTextBlock(snapshot: snapshot, path: path) &&
             start == 0 && end == 0 && !text.isEmpty
         let validTextRun: Bool
@@ -98,7 +98,7 @@ public enum RelayMarkNativeMarkdownV3TextMutation {
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
         _ = try apply(to: scratch)
-        _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch)
+        _ = try RelayMarkNativeDocumentProjection.project(document: scratch)
         return try apply(to: document)
     }
 

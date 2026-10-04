@@ -333,7 +333,7 @@ defmodule RelayMark.SemanticValidator do
               validate_entity_reference(block, diagnostics)
 
             "relay.paper_control" ->
-              if RelayMark.PaperControlV3.valid_block?(block) do
+              if RelayMark.PaperControl.valid_block?(block) do
                 diagnostics
               else
                 append_error(
@@ -425,7 +425,7 @@ defmodule RelayMark.SemanticValidator do
       end
 
     if Map.has_key?(props, "source") do
-      case RelayMark.EntityReferenceV3.parse_source(props["source"]) do
+      case RelayMark.EntityReference.parse_source(props["source"]) do
         {:ok, authored} ->
           content = Map.get(block, "content", [])
 

@@ -32,7 +32,7 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
         try peer.applyUpdate(inserted)
         try browser.applyUpdate(inserted)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try native.markdownV3ProseProjection().blockAtoms.first?.id, insertedID)
+        XCTAssertEqual(try native.richProseProjection().blockAtoms.first?.id, insertedID)
 
         let buttonAnchor = try native.anchor(path: [3], index: 0)
         let changed = try RelayMarkNativePaperControlMutation.update(
@@ -43,7 +43,7 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
         try browser.applyUpdate(changed)
         XCTAssertEqual(try native.resolve(anchor: buttonAnchor)?.path, [3])
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
-        XCTAssertEqual(try native.markdownV3ProseProjection().blockAtoms[2].displayLabel, "Continue")
+        XCTAssertEqual(try native.richProseProjection().blockAtoms[2].displayLabel, "Continue")
 
         let removed = try RelayMarkNativePaperControlMutation.remove(
             document: native, atRootIndex: 1, expectedID: insertedID,
@@ -52,9 +52,9 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
         try browser.applyUpdate(removed)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try native.resolve(anchor: buttonAnchor)?.path, [2])
-        XCTAssertEqual(try native.markdownV3ProseProjection().blockAtoms.map(\.id).contains(insertedID), false)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: browser.snapshot()),
-                       try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native))
+        XCTAssertEqual(try native.richProseProjection().blockAtoms.map(\.id).contains(insertedID), false)
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
+                       try RelayMarkNativeDocumentProjection.project(document: native))
     }
 
     func testInvalidFieldsDuplicateIdentityAndStaleCheckpointsDoNotMutate() throws {

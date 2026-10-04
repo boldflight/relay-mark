@@ -38,7 +38,7 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
             let source = try fixture(name), target = try fixture(name)
             let baseline = try target.encodeUpdate(), initial = try target.snapshot()
             let original = try blocks(initial), selected = Array(original.indices)
-            let update = try target.appendRecoveredMarkdownV3Blocks(from: source.snapshot(),
+            let update = try target.appendRecoveredRichBlocks(from: source.snapshot(),
                 indices: selected, expectedSnapshot: initial)
             receipts.append(["name": name, "seed": baseline.base64EncodedString(), "update": update.base64EncodedString()])
             let restored = try blocks(target.snapshot())
@@ -46,7 +46,7 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
             XCTAssertEqual(try json(Array(restored.dropFirst(original.count)).map(withoutBlockIDs)),
                 try json(original.map(withoutBlockIDs)), name)
             // The canonical projection rejects any duplicate block IDs or invalid shapes.
-            _ = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: target)
+            _ = try RelayMarkNativeDocumentProjection.project(document: target)
             let peer = try RelayMarkCollaborationDocument()
             try peer.applyUpdate(baseline); try peer.applyUpdate(update)
             XCTAssertEqual(try json(blocks(peer.snapshot())), try json(blocks(target.snapshot())), name)
@@ -56,7 +56,7 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
             _ = try target.undo()
             XCTAssertEqual(try target.snapshot(), initial, name)
         }
-        if let output = ProcessInfo.processInfo.environment["RELAY_NATIVE_RECOVERY_V3_FIXTURE_OUTPUT"] {
+        if let output = ProcessInfo.processInfo.environment["RELAY_NATIVE_RECOVERY__FIXTURE_OUTPUT"] {
             try JSONSerialization.data(withJSONObject: ["source": "Community YSwift/Yrs retained-block append over existing TipTap fixtures",
                 "receipts": receipts], options: [.sortedKeys, .prettyPrinted]).write(to: URL(fileURLWithPath: output))
         }
@@ -65,16 +65,16 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
     func testOnlyChosenBlocksAreAddedAndStaleOrInvalidSelectionCannotMutate() throws {
         let source = try fixture("markdown-blocks-v3-draft"), target = try fixture("markdown-blocks-v3-draft")
         let initial = try target.snapshot(), old = try blocks(initial)
-        _ = try target.appendRecoveredMarkdownV3Blocks(from: source.snapshot(), indices: [1], expectedSnapshot: initial)
+        _ = try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [1], expectedSnapshot: initial)
         let changed = try target.snapshot(), result = try blocks(changed)
         XCTAssertEqual(result.count, old.count + 1)
         XCTAssertEqual(try json([withoutBlockIDs(try XCTUnwrap(result.last))]), try json([withoutBlockIDs(old[1])]))
-        XCTAssertThrowsError(try target.appendRecoveredMarkdownV3Blocks(from: source.snapshot(), indices: [1], expectedSnapshot: initial))
+        XCTAssertThrowsError(try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [1], expectedSnapshot: initial))
         for selection in [[], [-1], [99999], [0, 0], [1, 0]] {
-            XCTAssertThrowsError(try target.appendRecoveredMarkdownV3Blocks(from: source.snapshot(), indices: selection, expectedSnapshot: changed))
+            XCTAssertThrowsError(try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: selection, expectedSnapshot: changed))
             XCTAssertEqual(try target.snapshot(), changed)
         }
-        XCTAssertThrowsError(try target.appendRecoveredMarkdownV3Blocks(from: Data("{}".utf8), indices: [0], expectedSnapshot: changed))
+        XCTAssertThrowsError(try target.appendRecoveredRichBlocks(from: Data("{}".utf8), indices: [0], expectedSnapshot: changed))
         XCTAssertEqual(try target.snapshot(), changed)
     }
 }

@@ -19,25 +19,25 @@ final class RelayMarkNativeRichListTests: XCTestCase {
             let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
             try native.applyUpdate(seed)
             try peer.applyUpdate(seed)
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
-            XCTAssertTrue(try native.markdownV3ProseProjection().isEditable)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), expected)
+            XCTAssertTrue(try native.richProseProjection().isEditable)
             let anchor = try native.anchor(path: path, index: 0), snapshot = try native.snapshot()
             let update: Data
             if offset == 0 {
-                update = try native.prependEmptyMarkdownV3ListItem(before: anchor, expectedSnapshot: snapshot).update
+                update = try native.prependEmptyRichListItem(before: anchor, expectedSnapshot: snapshot).update
             } else if offset == "Third depth".utf16.count {
-                update = try native.appendEmptyMarkdownV3ListItem(after: anchor, expectedSnapshot: snapshot).update
+                update = try native.appendEmptyRichListItem(after: anchor, expectedSnapshot: snapshot).update
             } else {
-                update = try native.splitMarkdownV3ListItem(at: anchor, utf16Offset: offset, expectedSnapshot: snapshot).update
+                update = try native.splitRichListItem(at: anchor, utf16Offset: offset, expectedSnapshot: snapshot).update
             }
             try peer.applyUpdate(update)
-            let after = try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native)
-            XCTAssertEqual(after, try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer))
+            let after = try RelayMarkNativeDocumentProjection.project(document: native)
+            XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
             XCTAssertEqual(Array(after.blocks[0].childBlocks[0].childBlocks[1...3]),
                            Array(expected.blocks[0].childBlocks[0].childBlocks[1...3]))
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
-            XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: peer), expected)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), expected)
+            XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), expected)
         }
     }
 }

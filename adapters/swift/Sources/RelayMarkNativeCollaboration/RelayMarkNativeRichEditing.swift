@@ -8,7 +8,7 @@ import RelayMarkProseProjection
 /// across paragraphs, lists, quotes, callouts, tables and atoms behave as
 /// they do for a browser peer. Host authorization remains outside Mark.
 @MainActor
-public enum RelayMarkNativeMarkdownV3Editing {
+public enum RelayMarkNativeRichEditing {
     /// A caret in a projected textblock: its XML path and UTF-16 offset.
     public struct Caret: Equatable, Sendable {
         public let blockPath: [Int]
@@ -33,7 +33,7 @@ public enum RelayMarkNativeMarkdownV3Editing {
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let projection = try document.markdownV3ProseProjection()
+        let projection = try document.richProseProjection()
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
@@ -79,7 +79,7 @@ public enum RelayMarkNativeMarkdownV3Editing {
             } else {
                 guard let paragraph = schema.nodes["paragraph"] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
                 let paragraphs = try segments.map { segment in
-                    try paragraph.create(["relaymarkId": RelayMarkNativeMarkdownV3XML.freshID()],
+                    try paragraph.create(["relaymarkId": RelayMarkNativeRichXML.freshID()],
                                          PMFragment.fromArray(try inline(segment)))
                 }
                 try transform.replaceRange(from, to, PMSlice(PMFragment.fromArray(paragraphs), openStart: 1, openEnd: 1))
@@ -122,7 +122,7 @@ public enum RelayMarkNativeMarkdownV3Editing {
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any], !content.isEmpty else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let projection = try document.markdownV3ProseProjection()
+        let projection = try document.richProseProjection()
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
@@ -179,7 +179,7 @@ public enum RelayMarkNativeMarkdownV3Editing {
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let projection = try document.markdownV3ProseProjection()
+        let projection = try document.richProseProjection()
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
@@ -261,7 +261,7 @@ public enum RelayMarkNativeMarkdownV3Editing {
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let projection = try document.markdownV3ProseProjection()
+        let projection = try document.richProseProjection()
         guard projection.isEditable else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let bridge = try PMYXmlBridge.v3()
         let doc = try bridge.document(fromSnapshot: tree)
@@ -290,13 +290,13 @@ public enum RelayMarkNativeMarkdownV3Editing {
         })
         let updated = identified(transform.doc, seen: &seen, anchors: &anchors)
         let prospective = bridge.snapshot(updated)
-        let expected = try RelayMarkNativeMarkdownBlocksV3Projection.project(
+        let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
         _ = try scratch.applyProseMirror(updated, source: source, bridge: bridge)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expected,
-              try scratch.markdownV3ProseProjection().isEditable else {
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
+              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return (try document.applyProseMirror(updated, source: source, bridge: bridge), updated)
@@ -351,7 +351,7 @@ public enum RelayMarkNativeMarkdownV3Editing {
             if let id = attrs["relaymarkId"] as? String, seen.insert(id).inserted {
                 // retained
             } else {
-                let id = RelayMarkNativeMarkdownV3XML.freshID()
+                let id = RelayMarkNativeRichXML.freshID()
                 seen.insert(id)
                 attrs["relaymarkId"] = id
                 changed = true

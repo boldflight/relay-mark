@@ -1,7 +1,7 @@
 import Foundation
 import RelayMarkProseProjection
 
-/// Authored v3 Paper-control XML commands over the existing YSwift replica.
+/// Authored canonical Paper-control XML commands over the existing YSwift replica.
 /// Host authorization, navigation, and connection hydration stay outside this layer.
 @MainActor
 public enum RelayMarkNativePaperControlMutation {
@@ -83,7 +83,7 @@ public enum RelayMarkNativePaperControlMutation {
 
     private static func current(_ document: RelayMarkNativeDocument)
         throws -> (root: [String: Any], blocks: [[String: Any]], prose: RelayMarkCollaborativeProse) {
-        let prose = try document.markdownV3ProseProjection()
+        let prose = try document.richProseProjection()
         guard prose.isEditable,
               let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
               let blocks = root["children"] as? [[String: Any]] else {
@@ -130,15 +130,15 @@ public enum RelayMarkNativePaperControlMutation {
     private static func validate(document: RelayMarkNativeDocument, candidate: [String: Any],
                                  at index: Int, change: RelayMarkNativeDocument.PaperControlChange) throws {
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        let expectedAST = try RelayMarkNativeMarkdownBlocksV3Projection.project(snapshot: candidateData)
-        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .markdownV3).isEditable else {
+        let expectedAST = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
         _ = try scratch.mutatePaperControl(at: index, change: change)
-        guard try RelayMarkNativeMarkdownBlocksV3Projection.project(document: scratch) == expectedAST,
-              try scratch.markdownV3ProseProjection().isEditable else {
+        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expectedAST,
+              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
     }

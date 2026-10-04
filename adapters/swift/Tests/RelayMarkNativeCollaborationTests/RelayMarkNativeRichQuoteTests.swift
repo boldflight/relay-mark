@@ -15,8 +15,8 @@ final class RelayMarkNativeRichQuoteTests: XCTestCase {
     func testCommunityRichQuotePreservesExactASTAndOneEditableNativePresentation() throws {
         let (seed, expected) = try fixture(), native = RelayMarkNativeDocument()
         try native.applyUpdate(seed)
-        XCTAssertEqual(try RelayMarkNativeMarkdownBlocksV3Projection.project(document: native), expected)
-        let prose = try native.markdownV3ProseProjection()
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), expected)
+        let prose = try native.richProseProjection()
         XCTAssertTrue(prose.isEditable)
         XCTAssertEqual(prose.mediaAtoms.count, 1)
         XCTAssertEqual(prose.mediaAtoms[0].path, [0, 3])
@@ -29,13 +29,13 @@ final class RelayMarkNativeRichQuoteTests: XCTestCase {
         for (path, offset) in [([0, 0], 6), ([0, 2, 0], 6), ([0, 4, 0], 7)] {
             let (seed, _) = try fixture(), native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
             try native.applyUpdate(seed); try peer.applyUpdate(seed)
-            let snapshot = try native.snapshot(), before = try native.markdownV3ProseProjection()
+            let snapshot = try native.snapshot(), before = try native.richProseProjection()
             let row = try XCTUnwrap(before.blockPaths.firstIndex(of: path))
-            let change = try RelayMarkNativeMarkdownV3Return.apply(document: native, blockPath: path,
+            let change = try RelayMarkNativeRichReturn.apply(document: native, blockPath: path,
                 utf16Offset: offset, expectedSnapshot: snapshot)
             try peer.applyUpdate(change.update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
-            XCTAssertEqual(String(try native.markdownV3ProseProjection().text.characters),
+            XCTAssertEqual(String(try native.richProseProjection().text.characters),
                 (String(before.text.characters) as NSString).replacingCharacters(
                     in: NSRange(location: before.blockRanges[row].location + offset, length: 0), with: "\n"))
             try peer.applyUpdate(try XCTUnwrap(native.undo()))

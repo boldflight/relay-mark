@@ -1,6 +1,6 @@
-defmodule RelayMark.EntityReferenceV3 do
+defmodule RelayMark.EntityReference do
   @moduledoc """
-  Strict authored source parser for the optional v3 EntityRef atom.
+  Strict authored source parser for the canonical EntityRef atom.
 
   This parses portable source and identity only. Entity resolution and access
   remain host-owned; this module does not admit a live collaboration profile.

@@ -10,14 +10,14 @@ import Foundation
 /// identity, attribute-only changes stay attribute updates, and type changes
 /// or moved cells become delete-and-insert copies.
 @MainActor
-public enum RelayMarkNativeMarkdownV3TableCommand {
+public enum RelayMarkNativeRichTableCommand {
     public enum Operation: Sendable, CaseIterable {
         case addRowBefore, addRowAfter, addColumnBefore, addColumnAfter
         case deleteRow, deleteColumn, deleteTable
         case toggleHeaderCell, toggleHeaderRow, toggleHeaderColumn
         case mergeCells, splitCell
     }
-    private typealias XML = RelayMarkNativeMarkdownV3XML
+    private typealias XML = RelayMarkNativeRichXML
     private typealias Failure = RelayMarkNativeDocument.Failure
     private typealias Replacement = RelayMarkNativeDocument.SnapshotNodeReplacement
     private typealias AttributeUpdate = RelayMarkNativeDocument.SnapshotAttributeUpdate
@@ -69,7 +69,7 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
     private static func context(document: RelayMarkNativeDocument, anchor: (Data, String), head: (Data, String)?,
                                 expectedSnapshot: Data) throws -> Context {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              try document.markdownV3ProseProjection().isEditable,
+              try document.richProseProjection().isEditable,
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
             throw Failure.invalidAnchor
         }
@@ -559,7 +559,7 @@ public enum RelayMarkNativeMarkdownV3TableCommand {
 /// ProseMirror would first repair with fixTables are refused.
 @MainActor
 private struct Grid {
-    typealias Command = RelayMarkNativeMarkdownV3TableCommand
+    typealias Command = RelayMarkNativeRichTableCommand
     struct Key: Hashable { let row: Int; let index: Int }
     struct Rect {
         let left: Int, top: Int, right: Int, bottom: Int

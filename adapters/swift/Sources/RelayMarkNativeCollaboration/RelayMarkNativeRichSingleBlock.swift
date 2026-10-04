@@ -5,7 +5,7 @@ import Markdown
 /// The parser owns Markdown syntax; this adapter only maps an admitted single
 /// block to the existing TipTap/Yjs XML shape. Unsupported nodes fail closed.
 @MainActor
-public enum RelayMarkNativeMarkdownV3SingleBlock {
+public enum RelayMarkNativeRichSingleBlock {
     public static func canConvert(_ source: String) -> Bool { (try? parse(source)) != nil }
 
     enum Kind {

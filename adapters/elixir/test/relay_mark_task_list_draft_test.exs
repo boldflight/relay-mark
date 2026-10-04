@@ -1,4 +1,4 @@
-defmodule RelayMarkTaskListV3DraftTest do
+defmodule RelayMarkTaskListDraftTest do
   use ExUnit.Case, async: true
 
   alias RelayMark.Schema

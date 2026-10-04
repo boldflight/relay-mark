@@ -191,7 +191,7 @@ defmodule RelayMark.DocumentXML do
           {if(props["header"], do: "tableHeader", else: "tableCell"), Map.delete(props, "header")}
 
         "relay.entity_reference" ->
-          {:ok, fields} = RelayMark.EntityReferenceV3.parse_source(props["source"])
+          {:ok, fields} = RelayMark.EntityReference.parse_source(props["source"])
           require!(props == Map.take(fields, ~w(id label projection source)), :reference_source)
 
           {"relayEntityReference",
@@ -205,7 +205,7 @@ defmodule RelayMark.DocumentXML do
            }}
 
         "relay.paper_control" ->
-          require!(RelayMark.PaperControlV3.valid_block?(block), :control_source)
+          require!(RelayMark.PaperControl.valid_block?(block), :control_source)
 
           name =
             %{
@@ -481,7 +481,7 @@ defmodule RelayMark.DocumentXML do
           {"relay.video_embed", props}
 
         "relayEntityReference" ->
-          {:ok, fields} = RelayMark.EntityReferenceV3.parse_source(props["source"])
+          {:ok, fields} = RelayMark.EntityReference.parse_source(props["source"])
 
           require!(
             props["entityType"] == "Entity" and props["entityId"] == fields["entityId"] and
@@ -501,14 +501,14 @@ defmodule RelayMark.DocumentXML do
             }[name]
 
           authored = Map.put(props, "control", control)
-          {:ok, source} = RelayMark.PaperControlV3.canonical_source(authored)
+          {:ok, source} = RelayMark.PaperControl.canonical_source(authored)
           {"relay.paper_control", Map.put(authored, "source", source)}
 
         "agentSuggestion" ->
           authored = Map.put(props, "relaymarkId", id)
 
           require!(
-            match?({:ok, _}, RelayMark.AgentSuggestionV3.to_block(authored)),
+            match?({:ok, _}, RelayMark.AgentSuggestion.to_block(authored)),
             :suggestion_props
           )
 
