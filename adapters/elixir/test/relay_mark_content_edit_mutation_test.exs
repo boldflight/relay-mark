@@ -54,4 +54,20 @@ defmodule RelayMark.ContentEditMutationTest do
       assert is_list(result["retained_field_changes"]["allocated"])
     end
   end
+
+  test "explicit rich Slice source IDs can repeat while exact fresh destinations remain disjoint" do
+    fixture =
+      File.read!(Path.join(@root, "content-edit-duplicated-slice-witness.json"))
+      |> Jason.decode!()
+
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+    input = Map.delete(fixture["evidence"], "text_items")
+    assert {:ok, built} = RelayMark.ContentEdit.build_witness(runtime, input)
+    assert built["proven_copies"] == fixture["expected"]["proven_copies"]
+    assert built["text_items"] == %{"runs" => []}
+    assert built["inserted_ranges"] == fixture["expected"]["inserted_ranges"]
+    assert {:ok, replayed} = RelayMark.ContentEdit.replay_mutation(runtime, fixture["mutation"])
+    assert replayed["complete_mutation_correspondence"] == true
+  end
 end

@@ -40,10 +40,11 @@ function plain(runs){return {runs:runs.map(({type,item,count})=>({type,item,coun
 function disjoint(runs){const seen=new Map();for(const run of runs){const list=seen.get(run.item.client)||[];if(list.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Duplicate destination/human allocation');list.push([run.item.clock,run.item.clock+run.count]);seen.set(run.item.client,list);}}
 function cover(wanted,available){for(const run of wanted){let clock=run.item.clock,end=clock+run.count;for(const part of available.filter(v=>v.item.client===run.item.client&&same(v.type,run.type)).sort((a,b)=>a.item.clock-b.item.clock)){if(part.item.clock>clock)break;if(part.item.clock+part.count>clock)clock=Math.min(end,part.item.clock+part.count);}if(clock!==end)throw TypeError('Omitted or unproven fresh text allocation');}}
 function equalContent(source,destination){let a=0,b=0,ao=0,bo=0;while(a<source.length&&b<destination.length){const s=source[a],d=destination[b],count=Math.min(s.count-ao,d.count-bo);if(s.text.slice(ao,ao+count)!==d.text.slice(bo,bo+count)||!same(s.attributes,d.attributes))throw TypeError('Causal contents or full attributes disagree');ao+=count;bo+=count;if(ao===s.count){a++;ao=0}if(bo===d.count){b++;bo=0}}if(a!==source.length||b!==destination.length)throw TypeError('Causal content length mismatch');}
-function matchedCopy(source,destination,retained){let a=0,b=0,ao=0,bo=0;while(a<source.length&&b<destination.length){const s=source[a],d=destination[b],count=Math.min(s.count-ao,d.count-bo),sp=s.position+ao,dp=d.position+bo;if(s.text.slice(ao,ao+count)!==d.text.slice(bo,bo+count)||!same(s.attributes,d.attributes)||!retained.some(r=>sp>=r.source_from&&sp+count<=r.source_from+r.length&&dp===r.destination_from+sp-r.source_from))throw TypeError('Unproven content-edit causal copy');ao+=count;bo+=count;if(ao===s.count){a++;ao=0}if(bo===d.count){b++;bo=0}}if(a!==source.length||b!==destination.length||!source.length)throw TypeError('Causal copy length mismatch');}
+function copyRange(source,destination,count,retained,inserted){let offset=0;while(offset<count){const sp=source+offset,dp=destination+offset,ends=[...retained.filter(r=>sp>=r.source_from&&sp<r.source_from+r.length&&dp===r.destination_from+sp-r.source_from).map(r=>r.source_from+r.length-sp),...inserted.filter(r=>dp>=r.destination_from&&dp<r.destination_from+r.length).map(r=>r.destination_from+r.length-dp)];if(!ends.length)return false;offset+=Math.min(count-offset,Math.max(...ends))}return true;}
+function matchedCopy(source,destination,retained,inserted){let a=0,b=0,ao=0,bo=0;while(a<source.length&&b<destination.length){const s=source[a],d=destination[b],count=Math.min(s.count-ao,d.count-bo),sp=s.position+ao,dp=d.position+bo;if(s.text.slice(ao,ao+count)!==d.text.slice(bo,bo+count)||!same(s.attributes,d.attributes)||!copyRange(sp,dp,count,retained,inserted))throw TypeError('Unproven content-edit causal copy');ao+=count;bo+=count;if(ao===s.count){a++;ao=0}if(bo===d.count){b++;bo=0}}if(a!==source.length||b!==destination.length||!source.length)throw TypeError('Causal copy length mismatch');}
 export function prepareWitness(evidence,interpret){
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','text_items','footprint']);
- const {footprint,operation}=evidence;keys(footprint,['state_vector','structs','declared_deletes','deleted_items']);if(!Array.isArray(footprint.structs)||!Array.isArray(footprint.declared_deletes)||!Array.isArray(footprint.deleted_items)||footprint.structs.length+footprint.deleted_items.length>1_000_000)throw TypeError('Invalid complete mutation footprint');
+ const {footprint,operation}=evidence;if(operation?.history)throw TypeError('Owned history accounting requires maintained accepted-receipt replay');keys(footprint,['state_vector','structs','declared_deletes','deleted_items']);if(!Array.isArray(footprint.structs)||!Array.isArray(footprint.declared_deletes)||!Array.isArray(footprint.deleted_items)||footprint.structs.length+footprint.deleted_items.length>1_000_000)throw TypeError('Invalid complete mutation footprint');
  const beforeClocks=clocks(evidence.before_state_vector),afterClocks=clocks(footprint.state_vector);for(const [client,clock]of beforeClocks)if(clock>(afterClocks.get(client)||0))throw TypeError('Mutation frontier is behind trusted prestate');
  keys(operation,['kind','steps','copies','history','group'],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
  const sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),before=index(evidence.before_snapshot),after=index(evidence.after_snapshot),expected=interpret(sender.pm,operation);
@@ -51,7 +52,7 @@ export function prepareWitness(evidence,interpret){
  if(!same(evidence.sender_after_snapshot.metadata??{},evidence.sender_before_snapshot.metadata??{})||!same(evidence.after_snapshot.metadata??{},evidence.before_snapshot.metadata??{}))throw TypeError('Content steps cannot mutate authored envelope');
  const fresh=after.runs.flatMap(run=>{const clock=Math.max(run.item.clock,beforeClocks.get(run.item.client)||0),count=run.item.clock+run.count-clock;return count>0?[{...run,item:{client:run.item.client,clock},count,text:run.text.slice(clock-run.item.clock),position:run.position+clock-run.item.clock}]:[]});
  const human=resolve(after,evidence.text_items),destinations=[],proven_copies=[];let copiedUnits=0;
- for(const copy of operation.copies){keys(copy,['source','destination']);const source=resolve(sender,copy.source),destination=resolve(senderAfter,copy.destination);matchedCopy(source,destination,expected.retained_ranges);if((copiedUnits+=destination.reduce((n,r)=>n+r.count,0))>MAX_UNITS)throw TypeError('Copied destination limit exceeded');equalContent(destination,resolve(after,copy.destination));destinations.push(...destination);proven_copies.push(copy);}
+ for(const copy of operation.copies){keys(copy,['source','destination']);const source=resolve(sender,copy.source),destination=resolve(senderAfter,copy.destination);matchedCopy(source,destination,expected.retained_ranges,expected.inserted_ranges);if((copiedUnits+=destination.reduce((n,r)=>n+r.count,0))>MAX_UNITS)throw TypeError('Copied destination limit exceeded');equalContent(destination,resolve(after,copy.destination));destinations.push(...destination);proven_copies.push(copy);}
  disjoint([...human,...destinations]);cover(fresh,[...human,...destinations]);cover([...human,...destinations],fresh);
  // Original strings must all be visible and accounted for, including transient
  // allocations that disappear from the final authored result. Never infer this
@@ -66,7 +67,7 @@ export function prepareWitness(evidence,interpret){
  // complete old deletion/format/topology correspondence remain explicit evidence
  // for the final mutation proof, rather than being silently ignored.
  const unproven_mutations={structs:footprint.structs.filter(r=>r.content.kind!=='string'),declared_deletes:footprint.declared_deletes,deleted_items:footprint.deleted_items};
- return {document:expected.document,authored_document:{...sender.document,blocks:expected.authored_document.blocks},retained_ranges:expected.retained_ranges,proven_copies,fresh_items:plain(fresh),text_items:plain(human),unproven_mutations,requires_mutation_correspondence:true};
+ return {document:expected.document,authored_document:{...sender.document,blocks:expected.authored_document.blocks},retained_ranges:expected.retained_ranges,inserted_ranges:expected.inserted_ranges,proven_copies,fresh_items:plain(fresh),text_items:plain(human),unproven_mutations,requires_mutation_correspondence:true};
 }
 
 /** Derive relocation witnesses from actual maintained StepMaps and fresh item
@@ -74,10 +75,11 @@ export function prepareWitness(evidence,interpret){
  * for inserted Slice content remains an independent host obligation. */
 export function buildWitness(evidence,interpret){
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint']);
- keys(evidence.operation,['kind','steps','history','group'],['kind','steps']);
+ if(evidence.operation?.history)throw TypeError('Owned history accounting requires maintained accepted-receipt replay');
+ keys(evidence.operation,['kind','steps','history','group','copies'],['kind','steps']);
  const sender=index(evidence.sender_before_snapshot),after=index(evidence.sender_after_snapshot),frontier=clocks(evidence.before_state_vector),expected=interpret(sender.pm,{...evidence.operation,copies:[]});
  if(!same(after.pm,expected.document))throw TypeError('Actual sender disagrees with maintained command');
- const copies=[],human=[];
+ const supplied=evidence.operation.copies??[];if(!Array.isArray(supplied)||supplied.length>4096)throw TypeError('Invalid explicit Slice copies');const copies=[...supplied];let human=[];
  for(const run of after.runs){const start=Math.max(run.item.clock,frontier.get(run.item.client)||0),n=run.item.clock+run.count-start;if(n<=0)continue;let uncovered=[[run.position+start-run.item.clock,run.position+run.count]];
   for(const mapped of expected.retained_ranges){const from=Math.max(run.position+start-run.item.clock,mapped.destination_from),to=Math.min(run.position+run.count,mapped.destination_from+mapped.length);if(from>=to)continue;
    const sourceFrom=mapped.source_from+from-mapped.destination_from,sourceTo=sourceFrom+to-from;
@@ -88,6 +90,7 @@ export function buildWitness(evidence,interpret){
   }
   for(const [from,to]of uncovered)human.push({type:run.type,item:{client:run.item.client,clock:run.item.clock+from-run.position},count:to-from});
  }
+ for(const copy of supplied){keys(copy,['source','destination']);for(const destination of resolve(after,copy.destination))human=human.flatMap(run=>{if(!same(run.type,destination.type)||run.item.client!==destination.item.client)return[run];const a=run.item.clock,b=a+run.count,c=destination.item.clock,d=c+destination.count;if(c>=b||d<=a)return[run];return[...(a<c?[{...run,count:c-a}]:[]),...(d<b?[{...run,item:{client:run.item.client,clock:d},count:b-d}]:[])];})}
  const operation={...evidence.operation,copies},text_items={runs:human},prepared=prepareWitness({...evidence,operation,text_items},interpret);
  return {...prepared,operation,text_items};
 }

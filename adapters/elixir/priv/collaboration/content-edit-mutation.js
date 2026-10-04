@@ -5581,7 +5581,14 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   document2.check();
   const json = JSON.parse(JSON.stringify(document2.toJSON()));
   const authored_document = proseMirrorToRelayMark(json);
-  return { document: json, authored_document, step_maps, retained_ranges };
+  const inserted_ranges = [];
+  let cursor = 0;
+  for (const range of retained_ranges.slice().sort((a, b) => a.destination_from - b.destination_from)) {
+    if (range.destination_from > cursor) inserted_ranges.push({ destination_from: cursor, length: range.destination_from - cursor });
+    cursor = Math.max(cursor, range.destination_from + range.length);
+  }
+  if (cursor < document2.content.size) inserted_ranges.push({ destination_from: cursor, length: document2.content.size - cursor });
+  return { document: json, authored_document, step_maps, retained_ranges, inserted_ranges };
 }
 
 // adapters/collaboration/owned-command-group.js
@@ -5941,6 +5948,41 @@ function restoredCopies(doc, prior, links) {
   }
   return copies;
 }
+function ownedTextAccounting(doc, before, copies) {
+  const snapshot = captureContentEditSnapshot(doc.getXmlFragment("default")), fresh = [];
+  function visit(node) {
+    if (node.kind === "text") {
+      for (const run of node.runs) {
+        const start = Math.max(run.item.clock, before.get(run.item.client) || 0), count = run.item.clock + run.count - start;
+        if (count > 0) fresh.push({ type: node.type, item: { client: run.item.client, clock: start }, count });
+      }
+    } else for (const child of node.children) visit(child);
+  }
+  visit(snapshot);
+  const extent = (ranges) => {
+    let total = 0;
+    const groups = /* @__PURE__ */ new Map();
+    for (const run of ranges) {
+      if ((total += run.count) > 131072 || ranges.length > 4096) throw TypeError("Owned inverse selection resource limit");
+      const key2 = run.type.client + ":" + run.type.clock + "/" + run.item.client, list = groups.get(key2) || [];
+      list.push([run.item.clock, run.item.clock + run.count]);
+      groups.set(key2, list);
+    }
+    return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([key2, list]) => {
+      list.sort((a, b) => a[0] - b[0]);
+      const merged = [];
+      for (const [a, b] of list) {
+        const last = merged.at(-1);
+        if (last && a < last[1]) throw TypeError("Duplicate restored destination");
+        if (last && a === last[1]) last[1] = b;
+        else merged.push([a, b]);
+      }
+      return [key2, merged];
+    });
+  };
+  if (!same(extent(fresh), extent(copies.flatMap((copy) => copy.destination.runs)))) throw TypeError("Unaccounted maintained inverse text allocation");
+  return { fresh_items: { runs: fresh }, text_items: { runs: [] }, proven_copies: copies };
+}
 function replayOwnedHistory(evidence) {
   fields2(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint", "initial_state_base64", "receipts"]);
   validateOwnedHistory(evidence.operation.history);
@@ -6026,8 +6068,8 @@ function replayOwnedHistory(evidence) {
     const current = owner(bytes(evidence.current_state_base64));
     try {
       if (observedWriter(evidence.footprint, current) !== evidence.writer_client) throw TypeError("History writer is not independently observed");
-      const update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update);
-      return { ...proof, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: lastRestored };
+      const frontier = Y2.decodeStateVector(Y2.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, lastRestored);
+      return { ...proof, ...accounting, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: lastRestored };
     } finally {
       current.destroy();
     }

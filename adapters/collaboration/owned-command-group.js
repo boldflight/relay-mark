@@ -22,3 +22,11 @@ export function bindOwnedCommandHistory(manager,event){
  const ids=event.stackItem?.meta.get(key),inverse=(undo?manager.redoStack:manager.undoStack).at(-1);if(!ids||!inverse?.meta)throw TypeError('Unbound actual owned inverse');
  const group=validateOwnedCommandGroup({reference:ids[0],operation_ids:ids});inverse.meta.set(key,Object.freeze(ids.slice()));return{kind:event.type,...group};
 }
+/** Pre-mutation owner hook. Only an explicit bounded StackItem/resource boundary
+ * closes capture; ordinary typing and durable checkpoints never do. */
+export function prepareOwnedCommandGroup(manager,operationID){
+ canonicalOperationID(operationID);if(!manager||manager.undoing||manager.redoing)throw TypeError('Unavailable actual command owner');
+ for(const item of [...manager.undoStack,...manager.redoStack])if(item.meta.get(key)?.includes(operationID))throw TypeError('Duplicate owned operation UUID');
+ const top=manager.undoStack.at(-1),ids=top?.meta.get(key);if(ids)validateOwnedCommandGroup({reference:ids[0],operation_ids:ids});
+ if(top&&(!ids||ids.length===4096))manager.stopCapturing();
+}

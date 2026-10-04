@@ -1,0 +1,748 @@
+{
+  "description": "Actual TipTap rich Enter accepted update with retained italic source, peer paragraph and same-manager undo/redo",
+  "undo": {
+    "initial_state_base64": "AQplAAcBB2RlZmF1bHQDB2NhbGxvdXQHAGUAAwlwYXJhZ3JhcGgHAGUBBgYAZQIGaXRhbGljAnt9hGUDF0JlZm9yZSBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnQA",
+    "receipts": [
+      {
+        "transaction_id": "11111111-1111-4111-8111-111111111111",
+        "sender_state_base64": "AQplAAcBB2RlZmF1bHQDB2NhbGxvdXQHAGUAAwlwYXJhZ3JhcGgHAGUBBgYAZQIGaXRhbGljAnt9hGUDF0JlZm9yZSBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnQA",
+        "update_base64": "AQZlIIdlAQMJcGFyYWdyYXBoBwBlIAYGAGUhBml0YWxpYwJ7fYRlIhBnZW5lcmF0ZWQgc3VmZml4hmUyBml0YWxpYwRudWxsKABlIAtyZWxheW1hcmtJZAF3IWIyMjdmMWI4MTc1NDk0MTgzYTJhMjJlZDA5MGIxNjM0ZgFlAQsQ",
+        "operation": {
+          "kind": "content_edit",
+          "steps": [
+            {
+              "stepType": "replace",
+              "from": 9,
+              "to": 9,
+              "slice": {
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                    }
+                  },
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                    }
+                  }
+                ],
+                "openStart": 1,
+                "openEnd": 1
+              },
+              "structure": true
+            },
+            {
+              "stepType": "replaceAround",
+              "from": 10,
+              "to": 28,
+              "gapFrom": 11,
+              "gapTo": 27,
+              "insert": 1,
+              "slice": {
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b227f1b8175494183a2a22ed090b1634f"
+                    }
+                  }
+                ]
+              },
+              "structure": true
+            }
+          ],
+          "copies": [
+            {
+              "source": {
+                "runs": [
+                  {
+                    "type": {
+                      "client": 101,
+                      "clock": 2
+                    },
+                    "item": {
+                      "client": 101,
+                      "clock": 11
+                    },
+                    "count": 16
+                  }
+                ]
+              },
+              "destination": {
+                "runs": [
+                  {
+                    "type": {
+                      "client": 101,
+                      "clock": 33
+                    },
+                    "item": {
+                      "client": 101,
+                      "clock": 35
+                    },
+                    "count": 16
+                  }
+                ]
+              }
+            }
+          ],
+          "group": {
+            "reference": "11111111-1111-4111-8111-111111111111",
+            "operation_ids": [
+              "11111111-1111-4111-8111-111111111111"
+            ]
+          }
+        }
+      }
+    ],
+    "sender_state_base64": "AgavAgCHZQADCXBhcmFncmFwaAcArwIABigArwIAC3JlbGF5bWFya0lkAXchYjQ0NDQ0NDQ0NDQ0NDQ0NDQ4NDQ0NDQ0NDQ0NDQ0NDQ0BgCvAgEEYm9sZAJ7fYSvAgMNUGVlciBzdXJ2aXZlc4avAhAEYm9sZARudWxsEWUABwEHZGVmYXVsdAMHY2FsbG91dAcAZQADCXBhcmFncmFwaAcAZQEGBgBlAgZpdGFsaWMCe32EZQMHQmVmb3JlIIRlChBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnSHZQEDCXBhcmFncmFwaAcAZSAGBgBlIQZpdGFsaWMCe32EZSIQZ2VuZXJhdGVkIHN1ZmZpeIZlMgZpdGFsaWMEbnVsbCgAZSALcmVsYXltYXJrSWQBdyFiMjI3ZjFiODE3NTQ5NDE4M2EyYTIyZWQwOTBiMTYzNGYBZQELEA==",
+    "current_state_base64": "AgavAgCHZQADCXBhcmFncmFwaAcArwIABigArwIAC3JlbGF5bWFya0lkAXchYjQ0NDQ0NDQ0NDQ0NDQ0NDQ4NDQ0NDQ0NDQ0NDQ0NDQ0BgCvAgEEYm9sZAJ7fYSvAgMNUGVlciBzdXJ2aXZlc4avAhAEYm9sZARudWxsEWUABwEHZGVmYXVsdAMHY2FsbG91dAcAZQADCXBhcmFncmFwaAcAZQEGBgBlAgZpdGFsaWMCe32EZQMHQmVmb3JlIIRlChBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnSHZQEDCXBhcmFncmFwaAcAZSAGBgBlIQZpdGFsaWMCe32EZSIQZ2VuZXJhdGVkIHN1ZmZpeIZlMgZpdGFsaWMEbnVsbCgAZSALcmVsYXltYXJrSWQBdyFiMjI3ZjFiODE3NTQ5NDE4M2EyYTIyZWQwOTBiMTYzNGYBZQELEA==",
+    "writer_client": 101,
+    "operation": {
+      "kind": "content_edit",
+      "steps": [
+        {
+          "stepType": "replaceAround",
+          "from": 10,
+          "to": 28,
+          "gapFrom": 11,
+          "gapTo": 27,
+          "insert": 1,
+          "slice": {
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                }
+              }
+            ]
+          },
+          "structure": true
+        },
+        {
+          "stepType": "replace",
+          "from": 9,
+          "to": 11
+        }
+      ],
+      "copies": [],
+      "history": {
+        "kind": "undo",
+        "reference": "11111111-1111-4111-8111-111111111111",
+        "operation_ids": [
+          "11111111-1111-4111-8111-111111111111"
+        ]
+      }
+    },
+    "footprint": {
+      "state_vector": [
+        {
+          "client": 101,
+          "clock": 69
+        },
+        {
+          "client": 303,
+          "clock": 18
+        }
+      ],
+      "structs": [
+        {
+          "item": {
+            "client": 101,
+            "clock": 53
+          },
+          "count": 16,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 2
+            }
+          },
+          "key": null,
+          "origin": {
+            "client": 101,
+            "clock": 10
+          },
+          "right_origin": {
+            "client": 101,
+            "clock": 11
+          },
+          "content": {
+            "kind": "string",
+            "text": "generated suffix"
+          },
+          "deleted": false
+        }
+      ],
+      "declared_deletes": [
+        {
+          "item": {
+            "client": 101,
+            "clock": 32
+          },
+          "count": 21
+        }
+      ],
+      "deleted_items": [
+        {
+          "item": {
+            "client": 101,
+            "clock": 32
+          },
+          "count": 1,
+          "stored_item": {
+            "client": 101,
+            "clock": 32
+          },
+          "stored_count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 0
+            }
+          },
+          "key": null,
+          "content": {
+            "kind": "type",
+            "type_kind": "xml_element",
+            "name": "paragraph"
+          }
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 33
+          },
+          "count": 1,
+          "stored_item": {
+            "client": 101,
+            "clock": 33
+          },
+          "stored_count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 32
+            }
+          },
+          "key": null,
+          "content": {
+            "kind": "type",
+            "type_kind": "xml_text",
+            "name": null
+          }
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 34
+          },
+          "count": 1,
+          "stored_item": {
+            "client": 101,
+            "clock": 34
+          },
+          "stored_count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 33
+            }
+          },
+          "key": null,
+          "content": {
+            "kind": "format",
+            "key": "italic",
+            "value": {}
+          }
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 35
+          },
+          "count": 16,
+          "stored_item": {
+            "client": 101,
+            "clock": 35
+          },
+          "stored_count": 16,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 33
+            }
+          },
+          "key": null,
+          "content": {
+            "kind": "string",
+            "text": "generated suffix"
+          }
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 51
+          },
+          "count": 1,
+          "stored_item": {
+            "client": 101,
+            "clock": 51
+          },
+          "stored_count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 33
+            }
+          },
+          "key": null,
+          "content": {
+            "kind": "format",
+            "key": "italic",
+            "value": null
+          }
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 52
+          },
+          "count": 1,
+          "stored_item": {
+            "client": 101,
+            "clock": 52
+          },
+          "stored_count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 32
+            }
+          },
+          "key": "relaymarkId",
+          "content": {
+            "kind": "any",
+            "values": [
+              "b227f1b8175494183a2a22ed090b1634f"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "redo": {
+    "initial_state_base64": "AQplAAcBB2RlZmF1bHQDB2NhbGxvdXQHAGUAAwlwYXJhZ3JhcGgHAGUBBgYAZQIGaXRhbGljAnt9hGUDF0JlZm9yZSBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnQA",
+    "receipts": [
+      {
+        "transaction_id": "11111111-1111-4111-8111-111111111111",
+        "sender_state_base64": "AQplAAcBB2RlZmF1bHQDB2NhbGxvdXQHAGUAAwlwYXJhZ3JhcGgHAGUBBgYAZQIGaXRhbGljAnt9hGUDF0JlZm9yZSBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnQA",
+        "update_base64": "AQZlIIdlAQMJcGFyYWdyYXBoBwBlIAYGAGUhBml0YWxpYwJ7fYRlIhBnZW5lcmF0ZWQgc3VmZml4hmUyBml0YWxpYwRudWxsKABlIAtyZWxheW1hcmtJZAF3IWIyMjdmMWI4MTc1NDk0MTgzYTJhMjJlZDA5MGIxNjM0ZgFlAQsQ",
+        "operation": {
+          "kind": "content_edit",
+          "steps": [
+            {
+              "stepType": "replace",
+              "from": 9,
+              "to": 9,
+              "slice": {
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                    }
+                  },
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                    }
+                  }
+                ],
+                "openStart": 1,
+                "openEnd": 1
+              },
+              "structure": true
+            },
+            {
+              "stepType": "replaceAround",
+              "from": 10,
+              "to": 28,
+              "gapFrom": 11,
+              "gapTo": 27,
+              "insert": 1,
+              "slice": {
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b227f1b8175494183a2a22ed090b1634f"
+                    }
+                  }
+                ]
+              },
+              "structure": true
+            }
+          ],
+          "copies": [
+            {
+              "source": {
+                "runs": [
+                  {
+                    "type": {
+                      "client": 101,
+                      "clock": 2
+                    },
+                    "item": {
+                      "client": 101,
+                      "clock": 11
+                    },
+                    "count": 16
+                  }
+                ]
+              },
+              "destination": {
+                "runs": [
+                  {
+                    "type": {
+                      "client": 101,
+                      "clock": 33
+                    },
+                    "item": {
+                      "client": 101,
+                      "clock": 35
+                    },
+                    "count": 16
+                  }
+                ]
+              }
+            }
+          ],
+          "group": {
+            "reference": "11111111-1111-4111-8111-111111111111",
+            "operation_ids": [
+              "11111111-1111-4111-8111-111111111111"
+            ]
+          }
+        }
+      },
+      {
+        "transaction_id": "22222222-2222-4222-8222-222222222222",
+        "sender_state_base64": "AgavAgCHZQADCXBhcmFncmFwaAcArwIABigArwIAC3JlbGF5bWFya0lkAXchYjQ0NDQ0NDQ0NDQ0NDQ0NDQ4NDQ0NDQ0NDQ0NDQ0NDQ0BgCvAgEEYm9sZAJ7fYSvAgMNUGVlciBzdXJ2aXZlc4avAhAEYm9sZARudWxsEWUABwEHZGVmYXVsdAMHY2FsbG91dAcAZQADCXBhcmFncmFwaAcAZQEGBgBlAgZpdGFsaWMCe32EZQMHQmVmb3JlIIRlChBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnSHZQEDCXBhcmFncmFwaAcAZSAGBgBlIQZpdGFsaWMCe32EZSIQZ2VuZXJhdGVkIHN1ZmZpeIZlMgZpdGFsaWMEbnVsbCgAZSALcmVsYXltYXJrSWQBdyFiMjI3ZjFiODE3NTQ5NDE4M2EyYTIyZWQwOTBiMTYzNGYBZQELEA==",
+        "update_base64": "AQFlNcRlCmULEGdlbmVyYXRlZCBzdWZmaXgBZQEgFQ==",
+        "operation": {
+          "kind": "content_edit",
+          "steps": [
+            {
+              "stepType": "replaceAround",
+              "from": 10,
+              "to": 28,
+              "gapFrom": 11,
+              "gapTo": 27,
+              "insert": 1,
+              "slice": {
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                    }
+                  }
+                ]
+              },
+              "structure": true
+            },
+            {
+              "stepType": "replace",
+              "from": 9,
+              "to": 11
+            }
+          ],
+          "copies": [],
+          "history": {
+            "kind": "undo",
+            "reference": "11111111-1111-4111-8111-111111111111",
+            "operation_ids": [
+              "11111111-1111-4111-8111-111111111111"
+            ]
+          }
+        }
+      }
+    ],
+    "sender_state_base64": "AgavAgCHZQADCXBhcmFncmFwaAcArwIABigArwIAC3JlbGF5bWFya0lkAXchYjQ0NDQ0NDQ0NDQ0NDQ0NDQ4NDQ0NDQ0NDQ0NDQ0NDQ0BgCvAgEEYm9sZAJ7fYSvAgMNUGVlciBzdXJ2aXZlc4avAhAEYm9sZARudWxsEmUABwEHZGVmYXVsdAMHY2FsbG91dAcAZQADCXBhcmFncmFwaAcAZQEGBgBlAgZpdGFsaWMCe32EZQMHQmVmb3JlIIRlChBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnSHZQEDCXBhcmFncmFwaAcAZSAGBgBlIQZpdGFsaWMCe32EZSIQZ2VuZXJhdGVkIHN1ZmZpeIZlMgZpdGFsaWMEbnVsbCgAZSALcmVsYXltYXJrSWQBdyFiMjI3ZjFiODE3NTQ5NDE4M2EyYTIyZWQwOTBiMTYzNGbEZQplCxBnZW5lcmF0ZWQgc3VmZml4AWUCCxAgFQ==",
+    "current_state_base64": "AgavAgCHZQADCXBhcmFncmFwaAcArwIABigArwIAC3JlbGF5bWFya0lkAXchYjQ0NDQ0NDQ0NDQ0NDQ0NDQ4NDQ0NDQ0NDQ0NDQ0NDQ0BgCvAgEEYm9sZAJ7fYSvAgMNUGVlciBzdXJ2aXZlc4avAhAEYm9sZARudWxsEmUABwEHZGVmYXVsdAMHY2FsbG91dAcAZQADCXBhcmFncmFwaAcAZQEGBgBlAgZpdGFsaWMCe32EZQMHQmVmb3JlIIRlChBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnSHZQEDCXBhcmFncmFwaAcAZSAGBgBlIQZpdGFsaWMCe32EZSIQZ2VuZXJhdGVkIHN1ZmZpeIZlMgZpdGFsaWMEbnVsbCgAZSALcmVsYXltYXJrSWQBdyFiMjI3ZjFiODE3NTQ5NDE4M2EyYTIyZWQwOTBiMTYzNGbEZQplCxBnZW5lcmF0ZWQgc3VmZml4AWUCCxAgFQ==",
+    "writer_client": 101,
+    "operation": {
+      "kind": "content_edit",
+      "steps": [
+        {
+          "stepType": "replace",
+          "from": 9,
+          "to": 9,
+          "slice": {
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                }
+              },
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+                }
+              }
+            ],
+            "openStart": 1,
+            "openEnd": 1
+          },
+          "structure": true
+        },
+        {
+          "stepType": "replaceAround",
+          "from": 10,
+          "to": 28,
+          "gapFrom": 11,
+          "gapTo": 27,
+          "insert": 1,
+          "slice": {
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b227f1b8175494183a2a22ed090b1634f"
+                }
+              }
+            ]
+          },
+          "structure": true
+        }
+      ],
+      "copies": [],
+      "history": {
+        "kind": "redo",
+        "reference": "11111111-1111-4111-8111-111111111111",
+        "operation_ids": [
+          "11111111-1111-4111-8111-111111111111"
+        ]
+      }
+    },
+    "footprint": {
+      "state_vector": [
+        {
+          "client": 101,
+          "clock": 90
+        },
+        {
+          "client": 303,
+          "clock": 18
+        }
+      ],
+      "structs": [
+        {
+          "item": {
+            "client": 101,
+            "clock": 69
+          },
+          "count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 0
+            }
+          },
+          "key": null,
+          "origin": {
+            "client": 101,
+            "clock": 1
+          },
+          "right_origin": {
+            "client": 101,
+            "clock": 32
+          },
+          "content": {
+            "kind": "type",
+            "type_kind": "xml_element",
+            "name": "paragraph"
+          },
+          "deleted": false
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 70
+          },
+          "count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 69
+            }
+          },
+          "key": null,
+          "origin": null,
+          "right_origin": null,
+          "content": {
+            "kind": "type",
+            "type_kind": "xml_text",
+            "name": null
+          },
+          "deleted": false
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 71
+          },
+          "count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 70
+            }
+          },
+          "key": null,
+          "origin": null,
+          "right_origin": null,
+          "content": {
+            "kind": "format",
+            "key": "italic",
+            "value": {}
+          },
+          "deleted": false
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 72
+          },
+          "count": 16,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 70
+            }
+          },
+          "key": null,
+          "origin": {
+            "client": 101,
+            "clock": 71
+          },
+          "right_origin": null,
+          "content": {
+            "kind": "string",
+            "text": "generated suffix"
+          },
+          "deleted": false
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 88
+          },
+          "count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 70
+            }
+          },
+          "key": null,
+          "origin": {
+            "client": 101,
+            "clock": 87
+          },
+          "right_origin": null,
+          "content": {
+            "kind": "format",
+            "key": "italic",
+            "value": null
+          },
+          "deleted": false
+        },
+        {
+          "item": {
+            "client": 101,
+            "clock": 89
+          },
+          "count": 1,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 69
+            }
+          },
+          "key": "relaymarkId",
+          "origin": null,
+          "right_origin": null,
+          "content": {
+            "kind": "any",
+            "values": [
+              "b227f1b8175494183a2a22ed090b1634f"
+            ]
+          },
+          "deleted": false
+        }
+      ],
+      "declared_deletes": [
+        {
+          "item": {
+            "client": 101,
+            "clock": 53
+          },
+          "count": 16
+        }
+      ],
+      "deleted_items": [
+        {
+          "item": {
+            "client": 101,
+            "clock": 53
+          },
+          "count": 16,
+          "stored_item": {
+            "client": 101,
+            "clock": 53
+          },
+          "stored_count": 16,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 2
+            }
+          },
+          "key": null,
+          "content": {
+            "kind": "string",
+            "text": "generated suffix"
+          }
+        }
+      ]
+    }
+  },
+  "transport": {
+    "receipts": [
+      {
+        "transaction_id": "11111111-1111-4111-8111-111111111111",
+        "before_snapshot_base64": "AAFlIA=="
+      },
+      {
+        "transaction_id": "22222222-2222-4222-8222-222222222222",
+        "before_snapshot_base64": "AWUBCxACrwISZTU="
+      }
+    ],
+    "undo": {
+      "update_base64": "AQFlNcRlCmULEGdlbmVyYXRlZCBzdWZmaXgBZQEgFQ==",
+      "before_snapshot_base64": "AWUBCxACrwISZTU="
+    },
+    "redo": {
+      "update_base64": "AQZlRcdlAWUgAwlwYXJhZ3JhcGgHAGVFBgYAZUYGaXRhbGljAnt9hGVHEGdlbmVyYXRlZCBzdWZmaXiGZVcGaXRhbGljBG51bGwoAGVFC3JlbGF5bWFya0lkAXchYjIyN2YxYjgxNzU0OTQxODNhMmEyMmVkMDkwYjE2MzRmAWUBNRA=",
+      "before_snapshot_base64": "AWUCCxAgFQKvAhJlRQ=="
+    }
+  }
+}

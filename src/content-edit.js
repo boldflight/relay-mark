@@ -54,7 +54,10 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
  // Closed final ancestry/identities/media/forms use the one portable grammar.
  // Intermediate open Slices are validated in their actual maintained context.
  const authored_document=proseMirrorToRelayMark(json);
- return {document:json,authored_document,step_maps,retained_ranges};
+ const inserted_ranges=[];let cursor=0;
+ for(const range of retained_ranges.slice().sort((a,b)=>a.destination_from-b.destination_from)){if(range.destination_from>cursor)inserted_ranges.push({destination_from:cursor,length:range.destination_from-cursor});cursor=Math.max(cursor,range.destination_from+range.length)}
+ if(cursor<document.content.size)inserted_ranges.push({destination_from:cursor,length:document.content.size-cursor});
+ return {document:json,authored_document,step_maps,retained_ranges,inserted_ranges};
 }
 
 /** Same operation owner for a host-admitted portable AST. Authored envelope metadata

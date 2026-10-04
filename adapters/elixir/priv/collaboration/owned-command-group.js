@@ -47,9 +47,18 @@ function bindOwnedCommandHistory(manager, event) {
   inverse.meta.set(key, Object.freeze(ids.slice()));
   return { kind: event.type, ...group };
 }
+function prepareOwnedCommandGroup(manager, operationID) {
+  canonicalOperationID(operationID);
+  if (!manager || manager.undoing || manager.redoing) throw TypeError("Unavailable actual command owner");
+  for (const item of [...manager.undoStack, ...manager.redoStack]) if (item.meta.get(key)?.includes(operationID)) throw TypeError("Duplicate owned operation UUID");
+  const top = manager.undoStack.at(-1), ids = top?.meta.get(key);
+  if (ids) validateOwnedCommandGroup({ reference: ids[0], operation_ids: ids });
+  if (top && (!ids || ids.length === 4096)) manager.stopCapturing();
+}
 export {
   bindOwnedCommandGroup,
   bindOwnedCommandHistory,
+  prepareOwnedCommandGroup,
   readOwnedCommandGroup,
   validateOwnedCommandGroup,
   validateOwnedHistory

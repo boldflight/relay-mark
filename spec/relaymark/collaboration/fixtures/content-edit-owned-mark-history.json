@@ -479,5 +479,33 @@
       "declared_deletes": [],
       "deleted_items": []
     }
+  },
+  "transport": {
+    "receipts": [
+      {
+        "transaction_id": "11111111-1111-4111-8111-111111111111",
+        "before_snapshot_base64": "AWUDGgEkASkDAWUv"
+      },
+      {
+        "transaction_id": "22222222-2222-4222-8222-222222222222",
+        "before_snapshot_base64": "AWUDGgEkASkDAWUw"
+      },
+      {
+        "transaction_id": "33333333-3333-4333-8333-333333333333",
+        "before_snapshot_base64": "AWUDGgEkASkDAWUx"
+      },
+      {
+        "transaction_id": "44444444-4444-4444-8444-444444444444",
+        "before_snapshot_base64": "AWUDGgEkASkDAq8CBWUz"
+      }
+    ],
+    "undo": {
+      "update_base64": "AAFlAS8E",
+      "before_snapshot_base64": "AWUDGgEkASkDAq8CBWUz"
+    },
+    "redo": {
+      "update_base64": "AQNlM8RlMWUvAlhZxmUCZTEEYm9sZAJ7fcZlMGUyBGJvbGQEbnVsbAA=",
+      "before_snapshot_base64": "AWUEGgEkASkDLwQCrwIFZTM="
+    }
   }
 }
