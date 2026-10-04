@@ -21,23 +21,22 @@ if (Object.hasOwn(packageMetadata, "version")) {
   );
 }
 
-const documentedVersion = specReadme.match(/^- Spec version: `([^`]+)`$/m)?.[1];
-if (!documentedVersion) {
-  throw new Error("Unable to find the documented RelayMark spec version.");
+const contract = await readJSON("spec/relaymark/contract.json");
+const documentedVersion = Number(specReadme.match(/^- Contract version: `([^`]+)`$/m)?.[1] ??
+  specReadme.match(/^- Contract version: `([^`]+)` /m)?.[1]);
+for (const [source, value] of [["documentation", documentedVersion], ["suite", suite.contract_version], ["receipt", receipt.contract_version]]) {
+  if (value !== contract.contract_version) throw new Error(`${source} drifted from canonical contract.json.`);
 }
-
-const versions = new Map([
-  ["spec documentation", documentedVersion],
-  ["conformance suite", suite.version],
-  ["Agent Answer receipt", receipt.version]
-]);
-
-for (const [source, version] of versions) {
-  if (version !== suite.version) {
-    throw new Error(
-      `${source} declares ${version}; expected portable contract ${suite.version}.`
-    );
+const packaged = await readJSON("adapters/elixir/priv/relaymark/contract.json");
+const { canonicalContract } = await import("../src/contract.js");
+const expected = JSON.stringify(contract);
+if (JSON.stringify(packaged) !== expected || JSON.stringify(canonicalContract) !== expected) {
+  throw new Error("Canonical JS/Elixir bindings drifted from contract.json.");
+}
+const swift = await readFile(resolve(repositoryRoot, "adapters/swift/Sources/RelayMarkSwift/RelayMarkContract.swift"), "utf8");
+for (const [name, value] of [["version", contract.contract_version], ["schema", contract.schema], ["sourceContract", contract.source_contract]]) {
+  if (!swift.includes(`public static let ${name} = ${JSON.stringify(value)}`)) {
+    throw new Error(`Swift canonical contract binding ${name} drifted.`);
   }
 }
-
-console.log(`RelayMark portable contract ${suite.version} is consistent.`);
+console.log(`Canonical editor/sync contract ${contract.contract_version} is consistent.`);

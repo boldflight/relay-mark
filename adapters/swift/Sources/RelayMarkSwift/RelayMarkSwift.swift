@@ -73,11 +73,12 @@ public enum RelayMarkValue: Codable, Equatable, Sendable {
 
 public struct RelayMarkDocument: Codable, Equatable, Sendable {
     public let type: String
-    public let version: Int
     public let frontmatter: [String: RelayMarkValue]
     public let blocks: [RelayMarkBlock]
     public let annotations: [RelayMarkAnnotation]
     public let resources: [RelayMarkResource]
+
+    private enum LegacyKeys: CodingKey { case version }
 
     public static func decodeJSON(_ data: Data) throws -> RelayMarkDocument {
         try RelayMarkDecoder.decode(RelayMarkDocument.self, from: data)
@@ -85,8 +86,12 @@ public struct RelayMarkDocument: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let legacy = try decoder.container(keyedBy: LegacyKeys.self)
+        guard !legacy.contains(.version) else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                debugDescription: "Nested AST versions are obsolete; validate the canonical envelope."))
+        }
         type = try container.decode(String.self, forKey: .type)
-        version = try container.decode(Int.self, forKey: .version)
         frontmatter = try container.decodeIfPresent([String: RelayMarkValue].self, forKey: .frontmatter) ?? [:]
         blocks = try container.decode([RelayMarkBlock].self, forKey: .blocks)
         annotations = try container.decodeIfPresent([RelayMarkAnnotation].self, forKey: .annotations) ?? []

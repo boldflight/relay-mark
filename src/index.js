@@ -7,3 +7,5 @@ export { isBlockNode, isInlineNode } from "./node-kind.js";
 export { negotiateRendererCapabilities } from "./capabilities.js";
 export { composeLayerContributions } from "./composition.js";
 export { serializeRelayMark } from "./serializer.js";
+
+export { canonicalContract } from "./contract.js";

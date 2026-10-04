@@ -4,7 +4,6 @@ defmodule RelayMark.Document do
   alias RelayMark.{Annotation, Block, Resource}
 
   defstruct type: "relaymark.document",
-            version: 1,
             frontmatter: %{},
             blocks: [],
             annotations: [],
@@ -12,7 +11,6 @@ defmodule RelayMark.Document do
 
   @type t :: %__MODULE__{
           type: String.t(),
-          version: pos_integer(),
           frontmatter: map(),
           blocks: [Block.t()],
           annotations: [Annotation.t()],
@@ -23,7 +21,6 @@ defmodule RelayMark.Document do
   def from_map(map) do
     %__MODULE__{
       type: Map.fetch!(map, "type"),
-      version: Map.fetch!(map, "version"),
       frontmatter: Map.get(map, "frontmatter", %{}),
       blocks: Enum.map(Map.get(map, "blocks", []), &Block.from_map/1),
       annotations: Enum.map(Map.get(map, "annotations", []), &Annotation.from_map/1),

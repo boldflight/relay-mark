@@ -1,0 +1,5 @@
+{
+  "contract_version": 1,
+  "schema": "relaymark-prosemirror",
+  "source_contract": "relaymark_ast"
+}

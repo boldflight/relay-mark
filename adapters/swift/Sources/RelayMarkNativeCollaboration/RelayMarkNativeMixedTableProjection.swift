@@ -24,7 +24,7 @@ public enum RelayMarkNativeMixedTableProjection {
             default: throw Failure.unsupported("top-level node \(name)")
             }
         }
-        let ast: [String: Any] = ["type": "relaymark.document", "version": 1, "blocks": blocks]
+        let ast: [String: Any] = ["type": "relaymark.document", "blocks": blocks]
         return try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: ast))
     }
 

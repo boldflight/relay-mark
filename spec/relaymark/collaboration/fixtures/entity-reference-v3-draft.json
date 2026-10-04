@@ -46,7 +46,6 @@
   },
   "expected_ast": {
     "type": "relaymark.document",
-    "version": 1,
     "blocks": [
       {
         "id": "b00000000000040008000000000000061",

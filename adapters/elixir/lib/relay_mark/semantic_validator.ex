@@ -80,17 +80,15 @@ defmodule RelayMark.SemanticValidator do
     )
   end
 
-  defp validate_document_version(diagnostics, %{"version" => version})
-       when is_integer(version) and version >= 1,
-       do: diagnostics
-
-  defp validate_document_version(diagnostics, _document) do
+  defp validate_document_version(diagnostics, %{"version" => _}) do
     append_error(
       diagnostics,
-      "relaymark.document.version",
-      "Document version must be a positive integer."
+      "relaymark.document.obsolete_version",
+      "The document envelope owns compatibility; nested AST versions are obsolete."
     )
   end
+
+  defp validate_document_version(diagnostics, _), do: diagnostics
 
   defp validate_block(
          block,

@@ -15,7 +15,6 @@ export function compileParsedDocument(parsed) {
   return {
     document: {
       type: "relaymark.document",
-      version: 1,
       frontmatter: parsed.frontmatter,
       blocks,
       annotations: [],

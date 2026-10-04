@@ -236,7 +236,6 @@ defmodule RelayMarkValidatorTest do
     invalid_documents = [
       %{
         "type" => "relaymark.document",
-        "version" => 1,
         "blocks" => [],
         "unexpected" => true
       },
@@ -417,7 +416,7 @@ defmodule RelayMarkValidatorTest do
   end
 
   defp document(blocks) do
-    %{"type" => "relaymark.document", "version" => 1, "blocks" => blocks}
+    %{"type" => "relaymark.document", "blocks" => blocks}
   end
 
   defp diagnostic_codes(document) do

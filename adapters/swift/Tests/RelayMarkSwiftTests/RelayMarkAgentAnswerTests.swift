@@ -14,7 +14,7 @@ struct RelayMarkAgentAnswerTests {
         )
 
         #expect(receipt.type == "relaymark.fixture_receipt")
-        #expect(receipt.version == "0.9.0-draft")
+        #expect(receipt.contract_version == RelayMarkContract.version)
         #expect(receipt.algorithm == "sha256")
         #expect(receipt.pairs.map(\.id) == [
             "scripture-ask-answered",
@@ -141,7 +141,6 @@ struct RelayMarkAgentAnswerTests {
             fixtureData("scripture-ask-answered.ast.json")
         ) {
             $0["type"] = "relaymark.manifest"
-            $0["version"] = 0
         }
         let invalidEnvelope = try RelayMarkDocument.decodeJSON(invalidEnvelopeJSON)
         let expectedEnvelopeDiagnostics = [
@@ -149,11 +148,6 @@ struct RelayMarkAgentAnswerTests {
                 level: "error",
                 code: "relaymark.document.type",
                 message: "Document type must be relaymark.document."
-            ),
-            RelayMarkDiagnostic(
-                level: "error",
-                code: "relaymark.document.version",
-                message: "Document version must be a positive integer."
             )
         ]
 
@@ -908,7 +902,7 @@ struct RelayMarkAgentAnswerTests {
 
 private struct FixtureReceipt: Decodable {
     let type: String
-    let version: String
+    let contract_version: Int
     let algorithm: String
     let pairs: [FixturePair]
 }

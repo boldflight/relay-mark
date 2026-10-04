@@ -5,14 +5,10 @@
   "description": "Canonical RelayMark AST document.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["type", "version", "blocks"],
+  "required": ["type", "blocks"],
   "properties": {
     "type": {
       "const": "relaymark.document"
-    },
-    "version": {
-      "type": "integer",
-      "minimum": 1
     },
     "frontmatter": {
       "type": "object",

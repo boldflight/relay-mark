@@ -218,7 +218,6 @@ describe("RelayMark reference runtime", () => {
     const hostEvidenceID = "70000000-0000-4000-8000-000000000099";
     const document = {
       type: "relaymark.document",
-      version: 1,
       blocks: [
         {
           id: "b1",
@@ -281,7 +280,6 @@ describe("RelayMark reference runtime", () => {
     });
     const document = {
       type: "relaymark.document",
-      version: 1,
       blocks: [evidence("b1", "note:one"), evidence("b2", "note:two"), action("b3"), action("b4")]
     };
 
@@ -330,7 +328,6 @@ describe("RelayMark reference runtime", () => {
 
     const invalidEvidenceDocument = {
       type: "relaymark.document",
-      version: 1,
       blocks: [
         { id: "b1", type: "relay.source_bundle", props: { id: "" }, content: [] },
         { id: "b2", type: "relay.evidence_ref", props: { id: "", source: "" }, content: [] }
@@ -642,7 +639,7 @@ describe("RelayMark reference runtime", () => {
     const receipt = JSON.parse(readFileSync(receiptPath, "utf8"));
 
     assert.equal(receipt.type, "relaymark.fixture_receipt");
-    assert.equal(receipt.version, "0.9.0-draft");
+    assert.equal(receipt.contract_version, 1);
     assert.equal(receipt.algorithm, "sha256");
 
     for (const pair of receipt.pairs) {
@@ -810,7 +807,6 @@ describe("RelayMark reference runtime", () => {
 
     const diagnostics = validateDocument({
       type: "relaymark.document",
-      version: 1,
       blocks: [
         {
           id: "b1",
@@ -828,7 +824,6 @@ describe("RelayMark reference runtime", () => {
 
     const malformedDiagnostics = validateDocument({
       type: "relaymark.document",
-      version: 1,
       blocks: [
         {
           id: "b1",
@@ -863,7 +858,6 @@ describe("RelayMark reference runtime", () => {
 
     const normalizedClaim = {
       type: "relaymark.document",
-      version: 1,
       blocks: [
         {
           id: "source-1",
@@ -1080,7 +1074,7 @@ describe("RelayMark reference runtime", () => {
     const documentSchema = JSON.parse(readFileSync(documentSchemaPath, "utf8"));
     const manifestSchemaPath = resolve("spec/relaymark/schemas/relaymark-manifest.schema.json");
     const manifestSchema = JSON.parse(readFileSync(manifestSchemaPath, "utf8"));
-    const documentFor = (block) => ({ type: "relaymark.document", version: 1, blocks: [block] });
+    const documentFor = (block) => ({ type: "relaymark.document", blocks: [block] });
     const manifestFor = (source) => ({ type: "relaymark.manifest", version: 1, sources: [source] });
 
     assert.deepEqual(

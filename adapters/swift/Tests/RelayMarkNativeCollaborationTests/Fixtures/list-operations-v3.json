@@ -320,7 +320,6 @@
     "update": "AQjQywUdh9DLBQsDCGxpc3RJdGVtBwDQywUdAwlwYXJhZ3JhcGgHANDLBR4GBgDQywUfBGJvbGQCe32E0MsFIAhvbmQg8J+MjYbQywUmBGJvbGQEbnVsbCgA0MsFHgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NigA0MsFHQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NQHQywUBEgY=",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b00000000000040008000000000000001",
@@ -869,7 +868,6 @@
     "update": "AQjRywUrh9HLBQsDCGxpc3RJdGVtBwDRywUrAwlwYXJhZ3JhcGgHANHLBSwGBgDRywUtBGJvbGQCe32E0csFLgh0ZWQg8J+MjYbRywU0BGJvbGQEbnVsbCgA0csFLAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NigA0csFKwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NQHRywUBEgY=",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b0000000000004000800000000000000b",
@@ -1206,7 +1204,6 @@
     "update": "AQLSywURh9LLBQADCXBhcmFncmFwaCgA0ssFEQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNQHSywUBCwQ=",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b00000000000040008000000000000001",
@@ -1441,7 +1438,6 @@
     "update": "AQLTywUQh9PLBQADCXBhcmFncmFwaCgA08sFEAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNQHTywUBCwQ=",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b00000000000040008000000000000001",
@@ -1804,7 +1800,6 @@
     "update": "AQTUywUfx9TLBQHUywUSAwhsaXN0SXRlbQcA1MsFHwMJcGFyYWdyYXBoKADUywUgC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEwKADUywUfC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDY1AdTLBQEKBw==",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b0000000000004000800000000000000b",
@@ -2186,7 +2181,6 @@
     "update": "AQTVywUex9XLBQHVywURAwhsaXN0SXRlbQcA1csFHgMJcGFyYWdyYXBoKADVywUfC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEwKADVywUeC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDY1AdXLBQEKBg==",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b0000000000004000800000000000000b",

@@ -24,7 +24,6 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         let snapshot = try native.snapshot()
         let ast = try RelayMarkNativeMixedTableProjection.project(snapshot: snapshot)
         XCTAssertEqual(ast.type, "relaymark.document")
-        XCTAssertEqual(ast.version, 1)
         XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "table", "paragraph", "paragraph"])
         XCTAssertEqual(ast.blocks[0].plainText, "Before 🌍 <table>")
         XCTAssertEqual(ast.blocks[2].plainText, "")

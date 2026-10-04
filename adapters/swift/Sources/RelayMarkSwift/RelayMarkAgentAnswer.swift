@@ -446,15 +446,6 @@ public enum RelayMarkAgentAnswerValidator {
             )
         }
 
-        if document.version < 1 {
-            diagnostics.append(
-                diagnostic(
-                    "relaymark.document.version",
-                    "Document version must be a positive integer."
-                )
-            )
-        }
-
         diagnostics.append(contentsOf: scriptureResourceDiagnostics(for: document))
 
         let scriptureResources = scriptureResourcesByID(in: document)
@@ -506,7 +497,6 @@ public enum RelayMarkAgentAnswerValidator {
     ) -> [RelayMarkDiagnostic] {
         guard
             document.type == "relaymark.document",
-            document.version >= 1,
             document.blocks.allSatisfy(blockHasPortableSchemaShape),
             document.annotations.allSatisfy(annotationHasPortableSchemaShape),
             document.resources.allSatisfy(resourceHasPortableSchemaShape)
@@ -532,7 +522,6 @@ public enum RelayMarkAgentAnswerValidator {
                 document,
                 allowed: [
                     "type",
-                    "version",
                     "frontmatter",
                     "blocks",
                     "annotations",
@@ -541,7 +530,6 @@ public enum RelayMarkAgentAnswerValidator {
                 ]
             ),
             document["type"]?.stringValue == "relaymark.document",
-            integerValue(document["version"]).map({ $0 >= 1 }) == true,
             document["frontmatter"].map({ $0.objectValue != nil }) != false,
             document["meta"].map({ $0.objectValue != nil }) != false,
             let blocks = document["blocks"]?.arrayValue,

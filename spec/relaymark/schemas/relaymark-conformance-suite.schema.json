@@ -4,13 +4,14 @@
   "title": "RelayMark Conformance Suite",
   "type": "object",
   "additionalProperties": false,
-  "required": ["type", "version", "fixtures"],
+  "required": ["type", "contract_version", "fixtures"],
   "properties": {
     "type": {
       "const": "relaymark.conformance_suite"
     },
-    "version": {
-      "type": "string"
+    "contract_version": {
+      "type": "integer",
+      "minimum": 1
     },
     "features": {
       "type": "array",

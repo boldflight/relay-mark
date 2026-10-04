@@ -31,7 +31,7 @@ export function proseMirrorV3ToRelayMark(prosemirror) {
   assertContentDepth(prosemirror);
   const seen = new Set();
   const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen, 0));
-  return { type: "relaymark.document", version: 1, blocks };
+  return { type: "relaymark.document", blocks };
 }
 
 export function relayMarkTableToProseMirror(document) {
@@ -44,9 +44,9 @@ export function relayMarkTableToProseMirror(document) {
 
 export function relayMarkV3ToProseMirror(document) {
   assertObject(document, "document");
-  onlyKeys(document, ["type", "version", "blocks"], "document");
-  if (document.type !== "relaymark.document" || document.version !== 1) {
-    throw new TypeError("Expected a RelayMark v1 AST document");
+  onlyKeys(document, ["type", "blocks"], "document");
+  if (document.type !== "relaymark.document") {
+    throw new TypeError("Expected a canonical RelayMark AST document");
   }
   assertContentDepth({ content: document.blocks });
   const seen = new Set();

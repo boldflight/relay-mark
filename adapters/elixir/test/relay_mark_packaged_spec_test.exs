@@ -4,6 +4,7 @@ defmodule RelayMark.PackagedSpecTest do
   @canonical_root Path.expand("../../../spec/relaymark", __DIR__)
   @packaged_root Path.expand("../priv/relaymark", __DIR__)
   @schema_files ~w(
+    contract.json
     schemas/relaymark-diagnostic.schema.json
     schemas/relaymark-document.schema.json
     schemas/relaymark-layer-composition.schema.json

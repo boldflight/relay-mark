@@ -25,7 +25,7 @@ public enum RelayMarkNativeMarkdownBlocksV3Projection {
         let nodes = try children(root, minimum: 1, maximum: 4_096)
         var ids = Set<String>()
         let blocks = try nodes.map { try block($0, depth: 0, ids: &ids) }
-        let ast: [String: Any] = ["type": "relaymark.document", "version": 1, "blocks": blocks]
+        let ast: [String: Any] = ["type": "relaymark.document", "blocks": blocks]
         return try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: ast))
     }
 

@@ -31,7 +31,7 @@ struct RelayMarkSwiftTests {
     @Test
     func decodesInlineEntityReferenceWithIDAsInlineContent() throws {
         let data = Data(
-            #"{"type":"relaymark.document","version":1,"blocks":[{"id":"b1","type":"paragraph","content":[{"type":"relay.entity_ref","id":"product-1","label":"Mac mini"}]}]}"#.utf8
+            #"{"type":"relaymark.document","blocks":[{"id":"b1","type":"paragraph","content":[{"type":"relay.entity_ref","id":"product-1","label":"Mac mini"}]}]}"#.utf8
         )
 
         let document = try RelayMarkDocument.decodeJSON(data)
@@ -51,7 +51,6 @@ struct RelayMarkSwiftTests {
         let document = try RelayMarkDocument.decodeJSON(fixtureData("mentor-meeting.ast.json"))
 
         #expect(document.type == "relaymark.document")
-        #expect(document.version == 1)
         #expect(document.frontmatter["title"]?.stringValue == "Marcus interview prep")
         #expect(document.blocks.count == 5)
 

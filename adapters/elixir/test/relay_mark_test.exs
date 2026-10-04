@@ -54,7 +54,7 @@ defmodule RelayMarkTest do
 
   test "decodes an inline entity reference with an id as inline content" do
     json =
-      ~S({"type":"relaymark.document","version":1,"blocks":[{"id":"b1","type":"paragraph","content":[{"type":"relay.entity_ref","id":"product-1","label":"Mac mini"}]}]})
+      ~S({"type":"relaymark.document","blocks":[{"id":"b1","type":"paragraph","content":[{"type":"relay.entity_ref","id":"product-1","label":"Mac mini"}]}]})
 
     assert {:ok, document} = RelayMark.decode_document(json)
     assert [%RelayMark.Block{content: [%RelayMark.Inline{} = reference]}] = document.blocks
@@ -70,7 +70,6 @@ defmodule RelayMarkTest do
              |> RelayMark.decode_document()
 
     assert document.type == "relaymark.document"
-    assert document.version == 1
     assert document.frontmatter["title"] == "Marcus interview prep"
     assert length(document.blocks) == 5
 

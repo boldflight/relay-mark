@@ -89,7 +89,6 @@
     "update": "AQT8ygUSh/zKBQEDCGxpc3RJdGVtBwD8ygUSAwlwYXJhZ3JhcGgoAPzKBRMLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjYoAPzKBRILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjUA",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b00000000000040008000000000000001",
@@ -317,7 +316,6 @@
     "update": "AQT9ygUph/3KBQsDCGxpc3RJdGVtBwD9ygUpAwlwYXJhZ3JhcGgoAP3KBSoLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjYoAP3KBSkLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwNjUA",
     "expected_ast": {
       "type": "relaymark.document",
-      "version": 1,
       "blocks": [
         {
           "id": "b0000000000004000800000000000000b",

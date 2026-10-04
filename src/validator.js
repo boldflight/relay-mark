@@ -11,8 +11,8 @@ export function validateDocument(document, validationContext = {}) {
     diagnostics.push(error("relaymark.document.type", "Document type must be relaymark.document."));
   }
 
-  if (!Number.isInteger(document.version) || document.version < 1) {
-    diagnostics.push(error("relaymark.document.version", "Document version must be a positive integer."));
+  if (Object.hasOwn(document, "version")) {
+    diagnostics.push(error("relaymark.document.obsolete_version", "The document envelope owns compatibility; nested AST versions are obsolete."));
   }
 
   const seenIds = new Set();

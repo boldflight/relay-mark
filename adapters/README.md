@@ -29,6 +29,6 @@ They must not:
 Client repositories should adapt these generic packages into product behavior.
 
 Adapters version and publish independently for their package ecosystem. Their
-shared compatibility identity is the portable version in
-`spec/relaymark/conformance/suite.json`, not equality between a Git/Swift tag
-and a Hex package version.
+shared compatibility identity is `contract_version` in
+`spec/relaymark/contract.json`; conformance envelopes use that same value.
+Git/Swift tags and Hex package releases do not select document behavior.
