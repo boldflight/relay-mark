@@ -180,6 +180,9 @@ defmodule RelayMark.DocumentRenderer do
         _ ->
           attrs =
             case name do
+              "calloutTitle" ->
+                [{"data-callout-title", true}]
+
               "orderedList" ->
                 [{"start", a["start"]}]
 

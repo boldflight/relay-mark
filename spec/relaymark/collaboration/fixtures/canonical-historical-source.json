@@ -1,0 +1,126 @@
+{
+  "namespace": "historical-tasks",
+  "source": "Contact [[Person:11111111-1111-4111-8111-111111111111|Alex Morgan — Sample]].\n\n[ ] **Review** [[Task:22222222-2222-4222-8222-222222222222]]\n- [x] [[Task:33333333-3333-4333-8333-333333333333]]\n- [ ] Local <!--relay-task-draft:44444444-4444-4444-8444-444444444444-->\n\n`[[Task:44444444-4444-4444-8444-444444444444]]`\n\n```text\n[[Task:44444444-4444-4444-8444-444444444444]]\n```",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "bfa5490ffae284e59833c8519e17cf52b",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Contact "
+          },
+          {
+            "type": "relay.entity_ref",
+            "id": "11111111-1111-4111-8111-111111111111",
+            "label": "Alex Morgan — Sample",
+            "props": {
+              "entityType": "Person",
+              "source": "[[Person: 11111111-1111-4111-8111-111111111111 | Alex Morgan — Sample]]"
+            }
+          },
+          {
+            "type": "text",
+            "text": "."
+          }
+        ]
+      },
+      {
+        "id": "b297977018ccc4d7e8f5a9a85465ce8f5",
+        "type": "task_list",
+        "content": [
+          {
+            "id": "b361d08d5d653410c8b05c21ee4881c88",
+            "type": "task_item",
+            "content": [
+              {
+                "id": "b35a934786b6343018f6b354dd120aa9f",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "strong",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Review"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "props": {
+              "checked": false,
+              "entityId": "22222222-2222-4222-8222-222222222222"
+            }
+          },
+          {
+            "id": "b1bba400e443e4be488515c9e0e6ae198",
+            "type": "task_item",
+            "content": [
+              {
+                "id": "b3e8e587e1aec4f858101dc7d24e1056a",
+                "type": "paragraph",
+                "content": []
+              }
+            ],
+            "props": {
+              "checked": true,
+              "entityId": "33333333-3333-4333-8333-333333333333"
+            }
+          },
+          {
+            "id": "b5de4ce158c3844d28787edb2faabac61",
+            "type": "task_item",
+            "content": [
+              {
+                "id": "b9d3c986b5da84518861e5f2e10ea7e37",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Local"
+                  }
+                ]
+              }
+            ],
+            "props": {
+              "checked": false,
+              "entityId": null
+            }
+          }
+        ]
+      },
+      {
+        "id": "b39340340e12a42848ce013710074ec67",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "code_span",
+            "content": [
+              {
+                "type": "text",
+                "text": "[[Task:44444444-4444-4444-8444-444444444444]]"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b86f1b1e98f4c444286f92d48d7b8f9ec",
+        "type": "code",
+        "content": [
+          {
+            "type": "text",
+            "text": "[[Task:44444444-4444-4444-8444-444444444444]]\n"
+          }
+        ],
+        "props": {
+          "language": "text"
+        }
+      }
+    ]
+  }
+}

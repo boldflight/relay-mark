@@ -11,6 +11,7 @@ test('canonical source imports CommonMark and directives; exact interchange reta
  assert.deepEqual(parseDocument(serializeDocument(ast)),ast);
  assert.match(projectDocumentMarkdown(ast),/\| Name \| Value \|/);
  assert.match(renderDocument(ast),/<strong>A<\/strong>/);
+ assert.match(renderDocument(ast),/<div data-callout-title="true">Read<\/div>/);
 });
 
 import {readFileSync} from 'node:fs';
@@ -93,4 +94,34 @@ test('onboarding static media paths remain authored images through canonical imp
   assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
   assert.match(renderDocument(ast),new RegExp('src="'+src.replaceAll('.','\\.')+'"'));
  }
+});
+
+test('finite historical compact references and linked checkboxes keep identities without creation markers',()=>{
+ const source='Contact [[Person:11111111-1111-4111-8111-111111111111|Alex Morgan — Sample]].\n\n[ ] **Review** [[Task:22222222-2222-4222-8222-222222222222]]\n- [x] [[Task:33333333-3333-4333-8333-333333333333]]\n- [ ] Local <!--relay-task-draft:44444444-4444-4444-8444-444444444444-->\n\n`[[Task:44444444-4444-4444-8444-444444444444]]`\n\n```text\n[[Task:44444444-4444-4444-8444-444444444444]]\n```';
+ const ast=parseDocument(source,{namespace:'historical-tasks'});
+ const fixture=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-historical-source.json',import.meta.url)));assert.equal(source,fixture.source);assert.deepEqual(ast,fixture.expected_ast);
+ assert.deepEqual(ast.blocks[0].content[1],{type:'relay.entity_ref',id:'11111111-1111-4111-8111-111111111111',label:'Alex Morgan — Sample',props:{entityType:'Person',source:'[[Person: 11111111-1111-4111-8111-111111111111 | Alex Morgan — Sample]]'}});
+ const tasks=ast.blocks[1].content;
+ assert.deepEqual(tasks.map(n=>n.props),[{checked:false,entityId:'22222222-2222-4222-8222-222222222222'},{checked:true,entityId:'33333333-3333-4333-8333-333333333333'},{checked:false,entityId:null}]);
+ assert.deepEqual(tasks[0].content[0].content,[{type:'strong',content:[{type:'text',text:'Review'}]}]);
+ assert.deepEqual(tasks[1].content[0].content,[]);
+ assert.deepEqual(tasks[2].content[0].content,[{type:'text',text:'Local'}]);
+ assert.equal(ast.blocks[2].content[0].content[0].text,'[[Task:44444444-4444-4444-8444-444444444444]]');
+ assert.equal(ast.blocks[3].content[0].text,'[[Task:44444444-4444-4444-8444-444444444444]]\n');
+ assert.doesNotMatch(serializeDocument(ast),/draftId|relay-task-draft/);
+});
+
+ test('historical raw HTML and invalid wiki tokens remain literal escaped authored text',()=>{
+ const source='Before <script>alert(1)</script> [[Person:bad|Title]] after.\n\n<div onclick="evil()">Raw [[Task:bad]]</div>\n';
+ const ast=parseDocument(source,{namespace:'literal-html'});
+ assert.equal(ast.blocks[0].content.map(n=>n.text).join(''),'Before <script>alert(1)</script> [[Person:bad|Title]] after.');
+ assert.equal(ast.blocks[1].content[0].text,'<div onclick="evil()">Raw [[Task:bad]]</div>\n');
+ const html=renderDocument(ast);assert.doesNotMatch(html,/<script|<div onclick/);assert.match(html,/&lt;script&gt;alert/);
+ assert.deepEqual(parseDocument(serializeDocument(ast)),ast);
+});
+
+test('callout HTML-looking title remains literal rich title with shared reader marker',()=>{
+ const ast=parseDocument('@Callout(title: "<img src=x onerror=alert(1)>", tone: "warning", emphasis: "strong") {\nBody **words**\n}',{namespace:'callout-literal-title'});
+ assert.equal(ast.blocks[0].content[0].content[0].text,'<img src=x onerror=alert(1)>');
+ assert.match(renderDocument(ast),/<div data-callout-title="true">&lt;img src=x onerror=alert\(1\)&gt;<\/div>/);
 });

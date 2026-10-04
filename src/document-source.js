@@ -4,7 +4,7 @@ import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex} from '@noble/hashes/utils.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.js';
 import {mapInline} from './document-inline.js';
-import {parseAtomSource} from './document-atoms.js';
+import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
 export {safeImageSource} from './document-links.js';
 import {parseAttributes} from './attributes.js';
@@ -13,7 +13,31 @@ import {directiveForName,directiveForType} from './registry.js';
 import {isBlockNode} from './node-kind.js';
 import {parsePaperControlSource} from './document-controls.js';
 import {parseEntityReferenceSource} from './document-reference.js';
-const md=new MarkdownIt({html:false,linkify:false,typographer:false});
+const md=new MarkdownIt({html:true,linkify:false,typographer:false});
+// Maintained CommonMark's inline rule owns code/escape/mark boundaries. This rule
+// interprets finite historic wiki source once and emits only canonical atom nodes.
+md.inline.ruler.before('link','relaymark_reference',(state,silent)=>{
+ if(state.src.slice(state.pos,state.pos+2)!=='[[')return false;
+ const end=state.src.indexOf(']]',state.pos+2);if(end<0)return false;
+ const atom=importAtomSource(state.src.slice(state.pos,end+2));
+ if(!atom){if(!silent){const token=state.push('text','',0);token.content=state.src.slice(state.pos,end+2);}state.pos=end+2;return true;}
+ if(!silent){const token=state.push('relay_atom','',0);token.meta=atom;}
+ state.pos=end+2;return true;
+});
+function importAtomSource(source){
+ const canonical=parseAtomSource(source);if(canonical)return canonical;
+ const match=source.match(/^\[\[([A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*):\s*([^| ]+)\s*(?:\|([\s\S]*))?\]\]$/u);if(!match)return null;
+ const[type,id]=match.slice(1),label=match[3]===undefined?type:match[3].replace(/^ /u,'');
+ try{const normalized=type==='Tag'?`[[Tag: ${id} | ${label}]]`:buildEntityReferenceSource({entityType:type,entityId:id,label});return parseAtomSource(normalized);}catch{return null;}
+}
+function bareLinkedTaskLine(line){return /^ {0,3}\[[ xX]\]\s+.*\[\[Task:/u.test(line)?line.replace(/^( {0,3})/u,'$1- '):line;}
+function linkedTask(item){
+ const paragraph=item.content[0],parts=paragraph?.type==='paragraph'?paragraph.content:null,last=parts?.at(-1);
+ if(last?.type!=='relay.entity_ref'||last.props.entityType!=='Task')return;
+ item.props.entityId=last.id;parts.pop();
+ const previous=parts.at(-1);if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)parts.pop();}
+}
+
 const marksOrder=['link','bold','code','italic','strike','underline','highlight','superscript','subscript'];
 function valid(ast){relayMarkToProseMirror(ast);return ast;}
 function id(namespace,path){const hash=bytesToHex(sha256(utf8Bytes(namespace+'\0'+path.join('.'))));return 'b'+hash.slice(0,12)+'4'+hash.slice(13,16)+'8'+hash.slice(17,32);}
@@ -82,7 +106,7 @@ function sourceBlocks(source,ns,prefix){
   if(/^<!--\s*\/relay:question\s*-->$/.test(t))throw new TypeError('Unexpected historical question closing');
   if(header){flush();directive={name:header[1],attrs:parseAttributes(header[2]||''),header:t,body:[],depth:1};continue;}
   const control=parsePaperControlSource(t);if(control){flush();segments.push({kind:'control',control});continue;}
-  if(t==='}')throw new TypeError('Unexpected directive closing');plain.push(line);
+  if(t==='}')throw new TypeError('Unexpected directive closing');plain.push(bareLinkedTaskLine(line));
  }
  if(directive)throw new TypeError('Missing directive closing');flush();
  return segments.flatMap((s,index)=>{const path=[...prefix,index];if(s.kind==='markdown')return markdownBlocks(md.parse(s.source,{}),ns,path);if(s.kind==='historical_question')return [historicalQuestion(s.header,s.source,ns,path)];if(s.kind==='control')return [block(ns,path,'relay.paper_control',[],{control:s.control.control,...s.control.attrs,source:s.control.source})];
@@ -116,10 +140,11 @@ function markdownBlocks(tokens,ns,prefix){let at=0;
    case 'heading_open':{const i=tokens[at++];at++;n=block(ns,p,'heading',inline(i.children||[]),{level:Number(t.tag.slice(1)),headingId:null});break;}
    case 'blockquote_open':n=block(ns,p,'quote',sequence('blockquote_close',p));break;
    case 'bullet_list_open':case 'ordered_list_open':{const children=sequence(t.type.replace('_open','_close'),p);let task=false;for(const item of children){const first=item.content[0]?.content[0];const m=first?.type==='text'?first.text.match(/^\[([ xX])\]\s+/):null;if(m){task=true;item.type='task_item';item.props={checked:m[1].toLowerCase()==='x',entityId:null};first.text=first.text.slice(m[0].length);if(!first.text)item.content[0].content.shift();}}
-    if(task)for(const item of children){item.type='task_item';item.props??={checked:false,entityId:null};}
+    if(task)for(const item of children){item.type='task_item';item.props??={checked:false,entityId:null};linkedTask(item);}
     n=block(ns,p,task?'task_list':'list',children,task?undefined:{kind:t.type==='ordered_list_open'?'ordered':'bullet',...(t.type==='ordered_list_open'?{start:Number(t.attrGet('start')||1)}:{})});break;}
    case 'list_item_open':n=block(ns,p,'list_item',sequence('list_item_close',p));break;
    case 'fence':case 'code_block':if(t.info.startsWith('relaymark-ast'))throw new TypeError('Mixed exact source');n=block(ns,p,'code',t.content?[{type:'text',text:t.content}]:[],{language:t.info||null});break;
+   case 'html_block':n=block(ns,p,'paragraph',[{type:'text',text:t.content}]);break;
    case 'hr':n=block(ns,p,'horizontal_rule');break;
    case 'table_open':{const rows=[];let header=false;while(at<tokens.length&&tokens[at].type!=='table_close'){const rowToken=tokens[at++];if(rowToken.type==='thead_open'){header=true;continue;}if(['thead_close','tbody_open','tbody_close'].includes(rowToken.type)){if(rowToken.type==='thead_close')header=false;continue;}if(rowToken.type!=='tr_open')throw new TypeError('Table row');const rp=[...p,rows.length],cells=[];while(tokens[at].type!=='tr_close'){const cell=tokens[at++],cp=[...rp,cells.length],run=tokens[at++];at++;const align=cell.attrGet('style')?.match(/text-align:(left|center|right)/)?.[1]||null;cells.push(block(ns,cp,'table_cell',[block(ns,[...cp,0],'paragraph',inline(run.children||[]))],{header,colspan:1,rowspan:1,colwidth:null,align}));}at++;rows.push(block(ns,rp,'table_row',cells));}at++;n=block(ns,p,'table',rows);break;}
    default:throw new TypeError('Unsupported CommonMark block '+t.type);
@@ -128,10 +153,13 @@ function markdownBlocks(tokens,ns,prefix){let at=0;
  }if(end){if(tokens[at]?.type!==end)throw new TypeError('CommonMark nesting');at++;}return nodes;};return sequence(null,prefix);
 }
 function inline(tokens){const output=[],marks=[];for(const t of tokens){if(t.nesting){const types={strong:'bold',em:'italic',s:'strike',link:'link'};const key=t.type.replace(/_(open|close)$/,'');const mark=types[key];if(!mark)throw new TypeError('Unsupported inline '+t.type);if(t.nesting===1)marks.push(mark==='link'?{type:'link',attrs:{href:t.attrGet('href'),target:'_blank',rel:'noopener noreferrer nofollow',class:null,title:null}}:{type:mark});else marks.pop();continue;}
+ if(t.type==='html_inline'&&/^<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->$/u.test(t.content)){const previous=output.at(-1);if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)output.pop();}continue;}
+ if(t.type==='relay_atom'){if(marks.length)throw new TypeError('Marked reference');output.push(t.meta);continue;}
  if(t.type==='hardbreak'){if(marks.length)throw new TypeError('Marked hard break');output.push({type:'hard_break'});continue;}
  if(t.type==='code_inline'){output.push(mapInline({type:'text',text:t.content,marks:[{type:'code'}]}));continue;}
- if(!['text','softbreak'].includes(t.type))throw new TypeError('Unsupported CommonMark inline '+t.type);
- const text=t.type==='softbreak'?'\n':t.content;for(const piece of text.split(/(\[\[[^\]\r\n]+\]\])/).filter(Boolean)){if(piece.startsWith('[[')){const atom=parseAtomSource(piece);if(!atom||marks.length)throw new TypeError('Invalid or marked reference');output.push(atom);}else output.push(mapInline({type:'text',text:piece,...(marks.length?{marks:marks.toSorted((a,b)=>marksOrder.indexOf(a.type)-marksOrder.indexOf(b.type))}:{})}));}
+ if(!['text','softbreak','html_inline'].includes(t.type))throw new TypeError('Unsupported CommonMark inline '+t.type);
+ const text=(t.type==='softbreak'?'\n':t.content).replace(/ ?<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->/gu,'');
+ if(text)output.push(mapInline({type:'text',text,...(marks.length?{marks:marks.toSorted((a,b)=>marksOrder.indexOf(a.type)-marksOrder.indexOf(b.type))}:{})}));
  }return output;}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const attrs=a=>Object.entries(a).filter(([,v])=>v!=null).map(([k,v])=>' '+k+'="'+esc(v)+'"').join('');
@@ -148,7 +176,7 @@ export function renderDocument(ast){const pm=relayMarkToProseMirror(ast);const r
  if(n.type==='videoEmbed')return tag('div',{'data-relay-video':a.videoId,...hydration},'');if(n.type==='agentSuggestion')return tag('aside',{'data-relay-suggestion':a.review,'data-kind':a.kind},esc(a.content));
  if(n.type==='relayDataView'){const{relaymarkId,...authored}=a;return tag('div',{'data-relay-data-view':a.source,'data-authored':JSON.stringify(authored)},esc(a.title||a.source));}
  if(n.type==='relayButton')return tag('button',{type:'button',disabled:true,'data-relay-kind':a.kind,'data-relay-target':a.target,...hydration},esc(a.label));if(n.type==='relayAnchor')return tag('span',{'data-relay-anchor':a.name,...hydration},'');if(n.type==='relayConnection')return tag('div',{'data-relay-connection':a.provider,...hydration},esc(a.provider));
- const extra=n.type==='orderedList'?{start:a.start}:n.type==='taskList'?{'data-relay-task-list':true}:n.type==='taskItem'?{'data-checked':a.checked,'data-relay-task-item':a.entityId,...hydration}:['tableCell','tableHeader'].includes(n.type)?{colspan:a.colspan,rowspan:a.rowspan,'data-align':a.align}:{};
+ const extra=n.type==='calloutTitle'?{'data-callout-title':true}:n.type==='orderedList'?{start:a.start}:n.type==='taskList'?{'data-relay-task-list':true}:n.type==='taskItem'?{'data-checked':a.checked,'data-relay-task-item':a.entityId,...hydration}:['tableCell','tableHeader'].includes(n.type)?{colspan:a.colspan,rowspan:a.rowspan,'data-align':a.align}:{};
  if(!names[n.type])throw new TypeError('Unsupported authored renderer');return tag(names[n.type],extra,body);};return pm.content.map(render).join('');}
 export function projectDocumentMarkdown(ast){valid(ast);return ast.blocks.map(markdown).join('\n\n')+'\n';}
 function inlineMarkdown(nodes){return nodes.map(n=>{if(n.type==='text')return n.text.replace(/([\\`*_[\]])/g,'\\$1');if(n.type==='hard_break')return '  \n';if(['relay.entity_ref','relay.tag_ref'].includes(n.type))return n.props.source;if(n.type==='link')return '['+inlineMarkdown(n.content)+']('+n.href+')';if(n.type==='code_span'){const text=n.content[0].text,f='`'.repeat(longestTicks(text)+1);return f+text+f;}const delimiter={strong:'**',emphasis:'*',strikethrough:'~~',underline:'<u>',highlight:'<mark>',superscript:'<sup>',subscript:'<sub>'}[n.type];if(!delimiter)throw new TypeError('Unsupported inline projection');return delimiter+inlineMarkdown(n.content)+(delimiter.startsWith('<')?delimiter.replace('<','</'):delimiter);}).join('');}

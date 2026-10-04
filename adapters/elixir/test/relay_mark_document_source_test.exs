@@ -134,4 +134,81 @@ defmodule RelayMark.DocumentSourceTest do
       assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(snapshot)
     end
   end
+
+  test "historical onboarding compact refs and linked tasks retain identities and code literals" do
+    source =
+      "Contact [[Person:11111111-1111-4111-8111-111111111111|Alex Morgan — Sample]].\n\n[ ] **Review** [[Task:22222222-2222-4222-8222-222222222222]]\n- [x] [[Task:33333333-3333-4333-8333-333333333333]]\n- [ ] Local <!--relay-task-draft:44444444-4444-4444-8444-444444444444-->\n\n`[[Task:44444444-4444-4444-8444-444444444444]]`\n\n```text\n[[Task:44444444-4444-4444-8444-444444444444]]\n```"
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "historical-tasks")
+
+    fixture =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/canonical-historical-source.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert source == fixture["source"]
+    assert ast == fixture["expected_ast"]
+    [paragraph, task_list, code_paragraph, code] = ast["blocks"]
+
+    assert Enum.at(paragraph["content"], 1)["props"]["source"] ==
+             "[[Person: 11111111-1111-4111-8111-111111111111 | Alex Morgan — Sample]]"
+
+    assert Enum.map(task_list["content"], & &1["props"]) == [
+             %{"checked" => false, "entityId" => "22222222-2222-4222-8222-222222222222"},
+             %{"checked" => true, "entityId" => "33333333-3333-4333-8333-333333333333"},
+             %{"checked" => false, "entityId" => nil}
+           ]
+
+    assert hd(hd(task_list["content"])["content"])["content"] == [
+             %{"type" => "strong", "content" => [%{"type" => "text", "text" => "Review"}]}
+           ]
+
+    assert hd(Enum.at(task_list["content"], 1)["content"])["content"] == []
+
+    assert hd(Enum.at(task_list["content"], 2)["content"])["content"] == [
+             %{"type" => "text", "text" => "Local"}
+           ]
+
+    assert hd(hd(code_paragraph["content"])["content"])["text"] ==
+             "[[Task:44444444-4444-4444-8444-444444444444]]"
+
+    assert hd(code["content"])["text"] == "[[Task:44444444-4444-4444-8444-444444444444]]\n"
+    assert {:ok, exact} = RelayMark.serialize_document(ast)
+    refute exact =~ "relay-task-draft"
+    refute exact =~ "draftId"
+  end
+
+  test "historical raw HTML and malformed wiki source retain literal text without executable output" do
+    source =
+      "Before <script>alert(1)</script> [[Person:bad|Title]] after.\n\n<div onclick=\"evil()\">Raw [[Task:bad]]</div>\n"
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "literal-html")
+
+    assert Enum.map_join(hd(ast["blocks"])["content"], & &1["text"]) ==
+             "Before <script>alert(1)</script> [[Person:bad|Title]] after."
+
+    assert hd(Enum.at(ast["blocks"], 1)["content"])["text"] ==
+             "<div onclick=\"evil()\">Raw [[Task:bad]]</div>\n"
+
+    assert {:ok, html} = RelayMark.render_document(ast)
+    refute html =~ "<script"
+    refute html =~ "<div onclick"
+    assert html =~ "&lt;script&gt;alert"
+  end
+
+  test "callout HTML-looking title retains exact literal value instead of an empty title" do
+    source =
+      ~s|@Callout(title: "<img src=x onerror=alert(1)>", tone: "warning", emphasis: "strong") {\nBody **words**\n}|
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "callout-literal-title")
+
+    assert hd(hd(hd(ast["blocks"])["content"])["content"])["text"] ==
+             "<img src=x onerror=alert(1)>"
+
+    assert {:ok, html} = RelayMark.render_document(ast)
+    assert html =~ ~s|<div data-callout-title="true">&lt;img src=x onerror=alert(1)&gt;</div>|
+  end
 end

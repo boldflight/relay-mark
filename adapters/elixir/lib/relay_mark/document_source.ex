@@ -5,7 +5,14 @@ defmodule RelayMark.DocumentSource do
   interchange syntax. Readable Markdown is a derived projection, never a second
   writable body. A retry uses the same import namespace or retained parsed AST.
   """
-  @options [extension: [table: true, tasklist: true, strikethrough: true]]
+  @options [
+    extension: [
+      table: true,
+      tasklist: true,
+      strikethrough: true,
+      wikilinks_title_after_pipe: true
+    ]
+  ]
   @marks ~w(link strong code_span emphasis strikethrough underline highlight superscript subscript)
   @directives Path.expand("../../priv/relaymark/directives", __DIR__)
   def parse(source, options \\ [])
@@ -183,7 +190,7 @@ defmodule RelayMark.DocumentSource do
             fail(:unexpected_closing)
 
           true ->
-            {segments, plain ++ [line], nil, nil}
+            {segments, plain ++ [bare_linked_task_line(line)], nil, nil}
         end
       end)
 
@@ -242,6 +249,9 @@ defmodule RelayMark.DocumentSource do
   defp convert(%MDEx.Paragraph{} = n, ns, path),
     do: block(ns, path, "paragraph", inline(n.nodes), nil)
 
+  defp convert(%MDEx.HtmlBlock{literal: text}, ns, path),
+    do: block(ns, path, "paragraph", [%{"type" => "text", "text" => text}], nil)
+
   defp convert(%MDEx.Heading{} = n, ns, path),
     do: block(ns, path, "heading", inline(n.nodes), %{"level" => n.level, "headingId" => nil})
 
@@ -256,13 +266,16 @@ defmodule RelayMark.DocumentSource do
       |> Enum.map(fn {item, i} ->
         content = convert_children(item.nodes, ns, path ++ [i])
 
-        if task,
-          do:
-            block(ns, path ++ [i], "task_item", content, %{
-              "checked" => Map.get(item, :checked, false),
-              "entityId" => nil
-            }),
-          else: block(ns, path ++ [i], "list_item", content, nil)
+        if task do
+          {content, entity_id} = linked_task(content)
+
+          block(ns, path ++ [i], "task_item", content, %{
+            "checked" => Map.get(item, :checked, false),
+            "entityId" => entity_id
+          })
+        else
+          block(ns, path ++ [i], "list_item", content, nil)
+        end
       end)
 
     props =
@@ -333,8 +346,66 @@ defmodule RelayMark.DocumentSource do
         "title" => if(n.title == "", do: nil, else: n.title)
       })
 
-  defp inline(nodes), do: Enum.flat_map(nodes, &inline_node(&1, []))
-  defp inline_node(%MDEx.Text{literal: text}, marks), do: split_atoms(text, marks)
+  defp inline(nodes), do: Enum.flat_map(strip_recovery_nodes(nodes), &inline_node(&1, []))
+
+  defp inline_node(%MDEx.Text{literal: text}, marks),
+    do: [wrap(%{"type" => "text", "text" => text}, marks)]
+
+  defp inline_node(%MDEx.WikiLink{url: url, nodes: nodes} = node, []) do
+    with [_, type, id] <-
+           Regex.run(~r/\A([A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*):\s*([^ ]+)\z/u, url) do
+      raw = Enum.map_join(nodes, fn %MDEx.Text{literal: literal} -> literal end)
+
+      label =
+        cond do
+          raw == url -> type
+          String.starts_with?(raw, "\"\\u") -> Jason.decode!(raw)
+          true -> raw
+        end
+
+      if type == "Tag" do
+        source = "[[Tag: #{id} | #{label}]]"
+
+        case Regex.run(~r/\A#([a-z0-9][a-z0-9_-]*)\z/u, label) do
+          [_, name] ->
+            [
+              %{
+                "type" => "relay.tag_ref",
+                "id" => id,
+                "label" => label,
+                "props" => %{"name" => name, "source" => source}
+              }
+            ]
+
+          _ ->
+            literal_wiki(node)
+        end
+      else
+        case RelayMark.InlineAtoms.reference_source(type, id, label) do
+          {:ok, source} ->
+            [
+              %{
+                "type" => "relay.entity_ref",
+                "id" => id,
+                "label" => label,
+                "props" => %{"entityType" => type, "source" => source}
+              }
+            ]
+
+          :error ->
+            literal_wiki(node)
+        end
+      end
+    else
+      _ -> literal_wiki(node)
+    end
+  end
+
+  defp inline_node(%MDEx.HtmlInline{literal: literal}, marks) do
+    if recovery_marker?(literal),
+      do: [],
+      else: [wrap(%{"type" => "text", "text" => literal}, marks)]
+  end
 
   defp inline_node(%MDEx.SoftBreak{}, marks),
     do: [wrap(%{"type" => "text", "text" => "\n"}, marks)]
@@ -370,35 +441,65 @@ defmodule RelayMark.DocumentSource do
           else: %{"type" => type, "content" => [child]}
       end)
 
-  defp split_atoms(text, marks) do
-    Regex.split(~r/(\[\[[^\]\r\n]+\]\])/, text, include_captures: true, trim: true)
-    |> Enum.map(fn piece ->
-      if String.starts_with?(piece, "[[") do
-        if marks != [], do: fail(:marked_reference)
+  defp bare_linked_task_line(line) do
+    if Regex.match?(~r/^ {0,3}\[[ xX]\]\s+.*\[\[Task:/u, line),
+      do: Regex.replace(~r/^( {0,3})/u, line, "\\1- ", global: false),
+      else: line
+  end
 
-        case Regex.run(~r/^\[\[([^:]+): ([^ ]+) \| ([^\]]+)\]\]$/, piece) do
-          [_, "Tag", id, "#" <> name] ->
-            %{
-              "type" => "relay.tag_ref",
-              "id" => id,
-              "label" => "#" <> name,
-              "props" => %{"name" => name, "source" => piece}
-            }
+  defp recovery_marker?(literal),
+    do:
+      Regex.match?(
+        ~r/\A<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->\z/u,
+        literal
+      )
 
-          [_, _type, _id, _label] ->
-            case RelayMark.InlineAtoms.parse_reference_source(piece) do
-              {:ok, atom} -> atom
-              :error -> fail(:inline_reference)
-            end
+  defp literal_wiki(%MDEx.WikiLink{url: url, nodes: nodes}) do
+    label = Enum.map_join(nodes, fn %MDEx.Text{literal: literal} -> literal end)
+    body = if label == url, do: url, else: url <> "|" <> label
+    [%{"type" => "text", "text" => "[[" <> body <> "]]"}]
+  end
+
+  defp strip_recovery_nodes(nodes) do
+    Enum.reduce(nodes, [], fn node, acc ->
+      if match?(%MDEx.HtmlInline{}, node) and recovery_marker?(node.literal) do
+        case Enum.reverse(acc) do
+          [%MDEx.Text{literal: literal} = text | rest] ->
+            literal = String.replace_suffix(literal, " ", "")
+            Enum.reverse(if literal == "", do: rest, else: [%{text | literal: literal} | rest])
 
           _ ->
-            fail(:inline_reference)
+            acc
         end
       else
-        wrap(%{"type" => "text", "text" => piece}, marks)
+        acc ++ [node]
       end
     end)
   end
+
+  defp linked_task([%{"type" => "paragraph", "content" => parts} = paragraph | rest] = content) do
+    case List.last(parts) do
+      %{"type" => "relay.entity_ref", "id" => id, "props" => %{"entityType" => "Task"}} ->
+        parts = Enum.drop(parts, -1)
+
+        parts =
+          case List.last(parts) do
+            %{"type" => "text", "text" => text} = node ->
+              text = String.replace_suffix(text, " ", "")
+              Enum.drop(parts, -1) ++ if(text == "", do: [], else: [%{node | "text" => text}])
+
+            _ ->
+              parts
+          end
+
+        {[%{paragraph | "content" => parts} | rest], id}
+
+      _ ->
+        {content, nil}
+    end
+  end
+
+  defp linked_task(content), do: {content, nil}
 
   # Finite prerelease input decoder. It emits only canonical rich nodes; the
   # historical comment syntax is never emitted or admitted as a live editor.
@@ -592,11 +693,7 @@ defmodule RelayMark.DocumentSource do
                    ns,
                    path ++ [1],
                    "relay.callout_title",
-                   inline(
-                     MDEx.parse_document!(title, @options).nodes
-                     |> hd()
-                     |> Map.fetch!(:nodes)
-                   ),
+                   title_inline(title),
                    nil
                  )
                  | children
@@ -622,6 +719,18 @@ defmodule RelayMark.DocumentSource do
       end
 
     block(ns, path, type, children, props)
+  end
+
+  # Prefix a plain inline sentinel so the maintained block parser cannot treat
+  # an inline title as an HTML block, heading, list, or thematic break.
+  defp title_inline(title) do
+    case MDEx.parse_document!("\u2060" <> title, @options).nodes do
+      [%MDEx.Paragraph{nodes: [%MDEx.Text{literal: "\u2060" <> rest} = first | nodes]}] ->
+        inline(if(rest == "", do: nodes, else: [%{first | literal: rest} | nodes]))
+
+      _ ->
+        fail(:directive_inline_content)
+    end
   end
 
   defp flatten([%{"type" => "paragraph", "content" => content}]), do: content
