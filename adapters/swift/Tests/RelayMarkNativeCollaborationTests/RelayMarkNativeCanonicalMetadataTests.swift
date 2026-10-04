@@ -107,7 +107,7 @@ struct RelayMarkNativeCanonicalMetadataTests {
   let remote=try RelayMarkNativeRichTextMutation.replace(document:peer,path:[0,2,0],start:0,end:6,text:"Oslo")
   try first.applyUpdate(remote)
   let archive=try first.exportHistoryState(scopeToken:"account/org/document/incarnation/lane/owner")
-  let reopened=RelayMarkNativeDocument(guid:"document-incarnation",retainDeletedItems:true)
+  let reopened=RelayMarkNativeDocument(guid:"document-incarnation",retainDeletedItems:true,historyOwnerID:first.historyOwnerID)
   try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive))
   try reopened.restoreHistoryState(archive,scopeToken:"account/org/document/incarnation/lane/owner")
   #expect(try reopened.authoredDocument()==first.authoredDocument())
@@ -299,7 +299,7 @@ struct RelayMarkNativeCanonicalMetadataTests {
   _ = try doc.exportHistoryState(scopeToken:"first-typing-owner")
   _ = try doc.performOwnedCommand(operationID:second){try RelayMarkNativeRichEditing.replace(document:doc,range:NSRange(location:2,length:0),runs:[("llo",[:])],expectedSnapshot:doc.snapshot()).update}
   let checkpoint=try doc.exportHistoryState(scopeToken:"first-typing-owner")
-  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(checkpoint))
+  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(checkpoint),historyOwnerID:try RelayMarkNativeDocument.historyOwner(checkpoint))
   try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(checkpoint));try reopened.restoreHistoryState(checkpoint,scopeToken:"first-typing-owner")
   let peer=RelayMarkNativeDocument();try peer.applyUpdate(reopened.encodeUpdate())
   try reopened.applyUpdate(peer.insertText("Peer ",at:0,path:[0,0]))
@@ -309,12 +309,12 @@ struct RelayMarkNativeCanonicalMetadataTests {
   let sync=try JSONSerialization.jsonObject(with:undo.steps) as! [[String:Any]]
   #expect(sync.count==1);#expect(sync[0]["stepType"] as? String == "replace")
   #expect(sync[0]["from"] as? Int == 0);#expect(sync[0]["to"] as? Int == 12)
-  #expect(undo.operationIDs == [first,second]);#expect(try String(reopened.richProseProjection().text.characters)=="Peer ")
+  #expect(undo.ownerID==doc.historyOwnerID);#expect(undo.operationIDs == [first,second]);#expect(try String(reopened.richProseProjection().text.characters)=="Peer ")
   let blocks=(try JSONSerialization.jsonObject(with:reopened.authoredDocument()) as! [String:Any])["blocks"] as! [[String:Any]]
   #expect(blocks[0]["id"] as? String == identity)
   try peer.applyUpdate(undo.update);#expect(try peer.authoredDocument()==reopened.authoredDocument())
   let afterUndo=try reopened.exportHistoryState(scopeToken:"first-typing-owner")
-  let again=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(afterUndo))
+  let again=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(afterUndo),historyOwnerID:try RelayMarkNativeDocument.historyOwner(afterUndo))
   try again.applyUpdate(RelayMarkNativeDocument.historyDocumentState(afterUndo));try again.restoreHistoryState(afterUndo,scopeToken:"first-typing-owner")
   let redo=try #require(try again.redoWithReference());#expect(redo.operationIDs == [first,second])
   #expect(try String(again.richProseProjection().text.characters)=="Peer Hello")
@@ -332,7 +332,7 @@ struct RelayMarkNativeCanonicalMetadataTests {
   let undo=try doc.undoWithReference();#expect(undo?.reference == first);#expect(undo?.operationIDs == [first,second])
   #expect(try String(doc.richProseProjection().text.characters)=="Base")
   let archive=try doc.exportHistoryState(scopeToken:"owner/typing-group")
-  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(archive))
+  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(archive),historyOwnerID:try RelayMarkNativeDocument.historyOwner(archive))
   try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive));try reopened.restoreHistoryState(archive,scopeToken:"owner/typing-group")
   let redo=try reopened.redoWithReference();#expect(redo?.reference == first);#expect(redo?.operationIDs == [first,second])
   #expect(try String(reopened.richProseProjection().text.characters)=="Base!?")
@@ -360,21 +360,24 @@ struct RelayMarkNativeCanonicalMetadataTests {
   legacyHistory["metadata"]=(legacyHistory["metadata"] as! [Any]).map{ value -> Any in
    if value is NSNull {return value};return ["operation_id":operationID.uuidString.lowercased()]
   }
-  retained["history"]=legacyHistory
+  retained["history"]=legacyHistory;retained.removeValue(forKey:"owner_id")
   let originalRetained=try JSONSerialization.data(withJSONObject:retained,options:[.sortedKeys])
-  let converted=try RelayMarkNativeDocument.importRetainedHistoryState(originalRetained)
+  let converted=try RelayMarkNativeDocument.importRetainedHistoryState(originalRetained,historyOwnerID:doc.historyOwnerID)
   #expect(converted.originalState==originalRetained)
-  let historical=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(converted.state))
+  #expect(try RelayMarkNativeDocument.historyOwner(converted.state)==doc.historyOwnerID)
+  #expect(throws:(any Error).self){try RelayMarkNativeDocument.historyDocumentState(originalRetained)}
+  #expect(throws:(any Error).self){try RelayMarkNativeDocument.importRetainedHistoryState(Data("{}".utf8),historyOwnerID:doc.historyOwnerID)}
+  let historical=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(converted.state),historyOwnerID:try RelayMarkNativeDocument.historyOwner(converted.state))
   try historical.applyUpdate(RelayMarkNativeDocument.historyDocumentState(converted.state));try historical.restoreHistoryState(converted.state,scopeToken:"owner/source-reference")
   #expect(try historical.undoWithReference()?.operationIDs==[operationID])
 
-  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(archive))
+  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(archive),historyOwnerID:try RelayMarkNativeDocument.historyOwner(archive))
   try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive))
   try reopened.restoreHistoryState(archive,scopeToken:"owner/source-reference")
   let undo=try reopened.undoWithReference();#expect(undo?.reference==operationID)
   #expect(try String(reopened.richProseProjection().text.characters)=="Hello")
   let redoArchive=try reopened.exportHistoryState(scopeToken:"owner/source-reference")
-  let second=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(redoArchive))
+  let second=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(redoArchive),historyOwnerID:try RelayMarkNativeDocument.historyOwner(redoArchive))
   try second.applyUpdate(RelayMarkNativeDocument.historyDocumentState(redoArchive));try second.restoreHistoryState(redoArchive,scopeToken:"owner/source-reference")
   let redo=try second.redoWithReference();#expect(redo?.reference==operationID)
   #expect(try String(second.richProseProjection().text.characters)=="Hello!?")
@@ -384,6 +387,25 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try second.encodeUpdate()==state)
   #expect(try second.exportHistoryState(scopeToken:"owner/source-reference")==history)
   #expect(throws:(any Error).self){try doc.groupingUndo{try doc.performOwnedCommand(operationID:UUID()){Data()}}}
+ }
+
+ @Test @MainActor func sameDocumentNewManagerCannotRestoreAnotherHistoryNamespace() throws {
+  let owner=UUID(),doc=RelayMarkNativeDocument(guid:"manager-owner",historyOwnerID:owner)
+  try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Base",namespace:"manager-owner"))
+  let operation=UUID()
+  _ = try doc.performOwnedCommand(operationID:operation){try doc.insertText("!",at:4,path:[0,0])}
+  #expect(try doc.ownedCommandGroup(operationID:operation).ownerID==owner)
+  let state=try doc.exportHistoryState(scopeToken:"account/document/manager")
+  let wrong=RelayMarkNativeDocument(guid:"manager-owner")
+  try wrong.applyUpdate(RelayMarkNativeDocument.historyDocumentState(state))
+  let original=try wrong.encodeUpdate(),originalHistory=try wrong.exportHistoryState(scopeToken:"account/document/manager")
+  #expect(throws:(any Error).self){try wrong.restoreHistoryState(state,scopeToken:"account/document/manager")}
+  #expect(try wrong.encodeUpdate()==original)
+  #expect(try wrong.exportHistoryState(scopeToken:"account/document/manager")==originalHistory)
+  let reopened=RelayMarkNativeDocument(guid:"manager-owner",historyOwnerID:owner)
+  try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(state));try reopened.restoreHistoryState(state,scopeToken:"account/document/manager")
+  #expect(try reopened.undoWithReference()?.ownerID==owner)
+  #expect(try String(reopened.richProseProjection().text.characters)=="Base")
  }
 
  @Test @MainActor func removeLinkTypeEmitsEachAuthoredHrefWithoutDefaultAttributeGuessing() throws {

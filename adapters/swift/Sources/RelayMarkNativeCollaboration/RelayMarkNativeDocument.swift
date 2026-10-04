@@ -37,6 +37,8 @@ public final class RelayMarkNativeDocument {
     private let localOrigin: Origin
     private var undoManager: YUndoManager<NSObject>
     public let presence: RelayMarkNativePresence
+    /// Stable identity of this actual manager, supplied by its persisted journal on restore.
+    public let historyOwnerID: UUID
     private var historySubscriptions: [YSubscription] = []
     private var ownedOperationID: UUID?
     private final class HistoryCapture {
@@ -45,7 +47,7 @@ public final class RelayMarkNativeDocument {
     }
     private var historyCapture: HistoryCapture?
 
-    public init(guid: String = UUID().uuidString, retainDeletedItems: Bool = true) {
+    public init(guid: String = UUID().uuidString, retainDeletedItems: Bool = true, historyOwnerID: UUID = UUID()) {
         let document = YDocument(guid:guid,retainDeletedItems:retainDeletedItems)
         let root = document.getOrCreateXmlFragment(named: "default")
         let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
@@ -53,6 +55,7 @@ public final class RelayMarkNativeDocument {
         let undoManager: YUndoManager<NSObject> = document.undoManager(trackedRefs: [root,metadata])
         undoManager.addOrigin(origin)
         undoManager.preserveChangedXML()
+        self.historyOwnerID = historyOwnerID
         self.document = document
         self.root = root
         self.metadata = metadata
@@ -209,6 +212,7 @@ public final class RelayMarkNativeDocument {
         }
         return try JSONSerialization.data(withJSONObject:[
             "contract_version":RelayMarkContract.version,"kind":"prosemirror_history",
+            "owner_id":historyOwnerID.uuidString.lowercased(),
             "history":JSONSerialization.jsonObject(with:archive.data)
         ],options:[.sortedKeys])
     }
@@ -216,6 +220,11 @@ public final class RelayMarkNativeDocument {
     /// Load the checkpoint update before restoring stacks; integrate newer peer updates afterward.
     public static func historyDocumentState(_ state: Data) throws -> Data { try historyArchive(state).documentState }
     public static func historyDocumentGUID(_ state: Data) throws -> String { try historyArchive(state).documentGUID }
+    public static func historyOwner(_ state: Data) throws -> UUID {
+        _ = try historyArchive(state)
+        let value = try JSONSerialization.jsonObject(with:state) as! [String:Any]
+        return UUID(uuidString:value["owner_id"] as! String)!
+    }
 
     public struct RetainedHistoryImport: Sendable {
         public let originalState: Data
@@ -226,17 +235,32 @@ public final class RelayMarkNativeDocument {
     /// Explicit finite conversion of saved single-command receipt metadata.
     /// Preserve originalState durably before installing state. Unknown metadata
     /// remains unbound evidence; it never becomes an owned command receipt.
-    public static func importRetainedHistoryState(_ state: Data) throws -> RetainedHistoryImport {
-        _ = try historyArchive(state)
-        var envelope = try JSONSerialization.jsonObject(with:state) as! [String:Any]
-        var archive = envelope["history"] as! [String:Any]
-        let metadata = archive["metadata"] as! [Any]
+    public static func importRetainedHistoryState(_ state: Data, historyOwnerID: UUID) throws -> RetainedHistoryImport {
+        guard var envelope = try JSONSerialization.jsonObject(with:state) as? [String:Any],
+              Set(envelope.keys)==["contract_version","kind","history"] || Set(envelope.keys)==["contract_version","kind","history","owner_id"],
+              envelope["kind"] as? String == "prosemirror_history",
+              let version=envelope["contract_version"] as? NSNumber,
+              CFGetTypeID(version) != CFBooleanGetTypeID(),version.doubleValue==Double(RelayMarkContract.version),
+              var archive=envelope["history"] as? [String:Any],let metadata=archive["metadata"] as? [Any] else {throw Failure.unsupportedProseEdit}
         var changes:[[String:Any]]=[]
+        _ = try YUndoHistoryArchive(data:JSONSerialization.data(withJSONObject:archive,options:[.sortedKeys]))
+        let owner = historyOwnerID.uuidString.lowercased()
+        if let old=envelope["owner_id"] {guard old as? String == owner else {throw Failure.conflictingOwnedCommand}}
+        else {envelope["owner_id"]=owner;changes.append(["path":["owner_id"],"operation":"history_owner","value":owner])}
         archive["metadata"] = try metadata.enumerated().map { index,value -> Any in
-            guard let object=value as? [String:Any],Set(object.keys)==["operation_id"] else { return value }
-            guard let text=object["operation_id"] as? String,let id=UUID(uuidString:text) else {throw Failure.unboundOwnedHistory}
-            changes.append(["path":["history","metadata",index],"operation":"owned_command_group"])
-            return ["operation_ids":[id.uuidString.lowercased()]]
+            guard let object=value as? [String:Any] else {return value}
+            if Set(object.keys)==["operation_id"] {
+                guard let text=object["operation_id"] as? String,let id=UUID(uuidString:text) else {throw Failure.unboundOwnedHistory}
+                changes.append(["path":["history","metadata",index],"operation":"owned_command_group"])
+                return ["owner_id":owner,"operation_ids":[id.uuidString.lowercased()]]
+            }
+            if Set(object.keys)==["operation_ids"] {
+                var current=object;current["owner_id"]=owner
+                guard operationReferences(current,ownerID:historyOwnerID) != nil else {throw Failure.unboundOwnedHistory}
+                changes.append(["path":["history","metadata",index,"owner_id"],"operation":"history_owner","value":owner])
+                return current
+            }
+            return value
         }
         envelope["history"] = archive
         let imported = changes.isEmpty ? state : try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
@@ -247,6 +271,7 @@ public final class RelayMarkNativeDocument {
     /// Rejection preserves the current document and manager. No reconstruction or second engine.
     public func restoreHistoryState(_ state: Data, scopeToken: String) throws {
         let archive = try Self.historyArchive(state)
+        guard try Self.historyOwner(state) == historyOwnerID else {throw Failure.conflictingOwnedCommand}
         let manager: YUndoManager<NSObject> = try document.restoreUndoManager(
             trackedRefs:[root,metadata],history:archive,scopeToken:scopeToken,
             decodeMetadata:{ $0 as NSData })
@@ -259,10 +284,18 @@ public final class RelayMarkNativeDocument {
 
     private static func historyArchive(_ state: Data) throws -> YUndoHistoryArchive {
         guard let value=try JSONSerialization.jsonObject(with:state) as? [String:Any],
-              Set(value.keys)==["contract_version","kind","history"],
+              Set(value.keys)==["contract_version","kind","history","owner_id"],
+              let owner=value["owner_id"] as? String,let ownerID=UUID(uuidString:owner),ownerID.uuidString.lowercased()==owner,
               let version=value["contract_version"] as? NSNumber,
               CFGetTypeID(version) != CFBooleanGetTypeID(),version.doubleValue==Double(RelayMarkContract.version),
               value["kind"] as? String=="prosemirror_history",let archive=value["history"] as? [String:Any] else { throw Failure.unsupportedProseEdit }
+        if let values=archive["metadata"] as? [Any] {
+            for item in values {
+                if let object=item as? [String:Any],object["owner_id"] != nil || object["operation_ids"] != nil || object["operation_id"] != nil {
+                    guard operationReferences(object,ownerID:ownerID) != nil else {throw Failure.conflictingOwnedCommand}
+                }
+            }
+        }
         return try YUndoHistoryArchive(data:JSONSerialization.data(withJSONObject:archive,options:[.sortedKeys]))
     }
 
@@ -755,8 +788,8 @@ public final class RelayMarkNativeDocument {
                                     _ command: () throws -> Data) throws -> Data {
         guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
         let history = undoManager.undoMetadata() + undoManager.redoMetadata()
-        guard !history.contains(where: { Self.operationReferences($0)?.contains(operationID) == true }) else { throw Failure.conflictingOwnedCommand }
-        if separateHistoryItem || undoManager.undoMetadata().last.map({ Self.operationReferences($0).map({$0.count>=4096}) ?? true }) == true {
+        guard !history.contains(where: { self.operationReferences($0)?.contains(operationID) == true }) else { throw Failure.conflictingOwnedCommand }
+        if separateHistoryItem || undoManager.undoMetadata().last.map({ self.operationReferences($0).map({$0.count>=4096}) ?? true }) == true {
             undoManager.wrap()
         }
         ownedOperationID = operationID
@@ -770,17 +803,19 @@ public final class RelayMarkNativeDocument {
     }
 
     public struct OwnedCommandGroup: Sendable {
+        public let ownerID: UUID
         public let reference: UUID
         public let operationIDs: [UUID]
     }
     public func ownedCommandGroup(operationID: UUID) throws -> OwnedCommandGroup {
         guard let metadata=undoManager.undoMetadata().last,
-              let operations=Self.operationReferences(metadata),operations.last==operationID,
+              let operations=self.operationReferences(metadata),operations.last==operationID,
               let first=operations.first else {throw Failure.unboundOwnedHistory}
-        return OwnedCommandGroup(reference:first,operationIDs:operations)
+        return OwnedCommandGroup(ownerID:historyOwnerID,reference:first,operationIDs:operations)
     }
 
     public struct OwnedHistoryEffect: Sendable {
+        public let ownerID: UUID
         public enum Kind:String,Sendable { case undo,redo }
         public let kind:Kind
         /// Actual sender frontier captured before the same manager inverse.
@@ -800,7 +835,7 @@ public final class RelayMarkNativeDocument {
     private func ownedHistory(redo: Bool) throws -> OwnedHistoryEffect? {
         guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
         let metadata = redo ? undoManager.redoMetadata() : undoManager.undoMetadata()
-        for object in metadata { guard Self.operationReferences(object) != nil else { throw Failure.unboundOwnedHistory } }
+        for object in metadata { guard self.operationReferences(object) != nil else { throw Failure.unboundOwnedHistory } }
         let bridge = try PMYXmlBridge.canonical()
         let beforeTree = try JSONSerialization.jsonObject(with:snapshot()) as! [String:Any]
         let beforePM = try bridge.document(fromSnapshot:beforeTree)
@@ -818,23 +853,25 @@ public final class RelayMarkNativeDocument {
                                   slice:PMSlice(afterPM.content,openStart:0,openEnd:0))
         guard try step.apply(beforePM).eq(afterPM) else { throw Failure.unsupportedProseEdit }
         let steps = try JSONSerialization.data(withJSONObject:[step.json()],options:[.sortedKeys])
-        return OwnedHistoryEffect(kind:redo ? .redo : .undo,beforeSnapshot:beforeSnapshot,steps:steps,update:update,reference:reference,operationIDs:operations)
+        return OwnedHistoryEffect(ownerID:historyOwnerID,kind:redo ? .redo : .undo,beforeSnapshot:beforeSnapshot,steps:steps,update:update,reference:reference,operationIDs:operations)
     }
     private var lastHistoryOperations: [UUID]?
 
-    private static func operationReferences(_ object: NSObject?) -> [UUID]? {
-        guard let data=object as? NSData,
-              let value=(try? JSONSerialization.jsonObject(with:data as Data)) as? [String:Any],
-              Set(value.keys)==["operation_ids"],let ids=value["operation_ids"] as? [String],
+    private func operationReferences(_ object: NSObject?) -> [UUID]? {
+        guard let data=object as? NSData,let value=(try? JSONSerialization.jsonObject(with:data as Data)) as? [String:Any] else {return nil}
+        return Self.operationReferences(value,ownerID:historyOwnerID)
+    }
+    private static func operationReferences(_ value: [String:Any], ownerID: UUID) -> [UUID]? {
+        guard Set(value.keys)==["operation_ids","owner_id"],value["owner_id"] as? String==ownerID.uuidString.lowercased(),let ids=value["operation_ids"] as? [String],
               !ids.isEmpty,ids.count<=4096 else { return nil }
         let operations=ids.compactMap(UUID.init(uuidString:))
         guard operations.count==ids.count,Set(operations).count==operations.count,
               operations.map({$0.uuidString.lowercased()})==ids else {return nil}
         return operations
     }
-    private static func operationMetadata(_ operationIDs: [UUID]) -> Data {
+    private func operationMetadata(_ operationIDs: [UUID]) -> Data {
         let ids=operationIDs.map{"\""+$0.uuidString.lowercased()+"\""}.joined(separator:",")
-        return Data(("{\"operation_ids\":["+ids+"]}").utf8)
+        return Data(("{\"owner_id\":\""+historyOwnerID.uuidString.lowercased()+"\",\"operation_ids\":["+ids+"]}").utf8)
     }
     private func bindStackMetadata(current: NSObject? = nil, extending: Bool = false) -> NSObject? {
         if let capture=self.historyCapture {
@@ -844,11 +881,11 @@ public final class RelayMarkNativeDocument {
         }
         guard let id=self.ownedOperationID else { return nil }
         if extending {
-            guard var operations=Self.operationReferences(current),operations.count<4096 else {return nil}
+            guard var operations=self.operationReferences(current),operations.count<4096 else {return nil}
             if !operations.contains(id){operations.append(id)}
-            return Self.operationMetadata(operations) as NSData
+            return self.operationMetadata(operations) as NSData
         }
-        return Self.operationMetadata([id]) as NSData
+        return self.operationMetadata([id]) as NSData
     }
     private func installHistoryObservers() {
         historySubscriptions = [
@@ -860,8 +897,8 @@ public final class RelayMarkNativeDocument {
             },
             undoManager.observePopped { [weak self] _, current in
                 guard let self,let capture=self.historyCapture else { return current }
-                capture.operations=Self.operationReferences(current)
-                let bytes=capture.operations.map(Self.operationMetadata) ?? Data("null".utf8)
+                capture.operations=self.operationReferences(current)
+                let bytes=capture.operations.map(self.operationMetadata) ?? Data("null".utf8)
                 for inverse in capture.inverseMetadata { inverse.setData(bytes) }
                 return current
             }

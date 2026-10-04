@@ -67,34 +67,36 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
         public struct OwnedHistory: Codable, Equatable, Sendable {
             public enum Kind: String, Codable, Sendable { case undo, redo }
             public let kind: Kind
+            public let ownerID: UUID
             public let reference: UUID
             public let operationIDs: [UUID]
-            public init(kind: Kind, reference: UUID, operationIDs: [UUID]) throws {
-                let group=try OwnedGroup(reference:reference,operationIDs:operationIDs)
-                self.kind=kind;self.reference=group.reference;self.operationIDs=group.operationIDs
+            public init(kind: Kind, ownerID: UUID, reference: UUID, operationIDs: [UUID]) throws {
+                let group=try OwnedGroup(ownerID:ownerID,reference:reference,operationIDs:operationIDs)
+                self.ownerID=ownerID;self.kind=kind;self.reference=group.reference;self.operationIDs=group.operationIDs
             }
-            enum CodingKeys: String, CodingKey { case kind,reference,operationIDs }
+            enum CodingKeys: String, CodingKey { case kind,ownerID,reference,operationIDs }
             public init(from decoder: Decoder) throws {
                 let container=try decoder.container(keyedBy:CodingKeys.self)
-                try self.init(kind:container.decode(Kind.self,forKey:.kind),reference:container.decode(UUID.self,forKey:.reference),operationIDs:container.decode([UUID].self,forKey:.operationIDs))
+                try self.init(kind:container.decode(Kind.self,forKey:.kind),ownerID:container.decode(UUID.self,forKey:.ownerID),reference:container.decode(UUID.self,forKey:.reference),operationIDs:container.decode([UUID].self,forKey:.operationIDs))
             }
         }
 
         public struct OwnedGroup: Codable, Equatable, Sendable {
+            public let ownerID: UUID
             public let reference: UUID
             public let operationIDs: [UUID]
-            public init(reference: UUID, operationIDs: [UUID]) throws {
+            public init(ownerID: UUID, reference: UUID, operationIDs: [UUID]) throws {
                 guard !operationIDs.isEmpty, operationIDs.count <= 4096,
                       operationIDs.first == reference,
                       Set(operationIDs).count == operationIDs.count else {
                     throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid maintained command membership"))
                 }
-                self.reference = reference; self.operationIDs = operationIDs
+                self.ownerID = ownerID; self.reference = reference; self.operationIDs = operationIDs
             }
-            enum CodingKeys: String, CodingKey { case reference, operationIDs }
+            enum CodingKeys: String, CodingKey { case ownerID, reference, operationIDs }
             public init(from decoder: Decoder) throws {
                 let container = try decoder.container(keyedBy: CodingKeys.self)
-                try self.init(reference: container.decode(UUID.self, forKey: .reference),
+                try self.init(ownerID: container.decode(UUID.self,forKey:.ownerID),reference: container.decode(UUID.self, forKey: .reference),
                               operationIDs: container.decode([UUID].self, forKey: .operationIDs))
             }
         }

@@ -29,7 +29,7 @@ extension RelayMarkNativeDocument {
               effect.beforeSnapshot==observation.beforeSnapshot else {throw Failure.unsupportedProseEdit}
         let observed=try JSONSerialization.jsonObject(with:captureRestoredTextItems(since:observation.stateVector)) as! [String:Any]
         guard let copies=observed["copies"] as? [[String:Any]] else {throw Failure.unsupportedProseEdit}
-        let history:[String:Any]=["kind":effect.kind.rawValue,"reference":effect.reference.uuidString.lowercased(),
+        let history:[String:Any]=["owner_id":effect.ownerID.uuidString.lowercased(),"kind":effect.kind.rawValue,"reference":effect.reference.uuidString.lowercased(),
             "operation_ids":effect.operationIDs.map{$0.uuidString.lowercased()}]
         let evidence:[String:Any]=["before_snapshot":try JSONSerialization.jsonObject(with:observation.identity),
             "after_snapshot":try JSONSerialization.jsonObject(with:captureIdentitySnapshot()),"before_state_vector":observation.clocks,

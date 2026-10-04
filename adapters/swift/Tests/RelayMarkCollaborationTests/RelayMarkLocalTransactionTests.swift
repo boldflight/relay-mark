@@ -8,23 +8,24 @@ struct RelayMarkLocalTransactionTests {
         let snapshot = Data([0, 1, 7, 14])
         let steps = Data("[ {\"stepType\":\"replace\",\"from\":1,\"to\":1} ]\n".utf8)
         let transaction = RelayMarkLocalTransaction(id: operationID, update: Data([1, 2, 3]), changes: [],
-            nativeContentEdit: .init(beforeSnapshot: snapshot, steps: steps, ownedGroup: try .init(reference: operationID, operationIDs: [operationID])))
+            nativeContentEdit: .init(beforeSnapshot: snapshot, steps: steps, ownedGroup: try .init(ownerID: operationID, reference: operationID, operationIDs: [operationID])))
         let restored = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(transaction))
         #expect(restored.id == operationID)
         #expect(restored.update == Data([1, 2, 3]))
         #expect(restored.nativeContentEdit?.beforeSnapshot == snapshot)
         #expect(restored.nativeContentEdit?.steps == steps)
+        #expect(restored.nativeContentEdit?.ownedGroup?.ownerID == operationID)
         #expect(restored.nativeContentEdit?.ownedGroup?.reference == operationID)
         #expect(restored.nativeContentEdit?.ownedGroup?.operationIDs == [operationID])
         #expect(restored.proseLineage == nil)
         #expect(restored.nativeFormatting == nil)
         #expect(RelayMarkLocalTransaction(update: Data([1]), changes: []).nativeContentEdit == nil)
-        let inverse=RelayMarkLocalTransaction(id:UUID(),update:Data([4]),changes:[],nativeContentEdit:.init(beforeSnapshot:snapshot,steps:steps,ownedHistory:try .init(kind:.undo,reference:operationID,operationIDs:[operationID])))
+        let inverse=RelayMarkLocalTransaction(id:UUID(),update:Data([4]),changes:[],nativeContentEdit:.init(beforeSnapshot:snapshot,steps:steps,ownedHistory:try .init(kind:.undo,ownerID:operationID,reference:operationID,operationIDs:[operationID])))
         let savedInverse=try JSONDecoder().decode(RelayMarkLocalTransaction.self,from:JSONEncoder().encode(inverse))
         #expect(savedInverse==inverse);#expect(savedInverse.nativeContentEdit?.ownedGroup==nil)
-        #expect(savedInverse.nativeContentEdit?.ownedHistory?.operationIDs==[operationID])
+        #expect(savedInverse.nativeContentEdit?.ownedHistory?.operationIDs==[operationID]);#expect(savedInverse.nativeContentEdit?.ownedHistory?.ownerID==operationID)
         var ambiguous=try JSONSerialization.jsonObject(with:JSONEncoder().encode(inverse.nativeContentEdit!)) as! [String:Any]
-        ambiguous["ownedGroup"]=["reference":operationID.uuidString,"operationIDs":[operationID.uuidString]]
+        ambiguous["ownedGroup"]=["ownerID":operationID.uuidString,"reference":operationID.uuidString,"operationIDs":[operationID.uuidString]]
         let ambiguousBytes=try JSONSerialization.data(withJSONObject:ambiguous)
         #expect(throws:(any Error).self){try JSONDecoder().decode(RelayMarkLocalTransaction.NativeContentEdit.self,from:ambiguousBytes)}
     }
@@ -33,7 +34,7 @@ struct RelayMarkLocalTransactionTests {
         let operationID = UUID()
         let candidate = RelayMarkLocalTransaction(id: operationID, update: Data([4, 8]), changes: [],
             nativeContentEdit: .init(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8),
-                ownedGroup: try .init(reference: operationID, operationIDs: [operationID])))
+                ownedGroup: try .init(ownerID: operationID, reference: operationID, operationIDs: [operationID])))
         // The journal must retain the exact packaged builder result. Decoding it
         // does not authenticate its source or turn a partial witness into admission.
         let witness = Data(" {\"requires_mutation_correspondence\":true,\"text_items\":{\"runs\":[]}}\n  ".utf8)
@@ -51,7 +52,7 @@ struct RelayMarkLocalTransactionTests {
         #expect(restored.nativeContentEdit?.witness == witness)
         let inverse = RelayMarkLocalTransaction(id: UUID(), update: Data([9]), changes: [],
             nativeContentEdit: .init(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8),
-                ownedHistory: try .init(kind: .redo, reference: operationID, operationIDs: [operationID]), witness: witness))
+                ownedHistory: try .init(kind: .redo, ownerID: operationID, reference: operationID, operationIDs: [operationID]), witness: witness))
         let savedInverse = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(inverse))
         #expect(savedInverse.nativeContentEdit?.witness == witness)
         #expect(savedInverse == inverse)
