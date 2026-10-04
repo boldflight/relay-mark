@@ -30,16 +30,10 @@ public enum RelayMarkMediaContract {
                 alt: try optionalImageText(attributes["alt"]),
                 title: try optionalImageText(attributes["title"]),width:try dimension(attributes["width"]),height:try dimension(attributes["height"]))
         case .videoEmbed:
-            guard Set(attributes.keys).isSubset(of: ["relaymarkId", "videoId", "playbackId", "title",
-                                                    "source", "thumbnailUrl", "status", "youtubeId", "uploadPercent"]),
+            guard Set(attributes.keys).isSubset(of: ["relaymarkId", "videoId"]),
                   let source = attributes["videoId"] as? String,
                   source.range(of: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-                               options: .regularExpression) != nil,
-                  ["playbackId", "title", "thumbnailUrl", "youtubeId", "uploadPercent"].allSatisfy({
-                      attributes[$0] == nil || attributes[$0] is NSNull
-                  }),
-                  attributes["source"] == nil || attributes["source"] as? String == "mux",
-                  attributes["status"] == nil || attributes["status"] as? String == "ready" else {
+                               options: .regularExpression) != nil else {
                 throw Failure.unsupported
             }
             return Validated(kind: kind, id: id, source: source, alt: nil, title: nil,width:nil,height:nil)

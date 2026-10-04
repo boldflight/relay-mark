@@ -29,6 +29,12 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(change.caret?.offset == 5)
   let steps=try JSONSerialization.jsonObject(with:change.steps) as! [[String:Any]]
   #expect(steps[0]["stepType"] as? String == "replace")
+  let media=try #require(document.richProseProjection().mediaAtoms.first)
+  let removed=try RelayMarkNativeMediaMutation.remove(document:document,atRootIndex:1,expectedID:media.id,expectedSource:media.source)
+  try peer.applyUpdate(removed)
+  let inserted=try RelayMarkNativeMediaMutation.insert(document:document,atRootIndex:1,expectedPreviousID:"bc5e20755a10547d08d9054f33618c548",expectedNextID:"b29908e62e7c2496580e5aea7bb8e4f14",block:.init(id:media.id,kind:.videoEmbed,source:media.source))
+  try peer.applyUpdate(inserted)
+  #expect(try document.authoredDocument() == peer.authoredDocument())
   #expect(throws:(any Error).self){try RelayMarkNativeSnapshotImport.install(document:document,prepared:prepared)}
  }
  @Test @MainActor func initializesAndExchangesSameAuthoredEnvelopeOnce() throws {

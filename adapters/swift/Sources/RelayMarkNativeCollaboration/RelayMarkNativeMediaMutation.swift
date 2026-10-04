@@ -107,8 +107,6 @@ public enum RelayMarkNativeMediaMutation {
                 throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
             }
             attributes["videoId"] = block.source
-            attributes["source"] = "mux"
-            attributes["status"] = "ready"
         }
         return attributes
     }
