@@ -297,6 +297,21 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(throws:(any Error).self){try doc.groupingUndo{try doc.performOwnedCommand(operationID:UUID()){Data()}}}
  }
 
+ @Test @MainActor func removeLinkTypeEmitsEachAuthoredHrefWithoutDefaultAttributeGuessing() throws {
+  let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  try peer.applyUpdate(document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("[A](https://one.example) [B](https://two.example)",namespace:"remove-links")))
+  let maybeChange=try RelayMarkNativeRichEditing.format(document:document,range:NSRange(location:0,length:3),mark:"link",enabled:false,expectedSnapshot:document.snapshot())
+  let change=try #require(maybeChange)
+  let steps=try JSONSerialization.jsonObject(with:change.steps) as! [[String:Any]]
+  #expect(steps.count==2)
+  #expect(steps.map{$0["stepType"] as! String} == ["removeMark","removeMark"])
+  #expect(steps.map{(($0["mark"] as! [String:Any])["attrs"] as! [String:Any])["href"] as! String} == ["https://one.example","https://two.example"])
+  #expect(steps.map{$0["from"] as! Int} == [1,3]);#expect(steps.map{$0["to"] as! Int} == [2,4])
+  try peer.applyUpdate(change.update)
+  let undoValue=try document.undo();let undo=try #require(undoValue);try peer.applyUpdate(undo)
+  #expect(try document.authoredDocument()==peer.authoredDocument())
+ }
+
  @Test @MainActor func actualRichMarkStepPreservesUnicodeItemsAndPeerChoice() throws {
   let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
   let source="<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\nA🌍Z\n- ( ) Paris\n<!-- /relay:question -->"

@@ -304,7 +304,8 @@ public enum RelayMarkNativeRichEditing {
         let to = try position(NSMaxRange(range), projection: projection, doc: doc)
         var transform = PMTransform(doc)
         if enabled { try transform.addMark(from, to, type.create(attributes)) }
-        else { try transform.removeMark(from, to, type.create(attributes)) }
+        else if attributes.isEmpty { try transform.removeMark(from, to, type: type) }
+        else { try transform.removeMark(from, to, mark: type.create(attributes)) }
         guard !transform.steps.isEmpty else { return nil }
         return try change(transform, source: doc, bridge: bridge, document: document)
     }

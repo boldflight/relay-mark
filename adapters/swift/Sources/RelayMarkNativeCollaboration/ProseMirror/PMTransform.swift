@@ -139,15 +139,23 @@ struct PMTransform {
         for change in removed + added { try step(change) }
     }
 
-    mutating func removeMark(_ from: Int, _ to: Int, _ mark: PMMark) throws {
+    // Maintained removeMark accepts a concrete Mark, MarkType, or all marks.
+    // Type removal must retain each encountered authored attribute payload.
+    mutating func removeMark(_ from: Int, _ to: Int, mark: PMMark? = nil, type: PMMarkType? = nil) throws {
         var matches: [(mark: PMMark, from: Int, to: Int, step: Int)] = [], visited = 0
         doc.content.nodesBetween(from, to, { node, pos, _, _ in
             guard node.isInline else { return true }; visited += 1
-            guard mark.isInSet(node.marks) else { return true }
+            let removed = node.marks.filter { candidate in
+                if let type { return candidate.type === type }
+                if let mark { return candidate.eq(mark) }
+                return true
+            }
             let end = min(pos + node.nodeSize, to)
-            if let index = matches.lastIndex(where: { $0.step == visited - 1 && $0.mark.eq(mark) }) {
-                matches[index].to = end; matches[index].step = visited
-            } else { matches.append((mark,max(pos,from),end,visited)) }
+            for style in removed {
+                if let index = matches.lastIndex(where: { $0.step == visited - 1 && $0.mark.eq(style) }) {
+                    matches[index].to = end; matches[index].step = visited
+                } else { matches.append((style,max(pos,from),end,visited)) }
+            }
             return true
         }, parent: doc)
         for change in matches { try step(.removeMark(from:change.from,to:change.to,mark:change.mark)) }
