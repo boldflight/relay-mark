@@ -16,7 +16,7 @@ let package = Package(
         .library(name: "RelayMarkNativeCollaboration", targets: ["RelayMarkNativeCollaboration"])
     ],
     dependencies: [
-        .package(url: "https://github.com/boldflight/yswift.git", revision: "73666ada5aa9f9d461647db57359e2454f058bd3"),
+        .package(url: "https://github.com/boldflight/yswift.git", revision: "3c4837081884f96e15e81ce9064e8ac885c7aa92"),
         .package(url: "https://github.com/swiftlang/swift-markdown.git", from: "0.9.0")
     ],
     targets: [

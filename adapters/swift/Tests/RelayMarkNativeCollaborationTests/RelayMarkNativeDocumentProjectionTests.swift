@@ -85,7 +85,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
             blocks[0] = paragraph
         }
         XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(snapshot: unresolved))
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: unresolved, dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: unresolved, dialect: .rich))
         let mismatchedSource = try changed { blocks in
             var paragraph = blocks[0]
             var children = paragraph["children"] as! [[String: Any]]
@@ -98,7 +98,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
             blocks[0] = paragraph
         }
         XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(snapshot: mismatchedSource))
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: mismatchedSource, dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: mismatchedSource, dialect: .rich))
         let colored = try changed { blocks in
             var paragraph = blocks[0]
             var children = paragraph["children"] as! [[String: Any]]
@@ -111,7 +111,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
             blocks[0] = paragraph
         }
         XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(snapshot: colored))
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: colored, dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: colored, dialect: .rich))
     }
 
     func testCommunityTaskListFixtureProjectsCheckedAndLinkedNestedItemsInUnifiedProseMap() throws {
@@ -149,8 +149,8 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         list["children"] = items
         blocks[1] = list
         malformed["children"] = blocks
-        XCTAssertFalse(try RelayMarkCollaborativeProse(
-            snapshot: JSONSerialization.data(withJSONObject: malformed), dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(
+            snapshot: JSONSerialization.data(withJSONObject: malformed), dialect: .rich))
 
         let reopened = RelayMarkNativeDocument()
         try reopened.applyUpdate(try native.encodeUpdate())
@@ -454,8 +454,8 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         snapshot["children"] = blocks
         XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: snapshot)))
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: JSONSerialization.data(withJSONObject: snapshot),
-                                                        dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: JSONSerialization.data(withJSONObject: snapshot),
+                                                        dialect: .rich))
         attrs.removeValue(forKey: "authorized")
         attrs["target"] = "javascript:alert(1)"
         button["attributes"] = attrs
@@ -463,7 +463,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         snapshot["children"] = blocks
         let unsafeTarget = try JSONSerialization.data(withJSONObject: snapshot)
         XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(snapshot: unsafeTarget))
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: unsafeTarget, dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: unsafeTarget, dialect: .rich))
         attrs["target"] = "next"
         button["attributes"] = attrs
         button["children"] = [["kind": "text", "delta": [["insert": "hidden"]]]]
@@ -471,7 +471,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         snapshot["children"] = blocks
         let hiddenChild = try JSONSerialization.data(withJSONObject: snapshot)
         XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(snapshot: hiddenChild))
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: hiddenChild, dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: hiddenChild, dialect: .rich))
     }
 
     func testCommunityAgentSuggestionFixtureProjectsOnlyAuthoredContent() throws {
@@ -541,16 +541,16 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
                 node["attributes"] = attrs
             }
             XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(snapshot: bad))
-            XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: bad, dialect: .rich).isEditable)
+            XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: bad, dialect: .rich))
         }
         let rejected = try altered { node in
             var attrs = node["attributes"] as! [String: Any]
             attrs["review"] = "accepted"
             node["attributes"] = attrs
         }
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: rejected, dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: rejected, dialect: .rich))
         let child = try altered { $0["children"] = [["kind": "text", "delta": [["insert": "hidden"]]]] }
-        XCTAssertFalse(try RelayMarkCollaborativeProse(snapshot: child, dialect: .rich).isEditable)
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: child, dialect: .rich))
     }
 
     func testCommunityVideoFixtureProjectsOnlyDurableIdentity() throws {

@@ -32,11 +32,11 @@ public final class RelayMarkNativeDocument {
     private let root: YXmlNode
     private let metadata: YMap<RelayMarkValue>
     private let localOrigin: Origin
-    private let undoManager: YUndoManager<NSObject>
+    private var undoManager: YUndoManager<NSObject>
     public let presence: RelayMarkNativePresence
 
-    public init() {
-        let document = YDocument()
+    public init(guid: String = UUID().uuidString, retainDeletedItems: Bool = true) {
+        let document = YDocument(guid:guid,retainDeletedItems:retainDeletedItems)
         let root = document.getOrCreateXmlFragment(named: "default")
         let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
         let origin = Origin(UUID().uuidString)
@@ -48,6 +48,44 @@ public final class RelayMarkNativeDocument {
         localOrigin = origin
         self.undoManager = undoManager
         presence = RelayMarkNativePresence(awareness: document.makeAwareness())
+    }
+
+    public var documentGUID: String { document.guid }
+
+    /// One scoped retained Yrs checkpoint. The host owns authorization and durable storage.
+    public func exportHistoryState(scopeToken: String) throws -> Data {
+        wrapUndo()
+        let archive = try undoManager.exportHistory(scopeToken:scopeToken) { object in
+            guard let data=object as? NSData else { throw Failure.unsupportedProseEdit }
+            return data as Data
+        }
+        return try JSONSerialization.data(withJSONObject:[
+            "contract_version":RelayMarkContract.version,"kind":"prosemirror_history",
+            "history":JSONSerialization.jsonObject(with:archive.data)
+        ],options:[.sortedKeys])
+    }
+
+    /// Load the checkpoint update before restoring stacks; integrate newer peer updates afterward.
+    public static func historyDocumentState(_ state: Data) throws -> Data { try historyArchive(state).documentState }
+    public static func historyDocumentGUID(_ state: Data) throws -> String { try historyArchive(state).documentGUID }
+
+    /// Rejection preserves the current document and manager. No reconstruction or second engine.
+    public func restoreHistoryState(_ state: Data, scopeToken: String) throws {
+        let archive = try Self.historyArchive(state)
+        let manager: YUndoManager<NSObject> = try document.restoreUndoManager(
+            trackedRefs:[root,metadata],history:archive,scopeToken:scopeToken,
+            decodeMetadata:{ $0 as NSData })
+        manager.addOrigin(localOrigin)
+        undoManager=manager
+    }
+
+    private static func historyArchive(_ state: Data) throws -> YUndoHistoryArchive {
+        guard let value=try JSONSerialization.jsonObject(with:state) as? [String:Any],
+              Set(value.keys)==["contract_version","kind","history"],
+              let version=value["contract_version"] as? NSNumber,
+              CFGetTypeID(version) != CFBooleanGetTypeID(),version.doubleValue==Double(RelayMarkContract.version),
+              value["kind"] as? String=="prosemirror_history",let archive=value["history"] as? [String:Any] else { throw Failure.unsupportedProseEdit }
+        return try YUndoHistoryArchive(data:JSONSerialization.data(withJSONObject:archive,options:[.sortedKeys]))
     }
 
     private var undoGroupDepth = 0
@@ -532,8 +570,8 @@ public final class RelayMarkNativeDocument {
         return result
     }
 
-    /// Standard in-memory Yrs undo, scoped to this document's local edit origin.
-    /// The host persists the returned update; the undo stack itself is not durable.
+    /// Maintained Yrs undo, scoped to local origins and retained by exported history checkpoints.
+    /// The host persists the returned update and the corresponding owner history checkpoint.
     public func undo() throws -> Data? {
         let before = stateVector()
         wrapUndo()

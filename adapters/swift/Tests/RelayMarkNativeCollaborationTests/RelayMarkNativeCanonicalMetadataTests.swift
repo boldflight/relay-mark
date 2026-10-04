@@ -60,4 +60,30 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(projection.tableCells.count==2)
  }
 
+ @Test @MainActor func canonicalQuestionHistoryCheckpointReopensOnSameOwnerWithPeerChoiceIntact() throws {
+  let source = "<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\n**Capital?**\n- ( ) Paris\n- ( ) London\n<!-- /relay:question -->"
+  var raw=try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.parseDocument(source,namespace:"native-history")) as! [String:Any]
+  raw["meta"]=["origin":"native"]
+  let first=RelayMarkNativeDocument(guid:"document-incarnation",retainDeletedItems:true),peer=RelayMarkNativeDocument(guid:"document-incarnation",retainDeletedItems:true)
+  try peer.applyUpdate(first.initializeDocument(authoredAST:JSONSerialization.data(withJSONObject:raw)))
+  let own=try RelayMarkNativeRichTextMutation.replace(document:first,path:[0,1,0],start:0,end:5,text:"Lyon")
+  try peer.applyUpdate(own)
+  let remote=try RelayMarkNativeRichTextMutation.replace(document:peer,path:[0,2,0],start:0,end:6,text:"Oslo")
+  try first.applyUpdate(remote)
+  let archive=try first.exportHistoryState(scopeToken:"account/org/document/incarnation/lane/owner")
+  let reopened=RelayMarkNativeDocument(guid:"document-incarnation",retainDeletedItems:true)
+  try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive))
+  try reopened.restoreHistoryState(archive,scopeToken:"account/org/document/incarnation/lane/owner")
+  #expect(try reopened.authoredDocument()==first.authoredDocument())
+  #expect(throws:(any Error).self) { try reopened.restoreHistoryState(archive,scopeToken:"another-owner") }
+  #expect(try reopened.undo() != nil)
+  #expect(String(try reopened.richProseProjection().text.characters)=="Capital?\nParis\nOslo")
+  #expect(try RelayMarkDocument.decodeJSON(reopened.authoredDocument()).meta["origin"]?.stringValue=="native")
+  #expect(try reopened.redo() != nil)
+  #expect(String(try reopened.richProseProjection().text.characters)=="Capital?\nLyon\nOslo")
+  _=try RelayMarkNativeRichTextMutation.replace(document:reopened,path:[0,1,0],start:0,end:0,text:"New ")
+  #expect(try reopened.undo() != nil)
+  #expect(String(try reopened.richProseProjection().text.characters)=="Capital?\nLyon\nOslo")
+ }
+
 }
