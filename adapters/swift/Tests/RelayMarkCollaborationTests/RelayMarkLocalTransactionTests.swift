@@ -3,6 +3,22 @@ import Testing
 @testable import RelayMarkCollaboration
 
 struct RelayMarkLocalTransactionTests {
+    @Test func actualNativeContentEditBytesFreezeWithTheSameOperationAndUpdate() throws {
+        let operationID = UUID()
+        let snapshot = Data([0, 1, 7, 14])
+        let steps = Data("[ {\"stepType\":\"replace\",\"from\":1,\"to\":1} ]\n".utf8)
+        let transaction = RelayMarkLocalTransaction(id: operationID, update: Data([1, 2, 3]), changes: [],
+            nativeContentEdit: .init(beforeSnapshot: snapshot, steps: steps))
+        let restored = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(transaction))
+        #expect(restored.id == operationID)
+        #expect(restored.update == Data([1, 2, 3]))
+        #expect(restored.nativeContentEdit?.beforeSnapshot == snapshot)
+        #expect(restored.nativeContentEdit?.steps == steps)
+        #expect(restored.proseLineage == nil)
+        #expect(restored.nativeFormatting == nil)
+        #expect(RelayMarkLocalTransaction(update: Data([1]), changes: []).nativeContentEdit == nil)
+    }
+
     @Test func legacyInitializerFunctionReferenceAndJSONRemainCompatible() throws {
         let initializer: (UUID, Data, [RelayMarkLocalTransaction.TextChange]) -> RelayMarkLocalTransaction = RelayMarkLocalTransaction.init
         let transaction = initializer(UUID(), Data([1, 2]), [])

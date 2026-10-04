@@ -27,6 +27,28 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     /// server-side provenance; these bytes alone confer no source ownership.
     /// Persist and retry them with the same transaction/update identity.
     public let proseLineage: Data?
+    /// Exact actual maintained command evidence frozen beside the same UUID/update.
+    /// Nil means unproven. This carrier does not infer copies or accepted authorship.
+    public let nativeContentEdit: NativeContentEdit?
+
+    public struct NativeContentEdit: Codable, Equatable, Sendable {
+        public let beforeSnapshot: Data
+        public let steps: Data
+        public init(beforeSnapshot: Data, steps: Data) {
+            self.beforeSnapshot = beforeSnapshot; self.steps = steps
+        }
+    }
+
+    /// Current native command carrier. The host supplies only actual Change bytes.
+    public init(id: UUID = UUID(), update: Data, changes: [TextChange],
+                inputIntent: InputIntent? = nil, insertedTextItems: Data? = nil,
+                nativeContentEdit: NativeContentEdit) {
+        self.id = id; self.update = update; self.changes = changes
+        self.inputIntent = inputIntent; self.insertedTextItems = insertedTextItems
+        self.nativeContentEdit = nativeContentEdit
+        self.nativeFormatting = nil; self.nativeParagraph = nil
+        self.nativeParagraphPaste = nil; self.proseLineage = nil; self.attribution = nil
+    }
 
     /// Frozen local candidate only; decoding does not authenticate its assertions.
     public let attribution: AttributionCandidate?
@@ -141,6 +163,7 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     public init(id: UUID = UUID(), update: Data, changes: [TextChange], inputIntent: InputIntent?,
                 insertedTextItems: Data?, nativeFormatting: NativeFormatting?, nativeParagraph: NativeParagraph?,
                 nativeParagraphPaste: NativeParagraphPaste?, proseLineage: Data?, attribution: AttributionCandidate?) {
+        self.nativeContentEdit = nil
         self.attribution = attribution
         self.id = id
         self.update = update
