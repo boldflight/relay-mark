@@ -14,3 +14,10 @@ and `foldSourceReferences` accept exact JSON Data. The existing caller-owned
 Elixir `RelayMark.ContentEdit` runtime exposes `classify_source_reference/5`
 and `fold_source_references/4`. No additional editor replica or persistent
 classification store is constructed by any adapter.
+
+Source-only failures carry stable codes: `source_identity_mismatch` for a
+claimed human item with another text type, `source_reference_mismatch` for
+unproven/malformed reference or candidate evidence, and `source_identity_limit`
+for bounded selection/receipt resources. Adapters translate these explicit codes,
+never infer them from exception text; other command errors retain their own
+existing contract.

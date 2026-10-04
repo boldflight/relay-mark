@@ -4,7 +4,7 @@ import JavaScriptCore
 /// The same packaged portable source/AST grammar used by browser clients.
 /// This runtime owns no Yjs document, undo manager, transport or host domain actions.
 public enum RelayMarkSourceCodec {
-    public enum Failure: Error { case unavailable, invalidInput, invalidAuthoredDocument }
+    public enum Failure: Error, Equatable { case unavailable, invalidInput, invalidAuthoredDocument, sourceIdentityMismatch, sourceReferenceMismatch, sourceIdentityLimit }
     public static func parseDocument(_ source: String, namespace: String) throws -> Data {
         try call("parseDocument",arguments:[source,["namespace":namespace]])
     }
@@ -85,8 +85,18 @@ enum RelayMarkPortableRuntime {
         context.setObject(global,forKeyedSubscript:"relayMarkRuntimeGlobal" as NSString)
         context.setObject(operation,forKeyedSubscript:"relayMarkRuntimeOperation" as NSString)
         context.setObject(arguments,forKeyedSubscript:"relayMarkRuntimeArguments" as NSString)
-        guard let result=context.evaluateScript("JSON.stringify(globalThis[relayMarkRuntimeGlobal][relayMarkRuntimeOperation](...relayMarkRuntimeArguments))"),
-              context.exception==nil,let encoded=result.toString(),let data=encoded.data(using:.utf8) else {throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument}
+        let result=context.evaluateScript("JSON.stringify(globalThis[relayMarkRuntimeGlobal][relayMarkRuntimeOperation](...relayMarkRuntimeArguments))")
+        if let exception=context.exception {
+            if operation == "classifyContentEditReference" || operation == "foldSourceReferences" {
+                switch exception.forProperty("code")?.toString() {
+                case "source_identity_mismatch": throw RelayMarkSourceCodec.Failure.sourceIdentityMismatch
+                case "source_identity_limit": throw RelayMarkSourceCodec.Failure.sourceIdentityLimit
+                default: throw RelayMarkSourceCodec.Failure.sourceReferenceMismatch
+                }
+            }
+            throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
+        }
+        guard let encoded=result?.toString(),let data=encoded.data(using:.utf8) else {throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument}
         return data
     }
 }

@@ -23,6 +23,15 @@ test('unproven human destinations never classify current candidates',()=>{
 test('canonical identity selectors reject overlap and bounded overflow',()=>{
  assert.deepEqual(encodeSourceIdentities(decodeSourceSelector(select(10,16))),select(10,16));
  assert.throws(()=>decodeSourceSelector({runs:[...select(10,2).runs,...select(11).runs]}),/Overlapping/);
- assert.throws(()=>decodeSourceSelector(select(0,131073)),/Invalid/);
+ assert.throws(()=>decodeSourceSelector(select(0,131073)),{code:'source_identity_limit'});
  assert.throws(()=>decodeSourceSelector(select(0xffffffff,2)),/Invalid/);
+});
+
+
+test('source-only errors carry stable identity, reference and resource codes',()=>{
+ assert.throws(()=>issue(select(11,16,999)),{code:'source_identity_mismatch'});
+ const human=issue(select(11,16));assert.throws(()=>foldSourceReferences(binding,select(53,16,999),[human]),{code:'source_identity_mismatch'});
+ human.human_destinations=select(200);assert.throws(()=>foldSourceReferences(binding,select(200),[human]),{code:'source_reference_mismatch'});
+ assert.throws(()=>decodeSourceSelector(select(0,131073)),{code:'source_identity_limit'});
+ assert.throws(()=>foldSourceReferences(binding,empty,new Array(16385)),{code:'source_identity_limit'});
 });

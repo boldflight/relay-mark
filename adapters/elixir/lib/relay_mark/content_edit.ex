@@ -56,7 +56,7 @@ defmodule RelayMark.ContentEdit do
   @doc "Stateless classification after the host authenticates current original receipts, scope and complete proof. Inputs and results are not credentials."
   def classify_source_reference(runtime, binding, transaction, proof, human_ancestry),
     do:
-      execute_arguments(runtime, "classifyContentEditReference", [
+      execute_source_arguments(runtime, "classifyContentEditReference", [
         binding,
         transaction,
         proof,
@@ -66,7 +66,42 @@ defmodule RelayMark.ContentEdit do
   @doc "Fold authenticated current references for only the requested candidate identities; tombstoned ancestors remain exact evidence."
   def fold_source_references(runtime, binding, candidate_selector, references),
     do:
-      execute_arguments(runtime, "foldSourceReferences", [binding, candidate_selector, references])
+      execute_source_arguments(runtime, "foldSourceReferences", [
+        binding,
+        candidate_selector,
+        references
+      ])
+
+  # Source errors are explicit portable codes. Exception text is never parsed.
+  defp execute_source_arguments(runtime, function, values) do
+    with {:ok, arguments} <- Jason.encode(values) do
+      code =
+        "(()=>{try{return {value:RelayMarkContentEditRuntime." <>
+          function <>
+          "(..." <>
+          arguments <>
+          ")}}catch(error){return {source_error:error.code||'source_reference_mismatch'}}})()"
+
+      case Quicksand.eval(runtime, code) do
+        {:ok, %{"value" => value}} when is_map(value) ->
+          {:ok, value}
+
+        {:ok, %{"source_error" => "source_identity_mismatch"}} ->
+          {:error, :source_identity_mismatch}
+
+        {:ok, %{"source_error" => "source_identity_limit"}} ->
+          {:error, :source_identity_limit}
+
+        {:error, "timeout"} ->
+          {:error, :source_identity_limit}
+
+        _ ->
+          {:error, :source_reference_mismatch}
+      end
+    else
+      _ -> {:error, :source_reference_mismatch}
+    end
+  end
 
   defp execute_arguments(runtime, function, values) do
     with {:ok, arguments} <- Jason.encode(values) do

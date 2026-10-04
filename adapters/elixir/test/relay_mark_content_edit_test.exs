@@ -160,7 +160,23 @@ defmodule RelayMark.ContentEditTest do
 
     assert human == selector.(53, 4, 2)
 
-    assert {:error, :invalid_content_edit} =
+    assert {:error, :source_reference_mismatch} =
+             RelayMark.ContentEdit.fold_source_references(
+               runtime,
+               %{"document_id" => "document", "incarnation" => "other"},
+               selector.(53, 16, 2),
+               [reference]
+             )
+
+    assert {:error, :source_identity_limit} =
+             RelayMark.ContentEdit.fold_source_references(
+               runtime,
+               binding,
+               selector.(0, 131_073, 2),
+               []
+             )
+
+    assert {:error, :source_identity_mismatch} =
              RelayMark.ContentEdit.classify_source_reference(
                runtime,
                binding,

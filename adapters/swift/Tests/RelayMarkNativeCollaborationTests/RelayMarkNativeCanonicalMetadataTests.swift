@@ -445,7 +445,7 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(object["human_destinations"] as? NSDictionary == selector(53,4,2) as NSDictionary)
   let human=try RelayMarkSourceCodec.foldSourceReferences(binding:data(binding),candidateSelector:data(selector(53,16,2)),references:data([object]))
   #expect(try JSONSerialization.jsonObject(with:human) as? NSDictionary == selector(53,4,2) as NSDictionary)
-  #expect(throws:(any Error).self){try RelayMarkSourceCodec.classifyContentEditReference(binding:data(binding),transaction:data(transaction),proof:data(proof),humanAncestry:data(selector(11,4,999)))}
+  #expect(throws:RelayMarkSourceCodec.Failure.sourceIdentityMismatch){try RelayMarkSourceCodec.classifyContentEditReference(binding:data(binding),transaction:data(transaction),proof:data(proof),humanAncestry:data(selector(11,4,999)))}
  }
 
  @Test @MainActor func sameDocumentNewManagerCannotRestoreAnotherHistoryNamespace() throws {
