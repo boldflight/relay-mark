@@ -271,4 +271,40 @@ defmodule RelayMark.DocumentSourceTest do
                )
     end
   end
+
+  test "indented authored directive examples remain maintained code blocks after a real reference" do
+    id = "11111111-1111-4111-8111-111111111111"
+    example = "22222222-2222-4222-8222-222222222222"
+
+    source =
+      ~s|@EntityRef(id: "#{id}", projection: "chip") {\nReal reference\n}\n\n```relaymark\n@EntityRef(id: "#{example}") {\nExample\n}\n```\n\n    @EntityRef(id: "#{example}") {\n    Indented example\n    }\n\n`[[Person: #{example} \| Inline example]]`|
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "reference-code-context")
+
+    assert Enum.map(ast["blocks"], & &1["type"]) == [
+             "relay.entity_reference",
+             "code",
+             "code",
+             "paragraph"
+           ]
+
+    assert hd(ast["blocks"])["props"]["id"] == "entity:" <> id
+    assert hd(Enum.at(ast["blocks"], 2)["content"])["text"] =~ "Indented example"
+  end
+
+  test "unsafe historical image and non-navigation links remain inert declaration text" do
+    source =
+      "![Image](relay:entity/11111111-1111-4111-8111-111111111111)\n\n[Query](relay:entity/11111111-1111-4111-8111-111111111111?view=paper)\n[Wrong](relay:entityx/11111111-1111-4111-8111-111111111111)"
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "inert-declarations")
+    assert hd(ast["blocks"])["type"] == "paragraph"
+
+    assert hd(hd(ast["blocks"])["content"])["text"] ==
+             "![Image](relay:entity/11111111-1111-4111-8111-111111111111)"
+
+    assert {:ok, html} = RelayMark.render_document(ast)
+    refute html =~ "<img"
+    refute html =~ "<a"
+    assert html =~ "[Query]"
+  end
 end

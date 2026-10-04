@@ -7,7 +7,7 @@ import {mapInline} from './document-inline.js';
 import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
 export {safeImageSource} from './document-links.js';
-import {safeImageSource} from './document-links.js';
+import {safeImageSource,safeLinkHref} from './document-links.js';
 import {parseAttributes} from './attributes.js';
 import {directiveNodeForName,directiveNodeForType,canonicalDirectiveNodes} from './document-directives.js';
 import {directiveForName,directiveForType} from './registry.js';
@@ -98,6 +98,7 @@ function sourceBlocks(source,ns,prefix){
  const flush=()=>{if(plain.length){segments.push({kind:'markdown',source:plain.join('\n')});plain=[];}};
  const append=line=>directive?directive.body.push(line):plain.push(line);
  for(const line of source.split('\n')){const t=line.trim();
+  if(!fence&&!directive&&/^(?: {4}|\t)/u.test(line)){plain.push(line);continue;}
   if(fence){append(line);if(new RegExp('^'+fence[0]+'{'+fence.length+',}\\s*$').test(t))fence=null;continue;}
   const f=t.match(/^(`{3,}|~{3,})/);if(f){fence=f[0];append(line);continue;}
   const header=t.match(/^@([A-Z][A-Za-z0-9]*)(?:\((.*)\))?\s*\{\s*$/);
@@ -137,7 +138,7 @@ function historicalQuestion(header,body,ns,path){
 function markdownBlocks(tokens,ns,prefix){let at=0;
  const sequence=(end,path)=>{const nodes=[];while(at<tokens.length&&tokens[at].type!==end){const t=tokens[at++],p=[...path,nodes.length];let n;
   switch(t.type){
-   case 'paragraph_open':{const i=tokens[at++];if(i.type!=='inline')throw new TypeError('Paragraph shape');at++;if(i.children?.length===1&&i.children[0].type==='image'){const im=i.children[0];n=block(ns,p,'image',[],{src:im.attrGet('src'),alt:im.content,title:im.attrGet('title')||null});}else n=block(ns,p,'paragraph',inline(i.children||[]));break;}
+   case 'paragraph_open':{const i=tokens[at++];if(i.type!=='inline')throw new TypeError('Paragraph shape');at++;if(i.children?.length===1&&i.children[0].type==='image'){const im=i.children[0];n=safeImageSource(im.attrGet('src'))?block(ns,p,'image',[],{src:im.attrGet('src'),alt:im.content,title:im.attrGet('title')||null}):block(ns,p,'paragraph',[{type:'text',text:literalImage(im)}]);}else n=block(ns,p,'paragraph',inline(i.children||[]));break;}
    case 'heading_open':{const i=tokens[at++];at++;n=block(ns,p,'heading',inline(i.children||[]),{level:Number(t.tag.slice(1)),headingId:null});break;}
    case 'blockquote_open':n=block(ns,p,'quote',sequence('blockquote_close',p));break;
    case 'bullet_list_open':case 'ordered_list_open':{const children=sequence(t.type.replace('_open','_close'),p);let task=false;for(const item of children){const first=item.content[0]?.content[0];const m=first?.type==='text'?first.text.match(/^\[([ xX])\]\s+/):null;if(m){task=true;item.type='task_item';item.props={checked:m[1].toLowerCase()==='x',entityId:null};first.text=first.text.slice(m[0].length);if(!first.text)item.content[0].content.shift();}}
@@ -162,7 +163,12 @@ function historicalMedia(n){
  const url=leaf.type==='text'?leaf.text:leaf.type==='link'&&leaf.content.length===1&&leaf.content[0].type==='text'&&leaf.content[0].text===leaf.href?leaf.href:null;
  if(url&&safeImageSource(url)&&/^https:\/\/[^?#]+\.gif(?:[?#]|$)/iu.test(url))return{id:n.id,type:'image',props:{src:url,alt:'',title:null},content:[]};return n;
 }
-function inline(tokens){const output=[],marks=[];for(const t of tokens){if(t.nesting){const types={strong:'bold',em:'italic',s:'strike',link:'link'};const key=t.type.replace(/_(open|close)$/,'');const mark=types[key];if(!mark)throw new TypeError('Unsupported inline '+t.type);if(t.nesting===1)marks.push(mark==='link'?{type:'link',attrs:{href:t.attrGet('href'),target:'_blank',rel:'noopener noreferrer nofollow',class:null,title:null}}:{type:mark});else marks.pop();continue;}
+function literalImage(token){return `![${token.content}](${token.attrGet('src')}${token.attrGet('title')?' '+JSON.stringify(token.attrGet('title')):''})`;}
+function inertInlineTokens(tokens){const output=[];for(let i=0;i<tokens.length;i++){
+ const t=tokens[i];if(t.type==='link_open'&&!safeLinkHref(t.attrGet('href'))){let end=i+1;while(end<tokens.length&&tokens[end].type!=='link_close')end++;if(end===tokens.length)throw new TypeError('Invalid CommonMark link nesting');const label=inlineMarkdown(inline(tokens.slice(i+1,end)));output.push({type:'text',nesting:0,content:`[${label}](${t.attrGet('href')})`});i=end;}
+ else if(t.type==='image'&&!safeImageSource(t.attrGet('src')))output.push({type:'text',nesting:0,content:literalImage(t)});else output.push(t);
+ }return output;}
+function inline(tokens){const output=[],marks=[];for(const t of inertInlineTokens(tokens)){if(t.nesting){const types={strong:'bold',em:'italic',s:'strike',link:'link'};const key=t.type.replace(/_(open|close)$/,'');const mark=types[key];if(!mark)throw new TypeError('Unsupported inline '+t.type);if(t.nesting===1)marks.push(mark==='link'?{type:'link',attrs:{href:t.attrGet('href'),target:'_blank',rel:'noopener noreferrer nofollow',class:null,title:null}}:{type:mark});else marks.pop();continue;}
  if(t.type==='html_inline'&&/^<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->$/u.test(t.content)){const previous=output.at(-1);if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)output.pop();}continue;}
  if(t.type==='relay_atom'){if(marks.length)throw new TypeError('Marked reference');output.push(t.meta);continue;}
  if(t.type==='hardbreak'){if(marks.length)throw new TypeError('Marked hard break');output.push({type:'hard_break'});continue;}

@@ -145,6 +145,9 @@ defmodule RelayMark.DocumentSource do
               if(closing, do: nil, else: fence)
             )
 
+          directive == nil and Regex.match?(~r/^(?: {4}|\t)/u, line) ->
+            append_source_line(segments, plain, nil, line, nil)
+
           Regex.match?(~r/^(`{3,}|~{3,})/, trimmed) ->
             [marker] = Regex.run(~r/^(`{3,}|~{3,})/, trimmed, capture: :all_but_first)
             append_source_line(segments, plain, directive, line, marker)
@@ -243,8 +246,12 @@ defmodule RelayMark.DocumentSource do
     "b" <> a <> "4" <> b <> "8" <> c
   end
 
-  defp convert(%MDEx.Paragraph{nodes: [%MDEx.Image{} = image]}, ns, path),
-    do: image(image, ns, path)
+  defp convert(%MDEx.Paragraph{nodes: [%MDEx.Image{} = image]}, ns, path) do
+    if RelayMark.Link.safe_image_source?(image.url),
+      do: image(image, ns, path),
+      else:
+        block(ns, path, "paragraph", [%{"type" => "text", "text" => literal_image(image)}], nil)
+  end
 
   defp convert(%MDEx.Paragraph{} = n, ns, path),
     do: block(ns, path, "paragraph", inline(n.nodes), nil) |> historical_media()
@@ -459,8 +466,25 @@ defmodule RelayMark.DocumentSource do
   defp inline_node(%MDEx.Code{literal: text}, _),
     do: [wrap(%{"type" => "text", "text" => text}, [{"code_span", nil}])]
 
-  defp inline_node(%MDEx.Link{} = n, marks),
-    do: Enum.flat_map(n.nodes, &inline_node(&1, [{"link", n.url} | marks]))
+  defp inline_node(%MDEx.Link{} = n, marks) do
+    if RelayMark.Link.safe_href?(n.url),
+      do: Enum.flat_map(n.nodes, &inline_node(&1, [{"link", n.url} | marks])),
+      else: [
+        wrap(
+          %{
+            "type" => "text",
+            "text" => "[" <> markdown_inline(inline(n.nodes)) <> "](" <> n.url <> ")"
+          },
+          marks
+        )
+      ]
+  end
+
+  defp inline_node(%MDEx.Image{} = n, marks) do
+    if RelayMark.Link.safe_image_source?(n.url),
+      do: fail(:inline_image_requires_block),
+      else: [wrap(%{"type" => "text", "text" => literal_image(n)}, marks)]
+  end
 
   defp inline_node(n, marks) do
     type =
@@ -484,6 +508,12 @@ defmodule RelayMark.DocumentSource do
           do: %{"type" => type, "href" => href, "content" => [child]},
           else: %{"type" => type, "content" => [child]}
       end)
+
+  defp literal_image(image) do
+    alt = Enum.map_join(image.nodes, fn x -> Map.get(x, :literal, "") end)
+    title = if image.title == "", do: "", else: " " <> Jason.encode!(image.title)
+    "![" <> alt <> "](" <> image.url <> title <> ")"
+  end
 
   defp bare_linked_task_line(line) do
     if Regex.match?(~r/^ {0,3}\[[ xX]\]\s+.*\[\[Task:/u, line),

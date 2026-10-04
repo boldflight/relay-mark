@@ -146,3 +146,16 @@ test('historical reference normalization refuses duplicate identity or unknown a
  const id='11111111-1111-4111-8111-111111111111';
  for(const attrs of [`id: "${id}", id: "${id}"`,`id: "${id}", surprise: "value"`,`id: "${id}", projection: "popover"`])assert.throws(()=>parseDocument(`@EntityRef(${attrs}) {\nBody\n}`,{namespace:'ambiguous-reference'}));
 });
+
+test('historic indented directive examples remain code while the actual prose reference survives',()=>{
+ const id='11111111-1111-4111-8111-111111111111',example='22222222-2222-4222-8222-222222222222';
+ const source=`@EntityRef(id: "${id}", projection: "chip") {\nReal reference\n}\n\n\`\`\`relaymark\n@EntityRef(id: "${example}") {\nExample\n}\n\`\`\`\n\n    @EntityRef(id: "${example}") {\n    Indented example\n    }\n\n\`[[Person: ${example} | Inline example]]\``;
+ const ast=parseDocument(source,{namespace:'reference-code-context'});assert.deepEqual(ast.blocks.map(n=>n.type),['relay.entity_reference','code','code','paragraph']);assert.equal(ast.blocks[0].props.id,'entity:'+id);
+ assert.match(ast.blocks[2].content[0].text,/Indented example/);
+});
+
+test('historical non-navigation link and unsafe image declarations remain literal without executable hrefs',()=>{
+ const source='![Image](relay:entity/11111111-1111-4111-8111-111111111111)\n\n[Query](relay:entity/11111111-1111-4111-8111-111111111111?view=paper)\n[Wrong](relay:entityx/11111111-1111-4111-8111-111111111111)';
+ const ast=parseDocument(source,{namespace:'inert-declarations'});assert.equal(ast.blocks[0].type,'paragraph');assert.equal(ast.blocks[0].content[0].text,'![Image](relay:entity/11111111-1111-4111-8111-111111111111)');
+ const html=renderDocument(ast);assert.doesNotMatch(html,/<img|<a/);assert.match(html,/\[Query\]/);
+});
