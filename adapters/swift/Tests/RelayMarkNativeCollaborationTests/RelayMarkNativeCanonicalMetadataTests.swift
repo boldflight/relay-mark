@@ -197,4 +197,31 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try JSONSerialization.jsonObject(with:peer.authoredDocument()) as? NSDictionary == fixture["expected_ast"] as? NSDictionary)
  }
 
+ @Test @MainActor func ownedSourceCommandReferenceSurvivesUndoRedoReopenAndRefusesUnboundHistoryBeforeMutation() throws {
+  let operationID=UUID(uuidString:"11111111-1111-4111-8111-111111111111")!
+  let doc=RelayMarkNativeDocument(guid:"source-reference")
+  try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Hello",namespace:"source-reference"))
+  _ = try doc.performOwnedCommand(operationID:operationID){
+   let a=try doc.insertText("!",at:5,path:[0,0]),b=try doc.insertText("?",at:6,path:[0,0])
+   return try doc.mergeUpdates([a,b])
+  }
+  let archive=try doc.exportHistoryState(scopeToken:"owner/source-reference")
+  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(archive))
+  try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive))
+  try reopened.restoreHistoryState(archive,scopeToken:"owner/source-reference")
+  let undo=try reopened.undoWithReference();#expect(undo?.reference==operationID)
+  #expect(try String(reopened.richProseProjection().text.characters)=="Hello")
+  let redoArchive=try reopened.exportHistoryState(scopeToken:"owner/source-reference")
+  let second=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(redoArchive))
+  try second.applyUpdate(RelayMarkNativeDocument.historyDocumentState(redoArchive));try second.restoreHistoryState(redoArchive,scopeToken:"owner/source-reference")
+  let redo=try second.redoWithReference();#expect(redo?.reference==operationID)
+  #expect(try String(second.richProseProjection().text.characters)=="Hello!?")
+  _ = try second.insertText("unbound",at:7,path:[0,0])
+  let state=try second.encodeUpdate(),history=try second.exportHistoryState(scopeToken:"owner/source-reference")
+  #expect(throws:(any Error).self){try second.undoWithReference()}
+  #expect(try second.encodeUpdate()==state)
+  #expect(try second.exportHistoryState(scopeToken:"owner/source-reference")==history)
+  #expect(throws:(any Error).self){try doc.groupingUndo{try doc.performOwnedCommand(operationID:UUID()){Data()}}}
+ }
+
 }
