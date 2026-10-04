@@ -76,3 +76,12 @@ test('static linked task and callout expose exact authored hydration attrs witho
  assert.match(html,/data-authored="[^"\n]*&quot;tone&quot;:&quot;info&quot;/);
  assert.doesNotMatch(html,/relaymarkId/);
 });
+
+test('entity reference titles keep brackets newline quotes and whitespace through shared source and XML',()=>{
+ const label=' [A]\n"B"\\ ',id='11111111-1111-4111-8111-111111111111';
+ const source=String.raw`[[Person: 11111111-1111-4111-8111-111111111111 | "\u0020\u005b\u0041\u005d\u000a\u0022\u0042\u0022\u005c\u0020"]]`;
+ const ast={type:'relaymark.document',blocks:[{id:'b00000000000040008000000000000001',type:'paragraph',content:[{type:'relay.entity_ref',id,label,props:{entityType:'Person',source}}]}]};
+ assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+ assert.equal(parseDocument(source,{namespace:'reference-title'}).blocks[0].content[0].label,label);
+ assert.deepEqual(parseDocument(serializeDocument(ast)),ast);
+});

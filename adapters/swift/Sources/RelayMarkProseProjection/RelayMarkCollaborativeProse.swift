@@ -249,10 +249,8 @@ public struct RelayMarkCollaborativeProse {
                       type.range(of: "^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$", options: .regularExpression) != nil,
                       type != "Tag", let id = attributes["entityId"] as? String, validUUID(id),
                       let label = attributes["label"] as? String, !label.isEmpty,
-                      label == label.trimmingCharacters(in: .whitespacesAndNewlines),
-                      label.rangeOfCharacter(from: .newlines) == nil, !label.contains("]"),
                       let source = attributes["source"] as? String,
-                      source == "[[\(type): \(id) | \(label)]]",
+                      source == (try? RelayMarkSourceCodec.buildEntityReferenceSource(entityType:type,entityID:id,label:label)),
                       (attributes["status"] == nil || attributes["status"] is NSNull),
                       (attributes["subtitle"] == nil || attributes["subtitle"] is NSNull) else { return nil }
                 return InlineAtom(kind: kind, id: id, label: label, source: source,

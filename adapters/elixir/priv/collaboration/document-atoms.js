@@ -19,13 +19,16 @@ function identity(id) {
   return id;
 }
 
-function referenceSource(type, id, label) {
-  if (typeof type !== 'string' || !entityType.test(type) || type === 'Tag' ||
-      typeof label !== 'string' || !label || label !== label.trim() || /[\r\n\]]/u.test(label)) {
+export function buildEntityReferenceSource({entityType: type, entityId: id, label}) {
+  if (typeof type !== 'string' || !entityType.test(type) || type === 'Tag' || typeof label !== 'string' || !label) {
     throw new TypeError('Invalid authored reference label or type');
   }
-  return `[[${type}: ${identity(id)} | ${label}]]`;
+  const quoted = label !== label.trim() || /[\r\n\[\]"\\`*_<>!]/u.test(label);
+  // Escaped UTF-16 JSON avoids CommonMark consuming syntax inside an atomic label.
+  const encoded = quoted ? '"'+label.split('').map(c=>'\\u'+c.charCodeAt(0).toString(16).padStart(4,'0')).join('')+'"' : label;
+  return `[[${type}: ${identity(id)} | ${encoded}]]`;
 }
+function referenceSource(type,id,label) { return buildEntityReferenceSource({entityType:type,entityId:id,label}); }
 
 function tagSource(id, name) {
   if (typeof name !== 'string' || !tagName.test(name)) throw new TypeError('Invalid authored tag name');
@@ -80,7 +83,7 @@ export function parseAtomSource(source) {
   const reference = source.match(/^\[\[([^:]+): ([^ ]+) \| ([\s\S]+)\]\]$/u);
   if (reference) {
     try { return mapAtom({ type: 'relayReference', attrs: { entityType: reference[1], entityId: reference[2],
-      label: reference[3], source, status: null, subtitle: null } }); }
+      label: reference[3].startsWith('"') ? JSON.parse(reference[3]) : reference[3], source, status: null, subtitle: null } }); }
     catch { return null; }
   }
   return null;

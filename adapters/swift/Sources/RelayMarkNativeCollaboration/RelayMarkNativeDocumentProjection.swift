@@ -260,10 +260,8 @@ public enum RelayMarkNativeDocumentProjection {
                   type.range(of: "^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$", options: .regularExpression) != nil,
                   type != "Tag", let id = attrs["entityId"] as? String, validUUID(id),
                   let label = attrs["label"] as? String, !label.isEmpty,
-                  label == label.trimmingCharacters(in: .whitespacesAndNewlines),
-                  label.rangeOfCharacter(from: CharacterSet.newlines) == nil, !label.contains("]"),
                   let source = attrs["source"] as? String,
-                  source == "[[\(type): \(id) | \(label)]]",
+                  source == (try? RelayMarkSourceCodec.buildEntityReferenceSource(entityType:type,entityID:id,label:label)),
                   (attrs["status"] == nil || attrs["status"] is NSNull),
                   (attrs["subtitle"] == nil || attrs["subtitle"] is NSNull) else {
                 throw Failure.unsupported("reference identity or source")

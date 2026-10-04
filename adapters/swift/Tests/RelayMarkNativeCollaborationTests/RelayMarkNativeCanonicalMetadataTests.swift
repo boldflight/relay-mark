@@ -86,4 +86,16 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(String(try reopened.richProseProjection().text.characters)=="Capital?\nLyon\nOslo")
  }
 
+ @Test @MainActor func fullReferenceTitleUsesSharedSourceAndAtomicPresentation() throws {
+  let label=" [A]\n\"B\"\\ "
+  let source=try RelayMarkSourceCodec.buildEntityReferenceSource(entityType:"Person",entityID:"11111111-1111-4111-8111-111111111111",label:label)
+  #expect(source == #"[[Person: 11111111-1111-4111-8111-111111111111 | "\u0020\u005b\u0041\u005d\u000a\u0022\u0042\u0022\u005c\u0020"]]"#)
+  let document=RelayMarkNativeDocument()
+  try document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument(source,namespace:"reference-title"))
+  let projection=try document.richProseProjection()
+  #expect(projection.isEditable)
+  #expect(projection.inlineAtoms.first?.label==label)
+  #expect(projection.inlineAtoms.first?.range.length==1)
+ }
+
 }

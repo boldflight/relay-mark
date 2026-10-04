@@ -5,6 +5,7 @@ import {bytesToHex} from '@noble/hashes/utils.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.js';
 import {mapInline} from './document-inline.js';
 import {parseAtomSource} from './document-atoms.js';
+export {buildEntityReferenceSource} from './document-atoms.js';
 import {parseAttributes} from './attributes.js';
 import {directiveNodeForName,directiveNodeForType,canonicalDirectiveNodes} from './document-directives.js';
 import {directiveForName,directiveForType} from './registry.js';

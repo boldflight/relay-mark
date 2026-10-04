@@ -104,4 +104,23 @@ defmodule RelayMark.DocumentSourceTest do
 
     assert doc == result.document
   end
+
+  test "full authored reference titles survive source decoding and strict XML roundtrip" do
+    label = " [A]\n\"B\"\\ "
+
+    source =
+      ~S([[Person: 11111111-1111-4111-8111-111111111111 | "\u0020\u005b\u0041\u005d\u000a\u0022\u0042\u0022\u005c\u0020"]])
+
+    assert {:ok, ^source} =
+             RelayMark.InlineAtoms.reference_source(
+               "Person",
+               "11111111-1111-4111-8111-111111111111",
+               label
+             )
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "reference-title")
+    assert hd(hd(ast["blocks"])["content"])["label"] == label
+    assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
+  end
 end

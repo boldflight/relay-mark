@@ -741,6 +741,12 @@ defmodule RelayMark.DocumentXML do
     if type == "relay.entity_ref" do
       only!(props, ~w(entityType source))
 
+      require!(
+        RelayMark.InlineAtoms.reference_source(props["entityType"], node["id"], node["label"]) ==
+          {:ok, props["source"]},
+        :inline_reference_source
+      )
+
       element(
         "relayReference",
         %{
@@ -829,13 +835,9 @@ defmodule RelayMark.DocumentXML do
         label = props["label"]
 
         require!(
-          is_binary(type) and Regex.match?(~r/^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$/, type) and
-            type != "Tag" and uuid?(id) and is_binary(label) and label != "" and
-            String.trim(label) == label and not String.contains?(label, ["\r", "\n", "]"]),
-          :inline_reference
+          RelayMark.InlineAtoms.reference_source(type, id, label) == {:ok, props["source"]},
+          :inline_reference_source
         )
-
-        require!(props["source"] == "[[#{type}: #{id} | #{label}]]", :inline_reference_source)
 
         [
           %{

@@ -26,6 +26,11 @@ public enum RelayMarkSourceCodec {
     public static func snapshotToDocument(_ snapshot: Data) throws -> Data {
         try call("snapshotToDocument",arguments:[json(snapshot)])
     }
+    public static func buildEntityReferenceSource(entityType: String, entityID: String, label: String) throws -> String {
+        let data=try call("buildEntityReferenceSource",arguments:[["entityType":entityType,"entityId":entityID,"label":label]])
+        guard let value=try json(data) as? String else { throw Failure.invalidAuthoredDocument }
+        return value
+    }
     public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)

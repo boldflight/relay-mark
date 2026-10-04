@@ -385,13 +385,11 @@ defmodule RelayMark.DocumentSource do
               "props" => %{"name" => name, "source" => piece}
             }
 
-          [_, type, id, label] ->
-            %{
-              "type" => "relay.entity_ref",
-              "id" => id,
-              "label" => label,
-              "props" => %{"entityType" => type, "source" => piece}
-            }
+          [_, _type, _id, _label] ->
+            case RelayMark.InlineAtoms.parse_reference_source(piece) do
+              {:ok, atom} -> atom
+              :error -> fail(:inline_reference)
+            end
 
           _ ->
             fail(:inline_reference)
