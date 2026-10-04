@@ -121,3 +121,22 @@ and advertise its availability. Existing other hook changes remain distinct.
 No `node_modules` edits are used. The npm release pin remains the actually
 published `v13.6.33-relay.1`; publishing the committed fork and rebuilding consumer
 artifacts are still operational follow-ups, not a fabricated package release.
+
+
+The maintained `@tiptap/y-tiptap` selection correction is fork
+`1e59316d56ba8acd45c6c0bb54f3c5478ccc8252`, based on released 3.0.9 source
+`d5a57985f998e4d2d2f960a4bbc605cf466ad488`. Actual UndoManager synchronization
+reads the saved relative selection from its actual `currStackItem`; inverse
+metadata captures the selection before its Y-to-PM mapping changes. The obsolete
+late Popped setter is removed. Saved history offsets are never resolved against
+the unrelated current pre-document, while ordinary remote structural recovery
+keeps its existing behavior. The full maintained 53-case suite passes, including
+a named peer-retained redo cursor fault observed before the correction.
+
+The shipped `y-tiptap-history-selection.mjs` prepares exact released ESM/CommonJS
+bytes with those reviewed changes, refusing source drift or repeated patching.
+Browser hosts must alias one prepared binding module across editor, plugins and
+proof helpers; no dependency directory is edited. The package pin remains the
+actually published 3.0.9. Fork publication and consumer rebuild are operational
+follow-ups. The optional `fallow` binary was unavailable; lint, typecheck, bundle
+and all behavior tests ran through the maintained `npm test` owner.
