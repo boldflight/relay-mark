@@ -172,4 +172,20 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try doc.encodeUpdate()==state)
  }
 
+ @Test @MainActor func nativeFreshRichTextAccountingIncludesIndependentQuestionOptionEdits() throws {
+  let doc=RelayMarkNativeDocument()
+  try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("<!-- relay:question id=\"q\" type=\"multiple_choice\" -->\nA🌍Z\n- ( ) Choice\n<!-- /relay:question -->",namespace:"fresh-rich-ids"))
+  let vector=doc.stateVector()
+  try doc.insertText("!",at:4,path:[0,0,0])
+  try doc.insertText("🌍",at:6,path:[0,1,0])
+  let state=try doc.encodeUpdate()
+  let evidence=try JSONSerialization.jsonObject(with:doc.captureVisibleTextItems(since:vector)) as! [String:Any]
+  #expect(evidence["contract_version"] as? Int == 1)
+  #expect(evidence["kind"] as? String == "text_items")
+  let runs=evidence["runs"] as! [[String:Any]]
+  #expect(runs.map{$0["count"] as! Int} == [1,2])
+  #expect((runs[0]["type"] as? NSDictionary) != (runs[1]["type"] as? NSDictionary))
+  #expect(try doc.encodeUpdate()==state)
+ }
+
 }

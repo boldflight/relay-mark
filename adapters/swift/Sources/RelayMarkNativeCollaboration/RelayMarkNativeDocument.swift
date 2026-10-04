@@ -69,20 +69,17 @@ public final class RelayMarkNativeDocument {
         return try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
     }
 
-    /// Captures all visible text runs, including nested forms, tables and callouts.
-    public func captureVisibleTextItems() throws -> Data {
+    /// Captures every visible rich XML string identity in one maintained bounded
+    /// traversal. A supplied pre-state vector returns only newly allocated visible
+    /// identities, including independent nested widget edits. Deleted ancestors and
+    /// format markers are excluded; the host still proves authorship/copy witnesses.
+    public func captureVisibleTextItems(since stateVector: Data? = nil) throws -> Data {
         _ = try authoredDocument()
-        let runs = try document.transactSync { tx in
-            func visit(_ node: YXmlNode) throws -> [[String:Any]] {
-                if node.kind(in:tx) == "text" {
-                    let data = try node.textItems(start:0,length:node.length(in:tx),in:tx)
-                    return (try JSONSerialization.jsonObject(with:data) as! [String:Any])["runs"] as! [[String:Any]]
-                }
-                return try node.children(in:tx).flatMap(visit)
-            }
-            return try visit(self.root)
-        }
-        return try JSONSerialization.data(withJSONObject:["contract_version":RelayMarkContract.version,"kind":"text_items","runs":runs],options:[.sortedKeys])
+        let data = try document.inspectVisibleTextItems(since:stateVector ?? Data([0]),rootName:"default")
+        var envelope = try JSONSerialization.jsonObject(with:data) as! [String:Any]
+        envelope["contract_version"] = RelayMarkContract.version
+        envelope["kind"] = "text_items"
+        return try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
     }
 
     /// Exact causal evidence for one bold/italic update against this unchanged
