@@ -22,7 +22,7 @@ public enum RelayMarkNativePaperControlMutation {
     /// the block order the caller displayed, including nil at either edge.
     public static func insert(document: RelayMarkNativeDocument, atRootIndex index: Int,
                               expectedPreviousID: String?, expectedNextID: String?,
-                              block: Block) throws -> Data {
+                              block: Block) throws -> RelayMarkNativeRichEditing.Change {
         let (root, blocks, _) = try current(document)
         guard index >= 0, index <= blocks.count, blocks.count < 4_096,
               (index == 0 ? expectedPreviousID == nil : blockID(blocks[index - 1]) == expectedPreviousID),
@@ -34,16 +34,16 @@ public enum RelayMarkNativePaperControlMutation {
         var children = blocks
         children.insert(["kind": "element", "name": tag, "attributes": attributes, "children": []], at: index)
         candidate["children"] = children
-        let change = RelayMarkNativeDocument.PaperControlChange.insert(tag: tag, attributes: attributes)
-        try validate(document: document, candidate: candidate, at: index, change: change)
-        return try document.mutatePaperControl(at: index, change: change)
+        try validate(candidate)
+        return try RelayMarkNativeRichEditing.insertWidget(document: document, tree: root,
+            candidate: candidate, parentID: nil, index: index)
     }
 
     /// Update authored fields on the same XML element. Its stable ID, control
     /// kind, and Yrs element identity stay in place.
     public static func update(document: RelayMarkNativeDocument, atRootIndex index: Int,
                               expectedID: String, expectedSource: String,
-                              authored: [String: String]) throws -> Data {
+                              authored: [String: String]) throws -> RelayMarkNativeRichEditing.Change {
         let (root, blocks, prose) = try current(document)
         let old = try existing(blocks: blocks, prose: prose, index: index,
                                expectedID: expectedID, expectedSource: expectedSource)
@@ -58,16 +58,15 @@ public enum RelayMarkNativePaperControlMutation {
         var children = blocks
         children[index]["attributes"] = attributes
         candidate["children"] = children
-        let change = RelayMarkNativeDocument.PaperControlChange.update(
-            tag: tag, expectedID: old.id, attributes: attributes)
-        try validate(document: document, candidate: candidate, at: index, change: change)
-        return try document.mutatePaperControl(at: index, change: change)
+        try validate(candidate)
+        return try RelayMarkNativeRichEditing.replaceWidgetAttributes(document: document, tree: root,
+            candidate: candidate, id: old.id)
     }
 
     /// Remove one identified control. A stale index, ID, or canonical authored
     /// source cannot retarget another block.
     public static func remove(document: RelayMarkNativeDocument, atRootIndex index: Int,
-                              expectedID: String, expectedSource: String) throws -> Data {
+                              expectedID: String, expectedSource: String) throws -> RelayMarkNativeRichEditing.Change {
         let (root, blocks, prose) = try current(document)
         let old = try existing(blocks: blocks, prose: prose, index: index,
                                expectedID: expectedID, expectedSource: expectedSource)
@@ -75,10 +74,8 @@ public enum RelayMarkNativePaperControlMutation {
         var children = blocks
         children.remove(at: index)
         candidate["children"] = children
-        let change = RelayMarkNativeDocument.PaperControlChange.remove(
-            tag: nodeName(old.control), expectedID: old.id)
-        try validate(document: document, candidate: candidate, at: index, change: change)
-        return try document.mutatePaperControl(at: index, change: change)
+        try validate(candidate)
+        return try RelayMarkNativeRichEditing.removeWidget(document: document, tree: root, id: old.id)
     }
 
     private static func current(_ document: RelayMarkNativeDocument)
@@ -127,18 +124,10 @@ public enum RelayMarkNativePaperControlMutation {
         (block["attributes"] as? [String: Any])?["relaymarkId"] as? String
     }
 
-    private static func validate(document: RelayMarkNativeDocument, candidate: [String: Any],
-                                 at index: Int, change: RelayMarkNativeDocument.PaperControlChange) throws {
+    private static func validate(_ candidate: [String: Any]) throws {
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        let expectedAST = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
         guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
-            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
-        }
-        let scratch = RelayMarkNativeDocument()
-        try scratch.applyUpdate(document.encodeUpdate())
-        _ = try scratch.mutatePaperControl(at: index, change: change)
-        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expectedAST,
-              try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
     }

@@ -9,7 +9,16 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
     private func update(_ name: String) throws -> Data {
         let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-        return try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        let original = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"] as? String)))
+        guard name == "rich-video-v3-draft" else { return original }
+        // Original archive stays unchanged; this operation starts after the
+        // finite importer removes recorded presentation-only default attrs.
+        let retained = RelayMarkNativeDocument()
+        try retained.applyUpdate(original)
+        let prepared = try RelayMarkNativeSnapshotImport.prepare(document: retained,
+            namespace: "retained-media-commands", expectedSnapshot: retained.snapshot())
+        _ = try RelayMarkNativeSnapshotImport.install(document: retained, prepared: prepared)
+        return try retained.encodeUpdate()
     }
 
     func testImageRemoveInsertAndUndoReplayWithoutChangingNeighborBlocks() throws {
@@ -23,10 +32,17 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         let beforeID = "bc5e20755a10547d08d9054f33618c548"
         let afterID = "b29908e62e7c2496580e5aea7bb8e4f14"
 
+        let observation = try native.captureContentEditObservation()
         let removed = try RelayMarkNativeMediaMutation.remove(document: native, atRootIndex: 1,
             expectedID: media.id, expectedSource: media.source)
-        try peer.applyUpdate(removed)
-        try browser.applyUpdate(removed)
+        let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: removed.steps) as? [[String: Any]])
+        XCTAssertEqual(steps.first?["stepType"] as? String, "replace")
+        let witness = try XCTUnwrap(JSONSerialization.jsonObject(with:
+            native.buildContentEditWitness(observation, steps: removed.steps, update: removed.update)) as? [String: Any])
+        XCTAssertEqual((witness["text_items"] as? [String: Any])?["runs"] as? [[String: Int]], [])
+        XCTAssertFalse(removed.beforeSnapshot.isEmpty)
+        try peer.applyUpdate(removed.update)
+        try browser.applyUpdate(removed.update)
         XCTAssertTrue(try native.richProseProjection().isEditable)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
@@ -36,8 +52,8 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
             expectedPreviousID: beforeID, expectedNextID: afterID,
             block: .init(id: media.id, kind: .image, source: media.source,
                          alt: media.alt, title: media.title))
-        try peer.applyUpdate(inserted)
-        try browser.applyUpdate(inserted)
+        try peer.applyUpdate(inserted.update)
+        try browser.applyUpdate(inserted.update)
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), original)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()), original)
@@ -65,7 +81,7 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
 
         let removed = try RelayMarkNativeMediaMutation.remove(document: native, atRootIndex: 1,
             expectedID: media.id, expectedSource: media.source)
-        try peer.applyUpdate(removed)
+        try peer.applyUpdate(removed.update)
         let afterRemove = try native.encodeUpdate()
         let beforeID = "bc5e20755a10547d08d9054f33618c548"
         let afterID = "b29908e62e7c2496580e5aea7bb8e4f14"
@@ -87,7 +103,7 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         let inserted = try RelayMarkNativeMediaMutation.insert(document: native, atRootIndex: 1,
             expectedPreviousID: beforeID, expectedNextID: afterID,
             block: .init(id: media.id, kind: .videoEmbed, source: media.source))
-        try peer.applyUpdate(inserted)
+        try peer.applyUpdate(inserted.update)
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), original)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
     }
@@ -109,8 +125,8 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         let added = try RelayMarkNativeMediaMutation.insert(document: native, atRootIndex: 2,
             expectedPreviousID: first.id, expectedNextID: "b29908e62e7c2496580e5aea7bb8e4f14",
             block: .init(id: secondID, kind: .image, source: "https://images.example.org/second.png"))
-        try peer.applyUpdate(added)
-        try browser.applyUpdate(added)
+        try peer.applyUpdate(added.update)
+        try browser.applyUpdate(added.update)
         XCTAssertEqual(try native.richProseProjection().mediaAtoms.count, 2)
         let checkpoint = try native.encodeUpdate()
         XCTAssertThrowsError(try RelayMarkNativeRichTextMutation.replace(
@@ -119,8 +135,8 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
 
         let removed = try RelayMarkNativeMediaMutation.remove(document: native, atRootIndex: 1,
             expectedID: first.id, expectedSource: first.source)
-        try peer.applyUpdate(removed)
-        try browser.applyUpdate(removed)
+        try peer.applyUpdate(removed.update)
+        try browser.applyUpdate(removed.update)
         let final = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(final.blocks[0].plainText, "Before image together")
         XCTAssertEqual(try native.richProseProjection().mediaAtoms.map(\.id), [secondID])

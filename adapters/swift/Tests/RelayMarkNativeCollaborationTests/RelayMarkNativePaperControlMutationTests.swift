@@ -26,11 +26,18 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
 
         let block = RelayMarkNativePaperControlMutation.Block(
             id: insertedID, control: .anchor, authored: ["name": "later"])
+        let observation = try native.captureContentEditObservation()
         let inserted = try RelayMarkNativePaperControlMutation.insert(
             document: native, atRootIndex: 1,
             expectedPreviousID: paragraphID, expectedNextID: anchorID, block: block)
-        try peer.applyUpdate(inserted)
-        try browser.applyUpdate(inserted)
+        let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: inserted.steps) as? [[String: Any]])
+        XCTAssertEqual(steps.first?["stepType"] as? String, "replace")
+        let witness = try XCTUnwrap(JSONSerialization.jsonObject(with:
+            native.buildContentEditWitness(observation, steps: inserted.steps, update: inserted.update)) as? [String: Any])
+        XCTAssertEqual((witness["text_items"] as? [String: Any])?["runs"] as? [[String: Int]], [])
+        XCTAssertFalse(inserted.beforeSnapshot.isEmpty)
+        try peer.applyUpdate(inserted.update)
+        try browser.applyUpdate(inserted.update)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try native.richProseProjection().blockAtoms.first?.id, insertedID)
 
@@ -39,8 +46,8 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
             document: native, atRootIndex: 3, expectedID: buttonID,
             expectedSource: "@Button(label: \"Next\", kind: \"anchor\", target: \"next\")",
             authored: ["label": "Continue", "kind": "anchor", "target": "next"])
-        try peer.applyUpdate(changed)
-        try browser.applyUpdate(changed)
+        try peer.applyUpdate(changed.update)
+        try browser.applyUpdate(changed.update)
         XCTAssertEqual(try native.resolve(anchor: buttonAnchor)?.path, [3])
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try native.richProseProjection().blockAtoms[2].displayLabel, "Continue")
@@ -48,8 +55,8 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
         let removed = try RelayMarkNativePaperControlMutation.remove(
             document: native, atRootIndex: 1, expectedID: insertedID,
             expectedSource: "@Anchor(name: \"later\")")
-        try peer.applyUpdate(removed)
-        try browser.applyUpdate(removed)
+        try peer.applyUpdate(removed.update)
+        try browser.applyUpdate(removed.update)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try native.resolve(anchor: buttonAnchor)?.path, [2])
         XCTAssertEqual(try native.richProseProjection().blockAtoms.map(\.id).contains(insertedID), false)
@@ -89,7 +96,7 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
             document: peer, atRootIndex: 2, expectedID: buttonID,
             expectedSource: "@Button(label: \"Next\", kind: \"anchor\", target: \"next\")",
             authored: ["label": "Proceed", "kind": "anchor", "target": "next"])
-        try native.applyUpdate(peerChange)
+        try native.applyUpdate(peerChange.update)
         let afterPeerChange = try native.encodeUpdate()
         XCTAssertThrowsError(try RelayMarkNativePaperControlMutation.update(
             document: native, atRootIndex: 2, expectedID: buttonID,

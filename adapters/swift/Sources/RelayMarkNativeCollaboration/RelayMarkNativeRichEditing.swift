@@ -369,6 +369,16 @@ public enum RelayMarkNativeRichEditing {
         return try change(transform, source: source, bridge: bridge, document: document)
     }
 
+    /// Full authored replacement uses the admitted candidate's schema defaults,
+    /// so omitted optional attributes are cleared by actual AttrSteps.
+    static func replaceWidgetAttributes(document: RelayMarkNativeDocument, tree: [String: Any],
+                                        candidate: [String: Any], id: String) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical()
+        let prospective = try bridge.document(fromSnapshot: candidate)
+        let target = try identifiedNode(id, in: prospective)
+        return try updateWidget(document: document, tree: tree, id: id, attributes: target.node.attrs)
+    }
+
     private static func identifiedNode(_ id: String?, in doc: PMNode) throws -> (node: PMNode, position: Int) {
         guard let id else { return (doc, 0) }
         var result: (PMNode, Int)?

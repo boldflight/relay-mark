@@ -31,7 +31,7 @@ public enum RelayMarkNativeMediaMutation {
     /// validation rejects unresolved uploads, unsafe sources and duplicate IDs.
     public static func insert(document: RelayMarkNativeDocument, atRootIndex index: Int,
                               expectedPreviousID: String?, expectedNextID: String?,
-                              block: Block) throws -> Data {
+                              block: Block) throws -> RelayMarkNativeRichEditing.Change {
         guard document.integrationStatus().isComplete,
               try document.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
@@ -47,22 +47,15 @@ public enum RelayMarkNativeMediaMutation {
         children.insert(["kind": "element", "name": block.kind.rawValue,
                          "attributes": attributes, "children": []], at: index)
         candidate["children"] = children
-        let expected = try project(candidate)
-        let change = RelayMarkNativeDocument.PaperControlChange.insert(
-            tag: block.kind.rawValue, attributes: attributes)
-        let scratch = try replica(of: document)
-        _ = try scratch.mutatePaperControl(at: index, change: change)
-        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
-              try scratch.richProseProjection().mediaAtoms.contains(where: {
-                  $0.id == block.id && $0.source == block.source && $0.path == [index]
-              }) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        return try document.mutatePaperControl(at: index, change: change)
+        _ = try project(candidate)
+        return try RelayMarkNativeRichEditing.insertWidget(document: document, tree: root,
+            candidate: candidate, parentID: nil, index: index)
     }
 
     /// Remove one exact media atom. The remaining paper must pass the native
     /// editable projection; unrelated media and neighbors stay untouched.
     public static func remove(document: RelayMarkNativeDocument, atRootIndex index: Int,
-                              expectedID: String, expectedSource: String) throws -> Data {
+                              expectedID: String, expectedSource: String) throws -> RelayMarkNativeRichEditing.Change {
         guard document.integrationStatus().isComplete else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
@@ -79,19 +72,11 @@ public enum RelayMarkNativeMediaMutation {
         children.remove(at: index)
         candidate["children"] = children
         let candidateData = try JSONSerialization.data(withJSONObject: candidate)
-        let expected = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: candidateData)
         guard try RelayMarkCollaborativeProse(snapshot: candidateData, dialect: .rich).isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let change = RelayMarkNativeDocument.PaperControlChange.remove(
-            tag: media.kind.rawValue, expectedID: expectedID)
-        let scratch = try replica(of: document)
-        _ = try scratch.mutatePaperControl(at: index, change: change)
-        guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
-              try scratch.richProseProjection().isEditable else {
-            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
-        }
-        return try document.mutatePaperControl(at: index, change: change)
+        return try RelayMarkNativeRichEditing.removeWidget(document: document, tree: root, id: expectedID)
     }
 
     private static func attributes(for block: Block) throws -> [String: Any] {
@@ -129,9 +114,4 @@ public enum RelayMarkNativeMediaMutation {
             snapshot: JSONSerialization.data(withJSONObject: snapshot))
     }
 
-    private static func replica(of document: RelayMarkNativeDocument) throws -> RelayMarkNativeDocument {
-        let scratch = RelayMarkNativeDocument()
-        try scratch.applyUpdate(document.encodeUpdate())
-        return scratch
-    }
 }
