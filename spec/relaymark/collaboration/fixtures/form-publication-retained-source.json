@@ -1,0 +1,211 @@
+{
+  "source": "Intro **bold**:\n\n@Callout(tone: \"info\", emphasis: \"soft\") {\nSafe guidance\n}\n\n<!-- relay:question id=\"quiz-q\" type=\"multiple_choice\" required=\"true\" points=\"5\" settings='{\"placeholder\":\"Retained label hint\"}' -->\nChoose **one**\n- (x) Correct **bold** answer\n- ( ) Other answer\n<!-- /relay:question -->\n\nTrailing instructions",
+  "expected": {
+    "document": {
+      "type": "relaymark.document",
+      "blocks": [
+        {
+          "id": "bea16a2304b6a4e22872dfee0eee2dff0",
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Intro "
+            },
+            {
+              "type": "strong",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "bold"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": ":"
+            }
+          ]
+        },
+        {
+          "id": "be76f53e2279648a6812870a02d762c55",
+          "type": "relay.callout",
+          "props": {
+            "tone": "info",
+            "emphasis": "soft"
+          },
+          "content": [
+            {
+              "id": "be692b252e543405c8604bbb180934493",
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Safe guidance"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "bf2b0198b946a4a708da09d5f90500882",
+          "type": "relay.form_question",
+          "props": {
+            "required": true,
+            "points": 5,
+            "min": null,
+            "max": null,
+            "settings": {
+              "answer_key": {
+                "points": 5,
+                "correct_answer": "correct-bold-answer"
+              },
+              "placeholder": "Retained label hint"
+            },
+            "id": "quiz-q",
+            "type": "multiple_choice"
+          },
+          "content": [
+            {
+              "id": "bcfe83c6b1c0f45928f8d54a58accfbf3",
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Choose "
+                },
+                {
+                  "type": "strong",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "one"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "bb17fcc28cb264ebe89553e460c91f38f",
+              "type": "relay.form_option",
+              "props": {
+                "correct": true,
+                "points": null,
+                "settings": {},
+                "id": "correct-bold-answer"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Correct "
+                },
+                {
+                  "type": "strong",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "bold"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": " answer"
+                }
+              ]
+            },
+            {
+              "id": "ba13a89d70e92413281aa3c381bf49bdd",
+              "type": "relay.form_option",
+              "props": {
+                "correct": false,
+                "points": null,
+                "settings": {},
+                "id": "other-answer"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Other answer"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "ba1ce5023c3504092897cdabe7eda076c",
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "Trailing instructions"
+            }
+          ]
+        }
+      ]
+    },
+    "identity_mapping": {
+      "retained": [
+        "bea16a2304b6a4e22872dfee0eee2dff0",
+        "be76f53e2279648a6812870a02d762c55",
+        "be692b252e543405c8604bbb180934493",
+        "bf2b0198b946a4a708da09d5f90500882",
+        "bcfe83c6b1c0f45928f8d54a58accfbf3",
+        "bb17fcc28cb264ebe89553e460c91f38f",
+        "ba13a89d70e92413281aa3c381bf49bdd",
+        "ba1ce5023c3504092897cdabe7eda076c"
+      ],
+      "remapped": [],
+      "added": []
+    },
+    "normalizations": [
+      {
+        "path": [
+          "blocks",
+          0
+        ],
+        "operation": "import_source",
+        "block_ids": [
+          "b9d1ac4149c36407c8f4d11a8b1a721ef",
+          "bd08b46895bd74359895ea6a931aee81c"
+        ]
+      },
+      {
+        "path": [
+          "blocks",
+          1
+        ],
+        "operation": "form_question",
+        "block_id": "bac690475ee4644178e00411513abaac2",
+        "label_id": "b146de05f5ab44b768f5c75d1a0773463",
+        "option_ids": [
+          "b8d45acbb11274dae874304c7715a66b5",
+          "b389b5c9f8c3e465d87c08c279b43b28e"
+        ]
+      },
+      {
+        "path": [
+          "blocks",
+          2
+        ],
+        "operation": "import_source",
+        "block_ids": [
+          "b7c33d21fd329440b84b23e8dad8c3978"
+        ]
+      },
+      {
+        "path": [
+          "question",
+          "quiz-q",
+          "settings",
+          "placeholder"
+        ],
+        "operation": "recover_retained_source_setting"
+      },
+      {
+        "path": [],
+        "operation": "use_retained_publication_source"
+      }
+    ]
+  }
+}

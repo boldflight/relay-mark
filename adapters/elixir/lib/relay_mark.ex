@@ -148,4 +148,8 @@ defmodule RelayMark do
       {:error, diagnostics} -> raise ValidationError, diagnostics: diagnostics
     end
   end
+
+  @doc "Finite saved publication conversion; optional source must be the same immutable released body."
+  def import_form_publication(publication, options \\ []),
+    do: RelayMark.FormPublicationImport.import(publication, options)
 end

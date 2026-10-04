@@ -1,0 +1,209 @@
+{
+  "document": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "b9d1ac4149c36407c8f4d11a8b1a721ef",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Intro "
+          },
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ":"
+          }
+        ]
+      },
+      {
+        "id": "bd08b46895bd74359895ea6a931aee81c",
+        "type": "relay.callout",
+        "props": {
+          "tone": "info",
+          "emphasis": "soft"
+        },
+        "content": [
+          {
+            "id": "b8efeb008dc4d483e84cea8e7cb13d8e6",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Safe guidance"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bac690475ee4644178e00411513abaac2",
+        "type": "relay.form_question",
+        "props": {
+          "required": true,
+          "points": 5,
+          "min": null,
+          "max": null,
+          "settings": {
+            "answer_key": {
+              "points": 5,
+              "correct_answer": "correct-bold-answer"
+            }
+          },
+          "id": "quiz-q",
+          "type": "multiple_choice"
+        },
+        "content": [
+          {
+            "id": "b146de05f5ab44b768f5c75d1a0773463",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Choose "
+              },
+              {
+                "type": "strong",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "one"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "b8d45acbb11274dae874304c7715a66b5",
+            "type": "relay.form_option",
+            "props": {
+              "correct": true,
+              "points": null,
+              "settings": {},
+              "id": "correct-bold-answer"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Correct "
+              },
+              {
+                "type": "strong",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " answer"
+              }
+            ]
+          },
+          {
+            "id": "b389b5c9f8c3e465d87c08c279b43b28e",
+            "type": "relay.form_option",
+            "props": {
+              "correct": false,
+              "points": null,
+              "settings": {},
+              "id": "other-answer"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Other answer"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b7c33d21fd329440b84b23e8dad8c3978",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Trailing instructions"
+          }
+        ]
+      }
+    ]
+  },
+  "identity_mapping": {
+    "retained": [
+      "b9d1ac4149c36407c8f4d11a8b1a721ef",
+      "bd08b46895bd74359895ea6a931aee81c",
+      "b8efeb008dc4d483e84cea8e7cb13d8e6",
+      "b146de05f5ab44b768f5c75d1a0773463",
+      "b7c33d21fd329440b84b23e8dad8c3978"
+    ],
+    "remapped": [],
+    "added": [
+      {
+        "id": "b8d45acbb11274dae874304c7715a66b5",
+        "parent": "quiz-q",
+        "role": "option",
+        "option_id": "correct-bold-answer"
+      },
+      {
+        "id": "b389b5c9f8c3e465d87c08c279b43b28e",
+        "parent": "quiz-q",
+        "role": "option",
+        "option_id": "other-answer"
+      },
+      {
+        "id": "bac690475ee4644178e00411513abaac2",
+        "role": "question",
+        "question_id": "quiz-q"
+      }
+    ]
+  },
+  "normalizations": [
+    {
+      "path": [
+        "blocks",
+        0
+      ],
+      "operation": "import_source",
+      "block_ids": [
+        "b9d1ac4149c36407c8f4d11a8b1a721ef",
+        "bd08b46895bd74359895ea6a931aee81c"
+      ]
+    },
+    {
+      "path": [
+        "blocks",
+        1
+      ],
+      "operation": "form_question",
+      "block_id": "bac690475ee4644178e00411513abaac2",
+      "label_id": "b146de05f5ab44b768f5c75d1a0773463",
+      "option_ids": [
+        "b8d45acbb11274dae874304c7715a66b5",
+        "b389b5c9f8c3e465d87c08c279b43b28e"
+      ]
+    },
+    {
+      "path": [
+        "blocks",
+        2
+      ],
+      "operation": "import_source",
+      "block_ids": [
+        "b7c33d21fd329440b84b23e8dad8c3978"
+      ]
+    }
+  ]
+}

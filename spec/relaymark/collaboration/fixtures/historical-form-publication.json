@@ -1,0 +1,45 @@
+{
+  "actions": [],
+  "approval_mode": "automatic",
+  "approval_rules": [],
+  "blocks": [
+    {
+      "label": "Intro **bold**:\n\n@Callout(tone: \"info\", emphasis: \"soft\") {\nSafe guidance\n}",
+      "type": "paragraph"
+    },
+    {
+      "id": "quiz-q",
+      "label": "Choose **one**",
+      "max": null,
+      "min": null,
+      "type": "multiple_choice",
+      "options": [
+        {
+          "id": "correct-bold-answer",
+          "label": "Correct **bold** answer",
+          "text": "Correct **bold** answer",
+          "correct": true
+        },
+        {
+          "id": "other-answer",
+          "label": "Other answer",
+          "text": "Other answer",
+          "correct": false
+        }
+      ],
+      "required": true,
+      "points": 5,
+      "answer_key": {
+        "points": 5,
+        "correct_answer": "correct-bold-answer"
+      }
+    },
+    {
+      "label": "Trailing instructions",
+      "type": "paragraph"
+    }
+  ],
+  "logic_rules": [],
+  "published_at": "2026-09-01T00:00:00Z",
+  "title": "Historical released quiz"
+}

@@ -249,3 +249,7 @@ function markdown(n){const p=n.props||{};switch(n.type){case 'paragraph':case 'r
  case 'relay.form_option':return '- '+inlineMarkdown(n.content);case 'relay.paper_control':case 'relay.entity_reference':return p.source;
  default:{const generic=directiveNodeForType(n.type);if(generic)return '@'+directiveForType(generic.type).name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+n.content.map(markdown).join('\n\n')+'\n}';const name={'relay.callout':'Callout','relay.form_question':'Question','relay.agent_suggestion':'AgentSuggestion','relay.data_view':'DataView','relay.video_embed':'Video'}[n.type];if(!name)throw new TypeError('Unsupported block projection');const body=n.type==='relay.agent_suggestion'?inlineMarkdown(n.content):n.content.map(markdown).join('\n\n');return '@'+name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+body+'\n}';}
 }}
+
+import {importPublication} from './form-publication-import.js';
+/** Finite saved publication conversion. Optional source is only the same immutable release body. */
+export function importFormPublication(publication,options){return importPublication(publication,options,{importSource:importDocumentSource,identity:id,normalize:normalizeDocument});}
