@@ -1,5 +1,6 @@
 import Foundation
 import CoreFoundation
+import RelayMarkSwift
 
 /// Authored media shape shared by native text admission and portable AST projection.
 /// Media bytes, upload progress, playback and authorization stay with the host.
@@ -60,14 +61,6 @@ public enum RelayMarkMediaContract {
     }
 
     private static func validImageSource(_ source: String) -> Bool {
-        guard source.utf16.count <= 2_048,
-              source.trimmingCharacters(in: .whitespacesAndNewlines) == source,
-              source.rangeOfCharacter(from: .controlCharacters) == nil,
-              !source.contains("\\") else { return false }
-        if source.range(of: "^/m/[A-Za-z0-9_-]{1,128}$", options: .regularExpression) != nil { return true }
-        guard source.hasPrefix("https://"), let url = URLComponents(string: source),
-              url.scheme == "https", let host = url.host, !host.isEmpty,
-              url.user == nil, url.password == nil else { return false }
-        return true
+        (try? RelayMarkSourceCodec.isSafeImageSource(source)) == true
     }
 }

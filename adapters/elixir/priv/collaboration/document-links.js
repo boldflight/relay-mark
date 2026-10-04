@@ -10,3 +10,11 @@ export function safeLinkHref(value) {
  if(/^tel:/iu.test(value))return /^[+0-9().-]+$/u.test(value.slice(4));
  return false;
 }
+
+/** Durable authored media URI; bytes and access remain host-owned. */
+export function safeImageSource(value) {
+ if(typeof value!=='string'||value.length>2048||!safeLinkHref(value))return false;
+ if(value.startsWith('/')){try{return value.split(/[?#]/u)[0].split('/').every(part=>!['.','..'].includes(decodeURIComponent(part)));}catch{return false;}}
+ if(!/^https:\/\//iu.test(value))return false;
+ try{return new URL(value).protocol==='https:';}catch{return false;}
+}

@@ -35,4 +35,24 @@ defmodule RelayMark.Link do
   end
 
   def safe_href?(_), do: false
+
+  def safe_image_source?(value) when is_binary(value) do
+    safe_href?(value) and String.length(value) <= 2048 and
+      cond do
+        String.starts_with?(value, "/") ->
+          value
+          |> String.split(["?", "#"])
+          |> hd()
+          |> String.split("/")
+          |> Enum.all?(fn segment -> URI.decode(segment) not in [".", ".."] end)
+
+        Regex.match?(~r/^https:\/\//i, value) ->
+          URI.parse(value).scheme == "https"
+
+        true ->
+          false
+      end
+  end
+
+  def safe_image_source?(_), do: false
 end

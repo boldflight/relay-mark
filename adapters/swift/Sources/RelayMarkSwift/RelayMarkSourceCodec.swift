@@ -31,6 +31,11 @@ public enum RelayMarkSourceCodec {
         guard let value=try json(data) as? String else { throw Failure.invalidAuthoredDocument }
         return value
     }
+    public static func isSafeImageSource(_ source: String) throws -> Bool {
+        let data=try call("safeImageSource",arguments:[source])
+        guard let value=try json(data) as? Bool else { throw Failure.invalidAuthoredDocument }
+        return value
+    }
     public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)

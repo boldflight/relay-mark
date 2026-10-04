@@ -98,4 +98,12 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(projection.inlineAtoms.first?.range.length==1)
  }
 
+ @Test @MainActor func onboardingStaticImagesRemainCanonicalNativeMedia() throws {
+  for src in ["/images/onboarding/connected-note.png","/images/onboarding/connected-work.png"] {
+   let document=RelayMarkNativeDocument()
+   try document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("![Connected](\(src))",namespace:"onboarding-image"))
+   #expect(try document.richProseProjection().mediaAtoms.first?.source==src)
+  }
+ }
+
 }

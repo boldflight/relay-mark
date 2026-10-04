@@ -6,6 +6,7 @@ import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.
 import {mapInline} from './document-inline.js';
 import {parseAtomSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
+export {safeImageSource} from './document-links.js';
 import {parseAttributes} from './attributes.js';
 import {directiveNodeForName,directiveNodeForType,canonicalDirectiveNodes} from './document-directives.js';
 import {directiveForName,directiveForType} from './registry.js';

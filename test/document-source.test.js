@@ -85,3 +85,12 @@ test('entity reference titles keep brackets newline quotes and whitespace throug
  assert.equal(parseDocument(source,{namespace:'reference-title'}).blocks[0].content[0].label,label);
  assert.deepEqual(parseDocument(serializeDocument(ast)),ast);
 });
+
+test('onboarding static media paths remain authored images through canonical import and XML',()=>{
+ for(const src of ['/images/onboarding/connected-note.png','/images/onboarding/connected-work.png']){
+  const ast=parseDocument(`![Connected](${src})`,{namespace:'onboarding-image'});
+  assert.equal(ast.blocks[0].props.src,src);
+  assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+  assert.match(renderDocument(ast),new RegExp('src="'+src.replaceAll('.','\\.')+'"'));
+ }
+});

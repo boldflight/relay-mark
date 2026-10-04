@@ -1,4 +1,4 @@
-import {URL} from './document-url.js';
+import {safeImageSource} from './document-links.js';
 /** Canonical rich editor projection and strict lossless AST inverse. */
 import { directiveNodeForName, directiveNodeForType, authoredDirectiveProps } from './document-directives.js';
 import { mapInline, unmapInline } from './document-inline.js';
@@ -409,16 +409,7 @@ function unmapImage(block, seen) {
 }
 
 function checkImageProps({ src, alt, title }) {
-  const hostMedia = typeof src === "string" && /^\/m\/[A-Za-z0-9_-]{1,128}$/u.test(src);
-  let secureURL = false;
-  if (typeof src === "string" && src.startsWith("https://") && src.length <= 2048 &&
-      src === src.trim() && !/[\u0000-\u001f\u007f\\]/u.test(src)) {
-    try {
-      const url = new URL(src);
-      secureURL = url.protocol === "https:" && !url.username && !url.password;
-    } catch { /* Relative and temporary URLs are not portable. */ }
-  }
-  if (!hostMedia && !secureURL) throw new TypeError("Image src must be durable host media or HTTPS");
+  if (!safeImageSource(src)) throw new TypeError("Image src must be durable local media or HTTPS");
   for (const [name, value] of [["alt", alt], ["title", title]]) {
     if (value !== null && (typeof value !== "string" || value.length > 4096 || /[\r\n]/u.test(value))) {
       throw new TypeError(`Invalid image ${name}`);

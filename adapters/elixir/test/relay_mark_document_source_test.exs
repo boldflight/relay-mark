@@ -123,4 +123,15 @@ defmodule RelayMark.DocumentSourceTest do
     assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
     assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
   end
+
+  test "onboarding static image paths survive canonical source and XML" do
+    for src <- ["/images/onboarding/connected-note.png", "/images/onboarding/connected-work.png"] do
+      assert {:ok, ast} =
+               RelayMark.parse_document("![Connected](#{src})", namespace: "onboarding-image")
+
+      assert hd(ast["blocks"])["props"]["src"] == src
+      assert {:ok, snapshot} = RelayMark.DocumentXML.from_document(ast)
+      assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(snapshot)
+    end
+  end
 end

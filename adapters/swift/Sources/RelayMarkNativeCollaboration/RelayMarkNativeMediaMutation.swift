@@ -9,7 +9,7 @@ public enum RelayMarkNativeMediaMutation {
     public struct Block: Sendable {
         public let id: String
         public let kind: RelayMarkCollaborativeProse.MediaAtom.Kind
-        /// Durable `/m/:entity_id` or HTTPS image source, or a video UUID.
+        /// Durable absolute local path or HTTPS image source, or a video UUID.
         public let source: String
         public let alt: String?
         public let title: String?

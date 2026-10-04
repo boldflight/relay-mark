@@ -885,15 +885,7 @@ defmodule RelayMark.DocumentXML do
 
   defp uuid?(id), do: is_binary(id) and Regex.match?(@uuid, id)
 
-  defp safe_image?(src) when is_binary(src) do
-    uri = URI.parse(src)
-
-    (Regex.match?(~r|^/m/[A-Za-z0-9_-]{1,128}$|, src) or
-       (uri.scheme == "https" and is_binary(uri.host) and uri.host != "" and is_nil(uri.userinfo))) and
-      String.trim(src) == src and not Regex.match?(~r/[\x00-\x1f\x7f\\]/, src)
-  end
-
-  defp safe_image?(_), do: false
+  defp safe_image?(src), do: RelayMark.Link.safe_image_source?(src)
 
   defp validate_json!(value, depth) do
     require!(depth <= 32, :metadata_depth)
