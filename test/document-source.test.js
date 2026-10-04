@@ -35,7 +35,7 @@ import {relayMarkToProseMirror,proseMirrorToRelayMark,identifiedDocumentNodeName
 test('generic authored claim evidence and comparison retain Unicode, IDs and table geometry',()=>{
  const ast=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-directives.json',import.meta.url)));
  const pm=relayMarkToProseMirror(ast);assert.deepEqual(pm.content.map(n=>n.type),['relayEvidence','relayClaim','relayComparison']);
- assert.deepEqual(proseMirrorToRelayMark(pm),{type:ast.type,blocks:ast.blocks});
+ assert.deepEqual(proseMirrorToRelayMark(pm),ast);
  assert.deepEqual(parseDocument(serializeDocument(ast)),ast);assert.match(renderDocument(ast),/<strong>Résumé 世界<\/strong>/);
  assert.match(projectDocumentMarkdown(ast),/@EvidenceRef\(/);assert.match(projectDocumentMarkdown(ast),/\| Subject \| Value \|/);
  const inline=structuredClone(ast);inline.blocks[1].content=inline.blocks[1].content[0].content;assert.throws(()=>relayMarkToProseMirror(inline));

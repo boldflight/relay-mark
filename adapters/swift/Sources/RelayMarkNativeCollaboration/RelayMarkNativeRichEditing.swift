@@ -24,8 +24,8 @@ public enum RelayMarkNativeRichEditing {
         public let steps: Data
         /// ProseMirror's mapped selection head; nil when it leaves textblocks.
         public let caret: Caret?
-        /// The same transaction changed authored envelope metadata. Current PM-only
-        /// source witnesses cannot account for this yet; hosts must keep it unproven.
+        /// The same transaction changed authored envelope metadata, witnessed by
+        /// maintained DocAttrStep. Complete server correspondence remains required.
         public let authoredMetadataChanged: Bool
         init(update:Data,beforeSnapshot:Data,steps:Data,caret:Caret?,authoredMetadataChanged:Bool=false){
             self.update=update;self.beforeSnapshot=beforeSnapshot;self.steps=steps;self.caret=caret;self.authoredMetadataChanged=authoredMetadataChanged
@@ -39,10 +39,10 @@ public enum RelayMarkNativeRichEditing {
               let target=try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.documentToSnapshot(authoredAST)) as? [String:Any] else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
         let bridge=try PMYXmlBridge.canonical(),source=try bridge.document(fromSnapshot:before),incoming=try bridge.document(fromSnapshot:target)
         let envelope=target["metadata"] as? [String:Any] ?? [:]
-        let metadata=try JSONDecoder().decode([String:RelayMarkValue].self,from:JSONSerialization.data(withJSONObject:envelope))
         var transform=PMTransform(source)
         try transform.replace(0,source.content.size,PMSlice(incoming.content,openStart:0,openEnd:0))
-        let (update,_,beforeSnapshot,steps)=try commit(transform,source:source,bridge:bridge,document:document,metadataReplacement:metadata)
+        if !pmCompareDeep(source.attrs["relaymark"] ?? [:],envelope){try transform.step(.docAttr(name:"relaymark",value:envelope))}
+        let (update,_,beforeSnapshot,steps)=try commit(transform,source:source,bridge:bridge,document:document)
         let changed = !pmCompareDeep(before["metadata"] ?? [:],envelope)
         return Change(update:update,beforeSnapshot:beforeSnapshot,steps:steps,caret:nil,authoredMetadataChanged:changed)
     }
@@ -389,7 +389,7 @@ public enum RelayMarkNativeRichEditing {
     /// Applies identity rules, validates the prospective document on a
     /// scratch replica, then writes it through y-prosemirror's diff.
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
-                               document: RelayMarkNativeDocument,metadataReplacement:[String:RelayMarkValue]?=nil) throws -> (Data, PMNode, Data, Data) {
+                               document: RelayMarkNativeDocument) throws -> (Data, PMNode, Data, Data) {
         var seen = Set<String>(), anchors = Set<String>()
         transform.doc.content.nodesBetween(0, transform.doc.content.size, { node, _, _, _ in
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
@@ -410,19 +410,17 @@ public enum RelayMarkNativeRichEditing {
         let updated=witnessed.doc
         let beforeSnapshot=try document.captureSenderSnapshot()
         let steps=try JSONSerialization.data(withJSONObject:witnessed.steps.map { $0.json() },options:[.sortedKeys])
-        var prospective = bridge.snapshot(updated)
-        if let metadataReplacement {prospective["metadata"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(metadataReplacement))}
-        else if let current=try JSONSerialization.jsonObject(with:document.snapshot()) as? [String:Any],let metadata=current["metadata"] {prospective["metadata"]=metadata}
+        let prospective = bridge.snapshot(updated)
         let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
         let scratch = RelayMarkNativeDocument()
         try scratch.applyUpdate(document.encodeUpdate())
-        _ = try scratch.applyProseMirror(updated, source: source, bridge: bridge,metadataReplacement:metadataReplacement)
+        _ = try scratch.applyProseMirror(updated, source: source, bridge: bridge)
         guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
               try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        return (try document.applyProseMirror(updated, source: source, bridge: bridge,metadataReplacement:metadataReplacement), updated, beforeSnapshot, steps)
+        return (try document.applyProseMirror(updated, source: source, bridge: bridge), updated, beforeSnapshot, steps)
     }
 
     /// The ProseMirror position of a projected offset inside a textblock.

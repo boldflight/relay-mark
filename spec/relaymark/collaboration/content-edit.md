@@ -162,11 +162,27 @@ live owner, not alternative operation formats.
 
 `RelayMarkNativeRichEditing.replaceDocument(document:authoredAST:expectedSnapshot:)`
 validates the complete shared AST and candidate before mutation, then writes its
-actual full ReplaceStep through the same maintained body diff and replaces the
-existing `relaymark` metadata map in the same Yrs transaction and UndoManager.
-Original recovery bytes remain the host's immutable evidence. It does not reseed
-an incarnation or flatten rich blocks. `Change.authoredMetadataChanged` currently
-marks a metadata consequence that the PM-only source witness cannot prove yet;
-hosts keep source attribution fenced until the shared DocAttrStep correspondence
-is implemented. Peer state, stale candidates, invalid grammar and exact undo/redo
-are exercised by the named reviewed full-document replacement regression.
+actual full ReplaceStep through the same maintained body diff. When the envelope
+changes, an actual maintained DocAttrStep (`attr: "relaymark"`) follows in the
+same Step sequence, Yrs transaction and UndoManager. The doc attribute defaults
+to `{}` and carries exactly the optional `frontmatter`, `annotations`, `resources`
+and `meta` fields already stored in `Y.Map('relaymark')`. Explicit empty values
+are preserved; keys absent from the new envelope are removed. Unknown fields,
+null maps and non-JSON values are refused. No entity fields or authorization are
+stored here.
+
+The maintained browser binding reads this same map into the doc attribute and
+writes it with the body in one transaction, including metadata-only commands
+in an empty document. Its actual synchronization observer emits DocAttrStep
+alongside body Steps. The undo plugin includes this map in the existing manager
+scope. Exact mutation replay and owned receipt replay account for metadata
+allocations/deletions, including hidden transient writes; final-value equality
+alone cannot prove correspondence. `content-edit-metadata-history.json` retains
+actual command/update/frontier bytes and peer-preserving undo/redo evidence.
+
+Original recovery bytes remain the host's immutable evidence. This command does
+not reseed an incarnation or flatten rich blocks. `Change.authoredMetadataChanged`
+reports the envelope change; it does not authorize source attribution. Immediate
+native witnesses remain preliminary and accepted scoped receipts/full mutation
+correspondence remain required. Peer state, stale candidates, invalid grammar
+and exact undo/redo are exercised by the named reviewed recovery regression.

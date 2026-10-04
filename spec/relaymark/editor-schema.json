@@ -49,7 +49,12 @@
     {
       "name": "doc",
       "content": "block+",
-      "markSet": []
+      "markSet": [],
+      "attrs": {
+        "relaymark": {
+          "default": {}
+        }
+      }
     },
     {
       "name": "hardBreak",

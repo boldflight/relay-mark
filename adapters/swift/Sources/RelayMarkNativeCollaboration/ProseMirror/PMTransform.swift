@@ -8,6 +8,7 @@ enum PMStep {
     case addMark(from: Int, to: Int, mark: PMMark)
     case removeMark(from: Int, to: Int, mark: PMMark)
     case attr(pos: Int, name: String, value: Any)
+    case docAttr(name:String,value:Any)
     case replace(from: Int, to: Int, slice: PMSlice, structure: Bool = false)
     case replaceAround(from: Int, to: Int, gapFrom: Int, gapTo: Int, slice: PMSlice, insert: Int, structure: Bool = false)
 
@@ -25,6 +26,11 @@ enum PMStep {
             let old = try doc.slice(from, to)
             let content = pmMapInlineFragment(old.content, parent: doc) { node, _ in node.mark(mark.removeFromSet(node.marks)) }
             return try doc.replace(from, to, PMSlice(content, openStart: old.openStart, openEnd: old.openEnd))
+        case let .docAttr(name,value):
+            // Maintained prosemirror-transform DocAttrStep.apply, same doc content.
+            guard doc.type.attrs.contains(where:{$0.name==name}) else {throw PMReplaceError(message:"Unknown document attribute")}
+            var attrs=doc.attrs;attrs[name]=value
+            return try doc.type.create(attrs,doc.content,marks:doc.marks)
         case let .attr(pos, name, value):
             // prosemirror-transform 1.12.2 AttrStep.apply: replace only the
             // opening token; the open Slice preserves the node's rich children.
@@ -55,6 +61,7 @@ enum PMStep {
         switch self {
         case let .addMark(from,to,mark):return ["stepType":"addMark","from":from,"to":to,"mark":mark.json()]
         case let .removeMark(from,to,mark):return ["stepType":"removeMark","from":from,"to":to,"mark":mark.json()]
+        case let .docAttr(name,value):return ["stepType":"docAttr","attr":name,"value":value]
         case let .attr(pos,name,value):return ["stepType":"attr","pos":pos,"attr":name,"value":value]
         case let .replace(from,to,slice,structure):
             var result:[String:Any]=["stepType":"replace","from":from,"to":to]
@@ -70,7 +77,7 @@ enum PMStep {
     /// StepMap ranges: (start, oldSize, newSize) triples.
     var ranges: [(Int, Int, Int)] {
         switch self {
-        case .attr, .addMark, .removeMark: return []
+        case .docAttr,.attr, .addMark, .removeMark: return []
         case let .replace(from, to, slice, _):
             return [(from, to - from, slice.size)]
         case let .replaceAround(from, to, gapFrom, gapTo, slice, insert, _):

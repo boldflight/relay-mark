@@ -35,7 +35,7 @@ final class PMYXmlBridge {
 
     func document(fromSnapshot tree: [String: Any]) throws -> PMNode {
         let (nodes, groups) = try children(tree["children"] as? [[String: Any]] ?? [])
-        let doc = try schema.topNodeType.create(nil, PMFragment.fromArray(nodes))
+        let doc = try schema.topNodeType.create(["relaymark":tree["metadata"] as? [String:Any] ?? [:]], PMFragment.fromArray(nodes))
         record(doc, groups)
         return doc
     }
@@ -89,7 +89,7 @@ final class PMYXmlBridge {
     // MARK: ProseMirror → Y XML snapshot (prospective validation)
 
     func snapshot(_ doc: PMNode) -> [String: Any] {
-        ["kind": "fragment", "children": Self.normalize(doc).map(snapshot)]
+        ["kind": "fragment", "children": Self.normalize(doc).map(snapshot),"metadata":doc.attrs["relaymark"] ?? [:]]
     }
 
     private func snapshot(_ child: Child) -> [String: Any] {

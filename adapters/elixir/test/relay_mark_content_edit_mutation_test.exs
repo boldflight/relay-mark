@@ -47,7 +47,12 @@ defmodule RelayMark.ContentEditMutationTest do
     on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
 
     for key <- ~w(undo redo) do
-      assert {:ok, result} = RelayMark.ContentEdit.replay_mutation(runtime, fixture[key])
+      assert {:ok, result} =
+               RelayMark.ContentEdit.replay_mutation(
+                 runtime,
+                 fixture[key] |> known_manager_scope()
+               )
+
       assert result["owned_history_correspondence"] == true
       assert result["footprint"] == fixture[key]["footprint"]
       assert is_list(result["restored_copies"])
@@ -69,5 +74,45 @@ defmodule RelayMark.ContentEditMutationTest do
     assert built["inserted_ranges"] == fixture["expected"]["inserted_ranges"]
     assert {:ok, replayed} = RelayMark.ContentEdit.replay_mutation(runtime, fixture["mutation"])
     assert replayed["complete_mutation_correspondence"] == true
+  end
+
+  test "authored body and doc metadata share exact maintained replay and peer-preserving owned inverse" do
+    fixture =
+      File.read!(Path.join(@root, "content-edit-metadata-history.json")) |> Jason.decode!()
+
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+    normal = Map.drop(fixture["normal"], ~w(before_snapshot_base64 update_base64 text_items))
+    assert {:ok, result} = RelayMark.ContentEdit.replay_mutation(runtime, normal)
+    assert result["complete_mutation_correspondence"] == true
+
+    assert Enum.any?(
+             result["retained_field_changes"]["allocated"],
+             &(&1["parent"] == %{"root" => "relaymark"})
+           )
+
+    for effect <- fixture["effects"] do
+      assert {:ok, result} = RelayMark.ContentEdit.replay_mutation(runtime, effect["evidence"])
+      assert result["owned_history_correspondence"] == true
+      assert result["text_items"] == %{"runs" => []}
+      assert result["proven_copies"] == effect["proven_copies"]
+    end
+  end
+
+  # This retained fixture predates the owner namespace. The test supplies its
+  # independently known single manager; original CRDT/receipt bytes stay exact.
+  defp known_manager_scope(evidence) do
+    owner = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+    operation = fn operation ->
+      key = if Map.has_key?(operation, "history"), do: "history", else: "group"
+      Map.update!(operation, key, &Map.put(&1, "owner_id", owner))
+    end
+
+    evidence
+    |> Map.update!("operation", operation)
+    |> Map.update!("receipts", fn rows ->
+      Enum.map(rows, &Map.update!(&1, "operation", operation))
+    end)
   end
 end

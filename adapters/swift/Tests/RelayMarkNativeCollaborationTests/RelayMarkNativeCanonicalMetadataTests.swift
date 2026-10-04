@@ -401,8 +401,18 @@ struct RelayMarkNativeCanonicalMetadataTests {
   try peer.applyUpdate(doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Original",namespace:"original-recovery")))
   let original=try doc.authoredDocument(),snapshot=try doc.snapshot(),command=UUID()
   var change:RelayMarkNativeRichEditing.Change?
+  let observation=try doc.captureContentEditObservation()
   _ = try doc.performOwnedCommand(operationID:command,separateHistoryItem:true){let result=try RelayMarkNativeRichEditing.replaceDocument(document:doc,authoredAST:authored,expectedSnapshot:snapshot);change=result;return result.update}
   let effect=try #require(change);#expect(effect.authoredMetadataChanged);try peer.applyUpdate(effect.update)
+  let steps=try JSONSerialization.jsonObject(with:effect.steps) as! [[String:Any]]
+  #expect(steps.map{$0["stepType"] as! String} == ["replace","docAttr"])
+  #expect(steps[1]["attr"] as? String == "relaymark")
+  let envelope=steps[1]["value"] as! [String:Any]
+  #expect(envelope as NSDictionary == ["frontmatter":raw["frontmatter"]!,"annotations":raw["annotations"]!,"resources":raw["resources"]!,"meta":raw["meta"]!] as NSDictionary)
+  let proof=try JSONSerialization.jsonObject(with:doc.buildContentEditWitness(observation,steps:effect.steps,update:effect.update)) as! [String:Any]
+  let proofDocument=proof["authored_document"] as! [String:Any]
+  #expect(proofDocument["frontmatter"] as? NSDictionary == envelope["frontmatter"] as? NSDictionary)
+  #expect(proof["requires_mutation_correspondence"] as? Bool == true)
   #expect(try JSONSerialization.jsonObject(with:doc.authoredDocument()) as? NSDictionary == raw as NSDictionary)
   #expect(try doc.authoredDocument()==peer.authoredDocument())
   #expect(throws:(any Error).self){try RelayMarkNativeRichEditing.replaceDocument(document:doc,authoredAST:authored,expectedSnapshot:snapshot)}
@@ -410,9 +420,15 @@ struct RelayMarkNativeCanonicalMetadataTests {
   var malformed=raw;malformed["blocks"]=[["id":"bad","type":"unsupported-rich-node","content":[]]]
   #expect(throws:(any Error).self){try RelayMarkNativeRichEditing.replaceDocument(document:doc,authoredAST:JSONSerialization.data(withJSONObject:malformed),expectedSnapshot:updatedSnapshot)}
   #expect(try doc.encodeUpdate()==updatedState)
+  let undoObservation=try doc.captureContentEditObservation()
   let undo=try #require(try doc.undoWithReference());try peer.applyUpdate(undo.update)
+  let undoProof=try JSONSerialization.jsonObject(with:doc.buildOwnedHistoryWitness(undoObservation,effect:undo)) as! [String:Any]
+  #expect((undoProof["authored_document"] as! [String:Any])["frontmatter"] == nil)
   #expect(try doc.authoredDocument()==original);#expect(try peer.authoredDocument()==original)
+  let redoObservation=try doc.captureContentEditObservation()
   let redo=try #require(try doc.redoWithReference());try peer.applyUpdate(redo.update)
+  let redoProof=try JSONSerialization.jsonObject(with:doc.buildOwnedHistoryWitness(redoObservation,effect:redo)) as! [String:Any]
+  #expect((redoProof["authored_document"] as! [String:Any])["frontmatter"] as? NSDictionary == envelope["frontmatter"] as? NSDictionary)
   #expect(try doc.authoredDocument()==peer.authoredDocument())
   #expect(try JSONSerialization.jsonObject(with:doc.authoredDocument()) as? NSDictionary == raw as NSDictionary)
  }

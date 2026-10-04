@@ -30,12 +30,15 @@ export function tableProseMirrorToRelayMark(prosemirror) {
 
 export function proseMirrorToRelayMark(prosemirror) {
   assertObject(prosemirror, "doc");
-  onlyKeys(prosemirror, ["type", "content"], "doc");
+  onlyKeys(prosemirror, ["type", "content", "attrs"], "doc");
+  const metadata=prosemirror.attrs && Object.hasOwn(prosemirror.attrs,"relaymark") ? prosemirror.attrs.relaymark : {};
+  if(prosemirror.attrs!==undefined){assertObject(prosemirror.attrs,"doc attributes");onlyKeys(prosemirror.attrs,["relaymark"],"doc attributes");}
+  assertAuthoredMetadata(metadata);
   requireType(prosemirror, "doc");
   assertContentDepth(prosemirror);
   const seen = new Set();
   const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen, 0));
-  return { type: "relaymark.document", blocks };
+  return { type: "relaymark.document", blocks, ...metadata };
 }
 
 export function relayMarkTableToProseMirror(document) {
@@ -57,7 +60,9 @@ export function relayMarkToProseMirror(document) {
   assertContentDepth({ content: document.blocks });
   const seen = new Set();
   const blocks = children({ content: document.blocks }, "document", 1);
-  return { type: "doc", content: blocks.map(block => unmapBlock(block, seen, 0)) };
+  const metadata=Object.fromEntries(["frontmatter","annotations","resources","meta"].filter(key=>Object.hasOwn(document,key)).map(key=>[key,document[key]]));
+  assertAuthoredMetadata(metadata);
+  return { type: "doc", ...(Object.keys(metadata).length?{attrs:{relaymark:metadata}}:{}), content: blocks.map(block => unmapBlock(block, seen, 0)) };
 }
 
 function mapBlock(node, seen, calloutDepth) {
@@ -792,4 +797,12 @@ function unmapDataView(block,seen) {
   checkBlock(block,"relay.data_view",seen,true);onlyKeys(block.props,dataViewFields,"relay.data_view.props");
   if(children(block,"relay.data_view").length) throw new TypeError("Data view cannot carry records/children");
   return {type:"relayDataView",attrs:{relaymarkId:block.id,...dataViewProps(block.props)}};
+}
+
+/** Exact authored envelope in the one maintained doc attribute and Y.Map. */
+export function assertAuthoredMetadata(value){
+ assertObject(value,"authored metadata");onlyKeys(value,["frontmatter","annotations","resources","meta"],"authored metadata");
+ for(const key of ["frontmatter","meta"])if(Object.hasOwn(value,key))assertObject(value[key],key);
+ for(const key of ["annotations","resources"])if(Object.hasOwn(value,key)&&!Array.isArray(value[key]))throw TypeError(`Invalid ${key}`);
+ let budget=1000000;const visit=(value,depth)=>{if(--budget<0||depth>128)throw TypeError('Authored metadata resource limit');if(value===null||typeof value==='string'||typeof value==='boolean')return;if(typeof value==='number'&&Number.isFinite(value))return;if(Array.isArray(value)){value.forEach(child=>visit(child,depth+1));return}if(value&&typeof value==='object'&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null)){for(const item of Object.values(value))visit(item,depth+1);return}throw TypeError('Invalid authored metadata JSON');};visit(value,0);return value;
 }

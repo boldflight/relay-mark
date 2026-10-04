@@ -851,8 +851,13 @@ public final class RelayMarkNativeDocument {
         // inverse, command rebase or provenance authority.
         let step = PMStep.replace(from:0,to:beforePM.content.size,
                                   slice:PMSlice(afterPM.content,openStart:0,openEnd:0))
-        guard try step.apply(beforePM).eq(afterPM) else { throw Failure.unsupportedProseEdit }
-        let steps = try JSONSerialization.data(withJSONObject:[step.json()],options:[.sortedKeys])
+        var observedSteps=[step.json()]
+        if !pmCompareDeep(beforePM.attrs["relaymark"] ?? [:],afterPM.attrs["relaymark"] ?? [:]) {
+            let metadataStep=PMStep.docAttr(name:"relaymark",value:afterPM.attrs["relaymark"] ?? [:])
+            guard try metadataStep.apply(step.apply(beforePM)).eq(afterPM) else {throw Failure.unsupportedProseEdit}
+            observedSteps.append(metadataStep.json())
+        } else {guard try step.apply(beforePM).eq(afterPM) else {throw Failure.unsupportedProseEdit}}
+        let steps = try JSONSerialization.data(withJSONObject:observedSteps,options:[.sortedKeys])
         return OwnedHistoryEffect(ownerID:historyOwnerID,kind:redo ? .redo : .undo,beforeSnapshot:beforeSnapshot,steps:steps,update:update,reference:reference,operationIDs:operations)
     }
     private var lastHistoryOperations: [UUID]?
@@ -2482,11 +2487,12 @@ public final class RelayMarkNativeDocument {
 
     /// Writes a transformed ProseMirror document through y-prosemirror's
     /// updateYFragment diff as one local transaction and one undo item.
-    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge,metadataReplacement:[String:RelayMarkValue]?=nil) throws -> Data {
+    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge) throws -> Data {
+        let metadataReplacement=try JSONDecoder().decode([String:RelayMarkValue].self,from:JSONSerialization.data(withJSONObject:updated.attrs["relaymark"] ?? [:]))
         wrapUndo()
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try bridge.update(self.root, updated, source: source, in: transaction)
-            if let metadataReplacement {
+            do {
                 let existing=self.metadata.toMap(transaction:transaction)
                 for key in existing.keys.sorted() where metadataReplacement[key]==nil {_ = self.metadata.removeValue(forKey:key,transaction:transaction)}
                 for key in metadataReplacement.keys.sorted() where existing[key] != metadataReplacement[key] {self.metadata.updateValue(metadataReplacement[key]!,forKey:key,transaction:transaction)}

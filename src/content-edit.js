@@ -4,7 +4,7 @@
 import {Step} from 'prosemirror-transform';
 import {createCanonicalEditorSchema} from './editor-model.js';
 export {createCanonicalEditorSchema} from './editor-model.js';
-import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.js';
+import {proseMirrorToRelayMark,relayMarkToProseMirror,assertAuthoredMetadata} from './document-adapter.js';
 import {stableStringify} from './canonical-json.js';
 import {validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
 
@@ -25,6 +25,7 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
  // text is not retained source; structural gap/suffix text maps through unchanged.
  let retained_ranges=document.content.size?[{source_from:0,destination_from:0,length:document.content.size}]:[];
  for(const json of operation.steps){
+  if(json.stepType==='docAttr'){if(json.attr!=='relaymark')throw TypeError('Unknown canonical document attribute');assertAuthoredMetadata(json.value);}
   const step=Step.fromJSON(schema,json);
   // Never quietly drop unknown slice/mark/node/step attrs through upstream defaults.
   if(stableStringify(step.toJSON())!==stableStringify(json))throw new TypeError('Noncanonical content edit step');
@@ -64,7 +65,8 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
  * is retained by the one document owner; PM steps operate on its rich body. */
 export function applyDocumentContentEdit(admittedDocument,operation,options) {
  const result=applyContentEdit(relayMarkToProseMirror(admittedDocument),operation,options);
- result.authored_document={...admittedDocument,blocks:result.authored_document.blocks};
+ // The one doc attribute carries exact metadata, including removals.
+ // Reapplying old envelope keys would silently undo a DocAttrStep.
  return result;
 }
 

@@ -43,10 +43,10 @@ function cover(wanted,available){for(const run of wanted){let clock=run.item.clo
 function equalContent(source,destination){let a=0,b=0,ao=0,bo=0;while(a<source.length&&b<destination.length){const s=source[a],d=destination[b],count=Math.min(s.count-ao,d.count-bo);if(s.text.slice(ao,ao+count)!==d.text.slice(bo,bo+count)||!same(s.attributes,d.attributes))throw TypeError('Causal contents or full attributes disagree');ao+=count;bo+=count;if(ao===s.count){a++;ao=0}if(bo===d.count){b++;bo=0}}if(a!==source.length||b!==destination.length)throw TypeError('Causal content length mismatch');}
 function copyRange(source,destination,count,retained,inserted){let offset=0;while(offset<count){const sp=source+offset,dp=destination+offset,ends=[...retained.filter(r=>sp>=r.source_from&&sp<r.source_from+r.length&&dp===r.destination_from+sp-r.source_from).map(r=>r.source_from+r.length-sp),...inserted.filter(r=>dp>=r.destination_from&&dp<r.destination_from+r.length).map(r=>r.destination_from+r.length-dp)];if(!ends.length)return false;offset+=Math.min(count-offset,Math.max(...ends))}return true;}
 function matchedCopy(source,destination,retained,inserted){let a=0,b=0,ao=0,bo=0;while(a<source.length&&b<destination.length){const s=source[a],d=destination[b],count=Math.min(s.count-ao,d.count-bo),sp=s.position+ao,dp=d.position+bo;if(s.text.slice(ao,ao+count)!==d.text.slice(bo,bo+count)||!same(s.attributes,d.attributes)||!copyRange(sp,dp,count,retained,inserted))throw TypeError('Unproven content-edit causal copy');ao+=count;bo+=count;if(ao===s.count){a++;ao=0}if(bo===d.count){b++;bo=0}}if(a!==source.length||b!==destination.length||!source.length)throw TypeError('Causal copy length mismatch');}
-function allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh){
+function allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh,operation){
  const allocationRuns=[];
  for(const record of footprint.structs){keys(record,['item','count','parent','key','origin','right_origin','content','deleted']);identity(record.item);if(!Number.isSafeInteger(record.count)||record.count<1||record.item.clock+record.count>2**32||record.item.clock+record.count>(afterClocks.get(record.item.client)||0))throw TypeError('Invalid original struct range');const start=Math.max(record.item.clock,beforeClocks.get(record.item.client)||0);if(start>=record.item.clock+record.count)continue;
-  if(record.parent?.root==='relaymark')throw TypeError('Content edit contains metadata allocation');
+  if(record.parent?.root==='relaymark'){if(!operation.steps.some(step=>step.stepType==='docAttr'&&step.attr==='relaymark'))throw TypeError('Content edit contains metadata allocation');continue;}
   if(record.content?.kind==='string'){if(record.deleted||typeof record.content.text!=='string'||record.content.text.length!==record.count||!record.parent?.type||record.key!==null)throw TypeError('Hidden or unprovable string mutation');const allocated={type:identity(record.parent.type),item:{client:record.item.client,clock:start},count:record.item.clock+record.count-start};const observed=resolve(after,{runs:[allocated]});if(observed.map(v=>v.text).join('')!==record.content.text.slice(start-record.item.clock))throw TypeError('Original allocation disagrees with retained content');allocationRuns.push(allocated);}
  }
  cover(allocationRuns,fresh);cover(fresh,allocationRuns);
@@ -59,7 +59,7 @@ export function prepareWitness(evidence,interpret){
  keys(operation,['kind','steps','copies','history','group'],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
  const sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),before=index(evidence.before_snapshot),after=index(evidence.after_snapshot),expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm))throw TypeError('Actual sender result disagrees with maintained steps');
- if(!same(evidence.sender_after_snapshot.metadata??{},evidence.sender_before_snapshot.metadata??{})||!same(evidence.after_snapshot.metadata??{},evidence.before_snapshot.metadata??{}))throw TypeError('Content steps cannot mutate authored envelope');
+ // Exact metadata consequences are part of the maintained doc attribute; full footprint correspondence remains required.
  const fresh=freshRuns(after,beforeClocks);
  const human=resolve(after,evidence.text_items),destinations=[],proven_copies=[];let copiedUnits=0;
  for(const copy of operation.copies){keys(copy,['source','destination']);const source=resolve(sender,copy.source),destination=resolve(senderAfter,copy.destination);matchedCopy(source,destination,expected.retained_ranges,expected.inserted_ranges);if((copiedUnits+=destination.reduce((n,r)=>n+r.count,0))>MAX_UNITS)throw TypeError('Copied destination limit exceeded');equalContent(destination,resolve(after,copy.destination));destinations.push(...destination);proven_copies.push(copy);}
@@ -67,12 +67,12 @@ export function prepareWitness(evidence,interpret){
  // Original strings must all be visible and accounted for, including transient
  // allocations that disappear from the final authored result. Never infer this
  // from a state diff, AST equality or currently visible text alone.
- allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh);
+ allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh,operation);
  // This preparation result is not final admission. Non-string allocations and
  // complete old deletion/format/topology correspondence remain explicit evidence
  // for the final mutation proof, rather than being silently ignored.
  const unproven_mutations={structs:footprint.structs.filter(r=>r.content.kind!=='string'),declared_deletes:footprint.declared_deletes,deleted_items:footprint.deleted_items};
- return {document:expected.document,authored_document:{...sender.document,blocks:expected.authored_document.blocks},retained_ranges:expected.retained_ranges,inserted_ranges:expected.inserted_ranges,proven_copies,fresh_items:plain(fresh),text_items:plain(human),unproven_mutations,requires_mutation_correspondence:true};
+ return {document:expected.document,authored_document:expected.authored_document,retained_ranges:expected.retained_ranges,inserted_ranges:expected.inserted_ranges,proven_copies,fresh_items:plain(fresh),text_items:plain(human),unproven_mutations,requires_mutation_correspondence:true};
 }
 
 /** Derive relocation witnesses from actual maintained StepMaps and fresh item
@@ -114,7 +114,7 @@ export function buildOwnedHistoryWitness(evidence,interpret){
  const before=index(evidence.before_snapshot),after=index(evidence.after_snapshot),beforeClocks=clocks(evidence.before_state_vector),afterClocks=clocks(footprint.state_vector),expected=interpret(before.pm,operation);
  for(const[client,clock]of beforeClocks)if(clock>(afterClocks.get(client)||0))throw TypeError('Inverse frontier is behind prestate');
  if(!same(expected.document,after.pm))throw TypeError('Observed inverse disagrees with real synchronization Steps');
- if(!same(evidence.before_snapshot.metadata??{},evidence.after_snapshot.metadata??{}))throw TypeError('Inverse content steps cannot mutate authored envelope');
+ // Inverse metadata authority is the independently replayed accepted manager.
  const fresh=freshRuns(after,beforeClocks),destinations=[];let units=0;
  for(const copy of restored_copies){keys(copy,['source','destination']);selection(copy.source);const destination=resolve(after,copy.destination),sourceCount=copy.source.runs.reduce((n,r)=>n+r.count,0),destinationCount=destination.reduce((n,r)=>n+r.count,0);
   if(!sourceCount||sourceCount!==destinationCount||(units+=destinationCount)>MAX_UNITS)throw TypeError('Invalid maintained restored extent');
@@ -122,7 +122,7 @@ export function buildOwnedHistoryWitness(evidence,interpret){
   destinations.push(...destination);
  }
  disjoint(destinations);cover(fresh,destinations);cover(destinations,fresh);
- allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh);
- return {document:expected.document,authored_document:{...before.document,blocks:expected.authored_document.blocks},fresh_items:plain(fresh),text_items:{runs:[]},proven_copies:restored_copies,restored_copies,
+ allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh,operation);
+ return {document:expected.document,authored_document:expected.authored_document,fresh_items:plain(fresh),text_items:{runs:[]},proven_copies:restored_copies,restored_copies,
   operation:{...operation,copies:restored_copies},requires_mutation_correspondence:true,requires_owned_history_correspondence:true};
 }
