@@ -35,12 +35,24 @@ public enum RelayMarkSourceCodec {
         guard let value = try json(data) as? String else { throw Failure.invalidAuthoredDocument }
         return value
     }
-    private static func call(_ name: String, arguments: [Any]) throws -> Data {
-        guard let path = Bundle.module.url(forResource:"document-source",withExtension:"js"),
-              let context = JSContext() else { throw Failure.unavailable }
-        let script = try String(contentsOf:path,encoding:.utf8)
+    private static let runtimeScript: String? = {
+        guard let path=Bundle.module.url(forResource:"document-source",withExtension:"js") else { return nil }
+        return try? String(contentsOf:path,encoding:.utf8)
+    }()
+    private static let contextKey="relaymark.canonical.source.context"
+    // JSContext is confined to its creating OS thread. All operations are synchronous,
+    // stateless grammar calls with no host callbacks; no context crosses actor/thread boundaries.
+    private static func threadContext() throws -> JSContext {
+        if let context=Thread.current.threadDictionary[contextKey] as? JSContext { return context }
+        guard let script=runtimeScript,let context=JSContext() else { throw Failure.unavailable }
         context.evaluateScript(script)
-        guard context.exception == nil else { throw Failure.unavailable }
+        guard context.exception==nil else { throw Failure.unavailable }
+        Thread.current.threadDictionary[contextKey]=context
+        return context
+    }
+    private static func call(_ name: String, arguments: [Any]) throws -> Data {
+        let context=try threadContext()
+        context.exception=nil
         context.setObject(name,forKeyedSubscript:"relayMarkOperation" as NSString)
         context.setObject(arguments,forKeyedSubscript:"relayMarkArguments" as NSString)
         guard let result = context.evaluateScript("JSON.stringify(RelayMarkSourceRuntime[relayMarkOperation](...relayMarkArguments))"),
