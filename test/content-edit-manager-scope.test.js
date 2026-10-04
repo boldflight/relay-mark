@@ -21,12 +21,14 @@ function snapshot(base64) {
 test('same-account manager Enter undo/redo preserves a later independently owned peer paragraph', () => {
   const f = load('content-edit-two-manager-history.json');
   assert.notEqual(f.owner_origin, f.peer_origin);
+  assert.notEqual(f.operations[0].content_edit.group.owner_id,f.operations[1].content_edit.group.owner_id);
   assert.deepEqual(f.operations[1].text_items.runs, [{ type: { client: 303, clock: 1 },
     item: { client: 303, clock: 3 }, count: 13 }]);
   for (const [index, effect] of f.proofs.entries()) {
     const result = replayContentEditMutation(effect.evidence);
     assert.equal(result.complete_mutation_correspondence, true);
     assert.equal(result.owned_history_correspondence, true);
+    const relabeled=structuredClone(effect.evidence);relabeled.operation.history.owner_id=f.operations[1].content_edit.group.owner_id;assert.throws(()=>replayContentEditMutation(relabeled),/Mixed maintained history owner/);
     assert.deepEqual(result.proven_copies, effect.expected_restored_copies);
     assert.deepEqual(result.text_items, { runs: [] });
     const row = f.operations[index + 2];
@@ -34,7 +36,7 @@ test('same-account manager Enter undo/redo preserves a later independently owned
       snapshot(row.after_state_base64).children[1]);
     const actorOnly = { ...effect.evidence, receipts: f.operations.slice(0, index + 2).map(receipt) };
     assert.throws(() => replayContentEditMutation(actorOnly),
-      /Owned history differs|Actual maintained inverse|accepted group|prefix differs/);
+      /Mixed maintained history owner|Owned history differs|Actual maintained inverse|accepted group|prefix differs/);
   }
 });
 
@@ -50,5 +52,5 @@ test('pure-delete owned inverse cannot infer manager scope from fresh writer IDs
     snapshot(row.after_state_base64).children[1]);
   assert.throws(() => replayContentEditMutation({ ...f.proof,
     receipts: f.operations.slice(0, 2).map(receipt) }),
-  /Owned history differs|Actual maintained inverse|accepted group|prefix differs/);
+  /Mixed maintained history owner|Owned history differs|Actual maintained inverse|accepted group|prefix differs/);
 });
