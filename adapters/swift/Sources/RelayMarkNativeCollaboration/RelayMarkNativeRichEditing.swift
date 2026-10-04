@@ -37,7 +37,7 @@ public enum RelayMarkNativeRichEditing {
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let bridge = try PMYXmlBridge.v3(), schema = bridge.schema
+        let bridge = try PMYXmlBridge.canonical(), schema = bridge.schema
         let doc = try bridge.document(fromSnapshot: tree)
         let from = try position(range.location, projection: projection, doc: doc)
         let to = try position(NSMaxRange(range), projection: projection, doc: doc)
@@ -126,7 +126,7 @@ public enum RelayMarkNativeRichEditing {
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let bridge = try PMYXmlBridge.v3(), schema = bridge.schema
+        let bridge = try PMYXmlBridge.canonical(), schema = bridge.schema
         let doc = try bridge.document(fromSnapshot: tree)
         let from = try position(range.location, projection: projection, doc: doc)
         let to = try position(NSMaxRange(range), projection: projection, doc: doc)
@@ -183,7 +183,7 @@ public enum RelayMarkNativeRichEditing {
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let bridge = try PMYXmlBridge.v3(), schema = bridge.schema
+        let bridge = try PMYXmlBridge.canonical(), schema = bridge.schema
         let doc = try bridge.document(fromSnapshot: tree)
         var from = try position(range.location, projection: projection, doc: doc)
         var to = try position(NSMaxRange(range), projection: projection, doc: doc)
@@ -263,7 +263,7 @@ public enum RelayMarkNativeRichEditing {
         }
         let projection = try document.richProseProjection()
         guard projection.isEditable else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let bridge = try PMYXmlBridge.v3()
+        let bridge = try PMYXmlBridge.canonical()
         let doc = try bridge.document(fromSnapshot: tree)
         let head = try position(offset, projection: projection, doc: doc)
         let result: PMState

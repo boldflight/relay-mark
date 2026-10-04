@@ -26,6 +26,7 @@ public enum RelayMarkSourceCodec {
     public static func snapshotToDocument(_ snapshot: Data) throws -> Data {
         try call("snapshotToDocument",arguments:[json(snapshot)])
     }
+    public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)
     }

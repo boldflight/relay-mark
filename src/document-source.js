@@ -6,7 +6,7 @@ import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.
 import {mapInline} from './document-inline.js';
 import {parseAtomSource} from './document-atoms.js';
 import {parseAttributes} from './attributes.js';
-import {directiveNodeForName,directiveNodeForType} from './document-directives.js';
+import {directiveNodeForName,directiveNodeForType,canonicalDirectiveNodes} from './document-directives.js';
 import {directiveForName,directiveForType} from './registry.js';
 import {isBlockNode} from './node-kind.js';
 import {parsePaperControlSource} from './document-controls.js';
@@ -30,6 +30,7 @@ export function parseDocument(source,{namespace}={}){
 // UTF-8 encoding is portable across JSCore and browser hosts without Web API globals.
 function utf8Bytes(string){const bytes=[];for(const char of string){let c=char.codePointAt(0);if(c>=0xd800&&c<=0xdfff)c=0xfffd;if(c<128)bytes.push(c);else if(c<2048)bytes.push(192|(c>>6),128|(c&63));else if(c<65536)bytes.push(224|(c>>12),128|((c>>6)&63),128|(c&63));else bytes.push(240|(c>>18),128|((c>>12)&63),128|((c>>6)&63),128|(c&63));}return new Uint8Array(bytes);}
 function cloneJSON(value){if(value===null||typeof value==='string'||typeof value==='boolean')return value;if(typeof value==='number'&&Number.isFinite(value))return value;if(Array.isArray(value))return value.map(cloneJSON);if(value&&Object.getPrototypeOf(value)===Object.prototype)return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,cloneJSON(v)]));throw new TypeError('Invalid authored JSON value');}
+export function editorDirectiveDefinitions(){return canonicalDirectiveNodes;}
 const metadataKeys=['frontmatter','annotations','resources','meta'];
 export function documentToSnapshot(ast){valid(ast);const pm=relayMarkToProseMirror(ast);
  function node(n){if(n.type==='text')return {kind:'text',delta:[{insert:n.text,attributes:Object.fromEntries((n.marks||[]).map(m=>[m.type,m.attrs||{}]))}]};return {kind:'element',name:n.type,attributes:n.attrs||{},children:(n.content||[]).map(node)};}

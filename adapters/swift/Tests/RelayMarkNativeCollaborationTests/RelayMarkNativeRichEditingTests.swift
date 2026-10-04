@@ -44,10 +44,11 @@ final class RelayMarkNativeRichEditingTests: XCTestCase {
     }
 
     func testEmbeddedSchemaIsTheBrowserSchema() throws {
-        let exported = try XCTUnwrap(fixture()["schema"])
+        let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let exported=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-editor-schema.json")))
         let embedded = try JSONSerialization.jsonObject(with: Data(RelayMarkNativeProseMirrorSchema.json.utf8))
         XCTAssertEqual(try canonical(embedded), try canonical(exported))
-        XCTAssertNoThrow(try PMYXmlBridge.v3())
+        XCTAssertNoThrow(try PMYXmlBridge.canonical())
     }
 
     /// Every case is replayed against actual ProseMirror output through the

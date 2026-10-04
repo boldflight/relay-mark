@@ -26,7 +26,7 @@ final class PMYXmlBridge {
 
     init(schema: PMSchema) { self.schema = schema }
 
-    static func v3() throws -> PMYXmlBridge {
+    static func canonical() throws -> PMYXmlBridge {
         guard let schema = cachedSchema else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         return PMYXmlBridge(schema: schema)
     }

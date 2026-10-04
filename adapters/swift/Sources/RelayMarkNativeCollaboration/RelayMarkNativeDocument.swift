@@ -628,7 +628,7 @@ public final class RelayMarkNativeDocument {
     }
 
     enum PaperControlChange {
-        case insert(tag: String, attributes: [String: String])
+        case insert(tag: String, attributes: [String: Any])
         case update(tag: String, expectedID: String, attributes: [String: String])
         case remove(tag: String, expectedID: String)
     }
@@ -871,7 +871,7 @@ public final class RelayMarkNativeDocument {
             let isTitle = path.count == 2 && path[1] == 0 && node.tag(in: transaction) == "calloutTitle" &&
                 self.root.child(at: UInt32(path[0]), in: transaction)?.tag(in: transaction) == "callout"
             guard node.kind(in: transaction) == "element",
-                  ["paragraph", "heading", "codeBlock"].contains(node.tag(in: transaction) ?? "") || isTitle,
+                  ["paragraph", "heading", "codeBlock", "questionLabel", "questionOption"].contains(node.tag(in: transaction) ?? "") || isTitle,
                   node.child(at: 0, in: transaction) == nil else {
                 throw Failure.invalidTextPath
             }

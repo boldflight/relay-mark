@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 /// Authored media shape shared by native text admission and portable AST projection.
 /// Media bytes, upload progress, playback and authorization stay with the host.
@@ -9,6 +10,8 @@ public enum RelayMarkMediaContract {
         public let source: String
         public let alt: String?
         public let title: String?
+        public let width: Int?
+        public let height: Int?
     }
 
     public enum Failure: Error { case unsupported }
@@ -19,14 +22,12 @@ public enum RelayMarkMediaContract {
         switch kind {
         case .image:
             guard Set(attributes.keys).isSubset(of: ["relaymarkId", "src", "alt", "title", "width", "height"]),
-                  attributes["width"] == nil || attributes["width"] is NSNull,
-                  attributes["height"] == nil || attributes["height"] is NSNull,
                   let source = attributes["src"] as? String, validImageSource(source) else {
                 throw Failure.unsupported
             }
             return Validated(kind: kind, id: id, source: source,
                 alt: try optionalImageText(attributes["alt"]),
-                title: try optionalImageText(attributes["title"]))
+                title: try optionalImageText(attributes["title"]),width:try dimension(attributes["width"]),height:try dimension(attributes["height"]))
         case .videoEmbed:
             guard Set(attributes.keys).isSubset(of: ["relaymarkId", "videoId", "playbackId", "title",
                                                     "source", "thumbnailUrl", "status", "youtubeId", "uploadPercent"]),
@@ -40,8 +41,15 @@ public enum RelayMarkMediaContract {
                   attributes["status"] == nil || attributes["status"] as? String == "ready" else {
                 throw Failure.unsupported
             }
-            return Validated(kind: kind, id: id, source: source, alt: nil, title: nil)
+            return Validated(kind: kind, id: id, source: source, alt: nil, title: nil,width:nil,height:nil)
         }
+    }
+
+    private static func dimension(_ value: Any?) throws -> Int? {
+        guard let value,!(value is NSNull) else { return nil }
+        guard let number=value as? NSNumber,CFGetTypeID(number) != CFBooleanGetTypeID(),let integer=value as? Int,
+              integer>0,integer<=9_007_199_254_740_991,number.doubleValue==Double(integer) else { throw Failure.unsupported }
+        return integer
     }
 
     private static func optionalImageText(_ value: Any?) throws -> String? {

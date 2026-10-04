@@ -107,7 +107,7 @@ public enum RelayMarkNativeRichTextMutation {
               let block = node(at: path, in: root),
               block["kind"] as? String == "element",
               (block["children"] as? [Any])?.isEmpty == true else { return false }
-        if ["paragraph", "heading", "codeBlock"].contains(block["name"] as? String ?? "") { return true }
+        if ["paragraph", "heading", "codeBlock", "questionLabel", "questionOption"].contains(block["name"] as? String ?? "") { return true }
         guard block["name"] as? String == "calloutTitle", path.count == 2, path[1] == 0,
               let callout = node(at: [path[0]], in: root),
               callout["name"] as? String == "callout" else { return false }

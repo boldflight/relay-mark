@@ -40,6 +40,7 @@ let package = Package(
         ),
         .target(
             name: "RelayMarkProseProjection",
+            dependencies: ["RelayMarkSwift"],
             path: "adapters/swift/Sources/RelayMarkProseProjection"
         ),
         .testTarget(

@@ -1,5 +1,6 @@
 import Foundation
 import CoreFoundation
+import RelayMarkSwift
 
 /// Deliberately bounded editable projection; unsupported structure is preserved by the replica.
 public struct RelayMarkCollaborativeProse {
@@ -105,6 +106,8 @@ public struct RelayMarkCollaborativeProse {
         public let source: String
         public let alt: String?
         public let title: String?
+        public let width: Int?
+        public let height: Int?
         public let range: NSRange
         public let path: [Int]
     }
@@ -122,6 +125,19 @@ public struct RelayMarkCollaborativeProse {
         public let path: [Int]
     }
     public let suggestionAtoms: [SuggestionAtom]
+
+    /// Shared authored widgets retain XML identity and editable child ranges.
+    /// The host supplies domain actions/rendering; this metadata contains no answers or permissions.
+    public struct AuthoredWidget: Equatable, Sendable {
+        public enum Kind: String, Sendable { case question,option,dataView,directive }
+        public let kind: Kind
+        public let id: String
+        public let nodeName: String
+        public let attributes: Data
+        public let range: NSRange
+        public let path: [Int]
+    }
+    public let authoredWidgets: [AuthoredWidget]
 
     /// Block metadata remains available when an empty paragraph has no text run.
     public let blockIntents: [PresentationIntent]
@@ -144,6 +160,10 @@ public struct RelayMarkCollaborativeProse {
 
     public init(snapshot: Data, dialect: Dialect = .legacy) throws {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
+        if dialect == .rich { _ = try RelayMarkSourceCodec.snapshotToDocument(snapshot) }
+        let directiveDefinitions = try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.directiveDefinitions()) as? [[String:Any]] ?? []
+        let genericNames = Set(directiveDefinitions.compactMap { $0["name"] as? String })
+        var authoredWidgets: [AuthoredWidget] = []
         var value = AttributedString()
         var ranges: [NSRange] = [], paths: [[Int]] = []
         var intents: [PresentationIntent] = []
@@ -159,6 +179,10 @@ public struct RelayMarkCollaborativeProse {
         var boundaries: [[Int]: [Int]] = [:]
         var supported = root?["kind"] as? String == "fragment"
         var identity = 0
+        func widget(kind:AuthoredWidget.Kind,id:String,name:String,attributes:[String:Any],range:NSRange,path:[Int]) {
+            guard let data=try? JSONSerialization.data(withJSONObject:attributes,options:[.sortedKeys]) else { supported=false;return }
+            authoredWidgets.append(AuthoredWidget(kind:kind,id:id,nodeName:name,attributes:data,range:range,path:path))
+        }
         func length() -> Int { String(value.characters).utf16.count }
         func validInteger(_ value: Any?, minimum: Int, maximum: Int = Int.max) -> Bool {
             guard let value, !(value is NSNull) else { return true }
@@ -302,6 +326,15 @@ public struct RelayMarkCollaborativeProse {
                 let children = block["children"] as? [[String: Any]] ?? []
                 if block["kind"] as? String != "element" { supported = false }
                 identity += 1
+                if dialect == .rich && (name=="questionBlock" || (genericNames.contains(name) && !children.isEmpty)) {
+                    let firstRange=ranges.count
+                    walk(children,path:blockPath,parent:parent,cellContext:cellContext)
+                    guard ranges.count>firstRange,let id=attributes["relaymarkId"] as? String else { supported=false;continue }
+                    let first=ranges[firstRange],last=ranges[ranges.count-1]
+                    widget(kind:name=="questionBlock" ? .question : .directive,id:id,name:name,attributes:attributes,
+                        range:NSRange(location:first.location,length:NSMaxRange(last)-first.location),path:blockPath)
+                    offsets.append(first.location);continue
+                }
                 if name == "taskItem" {
                     let checkedValue = attributes["checked"] as? NSNumber
                     let checked = checkedValue?.boolValue ?? false
@@ -357,7 +390,8 @@ public struct RelayMarkCollaborativeProse {
                 var suggestion: RelayMarkAgentSuggestionContract.Validated?
                 var media: MediaAtom.Kind?
                 switch name {
-                case "paragraph": kind = .paragraph
+                case "paragraph", "questionLabel", "questionOption": kind = .paragraph
+                case "relayDataView": kind = .thematicBreak
                 case "heading":
                     if !validInteger(attributes["level"], minimum: 1, maximum: 6) { supported = false }
                     if let headingID = attributes["headingId"],
@@ -431,7 +465,7 @@ public struct RelayMarkCollaborativeProse {
                 case "calloutTitle":
                     if dialect != .rich || !allowCalloutTitle { supported = false }
                     kind = .paragraph
-                default: supported = false; kind = .paragraph
+                default: if genericNames.contains(name) && children.isEmpty { kind = .thematicBreak } else { supported=false;kind = .paragraph }
                 }
                 var allowed: Set<String> = name == "heading" ? ["level", "headingId"] : name == "codeBlock" ? ["language"] : name == "orderedList" ? ["start"] : []
                 if dialect == .rich {
@@ -441,6 +475,9 @@ public struct RelayMarkCollaborativeProse {
                         allowed.formUnion(["colspan", "rowspan", "colwidth", "align"])
                     }
                 }
+                if name=="questionOption" { allowed.formUnion(["id","correct","points","settings"]) }
+                if name=="relayDataView" { allowed.formUnion(["source","projection","columns","filter","sort","group","limit","title"]) }
+                if let definition=directiveDefinitions.first(where:{$0["name"] as? String == name}),let fields=definition["attributes"] as? [String:Any] { allowed.formUnion(fields.keys) }
                 if paperControl == nil && entityReference == nil && suggestion == nil && media == nil &&
                     !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)
@@ -486,7 +523,7 @@ public struct RelayMarkCollaborativeProse {
                     let start = length(), attributedStart = value.endIndex
                     var inlineOffsets = [start]
                     if name == "horizontalRule" || paperControl != nil || entityReference != nil ||
-                        suggestion != nil || media != nil {
+                        suggestion != nil || media != nil || name=="relayDataView" || genericNames.contains(name) {
                         if !children.isEmpty { supported = false }
                         value.append(AttributedString("\u{FFFC}"))
                         if let paperControl {
@@ -510,8 +547,12 @@ public struct RelayMarkCollaborativeProse {
                            let source = attributes[media == .image ? "src" : "videoId"] as? String {
                             mediaAtoms.append(MediaAtom(kind: media, id: id, source: source,
                                 alt: attributes["alt"] as? String, title: attributes["title"] as? String,
+                                width:attributes["width"] as? Int,height:attributes["height"] as? Int,
                                 range: NSRange(location: start, length: 1), path: blockPath))
                         } else if media != nil { supported = false }
+                        if name=="relayDataView" || genericNames.contains(name),let id=attributes["relaymarkId"] as? String {
+                            widget(kind:name=="relayDataView" ? .dataView : .directive,id:id,name:name,attributes:attributes,range:NSRange(location:start,length:1),path:blockPath)
+                        }
                         mapped.append(Span(range: NSRange(location: start, length: 1), path: blockPath,
                             text: false, afterPath: path, afterIndex: index + 1,
                             atom: paperControl != nil || entityReference != nil || suggestion != nil || media != nil))
@@ -541,6 +582,9 @@ public struct RelayMarkCollaborativeProse {
                     boundaries[blockPath] = inlineOffsets
                     value[attributedStart..<value.endIndex].presentationIntent = intent
                     ranges.append(NSRange(location: start, length: length() - start)); paths.append(blockPath); intents.append(intent)
+                    if name=="questionOption",let id=attributes["relaymarkId"] as? String {
+                        widget(kind:.option,id:id,name:name,attributes:attributes,range:ranges[ranges.count-1],path:blockPath)
+                    }
                     if let cellContext {
                         cells.append(TableCell(tableIdentity: cellContext.tableIdentity,
                             range: ranges[ranges.count - 1], columns: cellContext.columns,
@@ -566,6 +610,7 @@ public struct RelayMarkCollaborativeProse {
         self.blockAtoms = blockAtoms; self.entityReferenceAtoms = entityReferenceAtoms
         self.taskItems = taskItems.sorted { $0.firstParagraphRange.location < $1.firstParagraphRange.location }
         self.mediaAtoms = mediaAtoms; self.suggestionAtoms = suggestionAtoms
+        self.authoredWidgets = authoredWidgets
         spans = mapped; containerOffsets = boundaries
         isEditable = supported && !ranges.isEmpty
     }

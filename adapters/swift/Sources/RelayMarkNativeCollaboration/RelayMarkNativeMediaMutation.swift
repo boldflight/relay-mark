@@ -13,14 +13,17 @@ public enum RelayMarkNativeMediaMutation {
         public let source: String
         public let alt: String?
         public let title: String?
+        public let width: Int?
+        public let height: Int?
 
         public init(id: String, kind: RelayMarkCollaborativeProse.MediaAtom.Kind,
-                    source: String, alt: String? = nil, title: String? = nil) {
+                    source: String, alt: String? = nil, title: String? = nil,width: Int? = nil,height: Int? = nil) {
             self.id = id
             self.kind = kind
             self.source = source
             self.alt = alt
             self.title = title
+            self.width = width;self.height = height
         }
     }
 
@@ -91,15 +94,16 @@ public enum RelayMarkNativeMediaMutation {
         return try document.mutatePaperControl(at: index, change: change)
     }
 
-    private static func attributes(for block: Block) throws -> [String: String] {
-        var attributes = ["relaymarkId": block.id]
+    private static func attributes(for block: Block) throws -> [String: Any] {
+        var attributes: [String:Any] = ["relaymarkId": block.id]
         switch block.kind {
         case .image:
             attributes["src"] = block.source
             if let alt = block.alt { attributes["alt"] = alt }
             if let title = block.title { attributes["title"] = title }
+            if let width = block.width { attributes["width"] = width };if let height = block.height { attributes["height"] = height }
         case .videoEmbed:
-            guard block.alt == nil, block.title == nil else {
+            guard block.alt == nil, block.title == nil, block.width == nil, block.height == nil else {
                 throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
             }
             attributes["videoId"] = block.source
