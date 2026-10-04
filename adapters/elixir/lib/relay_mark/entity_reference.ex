@@ -39,6 +39,28 @@ defmodule RelayMark.EntityReference do
 
   def parse_source(_), do: :error
 
+  @doc "Builds strict authored block reference source; historical input normalization belongs to the importer."
+  def canonical_source(attrs, body) when is_map(attrs) and is_binary(body) do
+    if Enum.all?(Map.keys(attrs), &(&1 in ["id", "label", "projection"])) do
+      source =
+        "@EntityRef(id: " <>
+          Jason.encode!(attrs["id"]) <>
+          ", label: " <>
+          Jason.encode!(attrs["label"] || body) <>
+          ", projection: " <>
+          Jason.encode!(attrs["projection"] || "link") <> ") {\n  " <> body <> "\n}"
+
+      case parse_source(source) do
+        {:ok, _} -> {:ok, source}
+        _ -> :error
+      end
+    else
+      :error
+    end
+  end
+
+  def canonical_source(_, _), do: :error
+
   defp parse_attributes("", attrs), do: {:ok, attrs}
 
   defp parse_attributes(rest, attrs) do

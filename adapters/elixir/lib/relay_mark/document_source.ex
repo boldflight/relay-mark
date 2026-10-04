@@ -247,7 +247,7 @@ defmodule RelayMark.DocumentSource do
     do: image(image, ns, path)
 
   defp convert(%MDEx.Paragraph{} = n, ns, path),
-    do: block(ns, path, "paragraph", inline(n.nodes), nil)
+    do: block(ns, path, "paragraph", inline(n.nodes), nil) |> historical_media()
 
   defp convert(%MDEx.HtmlBlock{literal: text}, ns, path),
     do: block(ns, path, "paragraph", [%{"type" => "text", "text" => text}], nil)
@@ -345,6 +345,50 @@ defmodule RelayMark.DocumentSource do
         "alt" => Enum.map_join(n.nodes, fn x -> Map.get(x, :literal, "") end),
         "title" => if(n.title == "", do: nil, else: n.title)
       })
+
+  defp historical_media(%{"content" => [leaf]} = n) do
+    text =
+      case leaf do
+        %{"type" => "text", "text" => text} ->
+          text
+
+        %{"type" => "link", "href" => url, "content" => [%{"type" => "text", "text" => url}]} ->
+          url
+
+        _ ->
+          nil
+      end
+
+    cond do
+      is_binary(text) and
+          Regex.match?(
+            ~r/\A::video\[\/v\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\]\z/u,
+            text
+          ) ->
+        [_, video_id] = Regex.run(~r/\A::video\[\/v\/([^]]+)\]\z/u, text)
+
+        %{
+          "id" => n["id"],
+          "type" => "relay.video_embed",
+          "props" => %{"videoId" => video_id},
+          "content" => []
+        }
+
+      is_binary(text) and RelayMark.Link.safe_image_source?(text) and
+          Regex.match?(~r/\Ahttps:\/\/[^?#]+\.gif(?:[?#]|$)/iu, text) ->
+        %{
+          "id" => n["id"],
+          "type" => "image",
+          "props" => %{"src" => text, "alt" => "", "title" => nil},
+          "content" => []
+        }
+
+      true ->
+        n
+    end
+  end
+
+  defp historical_media(n), do: n
 
   defp inline(nodes), do: Enum.flat_map(strip_recovery_nodes(nodes), &inline_node(&1, []))
 
@@ -707,11 +751,20 @@ defmodule RelayMark.DocumentSource do
           {props, flatten(children)}
 
         "relay.entity_reference" ->
-          source = header <> "\n" <> body <> "\n}"
+          input =
+            if is_binary(props["id"]) and not String.starts_with?(props["id"], "entity:"),
+              do: Map.update!(props, "id", &("entity:" <> &1)),
+              else: props
 
-          case RelayMark.EntityReference.parse_source(source) do
-            {:ok, _} -> {Map.put(props, "source", source), []}
-            _ -> fail(:entity_reference_source)
+          body = if String.starts_with?(body, "  "), do: String.slice(body, 2..-1//1), else: body
+
+          case RelayMark.EntityReference.canonical_source(input, body) do
+            {:ok, source} ->
+              {:ok, parsed} = RelayMark.EntityReference.parse_source(source)
+              {Map.take(parsed, ["id", "label", "projection", "source"]), []}
+
+            _ ->
+              fail(:entity_reference_source)
           end
 
         _ ->
@@ -748,10 +801,15 @@ defmodule RelayMark.DocumentSource do
   defp attributes(raw) do
     split_top(raw, ?,)
     |> Enum.reject(&(&1 == ""))
-    |> Map.new(fn pair ->
+    |> Enum.reduce(%{}, fn pair, attrs ->
       case split_top(pair, ?:) do
-        [key, value] -> {key |> String.trim() |> String.trim("\""), value(value)}
-        _ -> fail(:directive_attributes)
+        [key, raw_value] ->
+          key = key |> String.trim() |> String.trim("\"")
+          if Map.has_key?(attrs, key), do: fail(:duplicate_directive_attribute)
+          Map.put(attrs, key, value(raw_value))
+
+        _ ->
+          fail(:directive_attributes)
       end
     end)
   end

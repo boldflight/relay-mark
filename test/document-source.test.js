@@ -125,3 +125,24 @@ test('callout HTML-looking title remains literal rich title with shared reader m
  assert.equal(ast.blocks[0].content[0].content[0].text,'<img src=x onerror=alert(1)>');
  assert.match(renderDocument(ast),/<div data-callout-title="true">&lt;img src=x onerror=alert\(1\)&gt;<\/div>/);
 });
+
+test('historical EntityRef indentation and bare identity normalize once without losing authored fallback',()=>{
+ const id='11111111-1111-4111-8111-111111111111';
+ for(const identity of [id,'entity:'+id]){
+  const ast=parseDocument(`@EntityRef(id: "${identity}", projection: "card") {\nAuthored fallback\n}`,{namespace:'old-block-ref'});
+  assert.deepEqual(ast.blocks[0].props,{id:'entity:'+id,label:'Authored fallback',projection:'card',source:`@EntityRef(id: "entity:${id}", label: "Authored fallback", projection: "card") {\n  Authored fallback\n}`});
+  assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+ }
+});
+test('finite historical standalone video and image URL source preserves durable media identity and code literals',()=>{
+ const source='::video[/v/11111111-1111-4111-8111-111111111111]\n\nhttps://example.com/a.gif\n\n[https://example.com/b.gif](https://example.com/b.gif)\n\n<https://example.com/c.gif>\n\n`::video[/v/11111111-1111-4111-8111-111111111111]`';
+ const ast=parseDocument(source,{namespace:'old-media'});assert.deepEqual(ast.blocks.map(n=>n.type),['relay.video_embed','image','image','image','paragraph']);
+ assert.equal(ast.blocks[0].props.videoId,'11111111-1111-4111-8111-111111111111');
+ assert.deepEqual(ast.blocks.slice(1,4).map(n=>n.props.src),['https://example.com/a.gif','https://example.com/b.gif','https://example.com/c.gif']);
+ assert.equal(ast.blocks[4].content[0].type,'code_span');assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+});
+
+test('historical reference normalization refuses duplicate identity or unknown authored attributes',()=>{
+ const id='11111111-1111-4111-8111-111111111111';
+ for(const attrs of [`id: "${id}", id: "${id}"`,`id: "${id}", surprise: "value"`,`id: "${id}", projection: "popover"`])assert.throws(()=>parseDocument(`@EntityRef(${attrs}) {\nBody\n}`,{namespace:'ambiguous-reference'}));
+});

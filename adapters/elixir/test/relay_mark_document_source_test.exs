@@ -211,4 +211,64 @@ defmodule RelayMark.DocumentSourceTest do
     assert {:ok, html} = RelayMark.render_document(ast)
     assert html =~ ~s|<div data-callout-title="true">&lt;img src=x onerror=alert(1)&gt;</div>|
   end
+
+  test "historical block reference bare IDs and unindented bodies normalize to one strict atom" do
+    id = "11111111-1111-4111-8111-111111111111"
+
+    for input <- [id, "entity:" <> id] do
+      source = ~s|@EntityRef(id: "#{input}", projection: "card") {\nAuthored fallback\n}|
+      assert {:ok, ast} = RelayMark.parse_document(source, namespace: "old-block-ref")
+
+      assert hd(ast["blocks"])["props"] == %{
+               "id" => "entity:" <> id,
+               "label" => "Authored fallback",
+               "projection" => "card",
+               "source" =>
+                 ~s|@EntityRef(id: "entity:#{id}", label: "Authored fallback", projection: "card") {\n  Authored fallback\n}|
+             }
+
+      assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
+      assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
+    end
+  end
+
+  test "historical standalone video and GIF declarations become durable media while code stays literal" do
+    source =
+      "::video[/v/11111111-1111-4111-8111-111111111111]\n\nhttps://example.com/a.gif\n\n[https://example.com/b.gif](https://example.com/b.gif)\n\n<https://example.com/c.gif>\n\n`::video[/v/11111111-1111-4111-8111-111111111111]`"
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "old-media")
+
+    assert Enum.map(ast["blocks"], & &1["type"]) == [
+             "relay.video_embed",
+             "image",
+             "image",
+             "image",
+             "paragraph"
+           ]
+
+    assert hd(ast["blocks"])["props"]["videoId"] == "11111111-1111-4111-8111-111111111111"
+
+    assert ast["blocks"] |> Enum.slice(1, 3) |> Enum.map(& &1["props"]["src"]) == [
+             "https://example.com/a.gif",
+             "https://example.com/b.gif",
+             "https://example.com/c.gif"
+           ]
+
+    assert hd(List.last(ast["blocks"])["content"])["type"] == "code_span"
+  end
+
+  test "finite reference normalization rejects duplicate identity and unsupported attributes" do
+    id = "11111111-1111-4111-8111-111111111111"
+
+    for attrs <- [
+          ~s|id: "#{id}", id: "#{id}"|,
+          ~s|id: "#{id}", surprise: "value"|,
+          ~s|id: "#{id}", projection: "popover"|
+        ] do
+      assert {:error, _} =
+               RelayMark.parse_document("@EntityRef(" <> attrs <> ") {\nBody\n}",
+                 namespace: "ambiguous-reference"
+               )
+    end
+  end
 end

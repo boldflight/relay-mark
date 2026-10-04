@@ -27,6 +27,7 @@ export function parseAttributes(raw) {
       throw new Error(`Invalid attribute name '${key}'`);
     }
 
+    if(Object.hasOwn(attributes,key))throw new Error("Duplicate authored attribute");
     attributes[key] = parseValue(value);
   }
 
@@ -63,6 +64,7 @@ function parseValue(value) {
       }
 
       const key = part.slice(0, colon).trim().replace(/^"|"$/g, "");
+      if(Object.hasOwn(object,key))throw new Error("Duplicate authored attribute");
       object[key] = parseValue(part.slice(colon + 1).trim());
     }
 

@@ -46,3 +46,9 @@ export function assertEntityReferenceProps(props) {
   }
   return parsed;
 }
+
+export function buildBlockEntityReferenceSource(attrs,body){
+ if(!attrs||Object.keys(attrs).some(key=>!['id','label','projection'].includes(key))||typeof body!=='string')throw new TypeError('Invalid block reference source');
+ const source=`@EntityRef(id: ${JSON.stringify(attrs.id)}, label: ${JSON.stringify(attrs.label||body)}, projection: ${JSON.stringify(attrs.projection||'link')}) {\n  ${body}\n}`;
+ if(!parseEntityReferenceSource(source))throw new TypeError('Invalid block reference source');return source;
+}

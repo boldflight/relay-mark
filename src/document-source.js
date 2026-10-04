@@ -7,12 +7,13 @@ import {mapInline} from './document-inline.js';
 import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
 export {safeImageSource} from './document-links.js';
+import {safeImageSource} from './document-links.js';
 import {parseAttributes} from './attributes.js';
 import {directiveNodeForName,directiveNodeForType,canonicalDirectiveNodes} from './document-directives.js';
 import {directiveForName,directiveForType} from './registry.js';
 import {isBlockNode} from './node-kind.js';
 import {parsePaperControlSource} from './document-controls.js';
-import {parseEntityReferenceSource} from './document-reference.js';
+import {parseEntityReferenceSource,buildBlockEntityReferenceSource} from './document-reference.js';
 const md=new MarkdownIt({html:true,linkify:false,typographer:false});
 // Maintained CommonMark's inline rule owns code/escape/mark boundaries. This rule
 // interprets finite historic wiki source once and emits only canonical atom nodes.
@@ -113,7 +114,7 @@ function sourceBlocks(source,ns,prefix){
   const spec=directiveForName(s.name);if(!spec)throw new TypeError('Unknown directive');const props={...s.attrs};for(const [key,a]of Object.entries(spec.attributes||{}))if(props[key]===undefined&&Object.hasOwn(a,'default'))props[key]=a.default;
   let content=sourceBlocks(s.source,ns,[...path,0]);if(spec.ast_type==='relay.callout'&&props.title!==undefined){const title=String(props.title);delete props.title;content.unshift(block(ns,[...path,1],'relay.callout_title',inline(md.parseInline(title,{})[0]?.children||[])));}
   if(['relay.form_option','relay.agent_suggestion'].includes(spec.ast_type)){if(content.length>1||content[0]?.type!=='paragraph')throw new TypeError('Inline directive requires a paragraph');content=content[0]?.content||[];}
-  if(spec.ast_type==='relay.entity_reference'){const source=s.header+'\n'+s.source+'\n}';const parsed=parseEntityReferenceSource(source);if(!parsed)throw new TypeError('Invalid entity reference source');props.source=source;content=[];}
+  if(spec.ast_type==='relay.entity_reference'){const input={...s.attrs};if(typeof input.id==='string'&&!input.id.startsWith('entity:'))input.id='entity:'+input.id;const body=s.source.startsWith('  ')?s.source.slice(2):s.source;const source=buildBlockEntityReferenceSource(input,body),parsed=parseEntityReferenceSource(source);Object.assign(props,{id:parsed.id,label:parsed.label,projection:parsed.projection,source});content=[];}
   return [block(ns,path,spec.ast_type,content,props)];
  });
 }
@@ -149,8 +150,17 @@ function markdownBlocks(tokens,ns,prefix){let at=0;
    case 'table_open':{const rows=[];let header=false;while(at<tokens.length&&tokens[at].type!=='table_close'){const rowToken=tokens[at++];if(rowToken.type==='thead_open'){header=true;continue;}if(['thead_close','tbody_open','tbody_close'].includes(rowToken.type)){if(rowToken.type==='thead_close')header=false;continue;}if(rowToken.type!=='tr_open')throw new TypeError('Table row');const rp=[...p,rows.length],cells=[];while(tokens[at].type!=='tr_close'){const cell=tokens[at++],cp=[...rp,cells.length],run=tokens[at++];at++;const align=cell.attrGet('style')?.match(/text-align:(left|center|right)/)?.[1]||null;cells.push(block(ns,cp,'table_cell',[block(ns,[...cp,0],'paragraph',inline(run.children||[]))],{header,colspan:1,rowspan:1,colwidth:null,align}));}at++;rows.push(block(ns,rp,'table_row',cells));}at++;n=block(ns,p,'table',rows);break;}
    default:throw new TypeError('Unsupported CommonMark block '+t.type);
   }
-  nodes.push(n);
+  nodes.push(n.type==='paragraph'?historicalMedia(n):n);
  }if(end){if(tokens[at]?.type!==end)throw new TypeError('CommonMark nesting');at++;}return nodes;};return sequence(null,prefix);
+}
+function historicalMedia(n){
+ const [leaf]=n.content;if(n.content.length!==1)return n;
+ if(leaf.type==='text'){
+  const video=leaf.text.match(/^::video\[\/v\/([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\]$/u);
+  if(video)return{id:n.id,type:'relay.video_embed',props:{videoId:video[1]},content:[]};
+ }
+ const url=leaf.type==='text'?leaf.text:leaf.type==='link'&&leaf.content.length===1&&leaf.content[0].type==='text'&&leaf.content[0].text===leaf.href?leaf.href:null;
+ if(url&&safeImageSource(url)&&/^https:\/\/[^?#]+\.gif(?:[?#]|$)/iu.test(url))return{id:n.id,type:'image',props:{src:url,alt:'',title:null},content:[]};return n;
 }
 function inline(tokens){const output=[],marks=[];for(const t of tokens){if(t.nesting){const types={strong:'bold',em:'italic',s:'strike',link:'link'};const key=t.type.replace(/_(open|close)$/,'');const mark=types[key];if(!mark)throw new TypeError('Unsupported inline '+t.type);if(t.nesting===1)marks.push(mark==='link'?{type:'link',attrs:{href:t.attrGet('href'),target:'_blank',rel:'noopener noreferrer nofollow',class:null,title:null}}:{type:mark});else marks.pop();continue;}
  if(t.type==='html_inline'&&/^<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->$/u.test(t.content)){const previous=output.at(-1);if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)output.pop();}continue;}

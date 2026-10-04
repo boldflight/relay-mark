@@ -114,4 +114,13 @@ struct RelayMarkNativeCanonicalMetadataTests {
   let document=RelayMarkNativeDocument();try document.initializeDocument(authoredAST:ast)
   #expect(try JSONSerialization.jsonObject(with:document.authoredDocument()) as? NSDictionary == fixture["expected_ast"] as? NSDictionary)
  }
+ @Test @MainActor func historicalBlockReferencesAndMediaInitializeCanonicalNativeAtoms() throws {
+  let source = "@EntityRef(id: \"11111111-1111-4111-8111-111111111111\", projection: \"card\") {\nAuthored fallback\n}\n\n::video[/v/11111111-1111-4111-8111-111111111111]\n\n<https://example.com/a.gif>"
+  let ast=try RelayMarkSourceCodec.parseDocument(source,namespace:"old-native-media")
+  let raw=try JSONSerialization.jsonObject(with:ast) as! [String:Any]
+  #expect((raw["blocks"] as! [[String:Any]]).map{$0["type"] as! String} == ["relay.entity_reference","relay.video_embed","image"])
+  let doc=RelayMarkNativeDocument();try doc.initializeDocument(authoredAST:ast)
+  #expect(try JSONSerialization.jsonObject(with:doc.authoredDocument()) as? NSDictionary == raw as NSDictionary)
+  let projection=try doc.richProseProjection();#expect(projection.mediaAtoms.count==2);#expect(projection.entityReferenceAtoms.map(\.entityID)==["11111111-1111-4111-8111-111111111111"])
+ }
 }
