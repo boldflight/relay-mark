@@ -1,6 +1,9 @@
 import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { build } from 'esbuild'
 import { historyHookPlugin } from './yjs-history-hook.mjs'
+const editorSchema = JSON.parse(await readFile('spec/relaymark/editor-schema.json','utf8'))
+await writeFile('src/editor-schema.js', '// Generated from spec/relaymark/editor-schema.json. Never edit independently.\nexport const canonicalEditorSchema = '+JSON.stringify(editorSchema)+';\n')
+await writeFile('adapters/swift/Sources/RelayMarkNativeCollaboration/ProseMirror/PMSchema.swift', 'import Foundation\n\n/// Generated from spec/relaymark/editor-schema.json. Never edit independently.\nenum RelayMarkNativeProseMirrorSchema {\n    static let json = #"'+JSON.stringify(editorSchema)+'"#\n}\n')
 const directives = await Promise.all((await readdir('spec/relaymark/directives')).filter(name => name.endsWith('.json')).sort().map(async name => JSON.parse(await readFile('spec/relaymark/directives/'+name,'utf8'))))
 await writeFile('src/directive-registry.js', '// Generated from spec/relaymark/directives. Never edit independently.\nexport const directiveSpecifications = '+JSON.stringify(directives)+';\n')
 await build({ plugins: [historyHookPlugin], entryPoints: ['adapters/collaboration/runtime.js'], bundle: true, format: 'iife', platform: 'browser', target: 'es2020', minify: true, legalComments: 'inline', outfile: 'adapters/swift/Sources/RelayMarkCollaboration/Resources/yjs-runtime.js' })
@@ -25,3 +28,7 @@ await mkdir('adapters/swift/Sources/RelayMarkSwift/Resources', { recursive: true
 await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'iife', globalName: 'RelayMarkSourceRuntime', platform: 'browser', target: 'es2023', supported: { 'template-literal': false }, minify: true, legalComments: 'inline', outfile: 'adapters/swift/Sources/RelayMarkSwift/Resources/document-source.js' })
 
 await build({ entryPoints: ['src/document-url.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-url.js' })
+
+// Pure maintained PM model/transform interpreter: no document replica or host authority.
+await build({ entryPoints:['src/content-edit.js'],bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-runtime.js' })
+await build({ entryPoints:['src/content-edit.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['prosemirror-model','prosemirror-transform'],minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit.js' })

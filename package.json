@@ -28,6 +28,8 @@
   "dependencies": {
     "@noble/hashes": "^2.0.1",
     "core-js-pure": "3.50.0",
-    "markdown-it": "^15.0.2"
+    "markdown-it": "^15.0.2",
+    "prosemirror-model": "1.25.12",
+    "prosemirror-transform": "1.12.2"
   }
 }

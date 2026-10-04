@@ -1,0 +1,80 @@
+defmodule RelayMark.ContentEditTest do
+  use ExUnit.Case, async: true
+
+  test "server applies actual rich paste steps through maintained PM in the same schema" do
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+
+    before = %{
+      "type" => "doc",
+      "content" => [
+        %{
+          "type" => "paragraph",
+          "attrs" => %{"relaymarkId" => "b11111111111141118111111111111111"},
+          "content" => [%{"type" => "text", "text" => "Hello world"}]
+        }
+      ]
+    }
+
+    operation = %{
+      "kind" => "content_edit",
+      "steps" => [
+        %{
+          "stepType" => "replace",
+          "from" => 7,
+          "to" => 12,
+          "slice" => %{
+            "content" => [
+              %{"type" => "text", "text" => "peer", "marks" => [%{"type" => "bold"}]},
+              %{"type" => "text", "text" => "!", "marks" => [%{"type" => "italic"}]}
+            ]
+          }
+        }
+      ]
+    }
+
+    assert {:ok, result} = RelayMark.ContentEdit.apply(runtime, before, operation)
+    assert result["step_maps"] == [%{"ranges" => [7, 5, 5], "inverted" => false}]
+
+    assert hd(result["authored_document"]["blocks"])["content"] == [
+             %{"type" => "text", "text" => "Hello "},
+             %{"type" => "strong", "content" => [%{"type" => "text", "text" => "peer"}]},
+             %{"type" => "emphasis", "content" => [%{"type" => "text", "text" => "!"}]}
+           ]
+
+    ast = %{
+      "type" => "relaymark.document",
+      "blocks" => [
+        %{
+          "id" => "b11111111111141118111111111111111",
+          "type" => "paragraph",
+          "content" => [%{"type" => "text", "text" => "Hello world"}]
+        }
+      ],
+      "frontmatter" => %{},
+      "annotations" => [],
+      "resources" => [],
+      "meta" => %{"origin" => "same-owner"}
+    }
+
+    assert {:ok, portable} = RelayMark.ContentEdit.apply_document(runtime, ast, operation)
+
+    assert portable["authored_document"] ==
+             Map.put(ast, "blocks", result["authored_document"]["blocks"])
+
+    invalid =
+      put_in(operation, ["steps", Access.at(0), "slice", "content", Access.at(0), "attrs"], %{
+        "hidden" => true
+      })
+
+    assert {:error, _reason} = RelayMark.ContentEdit.apply(runtime, before, invalid)
+    assert {:ok, ^result} = RelayMark.ContentEdit.apply(runtime, before, operation)
+  end
+
+  test "maintained runtime interrupts runaway evaluation and remains usable" do
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime(timeout: 100)
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+    assert {:error, "timeout"} = Quicksand.eval(runtime, "while(true) {}")
+    assert {:ok, 42} = Quicksand.eval(runtime, "42")
+  end
+end
