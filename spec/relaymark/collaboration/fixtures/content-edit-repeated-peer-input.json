@@ -1,0 +1,1088 @@
+{
+  "description": "Actual human insertion before generated and peer-identical supplementary text must not borrow the peer/generated item as input",
+  "sender_state_base64": "AgGvAgDEZQRlBQTwn4yNJGUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwBlAAYEAGUBBUHwn4yNhGUEAVooAGUAC3JlbGF5bWFya0lkAXchYjJlODc1YjgyOWE4ZDQ0OWQ4YWRkOGY0ZGZmNDEyYmNjh2UAAw1xdWVzdGlvbkJsb2NrBwBlBwMNcXVlc3Rpb25MYWJlbAcAZQgGBgBlCQRib2xkAnt9hGUKBkNob29zZYZlEARib2xkBG51bGwoAGUIC3JlbGF5bWFya0lkAXchYmI4MTg5MmVlZjg5NDRiNDQ4YWEzZDZkNmI0NTM3OGNih2UIAw5xdWVzdGlvbk9wdGlvbgcAZRMGBABlFANPbmUoAGUTC3JlbGF5bWFya0lkAXchYjM3N2E5MjQ1YTJhNzQwZTg4MTU1NTg1NzAwMjU3ZjZmKABlEwdjb3JyZWN0AXkoAGUTBnBvaW50cwF+KABlEwhzZXR0aW5ncwF2ACgAZRMCaWQBdwNvbmWHZRMDDnF1ZXN0aW9uT3B0aW9uBwBlHQYEAGUeA1R3bygAZR0LcmVsYXltYXJrSWQBdyFiYmUyMDI2MDE4NDNkNDFkMDg3MmVkOTVlYWEyNTBkM2MoAGUdB2NvcnJlY3QBeSgAZR0GcG9pbnRzAX4oAGUdCHNldHRpbmdzAXYAKABlHQJpZAF3A3R3bygAZQcLcmVsYXltYXJrSWQBdyFiYzdiY2U4ZmVlZGI5NDljNThlMjNiYTAxYmE0YmZjZjEoAGUHCHJlcXVpcmVkAXkoAGUHBnBvaW50cwF+KABlBwNtaW4BfigAZQcDbWF4AX4oAGUHCHNldHRpbmdzAXYAKABlBwJpZAF3BXEtb25lKABlBwR0eXBlAXcPbXVsdGlwbGVfY2hvaWNlAWUDGgEkASkD",
+  "before_snapshot_base64": "AWUDGgEkASkDAq8CAmUv",
+  "update_base64": "AQFlL8SvAgFlBQTwn4yNAA==",
+  "evidence": {
+    "sender_before_snapshot": {
+      "kind": "fragment",
+      "root": "default",
+      "children": [
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 0
+          },
+          "name": "paragraph",
+          "attributes": {
+            "relaymarkId": "b2e875b829a8d449d8add8f4dff412bcc"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "type": {
+                "client": 101,
+                "clock": 1
+              },
+              "runs": [
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 2
+                  },
+                  "count": 3,
+                  "text": "A🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 303,
+                    "clock": 0
+                  },
+                  "count": 2,
+                  "text": "🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 5
+                  },
+                  "count": 1,
+                  "text": "Z",
+                  "attributes": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 7
+          },
+          "name": "questionBlock",
+          "attributes": {
+            "relaymarkId": "bc7bce8feedb949c58e23ba01ba4bfcf1",
+            "required": false,
+            "settings": {},
+            "id": "q-one",
+            "type": "multiple_choice"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 8
+              },
+              "name": "questionLabel",
+              "attributes": {
+                "relaymarkId": "bb81892eef8944b448aa3d6d6b45378cb"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 9
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 11
+                      },
+                      "count": 6,
+                      "text": "Choose",
+                      "attributes": {
+                        "bold": {}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 19
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "b377a9245a2a740e88155585700257f6f",
+                "correct": false,
+                "settings": {},
+                "id": "one"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 20
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 21
+                      },
+                      "count": 3,
+                      "text": "One",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 29
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "bbe202601843d41d0872ed95eaa250d3c",
+                "correct": false,
+                "settings": {},
+                "id": "two"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 30
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 31
+                      },
+                      "count": 3,
+                      "text": "Two",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "sender_after_snapshot": {
+      "kind": "fragment",
+      "root": "default",
+      "children": [
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 0
+          },
+          "name": "paragraph",
+          "attributes": {
+            "relaymarkId": "b2e875b829a8d449d8add8f4dff412bcc"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "type": {
+                "client": 101,
+                "clock": 1
+              },
+              "runs": [
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 2
+                  },
+                  "count": 3,
+                  "text": "A🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 303,
+                    "clock": 0
+                  },
+                  "count": 2,
+                  "text": "🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 47
+                  },
+                  "count": 2,
+                  "text": "🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 5
+                  },
+                  "count": 1,
+                  "text": "Z",
+                  "attributes": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 7
+          },
+          "name": "questionBlock",
+          "attributes": {
+            "relaymarkId": "bc7bce8feedb949c58e23ba01ba4bfcf1",
+            "required": false,
+            "settings": {},
+            "id": "q-one",
+            "type": "multiple_choice"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 8
+              },
+              "name": "questionLabel",
+              "attributes": {
+                "relaymarkId": "bb81892eef8944b448aa3d6d6b45378cb"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 9
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 11
+                      },
+                      "count": 6,
+                      "text": "Choose",
+                      "attributes": {
+                        "bold": {}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 19
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "b377a9245a2a740e88155585700257f6f",
+                "correct": false,
+                "settings": {},
+                "id": "one"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 20
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 21
+                      },
+                      "count": 3,
+                      "text": "One",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 29
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "bbe202601843d41d0872ed95eaa250d3c",
+                "correct": false,
+                "settings": {},
+                "id": "two"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 30
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 31
+                      },
+                      "count": 3,
+                      "text": "Two",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "before_snapshot": {
+      "kind": "fragment",
+      "root": "default",
+      "children": [
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 0
+          },
+          "name": "paragraph",
+          "attributes": {
+            "relaymarkId": "b2e875b829a8d449d8add8f4dff412bcc"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "type": {
+                "client": 101,
+                "clock": 1
+              },
+              "runs": [
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 2
+                  },
+                  "count": 3,
+                  "text": "A🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 303,
+                    "clock": 0
+                  },
+                  "count": 2,
+                  "text": "🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 5
+                  },
+                  "count": 1,
+                  "text": "Z",
+                  "attributes": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 7
+          },
+          "name": "questionBlock",
+          "attributes": {
+            "relaymarkId": "bc7bce8feedb949c58e23ba01ba4bfcf1",
+            "required": false,
+            "settings": {},
+            "id": "q-one",
+            "type": "multiple_choice"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 8
+              },
+              "name": "questionLabel",
+              "attributes": {
+                "relaymarkId": "bb81892eef8944b448aa3d6d6b45378cb"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 9
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 11
+                      },
+                      "count": 6,
+                      "text": "Choose",
+                      "attributes": {
+                        "bold": {}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 19
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "b377a9245a2a740e88155585700257f6f",
+                "correct": false,
+                "settings": {},
+                "id": "one"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 20
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 21
+                      },
+                      "count": 3,
+                      "text": "One",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 29
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "bbe202601843d41d0872ed95eaa250d3c",
+                "correct": false,
+                "settings": {},
+                "id": "two"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 30
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 31
+                      },
+                      "count": 3,
+                      "text": "Two",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after_snapshot": {
+      "kind": "fragment",
+      "root": "default",
+      "children": [
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 0
+          },
+          "name": "paragraph",
+          "attributes": {
+            "relaymarkId": "b2e875b829a8d449d8add8f4dff412bcc"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "type": {
+                "client": 101,
+                "clock": 1
+              },
+              "runs": [
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 2
+                  },
+                  "count": 3,
+                  "text": "A🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 303,
+                    "clock": 0
+                  },
+                  "count": 2,
+                  "text": "🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 47
+                  },
+                  "count": 2,
+                  "text": "🌍",
+                  "attributes": {}
+                },
+                {
+                  "item": {
+                    "client": 101,
+                    "clock": 5
+                  },
+                  "count": 1,
+                  "text": "Z",
+                  "attributes": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "element",
+          "type": {
+            "client": 101,
+            "clock": 7
+          },
+          "name": "questionBlock",
+          "attributes": {
+            "relaymarkId": "bc7bce8feedb949c58e23ba01ba4bfcf1",
+            "required": false,
+            "settings": {},
+            "id": "q-one",
+            "type": "multiple_choice"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 8
+              },
+              "name": "questionLabel",
+              "attributes": {
+                "relaymarkId": "bb81892eef8944b448aa3d6d6b45378cb"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 9
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 11
+                      },
+                      "count": 6,
+                      "text": "Choose",
+                      "attributes": {
+                        "bold": {}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 19
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "b377a9245a2a740e88155585700257f6f",
+                "correct": false,
+                "settings": {},
+                "id": "one"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 20
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 21
+                      },
+                      "count": 3,
+                      "text": "One",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "type": {
+                "client": 101,
+                "clock": 29
+              },
+              "name": "questionOption",
+              "attributes": {
+                "relaymarkId": "bbe202601843d41d0872ed95eaa250d3c",
+                "correct": false,
+                "settings": {},
+                "id": "two"
+              },
+              "children": [
+                {
+                  "kind": "text",
+                  "type": {
+                    "client": 101,
+                    "clock": 30
+                  },
+                  "runs": [
+                    {
+                      "item": {
+                        "client": 101,
+                        "clock": 31
+                      },
+                      "count": 3,
+                      "text": "Two",
+                      "attributes": {}
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "before_state_vector": [
+      {
+        "client": 101,
+        "clock": 47
+      },
+      {
+        "client": 303,
+        "clock": 2
+      }
+    ],
+    "operation": {
+      "kind": "content_edit",
+      "steps": [
+        {
+          "stepType": "replace",
+          "from": 2,
+          "to": 2,
+          "slice": {
+            "content": [
+              {
+                "type": "text",
+                "text": "🌍"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "footprint": {
+      "state_vector": [
+        {
+          "client": 101,
+          "clock": 49
+        },
+        {
+          "client": 303,
+          "clock": 2
+        }
+      ],
+      "structs": [
+        {
+          "item": {
+            "client": 101,
+            "clock": 47
+          },
+          "count": 2,
+          "parent": {
+            "type": {
+              "client": 101,
+              "clock": 1
+            }
+          },
+          "key": null,
+          "origin": {
+            "client": 303,
+            "clock": 1
+          },
+          "right_origin": {
+            "client": 101,
+            "clock": 5
+          },
+          "content": {
+            "kind": "string",
+            "text": "🌍"
+          },
+          "deleted": false
+        }
+      ],
+      "declared_deletes": [],
+      "deleted_items": []
+    }
+  },
+  "observed": {
+    "document": {
+      "type": "doc",
+      "attrs": {
+        "relaymark": {}
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "relaymarkId": "b2e875b829a8d449d8add8f4dff412bcc"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "A🌍🌍🌍Z"
+            }
+          ]
+        },
+        {
+          "type": "questionBlock",
+          "attrs": {
+            "relaymarkId": "bc7bce8feedb949c58e23ba01ba4bfcf1",
+            "id": "q-one",
+            "type": "multiple_choice",
+            "required": false,
+            "points": null,
+            "min": null,
+            "max": null,
+            "settings": {}
+          },
+          "content": [
+            {
+              "type": "questionLabel",
+              "attrs": {
+                "relaymarkId": "bb81892eef8944b448aa3d6d6b45378cb"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ],
+                  "text": "Choose"
+                }
+              ]
+            },
+            {
+              "type": "questionOption",
+              "attrs": {
+                "relaymarkId": "b377a9245a2a740e88155585700257f6f",
+                "id": "one",
+                "correct": false,
+                "points": null,
+                "settings": {}
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "One"
+                }
+              ]
+            },
+            {
+              "type": "questionOption",
+              "attrs": {
+                "relaymarkId": "bbe202601843d41d0872ed95eaa250d3c",
+                "id": "two",
+                "correct": false,
+                "points": null,
+                "settings": {}
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Two"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "authored_document": {
+      "type": "relaymark.document",
+      "blocks": [
+        {
+          "id": "b2e875b829a8d449d8add8f4dff412bcc",
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "text",
+              "text": "A🌍🌍🌍Z"
+            }
+          ]
+        },
+        {
+          "id": "bc7bce8feedb949c58e23ba01ba4bfcf1",
+          "type": "relay.form_question",
+          "props": {
+            "required": false,
+            "points": null,
+            "min": null,
+            "max": null,
+            "settings": {},
+            "id": "q-one",
+            "type": "multiple_choice"
+          },
+          "content": [
+            {
+              "id": "bb81892eef8944b448aa3d6d6b45378cb",
+              "type": "paragraph",
+              "content": [
+                {
+                  "type": "strong",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Choose"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b377a9245a2a740e88155585700257f6f",
+              "type": "relay.form_option",
+              "props": {
+                "correct": false,
+                "points": null,
+                "settings": {},
+                "id": "one"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "One"
+                }
+              ]
+            },
+            {
+              "id": "bbe202601843d41d0872ed95eaa250d3c",
+              "type": "relay.form_option",
+              "props": {
+                "correct": false,
+                "points": null,
+                "settings": {},
+                "id": "two"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Two"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "retained_ranges": [
+      {
+        "source_from": 0,
+        "destination_from": 0,
+        "length": 2
+      },
+      {
+        "source_from": 2,
+        "destination_from": 4,
+        "length": 26
+      }
+    ],
+    "inserted_ranges": [
+      {
+        "destination_from": 2,
+        "length": 2
+      }
+    ],
+    "proven_copies": [
+      {
+        "source": {
+          "runs": [
+            {
+              "type": {
+                "client": 101,
+                "clock": 1
+              },
+              "item": {
+                "client": 303,
+                "clock": 0
+              },
+              "count": 2
+            }
+          ]
+        },
+        "destination": {
+          "runs": [
+            {
+              "type": {
+                "client": 101,
+                "clock": 1
+              },
+              "item": {
+                "client": 101,
+                "clock": 47
+              },
+              "count": 2
+            }
+          ]
+        }
+      }
+    ],
+    "fresh_items": {
+      "runs": [
+        {
+          "type": {
+            "client": 101,
+            "clock": 1
+          },
+          "item": {
+            "client": 101,
+            "clock": 47
+          },
+          "count": 2
+        }
+      ]
+    },
+    "text_items": {
+      "runs": []
+    },
+    "unproven_mutations": {
+      "structs": [],
+      "declared_deletes": [],
+      "deleted_items": []
+    },
+    "requires_mutation_correspondence": true,
+    "operation": {
+      "kind": "content_edit",
+      "steps": [
+        {
+          "stepType": "replace",
+          "from": 2,
+          "to": 2,
+          "slice": {
+            "content": [
+              {
+                "type": "text",
+                "text": "🌍"
+              }
+            ]
+          }
+        }
+      ],
+      "copies": [
+        {
+          "source": {
+            "runs": [
+              {
+                "type": {
+                  "client": 101,
+                  "clock": 1
+                },
+                "item": {
+                  "client": 303,
+                  "clock": 0
+                },
+                "count": 2
+              }
+            ]
+          },
+          "destination": {
+            "runs": [
+              {
+                "type": {
+                  "client": 101,
+                  "clock": 1
+                },
+                "item": {
+                  "client": 101,
+                  "clock": 47
+                },
+                "count": 2
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "expected": {
+    "human_units": 2,
+    "peer_item": {
+      "client": 303,
+      "clock": 0
+    },
+    "peer_position": 6
+  }
+}

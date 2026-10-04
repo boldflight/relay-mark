@@ -51,6 +51,19 @@ function allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh,opera
  }
  cover(allocationRuns,fresh);cover(fresh,allocationRuns);
 }
+// Maintained semantic insertion maps must not borrow an older source item.
+// A value-only binding diff can otherwise move fresh input into a copied suffix.
+function refuseReusedInsertedText(after,inserted,beforeClocks){
+ let cursor=0;
+ for(const run of after.runs){
+  const start=run.position,end=start+run.count;
+  while(cursor<inserted.length&&inserted[cursor].destination_from+inserted[cursor].length<=start)cursor++;
+  for(let i=cursor;i<inserted.length&&inserted[i].destination_from<end;i++){
+   const from=Math.max(start,inserted[i].destination_from),to=Math.min(end,inserted[i].destination_from+inserted[i].length);
+   if(from<to&&run.item.clock+from-start<(beforeClocks.get(run.item.client)||0))throw TypeError('Semantic inserted text reused retained identity');
+  }
+ }
+}
 function freshRuns(after,beforeClocks){return after.runs.flatMap(run=>{const clock=Math.max(run.item.clock,beforeClocks.get(run.item.client)||0),count=run.item.clock+run.count-clock;return count>0?[{...run,item:{client:run.item.client,clock},count,text:run.text.slice(clock-run.item.clock),position:run.position+clock-run.item.clock}]:[]});}
 export function prepareWitness(evidence,interpret){
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','text_items','footprint']);
@@ -59,6 +72,7 @@ export function prepareWitness(evidence,interpret){
  keys(operation,['kind','steps','copies','history','group'],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
  const sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),before=index(evidence.before_snapshot),after=index(evidence.after_snapshot),expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm))throw TypeError('Actual sender result disagrees with maintained steps');
+ refuseReusedInsertedText(senderAfter,expected.inserted_ranges,beforeClocks);
  // Exact metadata consequences are part of the maintained doc attribute; full footprint correspondence remains required.
  const fresh=freshRuns(after,beforeClocks);
  const human=resolve(after,evidence.text_items),destinations=[],proven_copies=[];let copiedUnits=0;
@@ -84,6 +98,7 @@ export function buildWitness(evidence,interpret){
  keys(evidence.operation,['kind','steps','history','group','copies'],['kind','steps']);
  const sender=index(evidence.sender_before_snapshot),after=index(evidence.sender_after_snapshot),frontier=clocks(evidence.before_state_vector),expected=interpret(sender.pm,{...evidence.operation,copies:[]});
  if(!same(after.pm,expected.document))throw TypeError('Actual sender disagrees with maintained command');
+ refuseReusedInsertedText(after,expected.inserted_ranges,frontier);
  const supplied=evidence.operation.copies??[];if(!Array.isArray(supplied)||supplied.length>4096)throw TypeError('Invalid explicit Slice copies');const copies=[...supplied];let human=[];
  for(const run of after.runs){const start=Math.max(run.item.clock,frontier.get(run.item.client)||0),n=run.item.clock+run.count-start;if(n<=0)continue;let uncovered=[[run.position+start-run.item.clock,run.position+run.count]];
   for(const mapped of expected.retained_ranges){const from=Math.max(run.position+start-run.item.clock,mapped.destination_from),to=Math.min(run.position+run.count,mapped.destination_from+mapped.length);if(from>=to)continue;

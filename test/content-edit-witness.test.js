@@ -56,3 +56,15 @@ test('one retained rich source can be duplicated twice only onto exact fresh Sli
  const forged=structuredClone(evidence);forged.operation.copies[1].destination=forged.operation.copies[0].destination;assert.throws(()=>prepareContentEditWitness(forged),/Duplicate destination/);const falseSource=structuredClone(evidence);falseSource.operation.copies[0].source.runs[0].type.clock=0;assert.throws(()=>prepareContentEditWitness(falseSource),/wrongly typed/);
  doc.destroy();
 });
+
+
+test('actual semantic input cannot silently borrow generated or peer retained identities',async()=>{
+ const {readFileSync}=await import('node:fs'),{buildContentEditWitness}=await import('../src/content-edit.js'),{captureContentEditSnapshot,captureContentEditFootprint}=await import('../adapters/collaboration/content-edit-observer.js');
+ for(const name of ['repeated-human-input','repeated-peer-input']){
+  const fixture=JSON.parse(readFileSync(new URL(`../spec/relaymark/collaboration/fixtures/content-edit-${name}.json`,import.meta.url)));
+  assert.throws(()=>buildContentEditWitness(fixture.evidence),/inserted text reused retained identity/);
+ }
+ const fixture=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-identical-human-replacement.json',import.meta.url))),doc=new Y.Doc({gc:false});Y.applyUpdate(doc,new Uint8Array(Buffer.from(fixture.sender_state_base64,'base64')));
+ const snapshot=captureContentEditSnapshot(doc.getXmlFragment('default')),footprint=captureContentEditFootprint(doc,new Uint8Array([0,0]));
+ assert.throws(()=>buildContentEditWitness({sender_before_snapshot:snapshot,sender_after_snapshot:snapshot,before_snapshot:snapshot,after_snapshot:snapshot,before_state_vector:footprint.state_vector,operation:fixture.operation,footprint}),/inserted text reused retained identity/);doc.destroy();
+});

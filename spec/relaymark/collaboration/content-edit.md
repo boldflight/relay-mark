@@ -186,3 +186,16 @@ reports the envelope change; it does not authorize source attribution. Immediate
 native witnesses remain preliminary and accepted scoped receipts/full mutation
 correspondence remain required. Peer state, stale candidates, invalid grammar
 and exact undo/redo are exercised by the named reviewed recovery regression.
+
+### Retained identities inside semantic input
+
+The source witness refuses a normal command when actual maintained insertion
+intervals reuse pre-frontier text item identities. Value-only binding diffs can
+otherwise keep a generated or peer item at the newly inserted position and
+allocate an equal suffix, silently issuing no typed input. Actual identical
+selection replacement can also produce no Yjs update. Three preserved fixtures
+(`content-edit-repeated-human-input.json`, `content-edit-repeated-peer-input.json`
+and `content-edit-identical-human-replacement.json`) capture these real faults.
+This refusal uses maintained StepMaps and item clocks, never equal text to
+relabel provenance. The same writer still needs the complete actual command
+identity port; refusing unproven source is not completion of those operations.
