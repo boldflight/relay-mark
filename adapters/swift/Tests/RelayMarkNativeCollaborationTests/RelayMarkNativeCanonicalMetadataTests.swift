@@ -123,4 +123,32 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try JSONSerialization.jsonObject(with:doc.authoredDocument()) as? NSDictionary == raw as NSDictionary)
   let projection=try doc.richProseProjection();#expect(projection.mediaAtoms.count==2);#expect(projection.entityReferenceAtoms.map(\.entityID)==["11111111-1111-4111-8111-111111111111"])
  }
+ @Test @MainActor func nativeRichTextIdentityAndFormattingEvidencePreservePeerCausalMarkers() throws {
+  let source="<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\nA🌍Z\n- ( ) Paris\n<!-- /relay:question -->\n\n@Callout(tone: \"info\", emphasis: \"soft\") {\nNested\n}"
+  let doc=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  try peer.applyUpdate(doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument(source,namespace:"native-format-evidence")))
+  let before=try doc.encodeUpdate()
+  let selected=try doc.captureTextItems(path:[0,0,0],start:1,length:2)
+  let rows=try JSONSerialization.jsonObject(with:selected) as! [String:Any]
+  #expect(rows["contract_version"] as? Int == 1);#expect(rows["kind"] as? String == "text_items")
+  #expect((rows["runs"] as! [[String:Any]])[0]["count"] as? Int == 2)
+  #expect(try peer.captureTextItems(path:[0,0,0],start:1,length:2)==selected)
+  let update=try peer.formatText(at:1,length:2,attributes:["bold":[String:Any]()],path:[0,0,0])
+  let evidence=try doc.captureFormatEvent(update:update,mark:"bold",textItems:selected,operationID:UUID(uuidString:"11111111-1111-4111-8111-111111111111")!)
+  let event=try JSONSerialization.jsonObject(with:evidence) as! [String:Any]
+  #expect(event["contract_version"] as? Int == 1);#expect(event["kind"] as? String == "format_event")
+  #expect(event["version"] == nil)
+  let changes=event["changes"] as! [[String:Any]];#expect(changes.count==2)
+  #expect((changes[0]["before"] as! [String:Any])["enabled"] as? Bool == false)
+  #expect((changes[0]["after"] as! [String:Any])["enabled"] as? Bool == true)
+  #expect(try doc.encodeUpdate()==before)
+  let all=try JSONSerialization.jsonObject(with:doc.captureVisibleTextItems()) as! [String:Any]
+  #expect((all["runs"] as! [[String:Any]]).reduce(0){$0+($1["count"] as! Int)}==15)
+  let unrelated=try peer.formatText(at:0,length:2,attributes:["bold":[String:Any]()],path:[0,1,0])
+  let hidden=try doc.mergeUpdates([update,unrelated])
+  #expect(throws:(any Error).self){try doc.captureFormatEvent(update:hidden,mark:"bold",textItems:selected,operationID:UUID())}
+  let wrong=try doc.captureTextItems(path:[0,1,0],start:0,length:2)
+  #expect(throws:(any Error).self){try doc.captureFormatEvent(update:update,mark:"bold",textItems:wrong,operationID:UUID())}
+  #expect(try doc.encodeUpdate()==before)
+ }
 }

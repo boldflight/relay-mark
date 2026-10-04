@@ -1,5 +1,6 @@
 import Foundation
 import CoreFoundation
+import CryptoKit
 import RelayMarkProseProjection
 import YSwift
 import RelayMarkSwift
@@ -48,6 +49,79 @@ public final class RelayMarkNativeDocument {
         localOrigin = origin
         self.undoManager = undoManager
         presence = RelayMarkNativePresence(awareness: document.makeAwareness())
+    }
+
+    /// Actual visible UTF-16 item identities on this canonical rich document.
+    /// Positions count text units, including both units of a surrogate pair.
+    public func captureTextItems(path: [Int], start: Int, length: Int) throws -> Data {
+        _ = try authoredDocument()
+        guard let start = UInt32(exactly: start), let length = UInt32(exactly: length) else { throw Failure.invalidUTF16Range }
+        let data = try document.transactSync { tx in
+            var node = self.root
+            for index in path {
+                guard let index = UInt32(exactly:index), let child = node.child(at:index,in:tx) else { throw Failure.invalidTextPath }
+                node = child
+            }
+            return try node.textItems(start:start,length:length,in:tx)
+        }
+        var envelope = try JSONSerialization.jsonObject(with:data) as! [String:Any]
+        envelope["contract_version"] = RelayMarkContract.version; envelope["kind"] = "text_items"
+        return try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
+    }
+
+    /// Captures all visible text runs, including nested forms, tables and callouts.
+    public func captureVisibleTextItems() throws -> Data {
+        _ = try authoredDocument()
+        let runs = try document.transactSync { tx in
+            func visit(_ node: YXmlNode) throws -> [[String:Any]] {
+                if node.kind(in:tx) == "text" {
+                    let data = try node.textItems(start:0,length:node.length(in:tx),in:tx)
+                    return (try JSONSerialization.jsonObject(with:data) as! [String:Any])["runs"] as! [[String:Any]]
+                }
+                return try node.children(in:tx).flatMap(visit)
+            }
+            return try visit(self.root)
+        }
+        return try JSONSerialization.data(withJSONObject:["contract_version":RelayMarkContract.version,"kind":"text_items","runs":runs],options:[.sortedKeys])
+    }
+
+    /// Exact causal evidence for one bold/italic update against this unchanged
+    /// prestate. Immutable record authentication remains the host's responsibility.
+    public func captureFormatEvent(update: Data, mark: String, textItems: Data, operationID: UUID) throws -> Data {
+        _ = try authoredDocument()
+        guard ["bold","italic"].contains(mark),
+              let selection = try JSONSerialization.jsonObject(with:textItems) as? [String:Any],
+              Set(selection.keys) == ["contract_version","kind","runs"],
+              selection["contract_version"] as? Int == RelayMarkContract.version,
+              selection["kind"] as? String == "text_items", let runs = selection["runs"] as? [[String:Any]] else { throw Failure.unsupportedProseEdit }
+        let bare = try JSONSerialization.data(withJSONObject:["runs":runs],options:[.sortedKeys])
+        let result = try document.inspectFormatEvent(update:update,attribute:mark,textItems:bare)
+        var event = try JSONSerialization.jsonObject(with:result) as! [String:Any]
+        // Observe the full rich tree to refuse a claimed selection that hides
+        // actual enabled-state changes to unrelated text.
+        let all = try JSONSerialization.jsonObject(with:captureVisibleTextItems()) as! [String:Any]
+        let allBare = try JSONSerialization.data(withJSONObject:["runs":all["runs"]!],options:[.sortedKeys])
+        let whole = try JSONSerialization.jsonObject(with:document.inspectFormatEvent(update:update,attribute:mark,textItems:allBare)) as! [String:Any]
+        let changes = event["changes"] as! [[String:Any]]
+        func identity(_ unit: Any) throws -> Data { try JSONSerialization.data(withJSONObject:unit,options:[.sortedKeys]) }
+        let selected = try Set(changes.map { try identity($0["unit"]!) })
+        func enabled(_ state: [String:Any]) throws -> Bool {
+            if state["value"] is NSNull { return false }
+            guard let value = state["value"] as? [String:Any], value.isEmpty else { throw Failure.unsupportedProseEdit }
+            return true
+        }
+        for change in whole["changes"] as! [[String:Any]] where try !selected.contains(identity(change["unit"]!)) {
+            guard try enabled(change["before"] as! [String:Any]) == enabled(change["after"] as! [String:Any]) else { throw Failure.unsupportedProseEdit }
+        }
+        event["changes"] = try changes.map { change -> [String:Any] in
+            let before = change["before"] as! [String:Any], after = change["after"] as! [String:Any]
+            return ["unit":change["unit"]!,"before":["marker":before["marker"]!,"enabled":try enabled(before)],"after":["marker":after["marker"]!,"enabled":try enabled(after)]]
+        }
+        event["contract_version"] = RelayMarkContract.version;event["kind"] = "format_event"
+        event["operation_id"] = operationID.uuidString.lowercased();event["mark"] = mark
+        event["update_sha256"] = SHA256.hash(data:update).map { String(format:"%02x",$0) }.joined()
+        event["text_items"] = ["runs":runs]
+        return try JSONSerialization.data(withJSONObject:event,options:[.sortedKeys])
     }
 
     public var documentGUID: String { document.guid }
