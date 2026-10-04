@@ -220,3 +220,15 @@ require original source text and full attributes. Shared full-footprint replay,
 scoped receipts and owned history remain separate mandatory admission gates.
 These focused writer checks do not enable a source capability or establish
 published client integration.
+
+
+Native media and paper-control insertion/removal, full authored control updates,
+and inline reference/tag insertion/replacement return the existing `Change`
+with actual maintained Replace/AttrSteps and sender Snapshot bytes. They route
+through the same command commit, candidate admission and UndoManager; no raw
+XML writer remains for these migrated commands. Original text suffixes are
+eligible for identity reuse only when their exact per-branch causal delta
+wholly retains them. This preserves saved adjacent inline-atom anchors when an
+atom splits marked text, without treating identical replacement as retained
+input. Browser and native bindings use that same per-branch condition; the
+browser's maintained anchor reconciliation remains its existing owner.

@@ -39,8 +39,15 @@ final class PMYXmlBridge {
         let result=(node.attrs["relaymarkId"] as? String).map{causalTargets.contains($0)} == true || node.content.children.contains{requiresWrite($0)}
         causalNodes[key]=result;return result
     }
-    private func requiresWrite(_ child:Child,parent:PMNode) -> Bool {
-        switch child {case .node(let node):return requiresWrite(node);case .text:return requiresWrite(parent)}
+    private func requiresWrite(_ child: Child, y: YXmlNode, sourceParent: PMNode?, sourceGroup: Int,
+                               targetParent: PMNode, targetGroup: Int, in tx: YrsTransaction) throws -> Bool {
+        switch child {
+        case .node(let node): return requiresWrite(node)
+        case .text:
+            guard y.kind(in: tx) == "text" else { return true }
+            return try textPlan(y, sourceParent: sourceParent, sourceGroup: sourceGroup,
+                targetParent: targetParent, targetGroup: targetGroup, in: tx).contains { $0["retain"] == nil }
+        }
     }
 
     init(schema: PMSchema) { self.schema = schema }
@@ -181,14 +188,14 @@ final class PMYXmlBridge {
         let mapping = mapped(source, count: yCount)
         var left = 0, right = 0
         while left < minCount {
-            if requiresWrite(pChildren[left],parent:p) {break}
+            if try requiresWrite(pChildren[left], y: yChildren[left], sourceParent: source, sourceGroup: left, targetParent: p, targetGroup: left, in: tx) {break}
             if !Self.mappedIdentity(mapping?[left], pChildren[left]),
                !(try equal(yChildren[left], pChildren[left], in: tx)) { break }
             left += 1
         }
         while right + left < minCount {
             let yIndex = yCount - right - 1, pIndex = pCount - right - 1
-            if requiresWrite(pChildren[pIndex],parent:p) {break}
+            if try requiresWrite(pChildren[pIndex], y: yChildren[yIndex], sourceParent: source, sourceGroup: yIndex, targetParent: p, targetGroup: pIndex, in: tx) {break}
             if !Self.mappedIdentity(mapping?[yIndex], pChildren[pIndex]),
                !(try equal(yChildren[yIndex], pChildren[pIndex], in: tx)) { break }
             right += 1
@@ -199,7 +206,7 @@ final class PMYXmlBridge {
             let rightY = yChildren[rightIndex], rightP = pChildren[pCount - right - 1]
             if leftY.kind(in: tx) == "text", case .text(let texts) = leftP {
                 let matches=try equalText(leftY,texts,in:tx)
-                if requiresWrite(p) || !matches { try updateText(leftY, texts, sourceParent:source,sourceGroup:left,targetParent:p,targetGroup:left,in:tx) }
+                if try requiresWrite(leftP, y: leftY, sourceParent: source, sourceGroup: left, targetParent: p, targetGroup: left, in: tx) || !matches { try updateText(leftY, texts, sourceParent:source,sourceGroup:left,targetParent:p,targetGroup:left,in:tx) }
                 left += 1
                 continue
             }
@@ -293,13 +300,9 @@ final class PMYXmlBridge {
         return true
     }
 
-    private func updateText(_ y: YXmlNode, _ texts: [PMNode], sourceParent:PMNode?,sourceGroup:Int,targetParent:PMNode,targetGroup:Int,in tx: YrsTransaction) throws {
+    private func textPlan(_ y: YXmlNode, sourceParent: PMNode?, sourceGroup: Int,
+                          targetParent: PMNode, targetGroup: Int, in tx: YrsTransaction) throws -> [[String: Any]] {
         let delta = try y.delta(in: tx)
-        var cleared: [String: Any] = [:]
-        for run in delta { for key in run.attributes.keys { cleared[key] = NSNull() } }
-        let content = texts.map { text -> ([UInt16], [String: Any]) in
-            (text.text!, cleared.merging(Self.attributes(text.marks)) { $1 })
-        }
         guard let prepared=causalWrite,let sourceID=sourceParent?.attrs["relaymarkId"] as? String,
               let targetID=targetParent.attrs["relaymarkId"] as? String else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
         guard let sourceParent,let rawGroups=sources[ObjectIdentifier(sourceParent)],sourceGroup<rawGroups.count else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
@@ -311,7 +314,21 @@ final class PMYXmlBridge {
             }
         }
         let planned=try RelayMarkContentEditCodec.planTextWrite(prepared:prepared,sourceParent:sourceID,sourceGroup:group,targetParent:targetID,targetGroup:targetGroup,sourceOffset:sourceOffset,sourceLength:delta.reduce(0){$0+$1.text.utf16.count})
-        let changes=try JSONSerialization.jsonObject(with:planned) as! [[String:Any]]
+        guard let changes = try JSONSerialization.jsonObject(with: planned) as? [[String: Any]] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return changes
+    }
+
+    private func updateText(_ y: YXmlNode, _ texts: [PMNode], sourceParent:PMNode?,sourceGroup:Int,targetParent:PMNode,targetGroup:Int,in tx: YrsTransaction) throws {
+        let delta = try y.delta(in: tx)
+        var cleared: [String: Any] = [:]
+        for run in delta { for key in run.attributes.keys { cleared[key] = NSNull() } }
+        let content = texts.map { text -> ([UInt16], [String: Any]) in
+            (text.text!, cleared.merging(Self.attributes(text.marks)) { $1 })
+        }
+        let changes = try textPlan(y, sourceParent: sourceParent, sourceGroup: sourceGroup,
+            targetParent: targetParent, targetGroup: targetGroup, in: tx)
         var cursor=0
         for change in changes {
             if let count=change["retain"] as? Int {cursor+=count}

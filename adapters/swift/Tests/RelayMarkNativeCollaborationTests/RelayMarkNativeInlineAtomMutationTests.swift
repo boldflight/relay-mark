@@ -32,11 +32,17 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         try browser.applyUpdate(marked)
         let originalLeaf = try native.anchor(path: [0, 0], index: 1)
         let adjacentAtom = try native.anchor(path: [0, 1], index: 0)
+        let observation = try native.captureContentEditObservation()
         let inserted = try RelayMarkNativeInlineAtomMutation.insert(
             document: native, blockID: "b00000000000040008000000000000031",
             childIndex: 0, utf16Offset: 2, expectedLeafText: "Meet ", atom: tag())
-        try peer.applyUpdate(inserted)
-        try browser.applyUpdate(inserted)
+        let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: inserted.steps) as? [[String: Any]])
+        XCTAssertEqual(steps.first?["stepType"] as? String, "replace")
+        let witness = try XCTUnwrap(JSONSerialization.jsonObject(with:
+            native.buildContentEditWitness(observation, steps: inserted.steps, update: inserted.update)) as? [String: Any])
+        XCTAssertEqual((witness["text_items"] as? [String: Any])?["runs"] as? [[String: Int]], [])
+        try peer.applyUpdate(inserted.update)
+        try browser.applyUpdate(inserted.update)
 
         let snapshot = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
         let blocks = try XCTUnwrap(snapshot["children"] as? [[String: Any]])
@@ -113,8 +119,8 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         let protectedTagAnchor = try native.anchor(path: [0, 3], index: 0)
         let inserted = try RelayMarkNativeInlineAtomMutation.insert(
             document: native, blockID: "b00000000000040008000000000000031", childIndex: 2, atom: tag)
-        try peer.applyUpdate(inserted)
-        try browser.applyUpdate(inserted)
+        try peer.applyUpdate(inserted.update)
+        try browser.applyUpdate(inserted.update)
         let insertedProse = try native.richProseProjection()
         XCTAssertEqual(insertedProse.inlineAtoms.map(\.id),
                        [originalIDs[0], "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", originalIDs[1], originalIDs[2]])
@@ -133,8 +139,8 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         let replaced = try RelayMarkNativeInlineAtomMutation.replace(document: native, range: target.range,
                                                                      expectedID: target.id,
                                                                      atom: replacement)
-        try peer.applyUpdate(replaced)
-        try browser.applyUpdate(replaced)
+        try peer.applyUpdate(replaced.update)
+        try browser.applyUpdate(replaced.update)
         let final = try native.richProseProjection()
         XCTAssertEqual(final.inlineAtoms.map(\.id),
                        ["bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",

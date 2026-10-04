@@ -971,37 +971,6 @@ public final class RelayMarkNativeDocument {
         try replaceText(at: index, length: length, with: "", path: path)
     }
 
-    /// Change one identified inline XML sibling in a single Yrs transaction.
-    /// The canonical command validates a candidate on a scratch replica first.
-    func mutateInlineAtom(path: [Int], replacing: Bool, tag: String,
-                          attributes: [String: String]) throws -> Data {
-        guard path.count >= 2, let index = path.last, index >= 0,
-              let childIndex = UInt32(exactly: index) else { throw Failure.invalidTextPath }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            var parent = self.root
-            for component in path.dropLast() {
-                guard let offset = UInt32(exactly: component),
-                      let child = parent.child(at: offset, in: transaction) else {
-                    throw Failure.invalidTextPath
-                }
-                parent = child
-            }
-            guard parent.kind(in: transaction) == "element",
-                  ["paragraph", "heading"].contains(parent.tag(in: transaction) ?? ""),
-                  childIndex <= parent.length(in: transaction),
-                  (!replacing || parent.child(at: childIndex, in: transaction)?.tag(in: transaction) == "relayReference" ||
-                   parent.child(at: childIndex, in: transaction)?.tag(in: transaction) == "relayTag") else {
-                throw Failure.invalidTextPath
-            }
-            if replacing { try parent.removeChildren(start: childIndex, length: 1, in: transaction) }
-            let atom = try parent.insertElement(named: tag, at: childIndex, in: transaction)
-            for (key, value) in attributes { try atom.setAttribute(key, value: value, in: transaction) }
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
-    }
-
     enum PaperControlChange {
         case insert(tag: String, attributes: [String: Any])
         case update(tag: String, expectedID: String, attributes: [String: String])
@@ -1101,49 +1070,6 @@ public final class RelayMarkNativeDocument {
                     try leaf.insert(run.text, attributes: run.attributes, at: offset, in: transaction)
                     offset += UInt32(run.text.utf16.count)
                 }
-            }
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
-    }
-
-    /// Split an existing XmlText around one atom without replacing the left
-    /// leaf. Suffix runs and their attributes are copied into a new right leaf.
-    /// All XML changes share the local origin and one undo item.
-    func insertInlineAtom(in path: [Int], at offset: Int, expectedText: String,
-                          tag: String, attributes: [String: String]) throws -> Data {
-        guard path.count >= 2, let index = path.last,
-              let childIndex = UInt32(exactly: index), offset > 0,
-              let insertionIndex = UInt32(exactly: offset) else {
-            throw Failure.invalidTextPath
-        }
-        var parent = root
-        for component in path.dropLast() {
-            guard let position = UInt32(exactly: component),
-                  let child = parent.child(at: position) else { throw Failure.invalidTextPath }
-            parent = child
-        }
-        guard parent.kind() == "element",
-              ["paragraph", "heading"].contains(parent.tag() ?? ""),
-              let leaf = parent.child(at: childIndex), leaf.kind() == "text",
-              try leaf.delta().map(\.text).joined() == expectedText,
-              offset < expectedText.utf16.count,
-              Self.split(expectedText, at: offset) != nil else {
-            throw Failure.unsupportedProseEdit
-        }
-        let suffix = try Self.suffixRuns(of: leaf, after: offset)
-        let suffixLength = expectedText.utf16.count - offset
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            try leaf.removeText(start: insertionIndex, length: UInt32(suffixLength), in: transaction)
-            let atom = try parent.insertElement(named: tag, at: childIndex + 1, in: transaction)
-            for (key, value) in attributes { try atom.setAttribute(key, value: value, in: transaction) }
-            let right = try parent.insertText(at: childIndex + 2, in: transaction)
-            var rightOffset = 0
-            for run in suffix where !run.text.isEmpty {
-                try right.insert(run.text, attributes: run.attributes,
-                                 at: UInt32(rightOffset), in: transaction)
-                rightOffset += run.text.utf16.count
             }
             return Data(transaction.transactionEncodeUpdate())
         }
