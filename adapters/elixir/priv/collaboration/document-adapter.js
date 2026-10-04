@@ -1,10 +1,12 @@
 import {safeImageSource} from './document-links.js';
 /** Canonical rich editor projection and strict lossless AST inverse. */
-import { directiveNodeForName, directiveNodeForType, authoredDirectiveProps } from './document-directives.js';
+import { directiveNodeForName, directiveNodeForType, authoredDirectiveProps, canonicalDirectiveNodes } from './document-directives.js';
 import { mapInline, unmapInline } from './document-inline.js';
 import { parseEntityReferenceSource, assertEntityReferenceProps } from './document-reference.js';
 import { canonicalPaperControlSource, assertPaperControlProps, paperControlKind, paperControlNodeName } from './document-controls.js';
 import { assertAgentSuggestion, assertAgentSuggestionBlock } from './document-suggestion.js';
+
+export const identifiedDocumentNodeNames = Object.freeze(["paragraph", "calloutTitle", "blockquote", "bulletList", "horizontalRule", "orderedList", "listItem", "heading", "taskList", "taskItem", "table", "tableRow", "tableHeader", "tableCell", "codeBlock", "image", "videoEmbed", "relayEntityReference", "agentSuggestion", "callout", "questionBlock", "questionLabel", "questionOption", "relayButton", "relayAnchor", "relayConnection", "relayDataView"].concat(canonicalDirectiveNodes.map(shape => shape.name)));
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);

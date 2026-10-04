@@ -147,13 +147,5 @@ defmodule RelayMark.DocumentImport do
 
   defp references(value, _), do: value
 
-  defp identity(namespace, path) do
-    hash =
-      :crypto.hash(:sha256, namespace <> "\0" <> Enum.join(path, "."))
-      |> Base.encode16(case: :lower)
-
-    "b" <>
-      binary_part(hash, 0, 12) <>
-      "4" <> binary_part(hash, 13, 3) <> "8" <> binary_part(hash, 17, 15)
-  end
+  defp identity(namespace, path), do: RelayMark.DocumentIdentity.generate(namespace, path)
 end

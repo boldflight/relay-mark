@@ -22,11 +22,11 @@ defmodule RelayMark.DocumentSource do
       source = String.replace(source, ~r/\r\n?/, "\n")
 
       ast =
-        case Regex.run(~r/\A(`{3,})relaymark-ast\n([\s\S]*?)\n\1\s*\z/, source) do
-          [_, _, json] ->
-            Jason.decode!(json)
+        case exact_source_ast(source) do
+          {:exact, document} ->
+            document
 
-          nil ->
+          :markdown ->
             namespace = Keyword.get(options, :namespace, source)
             unless is_binary(namespace), do: fail(:import_namespace)
             {frontmatter, body} = frontmatter(source)
@@ -46,6 +46,40 @@ defmodule RelayMark.DocumentSource do
 
   def parse(_, _),
     do: {:error, [%{level: "critical", code: "relaymark.source.invalid", reason: "input"}]}
+
+  defp exact_source_ast(source) do
+    case Regex.run(~r/\A(`{3,})relaymark-ast\n([\s\S]*?)\n\1\s*\z/, source) do
+      [_, _, json] -> {:exact, Jason.decode!(json)}
+      nil -> :markdown
+    end
+  end
+
+  @doc "Finite historical source import; current authored source admission remains strict."
+  def import_source(source, options \\ []) do
+    attempt(fn ->
+      namespace = Keyword.get(options, :namespace)
+
+      unless is_binary(source) and is_binary(namespace) and namespace != "",
+        do: fail(:import_namespace)
+
+      original =
+        case exact_source_ast(String.replace(source, ~r/\r\n?/, "\n")) do
+          {:exact, document} ->
+            document
+
+          :markdown ->
+            case parse(source, options) do
+              {:ok, document} -> document
+              {:error, diagnostics} -> throw({:source_diagnostics, diagnostics})
+            end
+        end
+
+      case RelayMark.DocumentImport.import(original, options) do
+        {:ok, result} -> result
+        {:error, diagnostics} -> throw({:source_diagnostics, diagnostics})
+      end
+    end)
+  end
 
   def serialize(ast) do
     attempt(fn ->
@@ -238,13 +272,7 @@ defmodule RelayMark.DocumentSource do
     if props in [nil, %{}], do: value, else: Map.put(value, "props", props)
   end
 
-  defp id(ns, path) do
-    <<a::binary-size(12), _::binary-size(1), b::binary-size(3), _::binary-size(1),
-      c::binary-size(15), _::binary>> =
-      :crypto.hash(:sha256, ns <> "\0" <> Enum.join(path, ".")) |> Base.encode16(case: :lower)
-
-    "b" <> a <> "4" <> b <> "8" <> c
-  end
+  defp id(ns, path), do: RelayMark.DocumentIdentity.generate(ns, path)
 
   defp convert(%MDEx.Paragraph{nodes: [%MDEx.Image{} = image]}, ns, path) do
     if RelayMark.Link.safe_image_source?(image.url),

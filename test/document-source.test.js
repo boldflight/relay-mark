@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument,importDocument,documentToSnapshot,snapshotToDocument} from '../src/document-source.js';
+import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument,importDocument,importDocumentSnapshot,importDocumentSource,documentToSnapshot,snapshotToDocument} from '../src/document-source.js';
 test('canonical source imports CommonMark and directives; exact interchange retains metadata and identity',()=>{
  const source='# Title\n\n> **A** and [B](https://example.com)\n\n- [x] Task\n- [ ] Next\n\n| Name | Value |\n| --- | ---: |\n| A | B |\n\n@Callout(tone: "info", emphasis: "soft", title: "Read") {\n![Diagram](/m/asset)\n}\n';
  const ast=parseDocument(source,{namespace:'import-one'});
@@ -31,7 +31,7 @@ test('authored renderer rejects executable link schemes instead of emitting clic
  }
 });
 
-import {relayMarkToProseMirror,proseMirrorToRelayMark} from '../src/document-adapter.js';
+import {relayMarkToProseMirror,proseMirrorToRelayMark,identifiedDocumentNodeNames} from '../src/document-adapter.js';
 test('generic authored claim evidence and comparison retain Unicode, IDs and table geometry',()=>{
  const ast=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-directives.json',import.meta.url)));
  const pm=relayMarkToProseMirror(ast);assert.deepEqual(pm.content.map(n=>n.type),['relayEvidence','relayClaim','relayComparison']);
@@ -164,4 +164,36 @@ test('historical task identity at first line survives lazy rich paragraph contin
  const id='11111111-1111-4111-8111-111111111111';const ast=parseDocument(`- [ ] Keep deleted identity [[Task: ${id}]]\nSee [[Task: ${id} | Deleted task context]] for the decision history.\n`,{namespace:'linked-continuation'});
  const item=ast.blocks[0].content[0];assert.equal(item.props.entityId,id);assert.equal(item.content[0].content.filter(n=>n.type==='relay.entity_ref').length,1);assert.equal(item.content[0].content.find(n=>n.type==='relay.entity_ref').label,'Deleted task context');
  assert.equal(item.content[0].content[0].text,'Keep deleted identity');assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+});
+
+test('finite XML migration adds identities only and leaves rich peer text and metadata exact',()=>{
+ const ast=parseDocument('@FormQuestion(id: "q", type: "multiple_choice") {\n**Choose 🌍**\n@FormOption(id: "paris", correct: false) {\nParis\n}\n}',{namespace:'existing'});
+ ast.meta={original:true};const original=documentToSnapshot(ast);
+ for(const child of [original.children[0],...original.children[0].children])delete child.attributes.relaymarkId;
+ const bytes=JSON.stringify(original),first=importDocumentSnapshot(original,{namespace:'paper-incarnation'}),second=importDocumentSnapshot(original,{namespace:'paper-incarnation'});
+ assert.equal(JSON.stringify(original),bytes);assert.deepEqual(first,second);
+ assert.equal(first.requires_reconstruction,false);assert.equal(first.normalizations.length,3);
+ assert.equal(first.snapshot.children[0].attributes.relaymarkId,'b4295cba87f50493182317a0ad04584a4');
+ assert.deepEqual(first.snapshot.children[0].children[1].children,original.children[0].children[1].children);
+ assert.deepEqual(first.snapshot.metadata,original.metadata);
+ assert.equal(first.document.blocks[0].content[1].props.id,'paris');
+ assert.deepEqual(importDocumentSnapshot(first.snapshot,{namespace:'paper-incarnation'}).normalizations,[]);
+ const unknown=structuredClone(original);unknown.children[0].name='obsoleteFormEditor';assert.throws(()=>importDocumentSnapshot(unknown,{namespace:'paper-incarnation'}));
+ const bad=structuredClone(original);bad.children[0].attributes.options=['lossy'];assert.throws(()=>importDocumentSnapshot(bad,{namespace:'paper-incarnation'}));
+});
+
+test('finite exact source import resets historical counters and identities through the same grammar',()=>{
+ const old={type:'relaymark.document',version:1,meta:{retained:'original'},blocks:[{id:'old-note',type:'paragraph',content:[{type:'strong',content:[{type:'text',text:'Résumé 🌍'}]}]}]};
+ const source='```relaymark-ast\n'+JSON.stringify(old)+'\n```\n';
+ assert.throws(()=>parseDocument(source));
+ const first=importDocumentSource(source,{namespace:'historical-source'});
+ assert.deepEqual(first.document,importDocument(old,{namespace:'historical-source'}).document);
+ assert.deepEqual(first.identity_mapping.remapped,[{from:'old-note',to:first.document.blocks[0].id}]);
+ assert.equal(first.document.blocks[0].id,'b3caafb0d7c034362851808ae213c59be');assert.equal(first.document.version,undefined);assert.deepEqual(old.meta,{retained:'original'});
+ assert.deepEqual(importDocumentSource(source,{namespace:'historical-source'}),first);
+});
+
+test('portable identified node owner covers the independently exported production editor schema',()=>{
+ const schema=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-editor-schema.json',import.meta.url)));
+ assert.deepEqual([...identifiedDocumentNodeNames].sort(),schema.nodes.filter(n=>Object.hasOwn(n.attrs||{},'relaymarkId')).map(n=>n.name).sort());
 });

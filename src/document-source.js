@@ -2,7 +2,7 @@
 import MarkdownIt from 'markdown-it';
 import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex} from '@noble/hashes/utils.js';
-import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.js';
+import {proseMirrorToRelayMark,relayMarkToProseMirror,identifiedDocumentNodeNames} from './document-adapter.js';
 import {mapInline} from './document-inline.js';
 import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
@@ -48,12 +48,20 @@ function longestTicks(s){return Math.max(0,...Array.from(s.matchAll(/`+/g),m=>m[
 export function serializeDocument(ast){valid(ast);const json=JSON.stringify(ast),f='`'.repeat(Math.max(3,longestTicks(json)+1));return `${f}relaymark-ast\n${json}\n${f}\n`;}
 export function parseDocument(source,{namespace}={}){
  if(typeof source!=='string')throw new TypeError('Invalid authored source');source=source.replace(/\r\n?/g,'\n');
- const exact=source.match(/^(`{3,})relaymark-ast\n([\s\S]*?)\n\1\s*$/);
- if(exact)return valid(JSON.parse(exact[2]));
+ const exact=exactSourceAST(source);
+ if(exact!==undefined)return valid(exact);
  namespace??=source;if(typeof namespace!=='string')throw new TypeError('Invalid import namespace');
  let frontmatter;const fm=source.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);if(fm){frontmatter={};for(const line of fm[1].split('\n')){const m=line.match(/^([^:]+):\s*(.*)$/);if(!m)throw new TypeError('Invalid frontmatter');try{frontmatter[m[1]]=JSON.parse(m[2]);}catch{frontmatter[m[1]]=m[2];}}source=source.slice(fm[0].length);}
  const blocks=sourceBlocks(source,namespace,[]);if(!blocks.length)blocks.push(block(namespace,[0],'paragraph'));
  return valid({type:'relaymark.document',...(frontmatter?{frontmatter}:{}),blocks});
+}
+function exactSourceAST(source){const exact=source.match(/^(`{3,})relaymark-ast\n([\s\S]*?)\n\1\s*$/);return exact?JSON.parse(exact[2]):undefined;}
+/** Finite historical source input; ordinary current editing uses parseDocument. */
+export function importDocumentSource(source,{namespace}={}){
+ if(typeof source!=='string'||typeof namespace!=='string'||!namespace)throw new TypeError('Migration requires source and retained namespace');
+ source=source.replace(/\r\n?/g,'\n');
+ const exact=exactSourceAST(source);
+ return importDocument(exact===undefined?parseDocument(source,{namespace}):exact,{namespace});
 }
 // UTF-8 encoding is portable across JSCore and browser hosts without Web API globals.
 function utf8Bytes(string){const bytes=[];for(const char of string){let c=char.codePointAt(0);if(c>=0xd800&&c<=0xdfff)c=0xfffd;if(c<128)bytes.push(c);else if(c<2048)bytes.push(192|(c>>6),128|(c&63));else if(c<65536)bytes.push(224|(c>>12),128|((c>>6)&63),128|(c&63));else bytes.push(240|(c>>18),128|((c>>12)&63),128|((c>>6)&63),128|(c&63));}return new Uint8Array(bytes);}
@@ -71,6 +79,37 @@ export function snapshotToDocument(snapshot){
  only(n,['kind','name','attributes','children']);if(n.kind!=='element'||typeof n.name!=='string')throw new TypeError('Invalid portable element');only(n.attributes,Object.keys(n.attributes||{}));const content=nodes(n.children,depth+1),attributes={...({heading:{headingId:null},orderedList:{start:1,type:null},taskItem:{checked:false,entityId:null},codeBlock:{language:null},tableCell:{colspan:1,rowspan:1,colwidth:null,align:null},tableHeader:{colspan:1,rowspan:1,colwidth:null,align:null},image:{alt:null,title:null},callout:{tone:'neutral',emphasis:'soft'},questionBlock:{required:false,points:null,min:null,max:null,settings:{}},questionOption:{correct:false,points:null,settings:{}}}[n.name]||{}),...n.attributes};return [{type:n.name,...(Object.keys(attributes).length?{attrs:attributes}:{}),...(content.length?{content}: {})}];});}
  const document=proseMirrorToRelayMark({type:'doc',content:nodes(snapshot.children)});if(Object.hasOwn(snapshot,'metadata')){only(snapshot.metadata,metadataKeys);Object.assign(document,cloneJSON(snapshot.metadata));}return valid(document);
 }
+/** Finite XML migration. Returns edits for the host's existing CRDT transaction;
+ * never allocates a replica or rewrites text/items/history. Unknown schemas fail. */
+export function importDocumentSnapshot(original,{namespace}={}){
+ if(typeof namespace!=='string'||!namespace)throw new TypeError('Migration requires retained namespace');
+ const snapshot=cloneJSON(original),changes=[],identity_mapping={retained:[],remapped:[],added:[]},seen=new Set();
+ function visit(node,path,depth){
+  if(depth>64||!node||typeof node!=='object')throw new TypeError('Invalid historical XML');
+  if(node.kind==='text')return;
+  if(node.kind!=='element'||!Array.isArray(node.children))throw new TypeError('Invalid historical XML element');
+  if(identifiedDocumentNodeNames.includes(node.name)){
+   if(!node.attributes||typeof node.attributes!=='object'||Array.isArray(node.attributes))throw new TypeError('Invalid historical XML attributes');
+   const old=node.attributes.relaymarkId;
+   if(old!==undefined&&(typeof old!=='string'||!old||seen.has(old)))throw new TypeError('Historical XML identity');
+   if(old!==undefined)seen.add(old);
+   if(typeof old==='string'&&/^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/.test(old))identity_mapping.retained.push(old);
+   else {
+    const next=id(namespace,['migration','xml',...path]);
+    node.attributes.relaymarkId=next;
+    const change={path:[...path],operation:old===undefined?'add_attribute':'set_attribute',name:'relaymarkId',...(old===undefined?{}:{before:old}),value:next};changes.push(change);
+    if(old===undefined)identity_mapping.added.push({id:next,path:[...path],attribute:'relaymarkId'});
+    else identity_mapping.remapped.push({from:old,to:next,path:[...path]});
+   }
+  }
+  node.children.forEach((child,i)=>visit(child,[...path,i],depth+1));
+ }
+ if(snapshot.kind!=='fragment'||!Array.isArray(snapshot.children))throw new TypeError('Historical XML root');
+ snapshot.children.forEach((child,i)=>visit(child,[i],0));
+ const document=snapshotToDocument(snapshot);
+ return {snapshot,document,identity_mapping,normalizations:changes,requires_reconstruction:false};
+}
+
 /** Finite historical AST conversion; never called by normal edits/current admission. */
 export function importDocument(original,{namespace}={}){
  if(!original||typeof original!=='object'||Array.isArray(original)||typeof namespace!=='string'||!namespace)throw new TypeError('Migration requires document and retained namespace');

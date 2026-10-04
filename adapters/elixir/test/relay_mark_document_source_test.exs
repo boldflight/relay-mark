@@ -326,4 +326,88 @@ defmodule RelayMark.DocumentSourceTest do
     assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
     assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
   end
+
+  test "finite XML migration installs only stable identities without rebuilding rich text" do
+    source =
+      "@FormQuestion(id: \"q\", type: \"multiple_choice\") {\n**Choose 🌍**\n@FormOption(id: \"paris\", correct: false) {\nParis\n}\n}"
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "existing")
+
+    assert {:ok, original} =
+             RelayMark.DocumentXML.from_document(Map.put(ast, "meta", %{"original" => true}))
+
+    [question] = original["children"]
+
+    question =
+      question
+      |> update_in(["attributes"], &Map.delete(&1, "relaymarkId"))
+      |> update_in(["children"], fn nodes ->
+        Enum.map(
+          nodes,
+          &update_in(&1, ["attributes"], fn attrs -> Map.delete(attrs, "relaymarkId") end)
+        )
+      end)
+
+    original = Map.put(original, "children", [question])
+
+    assert {:ok, first} =
+             RelayMark.DocumentXML.import_snapshot(original, namespace: "paper-incarnation")
+
+    assert {:ok, ^first} =
+             RelayMark.DocumentXML.import_snapshot(original, namespace: "paper-incarnation")
+
+    assert first["requires_reconstruction"] == false
+    assert length(first["normalizations"]) == 3
+
+    assert get_in(first, ["snapshot", "children", Access.at(0), "attributes", "relaymarkId"]) ==
+             "b4295cba87f50493182317a0ad04584a4"
+
+    assert get_in(first, [
+             "snapshot",
+             "children",
+             Access.at(0),
+             "children",
+             Access.at(1),
+             "children"
+           ]) ==
+             get_in(original, ["children", Access.at(0), "children", Access.at(1), "children"])
+
+    assert first["snapshot"]["metadata"] == original["metadata"]
+
+    assert {:ok, unchanged} =
+             RelayMark.DocumentXML.import_snapshot(first["snapshot"],
+               namespace: "paper-incarnation"
+             )
+
+    assert unchanged["normalizations"] == []
+    bad = put_in(original, ["children", Access.at(0), "attributes", "options"], ["lossy"])
+
+    assert {:error, _} =
+             RelayMark.DocumentXML.import_snapshot(bad, namespace: "paper-incarnation")
+  end
+
+  test "finite exact source import retains rich content while resetting historical identities" do
+    original = %{
+      "type" => "relaymark.document",
+      "version" => 1,
+      "blocks" => [
+        %{
+          "id" => "old-note",
+          "type" => "paragraph",
+          "content" => [
+            %{"type" => "strong", "content" => [%{"type" => "text", "text" => "Résumé 🌍"}]}
+          ]
+        }
+      ]
+    }
+
+    source = "```relaymark-ast\n" <> Jason.encode!(original) <> "\n```\n"
+    assert {:error, _} = RelayMark.parse_document(source)
+    assert {:ok, first} = RelayMark.import_source(source, namespace: "historical-source")
+    assert RelayMark.import_source(source, namespace: "historical-source") == {:ok, first}
+    assert {:ok, direct} = RelayMark.import_document(original, namespace: "historical-source")
+    assert first == direct
+    assert hd(first.document["blocks"])["id"] == "b3caafb0d7c034362851808ae213c59be"
+    refute Map.has_key?(first.document, "version")
+  end
 end

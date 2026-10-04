@@ -20,6 +20,12 @@ public enum RelayMarkSourceCodec {
     public static func importDocument(_ original: Data, namespace: String) throws -> Data {
         try call("importDocument",arguments:[json(original),["namespace":namespace]])
     }
+    public static func importSource(_ source: String, namespace: String) throws -> Data {
+        try call("importDocumentSource",arguments:[source,["namespace":namespace]])
+    }
+    public static func importDocumentSnapshot(_ original: Data, namespace: String) throws -> Data {
+        try call("importDocumentSnapshot",arguments:[json(original),["namespace":namespace]])
+    }
     public static func documentToSnapshot(_ document: Data) throws -> Data {
         try call("documentToSnapshot",arguments:[json(document)])
     }

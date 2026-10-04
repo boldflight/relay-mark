@@ -109,6 +109,111 @@ defmodule RelayMark.DocumentXML do
 
   def to_document(_), do: error(:invalid_snapshot)
 
+  @doc "Finite identity-only historical XML import; caller applies the returned attributes to its existing CRDT owner."
+  def import_snapshot(snapshot, options \\ []) do
+    result(fn ->
+      namespace = Keyword.get(options, :namespace)
+      require!(is_binary(namespace) and namespace != "", :import_namespace)
+      only!(snapshot, ~w(kind children metadata))
+      require!(snapshot["kind"] == "fragment", :root)
+
+      state = %{
+        "retained" => [],
+        "remapped" => [],
+        "added" => [],
+        "changes" => [],
+        "seen" => MapSet.new()
+      }
+
+      {children, state} = import_xml_nodes!(list!(snapshot["children"]), [], 0, namespace, state)
+      normalized = Map.put(snapshot, "children", children)
+      document = decode_snapshot!(normalized)
+
+      %{
+        "snapshot" => normalized,
+        "document" => document,
+        "identity_mapping" => Map.take(state, ~w(retained remapped added)),
+        "normalizations" => state["changes"],
+        "requires_reconstruction" => false
+      }
+    end)
+  end
+
+  @doc "Canonical element names with authored block identity (not inline entity IDs)."
+  def identified_node_names, do: Map.keys(@fields) |> Enum.sort()
+
+  defp import_xml_nodes!(nodes, path, depth, namespace, state) do
+    require!(depth <= 64, :depth_limit)
+
+    nodes
+    |> Enum.with_index()
+    |> Enum.map_reduce(state, fn {node, index}, state ->
+      node_path = path ++ [index]
+
+      if node["kind"] == "text" do
+        {node, state}
+      else
+        require!(node["kind"] == "element", :element_required)
+
+        {node, state} =
+          if Map.has_key?(@fields, node["name"]),
+            do: import_xml_identity!(node, node_path, namespace, state),
+            else: {node, state}
+
+        {children, state} =
+          import_xml_nodes!(list!(node["children"]), node_path, depth + 1, namespace, state)
+
+        {Map.put(node, "children", children), state}
+      end
+    end)
+  end
+
+  defp import_xml_identity!(node, path, namespace, state) do
+    attributes = attrs(node)
+    old = attributes["relaymarkId"]
+
+    require!(
+      not Map.has_key?(attributes, "relaymarkId") or
+        (is_binary(old) and old != "" and not MapSet.member?(state["seen"], old)),
+      :historical_identity
+    )
+
+    state = if is_nil(old), do: state, else: Map.update!(state, "seen", &MapSet.put(&1, old))
+
+    if is_binary(old) and Regex.match?(@ids, old) do
+      {node, Map.update!(state, "retained", &(&1 ++ [old]))}
+    else
+      next = RelayMark.DocumentIdentity.generate(namespace, ["migration", "xml" | path])
+
+      change = %{
+        "path" => path,
+        "operation" => if(is_nil(old), do: "add_attribute", else: "set_attribute"),
+        "name" => "relaymarkId",
+        "value" => next
+      }
+
+      change = if is_nil(old), do: change, else: Map.put(change, "before", old)
+      state = Map.update!(state, "changes", &(&1 ++ [change]))
+
+      state =
+        if is_nil(old),
+          do:
+            Map.update!(
+              state,
+              "added",
+              &(&1 ++ [%{"id" => next, "path" => path, "attribute" => "relaymarkId"}])
+            ),
+          else:
+            Map.update!(
+              state,
+              "remapped",
+              &(&1 ++ [%{"from" => old, "to" => next, "path" => path}])
+            )
+
+      {Map.put(node, "attributes", Map.put(attributes, "relaymarkId", next)), state}
+    end
+  end
+
   defp decode_snapshot!(snapshot) do
     only!(snapshot, ~w(kind children metadata))
     require!(snapshot["kind"] == "fragment", :root)

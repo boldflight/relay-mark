@@ -23,6 +23,14 @@ defmodule RelayMark do
   def import_document(document, options \\ []),
     do: RelayMark.DocumentImport.import(document, options)
 
+  @doc "Imports finite historical XML once and records exact identity attribute changes for the existing CRDT owner."
+  def import_document_snapshot(snapshot, options \\ []),
+    do: RelayMark.DocumentXML.import_snapshot(snapshot, options)
+
+  @doc "Imports finite historical source using the same grammar and identity migration. Originals remain caller-owned evidence."
+  def import_source(source, options \\ []),
+    do: RelayMark.DocumentSource.import_source(source, options)
+
   @doc "Writes exact source interchange, retaining identities and authored metadata."
   def serialize_document(document), do: RelayMark.DocumentSource.serialize(document)
   @doc "Projects readable Markdown; this projection is never a second writable body."
