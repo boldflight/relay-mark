@@ -37,8 +37,42 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
         /// Exact actual maintained StackItem membership captured before persistence.
         /// Nil retains unproven ordinary command evidence; no membership is inferred.
         public let ownedGroup: OwnedGroup?
+        /// Actual same-manager inverse membership; excludes this inverse's UUID.
+        /// Normal group and inverse history are mutually exclusive.
+        public let ownedHistory: OwnedHistory?
         public init(beforeSnapshot: Data, steps: Data, ownedGroup: OwnedGroup? = nil) {
-            self.beforeSnapshot = beforeSnapshot; self.steps = steps; self.ownedGroup = ownedGroup
+            self.beforeSnapshot = beforeSnapshot; self.steps = steps; self.ownedGroup = ownedGroup; self.ownedHistory = nil
+        }
+        public init(beforeSnapshot: Data, steps: Data, ownedHistory: OwnedHistory) {
+            self.beforeSnapshot = beforeSnapshot; self.steps = steps
+            self.ownedGroup = nil; self.ownedHistory = ownedHistory
+        }
+        enum CodingKeys: String, CodingKey { case beforeSnapshot, steps, ownedGroup, ownedHistory }
+        public init(from decoder: Decoder) throws {
+            let container=try decoder.container(keyedBy:CodingKeys.self)
+            let group=try container.decodeIfPresent(OwnedGroup.self,forKey:.ownedGroup)
+            let history=try container.decodeIfPresent(OwnedHistory.self,forKey:.ownedHistory)
+            guard group == nil || history == nil else {
+                throw DecodingError.dataCorrupted(.init(codingPath:decoder.codingPath,debugDescription:"Command group and inverse history are exclusive"))
+            }
+            self.beforeSnapshot=try container.decode(Data.self,forKey:.beforeSnapshot)
+            self.steps=try container.decode(Data.self,forKey:.steps)
+            self.ownedGroup=group;self.ownedHistory=history
+        }
+        public struct OwnedHistory: Codable, Equatable, Sendable {
+            public enum Kind: String, Codable, Sendable { case undo, redo }
+            public let kind: Kind
+            public let reference: UUID
+            public let operationIDs: [UUID]
+            public init(kind: Kind, reference: UUID, operationIDs: [UUID]) throws {
+                let group=try OwnedGroup(reference:reference,operationIDs:operationIDs)
+                self.kind=kind;self.reference=group.reference;self.operationIDs=group.operationIDs
+            }
+            enum CodingKeys: String, CodingKey { case kind,reference,operationIDs }
+            public init(from decoder: Decoder) throws {
+                let container=try decoder.container(keyedBy:CodingKeys.self)
+                try self.init(kind:container.decode(Kind.self,forKey:.kind),reference:container.decode(UUID.self,forKey:.reference),operationIDs:container.decode([UUID].self,forKey:.operationIDs))
+            }
         }
 
         public struct OwnedGroup: Codable, Equatable, Sendable {

@@ -55,10 +55,22 @@ function prepareOwnedCommandGroup(manager, operationID) {
   if (ids) validateOwnedCommandGroup({ reference: ids[0], operation_ids: ids });
   if (top && (!ids || ids.length === 4096)) manager.stopCapturing();
 }
+function prepareOwnedHistory(manager, kind) {
+  if (!manager || manager.undoing || manager.redoing || !["undo", "redo"].includes(kind)) throw TypeError("Unavailable actual inverse owner");
+  const stack = kind === "undo" ? manager.undoStack : manager.redoStack;
+  if (!Array.isArray(stack)) throw TypeError("Unavailable actual inverse stack");
+  for (const item of stack) {
+    const ids = item?.meta?.get(key);
+    if (!ids) throw TypeError("Unbound actual inverse candidate");
+    validateOwnedCommandGroup({ reference: ids[0], operation_ids: ids });
+  }
+  return stack.length > 0;
+}
 export {
   bindOwnedCommandGroup,
   bindOwnedCommandHistory,
   prepareOwnedCommandGroup,
+  prepareOwnedHistory,
   readOwnedCommandGroup,
   validateOwnedCommandGroup,
   validateOwnedHistory

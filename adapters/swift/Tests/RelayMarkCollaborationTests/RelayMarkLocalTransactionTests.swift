@@ -19,6 +19,14 @@ struct RelayMarkLocalTransactionTests {
         #expect(restored.proseLineage == nil)
         #expect(restored.nativeFormatting == nil)
         #expect(RelayMarkLocalTransaction(update: Data([1]), changes: []).nativeContentEdit == nil)
+        let inverse=RelayMarkLocalTransaction(id:UUID(),update:Data([4]),changes:[],nativeContentEdit:.init(beforeSnapshot:snapshot,steps:steps,ownedHistory:try .init(kind:.undo,reference:operationID,operationIDs:[operationID])))
+        let savedInverse=try JSONDecoder().decode(RelayMarkLocalTransaction.self,from:JSONEncoder().encode(inverse))
+        #expect(savedInverse==inverse);#expect(savedInverse.nativeContentEdit?.ownedGroup==nil)
+        #expect(savedInverse.nativeContentEdit?.ownedHistory?.operationIDs==[operationID])
+        var ambiguous=try JSONSerialization.jsonObject(with:JSONEncoder().encode(inverse.nativeContentEdit!)) as! [String:Any]
+        ambiguous["ownedGroup"]=["reference":operationID.uuidString,"operationIDs":[operationID.uuidString]]
+        let ambiguousBytes=try JSONSerialization.data(withJSONObject:ambiguous)
+        #expect(throws:(any Error).self){try JSONDecoder().decode(RelayMarkLocalTransaction.NativeContentEdit.self,from:ambiguousBytes)}
     }
 
     @Test func legacyInitializerFunctionReferenceAndJSONRemainCompatible() throws {

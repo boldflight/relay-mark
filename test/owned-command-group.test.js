@@ -18,3 +18,12 @@ test('continuous typing stays one group through 600 receipts and closes the reso
  for(let n=1;n<=4097;n++){id=uuid(n);Group.prepareOwnedCommandGroup?.(manager,id);doc.transact(()=>text.insert(text.length,'x'),origin);if(n===600){assert.equal(manager.undoStack.length,1);assert.equal(Group.readOwnedCommandGroup(manager,id).operation_ids.length,600)}}
  assert.equal(text.length,4097);assert.equal(manager.undoStack.length,2);assert.deepEqual(Group.readOwnedCommandGroup(manager,id),{reference:uuid(4097),operation_ids:[uuid(4097)]});assert.equal(manager.undoStack[0].meta.get('relaymark:operation_ids').length,4096);assert.throws(()=>Group.prepareOwnedCommandGroup(manager,uuid(1)),/Duplicate/);manager.destroy();doc.destroy();
 });
+
+
+test('owned inverse preflight refuses unbound candidate below obsolete top before document mutation',async()=>{
+ const Group=await import('../adapters/collaboration/owned-command-group.js');assert.equal(typeof Group.prepareOwnedHistory,'function');
+ const doc=new Y.Doc({gc:false}),text=doc.getText('text'),origin={},manager=new Y.UndoManager(text,{trackedOrigins:new Set([origin]),captureTimeout:Infinity});
+ doc.transact(()=>text.insert(0,'Original'),origin);manager.stopCapturing();doc.transact(()=>text.insert(8,'Temporary'),origin);manager.undoStack.at(-1).meta.set('relaymark:operation_ids',[first]);doc.transact(()=>text.delete(8,9),'peer');
+ const before=Y.encodeStateAsUpdate(doc),stack=manager.undoStack.slice();assert.throws(()=>Group.prepareOwnedHistory(manager,'undo'),/Unbound/);assert.deepEqual(Y.encodeStateAsUpdate(doc),before);assert.deepEqual(manager.undoStack,stack);assert.equal(Group.prepareOwnedHistory(manager,'redo'),false);assert.throws(()=>Group.prepareOwnedHistory(manager,'unknown'),/Unavailable/);
+ manager.undoStack[0].meta.set('relaymark:operation_ids',[second]);assert.equal(Group.prepareOwnedHistory(manager,'undo'),true);manager.destroy();doc.destroy();
+});

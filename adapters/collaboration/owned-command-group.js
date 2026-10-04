@@ -30,3 +30,12 @@ export function prepareOwnedCommandGroup(manager,operationID){
  const top=manager.undoStack.at(-1),ids=top?.meta.get(key);if(ids)validateOwnedCommandGroup({reference:ids[0],operation_ids:ids});
  if(top&&(!ids||ids.length===4096))manager.stopCapturing();
 }
+
+/** Refuse unbound candidates before any actual undo/redo mutation. The manager
+ * may skip obsolete top groups; only its later Popped event identifies the effect. */
+export function prepareOwnedHistory(manager,kind){
+ if(!manager||manager.undoing||manager.redoing||!['undo','redo'].includes(kind))throw TypeError('Unavailable actual inverse owner');
+ const stack=kind==='undo'?manager.undoStack:manager.redoStack;if(!Array.isArray(stack))throw TypeError('Unavailable actual inverse stack');
+ for(const item of stack){const ids=item?.meta?.get(key);if(!ids)throw TypeError('Unbound actual inverse candidate');validateOwnedCommandGroup({reference:ids[0],operation_ids:ids});}
+ return stack.length>0;
+}
