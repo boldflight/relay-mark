@@ -90,7 +90,7 @@ defmodule RelayMark.DocumentRenderer do
         "callout" ->
           tag(
             "aside",
-            [{"data-relay-callout", a["tone"]}, {"data-emphasis", a["emphasis"]}],
+            [{"data-relay-callout", a["tone"]}, {"data-emphasis", a["emphasis"]}, authored(a)],
             children
           )
 
@@ -111,14 +111,14 @@ defmodule RelayMark.DocumentRenderer do
         "relayReference" ->
           tag(
             "span",
-            [{"data-relay-reference", a["entityId"]}, {"data-source", a["source"]}],
+            [{"data-relay-reference", a["entityId"]}, {"data-source", a["source"]}, authored(a)],
             escape(a["label"])
           )
 
         "relayTag" ->
           tag(
             "span",
-            [{"data-relay-tag", a["id"]}, {"data-source", a["source"]}],
+            [{"data-relay-tag", a["id"]}, {"data-source", a["source"]}, authored(a)],
             escape(a["name"])
           )
 
@@ -128,13 +128,14 @@ defmodule RelayMark.DocumentRenderer do
             [
               {"data-relay-reference", a["entityRef"]},
               {"data-projection", a["projection"]},
-              {"data-source", a["source"]}
+              {"data-source", a["source"]},
+              authored(a)
             ],
             escape(a["label"])
           )
 
         "videoEmbed" ->
-          tag("div", [{"data-relay-video", a["videoId"]}], "")
+          tag("div", [{"data-relay-video", a["videoId"]}, authored(a)], "")
 
         "agentSuggestion" ->
           tag(
@@ -160,16 +161,21 @@ defmodule RelayMark.DocumentRenderer do
               {"type", "button"},
               {"disabled", true},
               {"data-relay-kind", a["kind"]},
-              {"data-relay-target", a["target"]}
+              {"data-relay-target", a["target"]},
+              authored(a)
             ],
             escape(a["label"])
           )
 
         "relayAnchor" ->
-          tag("span", [{"data-relay-anchor", a["name"]}], "")
+          tag("span", [{"data-relay-anchor", a["name"]}, authored(a)], "")
 
         "relayConnection" ->
-          tag("div", [{"data-relay-connection", a["provider"]}], escape(a["provider"]))
+          tag(
+            "div",
+            [{"data-relay-connection", a["provider"]}, authored(a)],
+            escape(a["provider"])
+          )
 
         _ ->
           attrs =
@@ -181,7 +187,11 @@ defmodule RelayMark.DocumentRenderer do
                 [{"data-relay-task-list", true}]
 
               "taskItem" ->
-                [{"data-checked", a["checked"]}]
+                [
+                  {"data-checked", a["checked"]},
+                  {"data-relay-task-item", a["entityId"]},
+                  authored(a)
+                ]
 
               cell when cell in ["tableCell", "tableHeader"] ->
                 [{"colspan", a["colspan"]}, {"rowspan", a["rowspan"]}, {"data-align", a["align"]}]
@@ -194,6 +204,8 @@ defmodule RelayMark.DocumentRenderer do
       end
     end
   end
+
+  defp authored(attrs), do: {"data-authored", Jason.encode!(Map.delete(attrs, "relaymarkId"))}
 
   defp tag(name, attrs, content),
     do: "<" <> name <> attributes(attrs) <> ">" <> content <> "</" <> name <> ">"

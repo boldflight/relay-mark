@@ -50,4 +50,24 @@ defmodule RelayMark.DocumentRendererTest do
     assert {:error, _} =
              RelayMark.render_document(put_in(ast, ["blocks", Access.at(0), "type"], "unknown"))
   end
+
+  test "linked task identity and callout settings hydrate from escaped authored attrs" do
+    assert {:ok, ast} =
+             RelayMark.parse_document(
+               "- [ ] Linked task\n\n@Callout(tone: \"info\", emphasis: \"strong\") {\nNotice\n}"
+             )
+
+    ast =
+      put_in(
+        ast,
+        ["blocks", Access.at(0), "content", Access.at(0), "props", "entityId"],
+        "11111111-1111-4111-8111-111111111111"
+      )
+
+    assert {:ok, html} = RelayMark.render_document(ast)
+    assert html =~ "data-relay-task-item=\"11111111-1111-4111-8111-111111111111\""
+    assert html =~ "&quot;entityId&quot;:&quot;11111111-1111-4111-8111-111111111111&quot;"
+    assert html =~ "&quot;tone&quot;:&quot;info&quot;"
+    refute html =~ "relaymarkId"
+  end
 end

@@ -66,3 +66,13 @@ test('portable XML materializes community schema defaults for newly inserted nat
  delete snapshot.children[0].children[0].attributes.entityId;delete snapshot.children[0].children[0].attributes.checked;
  assert.deepEqual(snapshotToDocument(snapshot),ast);
 });
+
+test('static linked task and callout expose exact authored hydration attrs without editor identities',()=>{
+ const ast=parseDocument('- [ ] Linked task\n\n@Callout(tone: "info", emphasis: "strong") {\nNotice\n}',{namespace:'hydration'});
+ ast.blocks[0].content[0].props.entityId='11111111-1111-4111-8111-111111111111';
+ const html=renderDocument(ast);
+ assert.match(html,/data-relay-task-item="11111111-1111-4111-8111-111111111111"/);
+ assert.match(html,/data-authored="[^"\n]*&quot;entityId&quot;:&quot;11111111-1111-4111-8111-111111111111&quot;/);
+ assert.match(html,/data-authored="[^"\n]*&quot;tone&quot;:&quot;info&quot;/);
+ assert.doesNotMatch(html,/relaymarkId/);
+});
