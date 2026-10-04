@@ -243,4 +243,24 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(String(try document.richProseProjection().text.characters)=="Capital?\nParis")
  }
 
+ @Test @MainActor func removingChoiceKeepsRichQuestionAndRejectsInvalidParentSettingsBeforeMutation() throws {
+  let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  let source="<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\n**Capital?**\n- ( ) Paris\n- ( ) London\n<!-- /relay:question -->"
+  let seed=try document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument(source,namespace:"remove-choice"));try peer.applyUpdate(seed)
+  let ast=try RelayMarkNativeDocumentProjection.project(document:document)
+  let state=try document.encodeUpdate(),snapshot=try document.snapshot()
+  let raw=try JSONSerialization.jsonObject(with:document.authoredDocument()) as! [String:Any]
+  let parts=((raw["blocks"] as! [[String:Any]])[0]["content"] as! [[String:Any]])
+  #expect(throws:(any Error).self) { try RelayMarkNativeWidgetMutation.updateAttributes(document:document,path:[0],expectedID:ast.blocks[0].id,expected:Data(#"{"type":"multiple_choice"}"#.utf8),changes:Data(#"{"type":"unsupported_type"}"#.utf8)) }
+  #expect(try document.encodeUpdate()==state)
+  #expect(throws:(any Error).self) { try RelayMarkNativeWidgetMutation.remove(document:document,path:[0,0],expectedID:parts[0]["id"] as! String,expectedSnapshot:snapshot) }
+  #expect(try document.encodeUpdate()==state)
+  let retained=try document.captureTextItems(path:[0,1,0],start:0,length:5)
+  let update=try RelayMarkNativeWidgetMutation.remove(document:document,path:[0,2],expectedID:parts[2]["id"] as! String,expectedSnapshot:snapshot)
+  try peer.applyUpdate(update)
+  #expect(try document.authoredDocument()==peer.authoredDocument())
+  #expect(try document.captureTextItems(path:[0,1,0],start:0,length:5)==retained)
+  #expect(String(try document.richProseProjection().text.characters)=="Capital?\nParis")
+ }
+
 }

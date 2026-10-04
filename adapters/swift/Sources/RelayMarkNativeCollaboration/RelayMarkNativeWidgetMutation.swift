@@ -42,6 +42,18 @@ import RelayMarkSwift
         return try RelayMarkNativeRichXML.apply(document:document,tree:tree,
           edits:[.init(parentPath:parentPath,start:index,count:0,nodes:nodes)])
     }
+    /// Remove an identified authored child through the same complete parent/tree
+    /// preflight. Required labels and other invalid final ancestry refuse before mutation.
+    public static func remove(document:RelayMarkNativeDocument,path:[Int],expectedID:String,
+                              expectedSnapshot:Data) throws -> Data {
+        guard !path.isEmpty,try document.snapshot()==expectedSnapshot,
+              let tree=try JSONSerialization.jsonObject(with:expectedSnapshot) as? [String:Any] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let node=try RelayMarkNativeRichXML.node(at:path,in:tree)
+        guard let attributes=node["attributes"] as? [String:Any],attributes["relaymarkId"] as? String==expectedID else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        return try RelayMarkNativeRichXML.apply(document:document,tree:tree,
+          edits:[.init(parentPath:Array(path.dropLast()),start:path.last!,count:1,nodes:[])])
+    }
+
     /// Compare only the touched attribute keys, preserving independent peer fields and child text.
     public static func updateAttributes(document: RelayMarkNativeDocument,path: [Int],expectedID: String,
                                         expected: Data,changes: Data) throws -> Data {
