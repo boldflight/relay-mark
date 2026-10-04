@@ -33,3 +33,5 @@ fragment refuse loudly. The current canonical questionLabel/option grammar is
 rich inline: a historical label containing several paragraphs/blocks is an
 explicit unresolved grammar capability and refuses, rather than flattening it.
 Normalizations are reviewable evidence, not a claim of publication authorization.
+
+Already canonical publications with a `document` validate that exact document and return only retained identities with no normalizations. Projected domain `blocks` are not decoded as historical source; the publication host verifies its own derived block projection against the canonical document. An optional retained source must reconcile to the same semantics without changing canonical identities or recovering new settings on rerun. Invalid current documents fail rather than taking the historical input branch.

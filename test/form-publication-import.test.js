@@ -24,3 +24,14 @@ test('same frozen release source recovers omitted settings and refuses conflicts
  assert.throws(()=>Source.importFormPublication(publication,{namespace:'publication-proof',source:frozen.replace('Choose **one**','Changed draft label')}));
  if(process.env.RELAYMARK_WRITE_PUBLICATION_FIXTURE){import('node:fs').then(fs=>fs.writeFileSync(new URL('../spec/relaymark/collaboration/fixtures/form-publication-retained-source.json',import.meta.url),JSON.stringify({source:frozen,expected:imported},null,2)+'\n'));}
 });
+
+test('already canonical saved publication validates its exact document without rebuilding projected blocks',()=>{
+ const old=Source.importFormPublication(publication,{namespace:'publication-proof'});
+ const current={...publication,document:old.document,blocks:[{id:'domain-projected-prose',type:'paragraph',label:'derived',settings:{projection:true}}]};
+ const result=Source.importFormPublication(current,{namespace:'different-rerun-namespace'});
+ assert.deepEqual(result.document,old.document);assert.deepEqual(result.normalizations,[]);assert.deepEqual(result.identity_mapping.remapped,[]);assert.deepEqual(result.identity_mapping.added,[]);
+ assert.ok(result.identity_mapping.retained.includes(old.document.blocks[2].id));
+ assert.deepEqual(Source.importFormPublication(current,{namespace:'different-rerun-namespace',source:Source.serializeDocument(old.document)}),result);
+ assert.throws(()=>Source.importFormPublication(current,{namespace:'different-rerun-namespace',source:'Changed release prose'}));
+ const malformed=structuredClone(current);malformed.document.blocks[0].content[0].type='unsupported';assert.throws(()=>Source.importFormPublication(malformed,{namespace:'different-rerun-namespace'}));
+});

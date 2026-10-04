@@ -1,10 +1,61 @@
 defmodule RelayMark.FormPublicationImport do
   @moduledoc "Finite saved publication input, never an editor, publishing or respondent owner."
   def import(publication, options \\ []) do
+    if is_map(publication) and Map.has_key?(publication, "document"),
+      do: import_current(publication, options),
+      else: import_historical(publication, options)
+  rescue
+    _ -> error(:publication_shape)
+  catch
+    {:diagnostics, diagnostics} -> {:error, diagnostics}
+    reason -> error(reason)
+  end
+
+  defp import_current(publication, options) do
+    namespace = Keyword.fetch!(options, :namespace)
+
+    unless is_binary(namespace) and namespace != "" and is_list(publication["blocks"]),
+      do: throw(:publication_shape)
+
+    with {:ok, document} <- RelayMark.DocumentXML.normalize_document(publication["document"]) do
+      unless document == publication["document"], do: throw(:publication_not_canonical)
+
+      result = %{
+        document: document,
+        identity_mapping: %{
+          "retained" => identities(document["blocks"]),
+          "added" => [],
+          "remapped" => []
+        },
+        normalizations: []
+      }
+
+      if Keyword.has_key?(options, :source) do
+        with {:ok, reconciled} <- reconcile(result, Keyword.fetch!(options, :source), namespace) do
+          unless semantic(document) == semantic(reconciled.document),
+            do: throw(:publication_current_source_conflict)
+
+          {:ok, result}
+        end
+      else
+        {:ok, result}
+      end
+    end
+  end
+
+  defp identities(nodes) do
+    Enum.flat_map(nodes, fn node ->
+      own = if is_binary(node["id"]) and is_list(node["content"]), do: [node["id"]], else: []
+      own ++ identities(Map.get(node, "content", []))
+    end)
+  end
+
+  defp import_historical(publication, options) do
     namespace = Keyword.fetch!(options, :namespace)
 
     unless is_binary(namespace) and namespace != "" and is_map(publication) and
-             is_list(publication["blocks"]), do: throw(:publication_shape)
+             is_list(publication["blocks"]),
+           do: throw(:publication_shape)
 
     {blocks, mapping, normalizations, _seen} =
       Enum.reduce(
@@ -67,7 +118,8 @@ defmodule RelayMark.FormPublicationImport do
                        do: throw(:publication_option_identity)
 
                 if Map.has_key?(option, "label") and Map.has_key?(option, "text") and
-                     option["label"] != option["text"], do: throw(:publication_option_label)
+                     option["label"] != option["text"],
+                   do: throw(:publication_option_label)
 
                 {label, _} =
                   inline(
@@ -216,7 +268,8 @@ defmodule RelayMark.FormPublicationImport do
 
       key when is_map(key) ->
         if not is_nil(key["points"]) and not is_nil(props["points"]) and
-             key["points"] != props["points"], do: throw(:publication_grade_points)
+             key["points"] != props["points"],
+           do: throw(:publication_grade_points)
 
         if props["type"] in ~w(multiple_choice checkboxes) do
           correct =
@@ -246,7 +299,7 @@ defmodule RelayMark.FormPublicationImport do
 
   defp semantic(value) when is_map(value) do
     value =
-      if is_binary(value["type"]) and is_binary(value["id"]) and
+      if is_binary(value["type"]) and is_list(value["content"]) and is_binary(value["id"]) and
            Regex.match?(~r/^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/, value["id"]),
          do: Map.delete(value, "id"),
          else: value

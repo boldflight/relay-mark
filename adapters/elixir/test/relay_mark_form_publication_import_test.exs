@@ -3,6 +3,56 @@ defmodule RelayMark.FormPublicationImportTest do
   @root Path.expand("../../../spec/relaymark/collaboration/fixtures", __DIR__)
   defp fixture(name), do: File.read!(Path.join(@root, name)) |> Jason.decode!()
 
+  test "canonical saved publication keeps exact document identities without projected-block conversion" do
+    publication = fixture("historical-form-publication.json")
+    expected = fixture("form-publication-import-expected.json")
+
+    current =
+      publication
+      |> Map.put("document", expected["document"])
+      |> Map.put("blocks", [
+        %{
+          "id" => "domain-projected-prose",
+          "type" => "paragraph",
+          "label" => "derived",
+          "settings" => %{"projection" => true}
+        }
+      ])
+
+    assert {:ok, result} =
+             RelayMark.import_form_publication(current, namespace: "different-rerun-namespace")
+
+    assert result.document == expected["document"]
+    assert result.normalizations == []
+    assert result.identity_mapping["added"] == []
+    assert result.identity_mapping["remapped"] == []
+    assert Enum.at(result.document["blocks"], 2)["id"] in result.identity_mapping["retained"]
+
+    assert {:ok, exact_source} = RelayMark.serialize_document(result.document)
+
+    assert {:ok, ^result} =
+             RelayMark.import_form_publication(current,
+               namespace: "different-rerun-namespace",
+               source: exact_source
+             )
+
+    assert {:error, _} =
+             RelayMark.import_form_publication(current,
+               namespace: "different-rerun-namespace",
+               source: "Changed release prose"
+             )
+
+    malformed =
+      put_in(
+        current,
+        ["document", "blocks", Access.at(0), "content", Access.at(0), "type"],
+        "unsupported"
+      )
+
+    assert {:error, _} =
+             RelayMark.import_form_publication(malformed, namespace: "different-rerun-namespace")
+  end
+
   test "saved published quiz keeps rich prose, field/choice identities and exact answer key" do
     publication = fixture("historical-form-publication.json")
     expected = fixture("form-publication-import-expected.json")
