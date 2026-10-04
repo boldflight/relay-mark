@@ -16,6 +16,16 @@ defmodule RelayMark do
     ValidationError
   }
 
+  @doc "Imports CommonMark/directives or the exact relaymark-ast source declaration."
+  def parse_document(source, options \\ []), do: RelayMark.DocumentSource.parse(source, options)
+  @doc "Writes exact source interchange, retaining identities and authored metadata."
+  def serialize_document(document), do: RelayMark.DocumentSource.serialize(document)
+  @doc "Projects readable Markdown; this projection is never a second writable body."
+  def project_document_markdown(document), do: RelayMark.DocumentSource.project_markdown(document)
+
+  @doc "Renders authored semantics; host hydration and authorization remain outside."
+  def render_document(document), do: RelayMark.DocumentRenderer.render(document)
+
   @doc "Parses the bounded authored source of an canonical EntityRef atom."
   @spec parse_entity_reference_source(binary()) :: {:ok, map()} | :error
   def parse_entity_reference_source(source),

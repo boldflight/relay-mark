@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,3 +41,9 @@ for (const [name, value] of [["version", contract.contract_version], ["schema", 
   }
 }
 console.log(`Canonical editor/sync contract ${contract.contract_version} is consistent.`);
+
+const actualRegistry = await import('../src/directive-registry.js');
+const { readdir } = await import('node:fs/promises');
+const directiveFiles = (await readdir(resolve(repositoryRoot,'spec/relaymark/directives'))).filter(name => name.endsWith('.json')).sort();
+const expectedRegistry = await Promise.all(directiveFiles.map(async name => JSON.parse(await readFile(resolve(repositoryRoot,'spec/relaymark/directives/' + name), 'utf8'))));
+assert.deepEqual(actualRegistry.directiveSpecifications, expectedRegistry, 'Browser directive registry must be generated from canonical spec');

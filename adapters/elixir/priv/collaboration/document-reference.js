@@ -1,4 +1,4 @@
-/** Bounded authored EntityRef source shared by the optional v3 projection. */
+/** Authored EntityRef source shared by the canonical projection. */
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const projections = new Set(['link', 'chip', 'card']);
 

@@ -1,0 +1,52 @@
+{
+  "source": "# Keep\n\n**A** and [B](https://example.com)\n",
+  "namespace": "shared-import",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "bf30674d3a93d46168a9cd362c44cfd50",
+        "type": "heading",
+        "props": {
+          "level": 1,
+          "headingId": null
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Keep"
+          }
+        ]
+      },
+      {
+        "id": "b28a0b98502664b3684a9fc3a18c74685",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "A"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " and "
+          },
+          {
+            "type": "link",
+            "href": "https://example.com",
+            "content": [
+              {
+                "type": "text",
+                "text": "B"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

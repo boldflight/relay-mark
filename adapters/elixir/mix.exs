@@ -29,6 +29,7 @@ defmodule RelayMarkElixir.MixProject do
     [
       {:jsv, ">= 0.22.0"},
       {:jason, "~> 1.4"},
+      {:mdex, "~> 0.13.5"},
       {:ex_doc, "~> 0.40.3", only: :dev, runtime: false}
     ]
   end

@@ -66,7 +66,8 @@ defmodule RelayMark.DocumentXML do
     "tableCell" => ~w(colspan rowspan colwidth align),
     "tableHeader" => ~w(colspan rowspan colwidth align),
     "callout" => ~w(tone emphasis),
-    "videoEmbed" => ~w(videoId),
+    "videoEmbed" =>
+      ~w(videoId source status playbackId title thumbnailUrl youtubeId uploadPercent),
     "relayEntityReference" => ~w(entityRef entityId entityType label projection source),
     "agentSuggestion" => ~w(review kind confidence evidence content),
     "relayDataView" => ~w(source projection columns filter sort group limit title),
@@ -121,7 +122,7 @@ defmodule RelayMark.DocumentXML do
     require!(length(nodes) <= 4096, :block_limit)
 
     ids =
-      Enum.map(nodes, fn node -> node |> Map.fetch!("attributes") |> Map.fetch!("relaymarkId") end)
+      Enum.map(nodes, fn node -> attrs(node)["relaymarkId"] end)
 
     require!(Enum.all?(ids, &(is_binary(&1) and Regex.match?(@ids, &1))), :block_identity)
     require!(length(Enum.uniq(ids)) == length(ids), :duplicate_identity)
@@ -135,8 +136,8 @@ defmodule RelayMark.DocumentXML do
   defp result(fun) do
     {:ok, fun.()}
   rescue
-    error in [KeyError, FunctionClauseError, ArgumentError, BadMapError, MatchError] ->
-      error({:shape, Exception.message(error)})
+    _error in [KeyError, FunctionClauseError, ArgumentError, BadMapError, MatchError] ->
+      error(:shape)
   catch
     {:invalid_document_xml, reason} -> error(reason)
   end
@@ -156,8 +157,7 @@ defmodule RelayMark.DocumentXML do
   defp require!(_, reason), do: throw({:invalid_document_xml, reason})
 
   defp only!(map, keys) when is_map(map),
-    do:
-      require!(Enum.all?(Map.keys(map), &(&1 in keys)), {:unknown_fields, Map.keys(map) -- keys})
+    do: require!(Enum.all?(Map.keys(map), &(&1 in keys)), :unknown_fields)
 
   defp only!(_, _), do: require!(false, :object_required)
   defp list!(value) when is_list(value), do: value
@@ -166,7 +166,11 @@ defmodule RelayMark.DocumentXML do
   defp valid_document!(document),
     do: require!(RelayMark.validate_document(document) == :ok, :invalid_ast)
 
-  defp attrs(node), do: Map.fetch!(node, "attributes")
+  defp attrs(node) do
+    require!(is_map(node["attributes"]), :block_identity)
+    node["attributes"]
+  end
+
   defp content(node), do: Map.get(node, "content", []) |> list!()
 
   defp element(name, attributes, children),
@@ -371,6 +375,8 @@ defmodule RelayMark.DocumentXML do
           {"task_list", %{}}
 
         "taskItem" ->
+          props = Map.put_new(props, "checked", false)
+
           require!(
             parent == "taskList" and children != [] and hd(children)["name"] == "paragraph",
             :task_parent
@@ -478,7 +484,21 @@ defmodule RelayMark.DocumentXML do
 
         "videoEmbed" ->
           require!(uuid?(props["videoId"]), :video_identity)
-          {"relay.video_embed", props}
+
+          require!(
+            props["source"] in [nil, "mux"] and props["status"] in [nil, "ready"],
+            :video_transient_state
+          )
+
+          require!(
+            Enum.all?(
+              ~w(playbackId title thumbnailUrl youtubeId uploadPercent),
+              &is_nil(props[&1])
+            ),
+            :video_hydration
+          )
+
+          {"relay.video_embed", Map.take(props, ~w(videoId))}
 
         "relayEntityReference" ->
           {:ok, fields} = RelayMark.EntityReference.parse_source(props["source"])
@@ -538,20 +558,31 @@ defmodule RelayMark.DocumentXML do
   end
 
   defp normalize_structural_numbers(attributes) do
-    fields = ~w(level start colspan rowspan width height limit)
+    fields = ~w(level start colspan rowspan width height limit points min max)
 
     Enum.reduce(fields, attributes, fn key, attrs ->
+      if is_number(attrs[key]),
+        do: require!(abs(attrs[key]) <= 9_007_199_254_740_991, :numeric_range)
+
       case attrs[key] do
-        value when is_float(value) and value == trunc(value) -> Map.put(attrs, key, trunc(value))
-        _ -> attrs
+        value
+        when is_float(value) and abs(value) <= 9_007_199_254_740_991 and value == trunc(value) ->
+          Map.put(attrs, key, trunc(value))
+
+        _ ->
+          attrs
       end
     end)
     |> Map.update("colwidth", nil, fn values ->
       if is_list(values),
         do:
           Enum.map(values, fn
-            value when is_float(value) and value == trunc(value) -> trunc(value)
-            value -> value
+            value
+            when is_float(value) and abs(value) <= 9_007_199_254_740_991 and value == trunc(value) ->
+              trunc(value)
+
+            value ->
+              value
           end),
         else: values
     end)
@@ -817,7 +848,7 @@ defmodule RelayMark.DocumentXML do
         {occupied, _column} =
           Enum.reduce(row["children"], {occupied, 0}, fn cell, {occupied, c} ->
             c = next_column(occupied, r, c)
-            props = attrs(cell)
+            props = attrs(cell) |> normalize_structural_numbers()
             colspan = props["colspan"]
             rowspan = props["rowspan"]
 

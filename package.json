@@ -24,5 +24,9 @@
     "esbuild": "0.25.9",
     "y-protocols": "1.0.7",
     "yjs": "https://github.com/boldflight/yjs/releases/download/v13.6.33-relay.1/yjs-13.6.33.tgz"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.0.1",
+    "markdown-it": "^15.0.2"
   }
 }

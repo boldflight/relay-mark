@@ -1,4 +1,5 @@
-import { createHash } from "node:crypto";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import { directiveForType } from "./registry.js";
 import { validateQuestionProps } from "./document-adapter.js";
 import { isBlockNode } from "./node-kind.js";
@@ -762,7 +763,7 @@ function validateAgentAnswerProfile(document, diagnostics, validationContext) {
       error("relaymark.agent_answer.question", "relaymark.agent_answer.v1 requires a non-empty exact question.")
     );
   } else {
-    const expectedQuestionID = `sha256:${createHash("sha256").update(frontmatter.question, "utf8").digest("hex")}`;
+    const expectedQuestionID = `sha256:${bytesToHex(sha256(new TextEncoder().encode(frontmatter.question)))}`;
 
     if (frontmatter.question_id !== expectedQuestionID) {
       diagnostics.push(

@@ -1,4 +1,4 @@
-/** Strict, identity-bearing v3 Relay inline atoms. Presentation/hydration is host-owned. */
+/** Strict, identity-bearing Relay inline atoms. Presentation/hydration is host-owned. */
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const entityType = /^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$/u;
 const tagName = /^[a-z0-9][a-z0-9_-]*$/u;

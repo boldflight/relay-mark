@@ -10,3 +10,5 @@ export { serializeRelayMark } from "./serializer.js";
 
 export { canonicalContract } from "./contract.js";
 export { proseMirrorToRelayMark, relayMarkToProseMirror } from "./document-adapter.js";
+
+export {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument} from "./document-source.js";

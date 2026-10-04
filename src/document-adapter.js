@@ -1,4 +1,4 @@
-/** Optional relaymark-prosemirror-v3 Markdown-block/table projection; no live profile admits it. */
+/** Canonical rich editor projection and strict lossless AST inverse. */
 import { mapInline, unmapInline } from './document-inline.js';
 import { parseEntityReferenceSource, assertEntityReferenceProps } from './document-reference.js';
 import { canonicalPaperControlSource, assertPaperControlProps, paperControlKind, paperControlNodeName } from './document-controls.js';
@@ -44,7 +44,9 @@ export function relayMarkTableToProseMirror(document) {
 
 export function relayMarkToProseMirror(document) {
   assertObject(document, "document");
-  onlyKeys(document, ["type", "blocks"], "document");
+  onlyKeys(document, ["type", "blocks", "frontmatter", "annotations", "resources", "meta"], "document");
+  for (const key of ["frontmatter", "meta"]) if (document[key] !== undefined) assertObject(document[key], key);
+  for (const key of ["annotations", "resources"]) if (document[key] !== undefined && !Array.isArray(document[key])) throw new TypeError(`Invalid ${key}`);
   if (document.type !== "relaymark.document") {
     throw new TypeError("Expected a canonical RelayMark AST document");
   }

@@ -1,6 +1,8 @@
-import { copyFile, mkdir } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { build } from 'esbuild'
 import { historyHookPlugin } from './yjs-history-hook.mjs'
+const directives = await Promise.all((await readdir('spec/relaymark/directives')).filter(name => name.endsWith('.json')).sort().map(async name => JSON.parse(await readFile('spec/relaymark/directives/'+name,'utf8'))))
+await writeFile('src/directive-registry.js', '// Generated from spec/relaymark/directives. Never edit independently.\nexport const directiveSpecifications = '+JSON.stringify(directives)+';\n')
 await build({ plugins: [historyHookPlugin], entryPoints: ['adapters/collaboration/runtime.js'], bundle: true, format: 'iife', platform: 'browser', target: 'es2020', minify: true, legalComments: 'inline', outfile: 'adapters/swift/Sources/RelayMarkCollaboration/Resources/yjs-runtime.js' })
 
 // Ship caller-owned adapters as modules importing the host's single Yjs instance.
@@ -15,3 +17,5 @@ await copyFile('scripts/yjs-history-hook.mjs', 'adapters/elixir/priv/collaborati
 for (const name of ['contract.js', 'document-adapter.js', 'document-inline.js', 'document-atoms.js', 'document-reference.js', 'document-controls.js', 'document-suggestion.js']) {
   await copyFile(`src/${name}`, `adapters/elixir/priv/collaboration/${name}`)
 }
+
+await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', external: ['./document-adapter.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-source.js' })

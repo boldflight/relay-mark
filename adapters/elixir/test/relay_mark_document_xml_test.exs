@@ -18,6 +18,67 @@ defmodule RelayMark.DocumentXMLTest do
     end
   end
 
+  test "actual browser XML video defaults and Yex whole-number attributes retain authored meaning" do
+    fixture = Path.join(@fixtures, "rich-video-v3-draft.json") |> File.read!() |> Jason.decode!()
+    assert RelayMark.DocumentXML.to_document(fixture["xml"]) == {:ok, fixture["expected_ast"]}
+
+    ast = %{
+      "type" => "relaymark.document",
+      "blocks" => [
+        %{
+          "id" => "b00000000000040008000000000000001",
+          "type" => "table",
+          "content" => [
+            %{
+              "id" => "b00000000000040008000000000000002",
+              "type" => "table_row",
+              "content" => [
+                %{
+                  "id" => "b00000000000040008000000000000003",
+                  "type" => "table_cell",
+                  "props" => %{
+                    "header" => true,
+                    "colspan" => 1,
+                    "rowspan" => 1,
+                    "colwidth" => [120],
+                    "align" => nil
+                  },
+                  "content" => [
+                    %{
+                      "id" => "b00000000000040008000000000000004",
+                      "type" => "paragraph",
+                      "content" => [%{"type" => "text", "text" => "Cell"}]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+
+    assert {:ok, snapshot} = RelayMark.DocumentXML.from_document(ast)
+    floated = whole_numbers(snapshot)
+    assert RelayMark.DocumentXML.to_document(floated) == {:ok, ast}
+    first = hd(snapshot["children"])
+
+    bad = %{
+      snapshot
+      | "children" => [Map.put(first, "attributes", %{}) | tl(snapshot["children"])]
+    }
+
+    assert {:error, [diagnostic]} = RelayMark.DocumentXML.to_document(bad)
+    assert diagnostic["reason"] == ":block_identity"
+  end
+
+  defp whole_numbers(value) when is_map(value),
+    do: Map.new(value, fn {k, v} -> {k, whole_numbers(v)} end)
+
+  defp whole_numbers(value) when is_list(value), do: Enum.map(value, &whole_numbers/1)
+  defp whole_numbers(value) when is_integer(value), do: value * 1.0
+  defp whole_numbers(value), do: value
+
   test "rich authorship metadata stays in the same portable document" do
     ast = %{
       "type" => "relaymark.document",

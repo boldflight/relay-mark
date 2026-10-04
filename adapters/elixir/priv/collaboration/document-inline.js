@@ -1,4 +1,4 @@
-/** Draft v3 text-run mapping. Each mark wraps exactly one child, in schema order. */
+/** Canonical text-run mapping. Each mark wraps exactly one child, in schema order. */
 import { mapAtom, unmapAtom } from './document-atoms.js';
 const markTypes = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
 const inlineTypes = { link: "link", bold: "strong", code: "code_span",
