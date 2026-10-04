@@ -49,3 +49,24 @@ test('real browser yUndo synchronization steps prove owned Enter inverse while r
   receipts.push({transaction_id:index?'55555555-5555-4555-8555-555555555555':'44444444-4444-4444-8444-444444444444',sender_state_base64:effect.before_state_base64,update_base64:effect.update_base64,operation});candidate.destroy();
  }
 });
+
+test('actual owned inverse producer retains exact redone source IDs and refuses omitted restores',async()=>{
+ const {buildOwnedHistoryWitness}=await import('../src/content-edit.js');
+ const {captureContentEditSnapshot}=await import('../adapters/collaboration/content-edit-observer.js');
+ const {captureOwnedHistoryObservation,finishOwnedHistoryObservation}=await import('../adapters/collaboration/content-edit-mutation.js');
+ const {protectOwnedHistoryBranches}=await import('../adapters/collaboration/owned-history-branches.js');
+ const fixture=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-browser-owned-history.json',import.meta.url))),command=JSON.parse(fixture.enter_source_json);
+ const doc=new Y.Doc({gc:false});doc.clientID=fixture.writer_client;Y.applyUpdate(doc,dec(fixture.before_enter_state_base64));const root=doc.getXmlFragment('default'),origin={},manager=new Y.UndoManager(root,{trackedOrigins:new Set([origin])});protectOwnedHistoryBranches(manager);
+ Y.applyUpdate(doc,dec(fixture.enter_update_base64),origin);Y.applyUpdate(doc,dec(fixture.peer_update_base64));
+ const before=captureContentEditSnapshot(root),beforeClocks=captureContentEditFootprint(doc,new Uint8Array([0,0])).state_vector,token=captureOwnedHistoryObservation(doc),updates=[];doc.on('update',update=>updates.push(update));manager.undo();
+ const restored=finishOwnedHistoryObservation(doc,token),after=captureContentEditSnapshot(root);assert.equal(restored.proven_copies.flatMap(copy=>copy.destination.runs).reduce((n,run)=>n+run.count,0),9);
+ assert.deepEqual(restored.proven_copies[0].source,command.content_edit.copies[0].source);
+ const operation={kind:'content_edit',steps:fixture.effects[0].steps,history:fixture.effects[0].history};
+ const evidence={before_snapshot:before,after_snapshot:after,before_state_vector:beforeClocks,operation,restored_copies:restored.proven_copies,footprint:captureContentEditFootprint(doc,updates[0])};
+ const result=buildOwnedHistoryWitness(evidence);assert.deepEqual(result.text_items,{runs:[]});assert.deepEqual(result.proven_copies,restored.proven_copies);assert.equal(result.requires_mutation_correspondence,true);assert.equal(result.requires_owned_history_correspondence,true);assert.equal(result.owned_history_correspondence,undefined);
+ assert.throws(()=>buildOwnedHistoryWitness({...evidence,restored_copies:[]}));
+ const falseType=structuredClone(evidence);falseType.restored_copies[0].destination.runs[0].type.clock=0;assert.throws(()=>buildOwnedHistoryWitness(falseType));
+ const wrongSteps=structuredClone(evidence);wrongSteps.operation.steps=[{stepType:'replace',from:0,to:0}];assert.throws(()=>buildOwnedHistoryWitness(wrongSteps));
+ assert.throws(()=>buildOwnedHistoryWitness({...evidence,restored_copies:[...restored.proven_copies,...restored.proven_copies]}));
+ manager.destroy();doc.destroy();
+});

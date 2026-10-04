@@ -259,6 +259,37 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect((typed["proven_copies"] as! [Any]).isEmpty)
  }
 
+ @Test @MainActor func ownedNativeInverseWitnessRestoresOriginalUnicodeIDsWithoutClaimingPeerText() throws {
+  let doc=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument(),id=UUID()
+  try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("@FormQuestion(id: \"q\", type: \"short_text\") {\nA🌍Z\n}",namespace:"inverse-native-witness"))
+  let original=try JSONSerialization.jsonObject(with:doc.captureTextItems(path:[0,0,0],start:1,length:2)) as! [String:Any]
+  _ = try doc.performOwnedCommand(operationID:id){try RelayMarkNativeRichEditing.replace(document:doc,range:NSRange(location:1,length:2),runs:[],expectedSnapshot:doc.snapshot()).update}
+  try peer.applyUpdate(doc.encodeUpdate())
+  try doc.applyUpdate(peer.insertText("🌍",at:1,path:[0,0,0]))
+  let observation=try doc.captureContentEditObservation()
+  let inverse=try #require(try doc.undoWithReference())
+  #expect(inverse.kind == .undo)
+  #expect(throws:(any Error).self){try peer.buildOwnedHistoryWitness(observation,effect:inverse)}
+  let proof=try JSONSerialization.jsonObject(with:doc.buildOwnedHistoryWitness(observation,effect:inverse)) as! [String:Any]
+  #expect((proof["text_items"] as! [String:Any])["runs"] as? NSArray == NSArray())
+  let copies=proof["proven_copies"] as! [[String:Any]]
+  #expect(copies.count==1)
+  #expect((copies[0]["source"] as! [String:Any])["runs"] as? NSArray == original["runs"] as? NSArray)
+  #expect(((copies[0]["destination"] as! [String:Any])["runs"] as! [[String:Any]])[0]["count"] as? Int == 2)
+  #expect(proof["requires_mutation_correspondence"] as? Bool == true)
+  #expect(proof["requires_owned_history_correspondence"] as? Bool == true)
+  #expect(proof["owned_history_correspondence"] == nil)
+  #expect(try String(doc.richProseProjection().text.characters)=="A🌍🌍Z")
+  #expect(throws:(any Error).self){try doc.buildOwnedHistoryWitness(observation,effect:inverse)}
+  let redoObservation=try doc.captureContentEditObservation()
+  let redo=try #require(try doc.redoWithReference())
+  let redoProof=try JSONSerialization.jsonObject(with:doc.buildOwnedHistoryWitness(redoObservation,effect:redo)) as! [String:Any]
+  #expect(redo.kind == .redo)
+  #expect((redoProof["proven_copies"] as! [Any]).isEmpty)
+  #expect((redoProof["fresh_items"] as! [String:Any])["runs"] as? NSArray == NSArray())
+  #expect(try String(doc.richProseProjection().text.characters)=="A🌍Z")
+ }
+
  @Test @MainActor func firstOwnedTypingColdReopenUndoPreservesPeerBranchThroughAnotherReopen() throws {
   let first=UUID(),second=UUID(),doc=RelayMarkNativeDocument(guid:"first-owned-typing")
   try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("",namespace:"first-owned-typing"))

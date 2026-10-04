@@ -781,6 +781,8 @@ public final class RelayMarkNativeDocument {
     }
 
     public struct OwnedHistoryEffect: Sendable {
+        public enum Kind:String,Sendable { case undo,redo }
+        public let kind:Kind
         /// Actual sender frontier captured before the same manager inverse.
         public let beforeSnapshot: Data
         /// Actual maintained synchronization ReplaceStep, independently applied
@@ -816,7 +818,7 @@ public final class RelayMarkNativeDocument {
                                   slice:PMSlice(afterPM.content,openStart:0,openEnd:0))
         guard try step.apply(beforePM).eq(afterPM) else { throw Failure.unsupportedProseEdit }
         let steps = try JSONSerialization.data(withJSONObject:[step.json()],options:[.sortedKeys])
-        return OwnedHistoryEffect(beforeSnapshot:beforeSnapshot,steps:steps,update:update,reference:reference,operationIDs:operations)
+        return OwnedHistoryEffect(kind:redo ? .redo : .undo,beforeSnapshot:beforeSnapshot,steps:steps,update:update,reference:reference,operationIDs:operations)
     }
     private var lastHistoryOperations: [UUID]?
 
