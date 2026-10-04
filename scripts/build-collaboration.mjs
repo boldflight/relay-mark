@@ -32,3 +32,6 @@ await build({ entryPoints: ['src/document-url.js'], bundle: true, format: 'esm',
 // Pure maintained PM model/transform interpreter: no document replica or host authority.
 await build({ entryPoints:['src/content-edit.js'],bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-runtime.js' })
 await build({ entryPoints:['src/content-edit.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['prosemirror-model','prosemirror-transform'],minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit.js' })
+
+// Read-only complete original-update observer shares the host maintained Yjs instance.
+await build({entryPoints:['adapters/collaboration/content-edit-observer.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-observer.js'});

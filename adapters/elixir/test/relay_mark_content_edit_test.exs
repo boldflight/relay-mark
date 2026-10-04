@@ -71,6 +71,34 @@ defmodule RelayMark.ContentEditTest do
     assert {:ok, ^result} = RelayMark.ContentEdit.apply(runtime, before, operation)
   end
 
+  test "real rich Enter causal preparation refuses omitted copied suffix and hidden allocation" do
+    fixture =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/content-edit-enter-witness.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+    assert {:ok, result} = RelayMark.ContentEdit.prepare_witness(runtime, fixture["evidence"])
+    for {key, expected} <- fixture["expected"], do: assert(result[key] == expected)
+    assert result["requires_mutation_correspondence"]
+    assert result["unproven_mutations"]["structs"] != []
+
+    assert {:error, :invalid_content_edit} =
+             RelayMark.ContentEdit.prepare_witness(
+               runtime,
+               Map.delete(fixture["evidence"], "footprint")
+             )
+
+    omitted = put_in(fixture, ["evidence", "operation", "copies"], [])
+
+    assert {:error, :invalid_content_edit} =
+             RelayMark.ContentEdit.prepare_witness(runtime, omitted["evidence"])
+  end
+
   test "maintained runtime interrupts runaway evaluation and remains usable" do
     assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime(timeout: 100)
     on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)

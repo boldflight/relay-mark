@@ -61,3 +61,7 @@ export function applyDocumentContentEdit(admittedDocument,operation,options) {
  result.authored_document={...admittedDocument,blocks:result.authored_document.blocks};
  return result;
 }
+
+import {prepareWitness} from './content-edit-witness.js';
+/** Prepare exact causal text/copy evidence; complete mutation/history admission is separately required. */
+export function prepareContentEditWitness(evidence){return prepareWitness(evidence,applyContentEdit);}

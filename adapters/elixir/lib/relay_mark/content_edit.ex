@@ -34,9 +34,15 @@ defmodule RelayMark.ContentEdit do
   def apply_document(runtime, document, operation),
     do: execute(runtime, "applyDocumentContentEdit", document, operation)
 
-  defp execute(runtime, function, document, operation)
-       when is_map(document) and is_map(operation) do
-    with {:ok, arguments} <- Jason.encode([document, operation]) do
+  @doc "Prepare exact causal text/copy evidence. The result is not final mutation or history admission."
+  def prepare_witness(runtime, evidence) when is_map(evidence) do
+    execute_arguments(runtime, "prepareContentEditWitness", [evidence])
+  end
+
+  def prepare_witness(_, _), do: {:error, :invalid_content_edit}
+
+  defp execute_arguments(runtime, function, values) do
+    with {:ok, arguments} <- Jason.encode(values) do
       code = "RelayMarkContentEditRuntime." <> function <> "(..." <> arguments <> ")"
 
       case Quicksand.eval(runtime, code) do
@@ -47,6 +53,11 @@ defmodule RelayMark.ContentEdit do
     else
       _ -> {:error, :invalid_content_edit}
     end
+  end
+
+  defp execute(runtime, function, document, operation)
+       when is_map(document) and is_map(operation) do
+    execute_arguments(runtime, function, [document, operation])
   end
 
   defp execute(_runtime, _function, _document, _operation), do: {:error, :invalid_content_edit}
