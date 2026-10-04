@@ -9,7 +9,10 @@
   "attributes": {
     "mode": {
       "type": "enum",
-      "values": ["one_column", "adaptive_columns"],
+      "values": [
+        "one_column",
+        "adaptive_columns"
+      ],
       "default": "one_column"
     },
     "columns": {
@@ -23,7 +26,14 @@
   },
   "children": {
     "mode": "block",
-    "allowed_types": ["paragraph", "heading", "relay.entity_reference", "relay.property_sheet", "relay.data_view", "relay.action_row"],
+    "allowed_types": [
+      "paragraph",
+      "heading",
+      "relay.entity_reference",
+      "relay.property_sheet",
+      "relay.data_view",
+      "relay.action_row"
+    ],
     "min": 1
   },
   "validation": [

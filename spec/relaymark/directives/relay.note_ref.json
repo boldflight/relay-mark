@@ -19,13 +19,20 @@
     },
     "scope": {
       "type": "enum",
-      "values": ["private", "org", "unlisted", "public"],
+      "values": [
+        "private",
+        "org",
+        "unlisted",
+        "public"
+      ],
       "default": "private"
     }
   },
   "children": {
-    "mode": "mixed",
-    "allowed_types": ["paragraph", "text"],
+    "mode": "block",
+    "allowed_types": [
+      "paragraph"
+    ],
     "min": 0
   },
   "validation": [
@@ -36,7 +43,9 @@
     "relay_kit": "SourceRef",
     "html": "source-ref",
     "plain_text": "note source label",
-    "manifest": ["sources"]
+    "manifest": [
+      "sources"
+    ]
   },
   "policy": {
     "requires_review": false,

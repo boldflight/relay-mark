@@ -6,7 +6,8 @@ import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.
 import {mapInline} from './document-inline.js';
 import {parseAtomSource} from './document-atoms.js';
 import {parseAttributes} from './attributes.js';
-import {directiveForName} from './registry.js';
+import {directiveNodeForName,directiveNodeForType} from './document-directives.js';
+import {directiveForName,directiveForType} from './registry.js';
 import {parsePaperControlSource} from './document-controls.js';
 import {parseEntityReferenceSource} from './document-reference.js';
 const md=new MarkdownIt({html:false,linkify:false,typographer:false});
@@ -94,6 +95,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const attrs=a=>Object.entries(a).filter(([,v])=>v!=null).map(([k,v])=>' '+k+'="'+esc(v)+'"').join('');
 const tag=(n,a,body)=>'<'+n+attrs(a)+'>'+body+'</'+n+'>';
 export function renderDocument(ast){const pm=relayMarkToProseMirror(ast);const render=n=>{const a=n.attrs||{},body=(n.content||[]).map(render).join('');if(n.type==='text'){let text=esc(n.text);for(const m of(n.marks||[]).toReversed()){const names={bold:'strong',code:'code',italic:'em',strike:'s',underline:'u',highlight:'mark',superscript:'sup',subscript:'sub'};text=m.type==='link'?tag('a',{href:m.attrs.href,target:'_blank',rel:'noopener noreferrer nofollow'},text):tag(names[m.type],{},text);}return text;}
+ const generic=directiveNodeForName(n.type);if(generic){const{relaymarkId,...authored}=a;return tag('section',{'data-relay-directive':generic.type,'data-authored':JSON.stringify(authored)},body);}
  const names={paragraph:'p',blockquote:'blockquote',bulletList:'ul',orderedList:'ol',listItem:'li',taskList:'ul',taskItem:'li',table:'table',tableRow:'tr',tableCell:'td',tableHeader:'th',calloutTitle:'div',questionLabel:'legend'};
  if(n.type==='hardBreak')return '<br>';if(n.type==='horizontalRule')return '<hr>';if(n.type==='heading')return tag('h'+a.level,{id:a.headingId},body);if(n.type==='codeBlock')return tag('pre',{},tag('code',{'data-language':a.language},body));if(n.type==='image')return '<img'+attrs({src:a.src,alt:a.alt,title:a.title,width:a.width,height:a.height})+'>';
  if(n.type==='callout')return tag('aside',{'data-relay-callout':a.tone,'data-emphasis':a.emphasis},body);
@@ -112,5 +114,5 @@ function markdown(n){const p=n.props||{};switch(n.type){case 'paragraph':case 'r
  case 'image':return '!['+(p.alt||'')+']('+p.src+')';case 'list':case 'task_list':return n.content.map((item,i)=>{const marker=n.type==='task_list'?(item.props.checked?'- [x] ':'- [ ] '):p.kind==='ordered'?(p.start+i)+'. ':'- ';const[first,...rest]=item.content.map(markdown).join('\n\n').split('\n');return marker+first+rest.map(x=>'\n'+' '.repeat(marker.length)+x).join('');}).join('\n');
  case 'table':{const rows=n.content.map(r=>'| '+r.content.map(c=>c.content.map(markdown).join(' ').replace(/\|/g,'\\|').replace(/\n/g,'<br>')).join(' | ')+' |');const separator='| '+n.content[0].content.map(c=>({left:':---',center:':---:',right:'---:'}[c.props.align]||'---')).join(' | ')+' |';return [rows[0],separator,...rows.slice(1)].join('\n');}
  case 'relay.form_option':return '- '+inlineMarkdown(n.content);case 'relay.paper_control':case 'relay.entity_reference':return p.source;
- default:{const name={'relay.callout':'Callout','relay.form_question':'Question','relay.agent_suggestion':'AgentSuggestion','relay.data_view':'DataView','relay.video_embed':'Video'}[n.type];if(!name)throw new TypeError('Unsupported block projection');const body=n.type==='relay.agent_suggestion'?inlineMarkdown(n.content):n.content.map(markdown).join('\n\n');return '@'+name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+body+'\n}';}
+ default:{const generic=directiveNodeForType(n.type);if(generic)return '@'+directiveForType(generic.type).name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+n.content.map(markdown).join('\n\n')+'\n}';const name={'relay.callout':'Callout','relay.form_question':'Question','relay.agent_suggestion':'AgentSuggestion','relay.data_view':'DataView','relay.video_embed':'Video'}[n.type];if(!name)throw new TypeError('Unsupported block projection');const body=n.type==='relay.agent_suggestion'?inlineMarkdown(n.content):n.content.map(markdown).join('\n\n');return '@'+name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+body+'\n}';}
 }}

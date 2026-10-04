@@ -24,13 +24,19 @@
     },
     "presentation": {
       "type": "enum",
-      "values": ["stack", "inline", "compact"],
+      "values": [
+        "stack",
+        "inline",
+        "compact"
+      ],
       "default": "stack"
     }
   },
   "children": {
-    "mode": "mixed",
-    "allowed_types": ["paragraph", "text"],
+    "mode": "block",
+    "allowed_types": [
+      "paragraph"
+    ],
     "min": 0
   },
   "validation": [

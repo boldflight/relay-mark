@@ -1,4 +1,5 @@
 /** Canonical rich editor projection and strict lossless AST inverse. */
+import { directiveNodeForName, directiveNodeForType, authoredDirectiveProps } from './document-directives.js';
 import { mapInline, unmapInline } from './document-inline.js';
 import { parseEntityReferenceSource, assertEntityReferenceProps } from './document-reference.js';
 import { canonicalPaperControlSource, assertPaperControlProps, paperControlKind, paperControlNodeName } from './document-controls.js';
@@ -57,6 +58,14 @@ export function relayMarkToProseMirror(document) {
 }
 
 function mapBlock(node, seen, calloutDepth) {
+  const shape=directiveNodeForName(node?.type);
+  if(shape){
+    checkNode(node,shape.name,seen,Object.keys(shape.attributes));
+    const props=authoredDirectiveProps(shape,node.attrs);
+    const content=children(node,shape.name,shape.minimum_children).map(child=>mapBlock(child,seen,calloutDepth));
+    if(content.some(child=>!shape.allowed_children.includes(child.type)))throw new TypeError('Unsupported authored directive child');
+    return {id:node.attrs.relaymarkId,type:shape.type,props,content};
+  }
   switch (node?.type) {
     case "paragraph": return mapParagraph(node, seen);
     case "questionBlock": return mapQuestion(node, seen);
@@ -81,11 +90,19 @@ function mapBlock(node, seen, calloutDepth) {
       validateGrid(table);
       return table;
     }
-    default: throw new TypeError(`Unsupported v3 block: ${String(node?.type)}`);
+    default: throw new TypeError(`Unsupported canonical block: ${String(node?.type)}`);
   }
 }
 
 function unmapBlock(block, seen, calloutDepth) {
+  const shape=directiveNodeForType(block?.type);
+  if(shape){
+    checkBlock(block,shape.type,seen,true);
+    const props=authoredDirectiveProps(shape,block.props||{});
+    const body=children(block,shape.type,shape.minimum_children);
+    if(body.some(child=>!shape.allowed_children.includes(child.type)))throw new TypeError('Unsupported authored directive child');
+    return {type:shape.name,attrs:{relaymarkId:block.id,...props},content:body.map(child=>unmapBlock(child,seen,calloutDepth))};
+  }
   switch (block?.type) {
     case "paragraph": return unmapParagraph(block, seen);
     case "relay.form_question": return unmapQuestion(block, seen);
@@ -103,7 +120,7 @@ function unmapBlock(block, seen, calloutDepth) {
     case "relay.agent_suggestion": return unmapAgentSuggestion(block, seen);
     case "relay.callout": return unmapCallout(block, seen, calloutDepth);
     case "table": validateGrid(block); return unmapTable(block, seen);
-    default: throw new TypeError(`Unsupported v3 block: ${String(block?.type)}`);
+    default: throw new TypeError(`Unsupported canonical block: ${String(block?.type)}`);
   }
 }
 

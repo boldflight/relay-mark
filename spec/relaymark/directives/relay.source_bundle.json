@@ -24,7 +24,12 @@
     },
     "scope": {
       "type": "enum",
-      "values": ["private", "org", "unlisted", "public"],
+      "values": [
+        "private",
+        "org",
+        "unlisted",
+        "public"
+      ],
       "default": "private"
     },
     "confidence": {
@@ -34,7 +39,13 @@
   },
   "children": {
     "mode": "block",
-    "allowed_types": ["relay.evidence_ref", "relay.transcript_segment", "relay.note_ref", "relay.file_ref", "relay.url_ref"],
+    "allowed_types": [
+      "relay.evidence_ref",
+      "relay.transcript_segment",
+      "relay.note_ref",
+      "relay.file_ref",
+      "relay.url_ref"
+    ],
     "min": 1
   },
   "validation": [
@@ -48,7 +59,9 @@
     "relay_kit": "SourceBundle",
     "html": "source-bundle",
     "plain_text": "source labels",
-    "manifest": ["sources"]
+    "manifest": [
+      "sources"
+    ]
   },
   "policy": {
     "requires_review": false,

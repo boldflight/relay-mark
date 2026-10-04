@@ -134,4 +134,27 @@ defmodule RelayMark.DocumentXMLTest do
                put_in(snapshot, ["children", Access.at(0), "name"], "unknown")
              )
   end
+
+  test "identified generic directives retain rich text, table children and metadata" do
+    ast =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/canonical-directives.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert {:ok, snapshot} = RelayMark.DocumentXML.from_document(ast)
+
+    assert Enum.map(snapshot["children"], & &1["name"]) == [
+             "relayEvidence",
+             "relayClaim",
+             "relayComparison"
+           ]
+
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(snapshot)
+    assert {:ok, html} = RelayMark.render_document(ast)
+    assert html =~ "<strong>Résumé 世界</strong>"
+    assert html =~ "<table>"
+  end
 end

@@ -77,6 +77,8 @@ defmodule RelayMark.DocumentXML do
     "relayAnchor" => ~w(name),
     "relayConnection" => ~w(provider)
   }
+  @names Map.merge(@names, RelayMark.DocumentDirectives.names())
+  @fields Map.merge(@fields, RelayMark.DocumentDirectives.fields())
   @inline_names ~w(paragraph heading calloutTitle questionLabel questionOption codeBlock)
   @atom_names ~w(horizontalRule image videoEmbed relayEntityReference agentSuggestion relayDataView relayButton relayAnchor relayConnection)
   @question_types ~w(short_text long_text email phone number multiple_choice checkboxes dropdown linear_scale date file_upload page_break single_select multi_select entity_ref file slot_picker hidden_field calculated_field video_question video_response payment payment_block lightning_payment)
@@ -536,7 +538,28 @@ defmodule RelayMark.DocumentXML do
           {"relay.data_view", props |> Enum.reject(fn {_k, v} -> is_nil(v) end) |> Map.new()}
 
         _ ->
-          {Enum.find_value(@names, fn {type, n} -> if n == name, do: type end), %{}}
+          case RelayMark.DocumentDirectives.type(name) do
+            nil ->
+              {Enum.find_value(@names, fn {type, n} -> if n == name, do: type end), %{}}
+
+            type ->
+              spec = RelayMark.DocumentDirectives.spec(type)
+
+              props =
+                Enum.reduce(spec["attributes"], %{}, fn {key, field}, acc ->
+                  value = props[key]
+
+                  cond do
+                    not is_nil(value) -> Map.put(acc, key, value)
+                    Map.has_key?(field, "default") -> Map.put(acc, key, field["default"])
+                    field["required"] -> require!(false, :directive_required_field)
+                    true -> acc
+                  end
+                end)
+
+              require!(length(children) >= spec["children"]["min"], :directive_children)
+              {type, props}
+          end
       end
 
     content =
@@ -550,6 +573,11 @@ defmodule RelayMark.DocumentXML do
         true ->
           Enum.map(children, &decode_block(&1, name))
       end
+
+    if spec = RelayMark.DocumentDirectives.spec(type) do
+      allowed = spec["children"]["allowed_types"]
+      require!(Enum.all?(content, &(&1["type"] in allowed)), :directive_child_type)
+    end
 
     node = %{"id" => id, "type" => type, "content" => content}
     if props == %{}, do: node, else: Map.put(node, "props", props)

@@ -1,0 +1,149 @@
+{
+  "type": "relaymark.document",
+  "blocks": [
+    {
+      "id": "b00000000000040008000000000000001",
+      "type": "relay.evidence_ref",
+      "content": [
+        {
+          "id": "b00000000000040008000000000000002",
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "emphasis",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "証拠 café 👩🏽‍💻"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "props": {
+        "id": "e-one",
+        "source": "note:source-one",
+        "scope": "private"
+      }
+    },
+    {
+      "id": "b00000000000040008000000000000003",
+      "type": "relay.claim",
+      "content": [
+        {
+          "id": "b00000000000040008000000000000004",
+          "type": "paragraph",
+          "content": [
+            {
+              "type": "strong",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Résumé 世界"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "props": {
+        "key": "claim-one",
+        "status": "supported",
+        "confidence": 0.8,
+        "evidence": [
+          "e-one"
+        ]
+      }
+    },
+    {
+      "id": "b00000000000040008000000000000005",
+      "type": "relay.comparison",
+      "content": [
+        {
+          "id": "b00000000000040008000000000000006",
+          "type": "table",
+          "content": [
+            {
+              "id": "b00000000000040008000000000000007",
+              "type": "table_row",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000008",
+                  "type": "table_cell",
+                  "content": [
+                    {
+                      "id": "b00000000000040008000000000000009",
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Subject"
+                        }
+                      ]
+                    }
+                  ],
+                  "props": {
+                    "header": true,
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": null,
+                    "align": null
+                  }
+                },
+                {
+                  "id": "b0000000000004000800000000000000a",
+                  "type": "table_cell",
+                  "content": [
+                    {
+                      "id": "b0000000000004000800000000000000b",
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Value"
+                        }
+                      ]
+                    }
+                  ],
+                  "props": {
+                    "header": true,
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": null,
+                    "align": null
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "props": {
+        "subjects": [
+          "a",
+          "b"
+        ],
+        "criteria": [
+          "score"
+        ],
+        "values": {
+          "score": {
+            "a": 1,
+            "b": 2
+          }
+        },
+        "layout": "table",
+        "evidence": [
+          "e-one"
+        ]
+      }
+    }
+  ],
+  "frontmatter": {},
+  "annotations": [],
+  "resources": [],
+  "meta": {
+    "origin": "generic-independent"
+  }
+}

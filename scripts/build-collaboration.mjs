@@ -14,8 +14,8 @@ for (const name of ['text-items.js', 'prose-operation.js', 'prose-lineage.js', '
 await copyFile('scripts/yjs-history-hook.mjs', 'adapters/elixir/priv/collaboration/yjs-history-hook.mjs')
 
 // Canonical portable contract/grammar adapters are shipped, not imported from a Git checkout's src tree.
-for (const name of ['contract.js', 'document-adapter.js', 'document-inline.js', 'document-links.js', 'document-atoms.js', 'document-reference.js', 'document-controls.js', 'document-suggestion.js']) {
+for (const name of ['contract.js', 'document-directives.js', 'registry.js', 'directive-registry.js', 'document-adapter.js', 'document-inline.js', 'document-links.js', 'document-atoms.js', 'document-reference.js', 'document-controls.js', 'document-suggestion.js']) {
   await copyFile(`src/${name}`, `adapters/elixir/priv/collaboration/${name}`)
 }
 
-await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', external: ['./document-adapter.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-source.js' })
+await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', supported: { 'template-literal': false }, external: ['./document-adapter.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-source.js' })

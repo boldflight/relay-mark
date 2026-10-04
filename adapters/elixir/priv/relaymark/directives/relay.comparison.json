@@ -32,7 +32,14 @@
     },
     "layout": {
       "type": "enum",
-      "values": ["table", "bar", "timeline", "checklist", "radar", "heatmap"],
+      "values": [
+        "table",
+        "bar",
+        "timeline",
+        "checklist",
+        "radar",
+        "heatmap"
+      ],
       "default": "table"
     },
     "evidence": {
@@ -42,8 +49,12 @@
     }
   },
   "children": {
-    "mode": "mixed",
-    "allowed_types": ["paragraph", "heading", "table", "text", "relay.entity_ref"],
+    "mode": "block",
+    "allowed_types": [
+      "paragraph",
+      "heading",
+      "table"
+    ],
     "min": 1
   },
   "validation": [
@@ -57,7 +68,9 @@
     "relay_kit": "Comparison",
     "html": "research-comparison",
     "plain_text": "comparison title and summary",
-    "manifest": ["comparisons"]
+    "manifest": [
+      "comparisons"
+    ]
   },
   "policy": {
     "requires_review": false,

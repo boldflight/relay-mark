@@ -33,8 +33,10 @@
     }
   },
   "children": {
-    "mode": "mixed",
-    "allowed_types": ["paragraph", "text", "relay.entity_ref"],
+    "mode": "block",
+    "allowed_types": [
+      "paragraph"
+    ],
     "min": 0
   },
   "validation": [
@@ -46,7 +48,9 @@
     "relay_kit": "TranscriptSegment",
     "html": "transcript-segment",
     "plain_text": "timestamp and transcript text",
-    "manifest": ["sources"]
+    "manifest": [
+      "sources"
+    ]
   },
   "policy": {
     "requires_review": false,

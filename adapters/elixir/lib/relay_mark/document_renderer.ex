@@ -61,126 +61,137 @@ defmodule RelayMark.DocumentRenderer do
     a = n["attributes"] || %{}
     children = Enum.map_join(n["children"] || [], &render_node/1)
 
-    case name do
-      "hardBreak" ->
-        "<br>"
+    if type = RelayMark.DocumentDirectives.type(name) do
+      tag(
+        "section",
+        [
+          {"data-relay-directive", type},
+          {"data-authored", Jason.encode!(Map.delete(a, "relaymarkId"))}
+        ],
+        children
+      )
+    else
+      case name do
+        "hardBreak" ->
+          "<br>"
 
-      "horizontalRule" ->
-        "<hr>"
+        "horizontalRule" ->
+          "<hr>"
 
-      "heading" ->
-        tag("h#{a["level"]}", [{"id", a["headingId"]}], children)
+        "heading" ->
+          tag("h#{a["level"]}", [{"id", a["headingId"]}], children)
 
-      "codeBlock" ->
-        tag("pre", [], tag("code", [{"data-language", a["language"]}], children))
+        "codeBlock" ->
+          tag("pre", [], tag("code", [{"data-language", a["language"]}], children))
 
-      "image" ->
-        "<img" <> attributes(Enum.map(~w(src alt title width height), &{&1, a[&1]})) <> ">"
+        "image" ->
+          "<img" <> attributes(Enum.map(~w(src alt title width height), &{&1, a[&1]})) <> ">"
 
-      "callout" ->
-        tag(
-          "aside",
-          [{"data-relay-callout", a["tone"]}, {"data-emphasis", a["emphasis"]}],
-          children
-        )
+        "callout" ->
+          tag(
+            "aside",
+            [{"data-relay-callout", a["tone"]}, {"data-emphasis", a["emphasis"]}],
+            children
+          )
 
-      "questionBlock" ->
-        tag(
-          "fieldset",
-          [
-            {"data-relay-question", a["id"]},
-            {"data-question-type", a["type"]},
-            {"data-required", a["required"]}
-          ],
-          children
-        )
+        "questionBlock" ->
+          tag(
+            "fieldset",
+            [
+              {"data-relay-question", a["id"]},
+              {"data-question-type", a["type"]},
+              {"data-required", a["required"]}
+            ],
+            children
+          )
 
-      "questionOption" ->
-        tag("div", [{"data-relay-option", a["id"]}], children)
+        "questionOption" ->
+          tag("div", [{"data-relay-option", a["id"]}], children)
 
-      "relayReference" ->
-        tag(
-          "span",
-          [{"data-relay-reference", a["entityId"]}, {"data-source", a["source"]}],
-          escape(a["label"])
-        )
+        "relayReference" ->
+          tag(
+            "span",
+            [{"data-relay-reference", a["entityId"]}, {"data-source", a["source"]}],
+            escape(a["label"])
+          )
 
-      "relayTag" ->
-        tag(
-          "span",
-          [{"data-relay-tag", a["id"]}, {"data-source", a["source"]}],
-          escape(a["name"])
-        )
+        "relayTag" ->
+          tag(
+            "span",
+            [{"data-relay-tag", a["id"]}, {"data-source", a["source"]}],
+            escape(a["name"])
+          )
 
-      "relayEntityReference" ->
-        tag(
-          "div",
-          [
-            {"data-relay-reference", a["entityRef"]},
-            {"data-projection", a["projection"]},
-            {"data-source", a["source"]}
-          ],
-          escape(a["label"])
-        )
+        "relayEntityReference" ->
+          tag(
+            "div",
+            [
+              {"data-relay-reference", a["entityRef"]},
+              {"data-projection", a["projection"]},
+              {"data-source", a["source"]}
+            ],
+            escape(a["label"])
+          )
 
-      "videoEmbed" ->
-        tag("div", [{"data-relay-video", a["videoId"]}], "")
+        "videoEmbed" ->
+          tag("div", [{"data-relay-video", a["videoId"]}], "")
 
-      "agentSuggestion" ->
-        tag(
-          "aside",
-          [{"data-relay-suggestion", a["review"]}, {"data-kind", a["kind"]}],
-          escape(a["content"])
-        )
+        "agentSuggestion" ->
+          tag(
+            "aside",
+            [{"data-relay-suggestion", a["review"]}, {"data-kind", a["kind"]}],
+            escape(a["content"])
+          )
 
-      "relayDataView" ->
-        tag(
-          "div",
-          [
-            {"data-relay-data-view", a["source"]},
-            {"data-authored", Jason.encode!(Map.delete(a, "relaymarkId"))}
-          ],
-          escape(a["title"] || a["source"])
-        )
+        "relayDataView" ->
+          tag(
+            "div",
+            [
+              {"data-relay-data-view", a["source"]},
+              {"data-authored", Jason.encode!(Map.delete(a, "relaymarkId"))}
+            ],
+            escape(a["title"] || a["source"])
+          )
 
-      "relayButton" ->
-        tag(
-          "button",
-          [
-            {"type", "button"},
-            {"disabled", true},
-            {"data-relay-kind", a["kind"]},
-            {"data-relay-target", a["target"]}
-          ],
-          escape(a["label"])
-        )
+        "relayButton" ->
+          tag(
+            "button",
+            [
+              {"type", "button"},
+              {"disabled", true},
+              {"data-relay-kind", a["kind"]},
+              {"data-relay-target", a["target"]}
+            ],
+            escape(a["label"])
+          )
 
-      "relayAnchor" ->
-        tag("span", [{"data-relay-anchor", a["name"]}], "")
+        "relayAnchor" ->
+          tag("span", [{"data-relay-anchor", a["name"]}], "")
 
-      "relayConnection" ->
-        tag("div", [{"data-relay-connection", a["provider"]}], escape(a["provider"]))
+        "relayConnection" ->
+          tag("div", [{"data-relay-connection", a["provider"]}], escape(a["provider"]))
 
-      _ ->
-        attrs =
-          case name do
-            "orderedList" ->
-              [{"start", a["start"]}]
+        _ ->
+          attrs =
+            case name do
+              "orderedList" ->
+                [{"start", a["start"]}]
 
-            "taskList" ->
-              [{"data-relay-task-list", true}]
+              "taskList" ->
+                [{"data-relay-task-list", true}]
 
-            "taskItem" ->
-              [{"data-checked", a["checked"]}]
+              "taskItem" ->
+                [{"data-checked", a["checked"]}]
 
-            cell when cell in ["tableCell", "tableHeader"] ->
-              [{"colspan", a["colspan"]}, {"rowspan", a["rowspan"]}, {"data-align", a["align"]}]
+              cell when cell in ["tableCell", "tableHeader"] ->
+                [{"colspan", a["colspan"]}, {"rowspan", a["rowspan"]}, {"data-align", a["align"]}]
 
-            _ ->
-              []
-          end
+              _ ->
+                []
+            end
 
-        tag(Map.fetch!(@tags, name), attrs, children)
+          tag(Map.fetch!(@tags, name), attrs, children)
+      end
     end
   end
 

@@ -32,12 +32,23 @@
     },
     "visibility": {
       "type": "enum",
-      "values": ["private", "org", "unlisted", "public"],
+      "values": [
+        "private",
+        "org",
+        "unlisted",
+        "public"
+      ],
       "default": "private"
     },
     "review": {
       "type": "enum",
-      "values": ["draft", "ready", "accepted", "rejected", "undone"],
+      "values": [
+        "draft",
+        "ready",
+        "accepted",
+        "rejected",
+        "undone"
+      ],
       "default": "draft"
     },
     "decision_id": {
@@ -67,8 +78,10 @@
     }
   },
   "children": {
-    "mode": "mixed",
-    "allowed_types": ["paragraph", "text", "relay.entity_ref"],
+    "mode": "block",
+    "allowed_types": [
+      "paragraph"
+    ],
     "min": 1
   },
   "validation": [
@@ -87,7 +100,9 @@
     "relay_kit": "ActionRow",
     "html": "reviewable-action-card",
     "plain_text": "action label and review state",
-    "manifest": ["actions"]
+    "manifest": [
+      "actions"
+    ]
   },
   "policy": {
     "requires_review": true,

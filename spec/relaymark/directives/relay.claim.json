@@ -16,7 +16,13 @@
     },
     "status": {
       "type": "enum",
-      "values": ["unverified", "supported", "disputed", "refuted", "resolved"],
+      "values": [
+        "unverified",
+        "supported",
+        "disputed",
+        "refuted",
+        "resolved"
+      ],
       "default": "unverified"
     },
     "confidence": {
@@ -30,8 +36,10 @@
     }
   },
   "children": {
-    "mode": "mixed",
-    "allowed_types": ["paragraph", "text", "relay.entity_ref"],
+    "mode": "block",
+    "allowed_types": [
+      "paragraph"
+    ],
     "min": 1
   },
   "validation": [
@@ -44,7 +52,9 @@
     "relay_kit": "Claim",
     "html": "research-claim",
     "plain_text": "claim text and verification state",
-    "manifest": ["claims"]
+    "manifest": [
+      "claims"
+    ]
   },
   "policy": {
     "requires_review": false,

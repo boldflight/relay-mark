@@ -180,7 +180,7 @@ test('mixed projection rejects unsupported prose nodes, marks, attributes and cr
   assert.throws(() => proseMirrorToRelayMark(duplicate), /Duplicate/);
   const unsupported = base();
   unsupported.content.push({ type: 'unsupportedBlock', attrs: { relaymarkId: proseID(2) } });
-  assert.throws(() => proseMirrorToRelayMark(unsupported), /Unsupported v3 block/);
+  assert.throws(() => proseMirrorToRelayMark(unsupported), /Unsupported canonical block/);
   const invalidAst = proseMirrorToRelayMark(base());
   invalidAst.blocks[0].props = { style: 'unexpected' };
   assert.throws(() => relayMarkToProseMirror(invalidAst), /Unsupported/);
