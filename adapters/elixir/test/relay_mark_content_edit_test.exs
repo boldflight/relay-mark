@@ -105,4 +105,68 @@ defmodule RelayMark.ContentEditTest do
     assert {:error, "timeout"} = Quicksand.eval(runtime, "while(true) {}")
     assert {:ok, 42} = Quicksand.eval(runtime, "42")
   end
+
+  test "packaged source classifier preserves partial tombstoned ancestry and refuses a forged text branch" do
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+    binding = %{"document_id" => "document", "incarnation" => "incarnation"}
+
+    selector = fn clock, count, type ->
+      %{
+        "runs" => [
+          %{
+            "item" => %{"client" => 101, "clock" => clock},
+            "type" => %{"client" => 101, "clock" => type},
+            "count" => count
+          }
+        ]
+      }
+    end
+
+    copies = [%{"source" => selector.(11, 16, 2), "destination" => selector.(53, 16, 2)}]
+
+    transaction = %{
+      "transaction_id" => "22222222-2222-4222-8222-222222222222",
+      "text_items" => %{"runs" => []},
+      "content_edit" => %{"history" => %{}, "copies" => copies}
+    }
+
+    proof = %{
+      "complete_mutation_correspondence" => true,
+      "owned_history_correspondence" => true,
+      "text_items" => %{"runs" => []},
+      "proven_copies" => copies,
+      "restored_copies" => copies
+    }
+
+    assert {:ok, reference} =
+             RelayMark.ContentEdit.classify_source_reference(
+               runtime,
+               binding,
+               transaction,
+               proof,
+               selector.(11, 4, 2)
+             )
+
+    assert reference["human_destinations"] == selector.(53, 4, 2)
+
+    assert {:ok, human} =
+             RelayMark.ContentEdit.fold_source_references(
+               runtime,
+               binding,
+               selector.(53, 16, 2),
+               [reference]
+             )
+
+    assert human == selector.(53, 4, 2)
+
+    assert {:error, :invalid_content_edit} =
+             RelayMark.ContentEdit.classify_source_reference(
+               runtime,
+               binding,
+               transaction,
+               proof,
+               selector.(11, 4, 999)
+             )
+  end
 end

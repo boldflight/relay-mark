@@ -53,6 +53,21 @@ defmodule RelayMark.ContentEdit do
 
   def replay_mutation(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Stateless classification after the host authenticates current original receipts, scope and complete proof. Inputs and results are not credentials."
+  def classify_source_reference(runtime, binding, transaction, proof, human_ancestry),
+    do:
+      execute_arguments(runtime, "classifyContentEditReference", [
+        binding,
+        transaction,
+        proof,
+        human_ancestry
+      ])
+
+  @doc "Fold authenticated current references for only the requested candidate identities; tombstoned ancestors remain exact evidence."
+  def fold_source_references(runtime, binding, candidate_selector, references),
+    do:
+      execute_arguments(runtime, "foldSourceReferences", [binding, candidate_selector, references])
+
   defp execute_arguments(runtime, function, values) do
     with {:ok, arguments} <- Jason.encode(values) do
       code = "RelayMarkContentEditRuntime." <> function <> "(..." <> arguments <> ")"

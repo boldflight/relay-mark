@@ -433,6 +433,21 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try JSONSerialization.jsonObject(with:doc.authoredDocument()) as? NSDictionary == raw as NSDictionary)
  }
 
+ @Test @MainActor func packagedSourceClassifierPreservesPartialTombstonedHumanAncestry() throws {
+  let binding:[String:Any]=["document_id":"document","incarnation":"incarnation"]
+  func selector(_ clock:Int,_ count:Int,_ type:Int)->[String:Any]{["runs":[["item":["client":101,"clock":clock],"type":["client":101,"clock":type],"count":count]]]}
+  func data(_ value:Any)throws->Data{try JSONSerialization.data(withJSONObject:value,options:[.sortedKeys])}
+  let copies:[[String:Any]]=[["source":selector(11,16,2),"destination":selector(53,16,2)]]
+  let transaction:[String:Any]=["transaction_id":"22222222-2222-4222-8222-222222222222","text_items":["runs":[] as [Any]],"content_edit":["history":[:],"copies":copies]]
+  let proof:[String:Any]=["complete_mutation_correspondence":true,"owned_history_correspondence":true,"text_items":["runs":[] as [Any]],"proven_copies":copies,"restored_copies":copies]
+  let reference=try RelayMarkSourceCodec.classifyContentEditReference(binding:data(binding),transaction:data(transaction),proof:data(proof),humanAncestry:data(selector(11,4,2)))
+  let object=try JSONSerialization.jsonObject(with:reference) as! [String:Any]
+  #expect(object["human_destinations"] as? NSDictionary == selector(53,4,2) as NSDictionary)
+  let human=try RelayMarkSourceCodec.foldSourceReferences(binding:data(binding),candidateSelector:data(selector(53,16,2)),references:data([object]))
+  #expect(try JSONSerialization.jsonObject(with:human) as? NSDictionary == selector(53,4,2) as NSDictionary)
+  #expect(throws:(any Error).self){try RelayMarkSourceCodec.classifyContentEditReference(binding:data(binding),transaction:data(transaction),proof:data(proof),humanAncestry:data(selector(11,4,999)))}
+ }
+
  @Test @MainActor func sameDocumentNewManagerCannotRestoreAnotherHistoryNamespace() throws {
   let owner=UUID(),doc=RelayMarkNativeDocument(guid:"manager-owner",historyOwnerID:owner)
   try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Base",namespace:"manager-owner"))

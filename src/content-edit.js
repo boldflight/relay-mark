@@ -81,3 +81,5 @@ export {replayContentEditMutation} from '../adapters/collaboration/content-edit-
 import {buildOwnedHistoryWitness as buildObservedHistory} from './content-edit-witness.js';
 /** Preliminary immediate inverse observation; authoritative owned receipt replay remains required. */
 export function buildOwnedHistoryWitness(evidence){return buildObservedHistory(evidence,applyContentEdit);}
+
+export {classifyContentEditReference,foldSourceReferences} from './document-source-identities.js';

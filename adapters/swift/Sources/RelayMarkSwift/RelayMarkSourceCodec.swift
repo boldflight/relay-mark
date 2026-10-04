@@ -45,6 +45,14 @@ public enum RelayMarkSourceCodec {
     public static func validateTextAttributes(_ attributes: [String:Any]) throws {
         guard try json(call("validateTextAttributes",arguments:[attributes])) as? Bool == true else { throw Failure.invalidAuthoredDocument }
     }
+    /// Stateless classification of host-authenticated current receipts. Neither
+    /// these JSON inputs nor its result grants source or document authority.
+    public static func classifyContentEditReference(binding: Data, transaction: Data, proof: Data, humanAncestry: Data) throws -> Data {
+        try call("classifyContentEditReference",arguments:[json(binding),json(transaction),json(proof),json(humanAncestry)])
+    }
+    public static func foldSourceReferences(binding: Data, candidateSelector: Data, references: Data) throws -> Data {
+        try call("foldSourceReferences",arguments:[json(binding),json(candidateSelector),json(references)])
+    }
     public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)
