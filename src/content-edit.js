@@ -83,3 +83,5 @@ import {buildOwnedHistoryWitness as buildObservedHistory} from './content-edit-w
 export function buildOwnedHistoryWitness(evidence){return buildObservedHistory(evidence,applyContentEdit);}
 
 export {classifyContentEditReference,foldSourceReferences} from './document-source-identities.js';
+
+export {resolveContentEditTextItems} from './content-edit-witness.js';

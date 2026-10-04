@@ -16,15 +16,15 @@ function selection(value){keys(value,['runs']);if(!Array.isArray(value.runs)||va
 function clocks(values){if(!Array.isArray(values))throw TypeError('Missing trusted state vector');const result=new Map();for(const entry of values){keys(entry,['client','clock']);if(!Number.isSafeInteger(entry.client)||entry.client<0||!Number.isSafeInteger(entry.clock)||entry.clock<0||entry.clock>2**32||result.has(entry.client))throw TypeError('Invalid trusted state vector');result.set(entry.client,entry.clock);}return result;}
 function index(snapshot){const runs=[],nodes=new Map(),seen=new Map();let budget=1_000_000;
  const step=()=>{if(--budget<0)throw TypeError('Causal snapshot budget exceeded');};
- function visit(node,position,depth){step();if(depth>128)throw TypeError('Causal snapshot depth exceeded');
+ function visit(node,position,depth,path=[]){step();if(depth>128)throw TypeError('Causal snapshot depth exceeded');
   if(node.kind==='text'){keys(node,['kind','type','runs']);identity(node.type);if(!Array.isArray(node.runs)||nodes.has(idKey(node.type)))throw TypeError('Invalid causal text branch');nodes.set(idKey(node.type),node);let size=0;
-   for(const run of node.runs){step();keys(run,['item','count','text','attributes']);identity(run.item);if(typeof run.text!=='string'||!run.text||run.text.length!==run.count||run.item.clock+run.count>2**32)throw TypeError('Invalid causal string run');unicode(run.text);validateTextAttributes(run.attributes);const known=seen.get(run.item.client)||[];if(known.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping visible causal items');known.push([run.item.clock,run.item.clock+run.count]);seen.set(run.item.client,known);runs.push({...run,type:node.type,position:position+size});size+=run.count;}
+   for(const run of node.runs){step();keys(run,['item','count','text','attributes']);identity(run.item);if(typeof run.text!=='string'||!run.text||run.text.length!==run.count||run.item.clock+run.count>2**32)throw TypeError('Invalid causal string run');unicode(run.text);validateTextAttributes(run.attributes);const known=seen.get(run.item.client)||[];if(known.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping visible causal items');known.push([run.item.clock,run.item.clock+run.count]);seen.set(run.item.client,known);runs.push({...run,type:node.type,path,offset:size,position:position+size});size+=run.count;}
    return {portable:{kind:'text',delta:node.runs.map(run=>({insert:run.text,attributes:run.attributes}))},size};
   }
   if(node.kind==='fragment'){keys(node,['kind','root','children','metadata'],['kind','root','children']);if(node.root!=='default'||!Array.isArray(node.children))throw TypeError('Invalid causal root');}
   else {keys(node,['kind','type','name','attributes','children']);identity(node.type);if(node.kind!=='element'||!schema.nodes[node.name]||nodes.has(idKey(node.type)))throw TypeError('Invalid causal element');nodes.set(idKey(node.type),node);}
   if(!Array.isArray(node.children))throw TypeError('Invalid causal children');const children=[];let size=0;const root=node.kind==='fragment';
-  for(const child of node.children){const result=visit(child,position+(root?0:1)+size,depth+1);children.push(result.portable);size+=result.size;}
+  for(const [childIndex,child] of node.children.entries()){const result=visit(child,position+(root?0:1)+size,depth+1,[...path,childIndex]);children.push(result.portable);size+=result.size;}
   if(root)return {portable:{kind:'fragment',children,...(Object.hasOwn(node,'metadata')?{metadata:node.metadata}:{})},size};
   if(schema.nodes[node.name].isLeaf){if(size)throw TypeError('Causal atom contains children');size=1;}else size+=2;
   return {portable:{kind:'element',name:node.name,attributes:node.attributes,children},size};
@@ -33,7 +33,7 @@ function index(snapshot){const runs=[],nodes=new Map(),seen=new Map();let budget
  return {runs,nodes,document,pm:JSON.parse(JSON.stringify(pm.toJSON()))};
 }
 function resolve(index,selected){selection(selected);const out=[];for(const requested of selected.runs){let clock=requested.item.clock,end=clock+requested.count;const candidates=index.runs.filter(run=>run.item.client===requested.item.client&&same(run.type,requested.type)&&run.item.clock<end&&run.item.clock+run.count>clock).sort((a,b)=>a.item.clock-b.item.clock);
- for(const run of candidates){if(run.item.clock>clock)break;const from=Math.max(clock,run.item.clock),to=Math.min(end,run.item.clock+run.count);if(from<to){const text=run.text.slice(from-run.item.clock,to-run.item.clock);unicode(text);out.push({type:run.type,item:{client:run.item.client,clock:from},count:to-from,text,attributes:run.attributes,position:run.position+from-run.item.clock});clock=to;}}
+ for(const run of candidates){if(run.item.clock>clock)break;const from=Math.max(clock,run.item.clock),to=Math.min(end,run.item.clock+run.count);if(from<to){const text=run.text.slice(from-run.item.clock,to-run.item.clock);unicode(text);out.push({type:run.type,item:{client:run.item.client,clock:from},count:to-from,text,attributes:run.attributes,path:run.path,offset:run.offset+from-run.item.clock,position:run.position+from-run.item.clock});clock=to;}}
  if(clock!==end)throw TypeError('Causal selector has unavailable or wrongly typed items');
  }return out;
 }
@@ -140,4 +140,11 @@ export function buildOwnedHistoryWitness(evidence,interpret){
  allocationCoverage(footprint,beforeClocks,afterClocks,after,fresh,operation);
  return {document:expected.document,authored_document:expected.authored_document,fresh_items:plain(fresh),text_items:{runs:[]},proven_copies:restored_copies,restored_copies,
   operation:{...operation,copies:restored_copies},requires_mutation_correspondence:true,requires_owned_history_correspondence:true};
+}
+
+/** Strict visible-only resolution. Missing items are never inferred tombstones.
+ * Hosts fold authenticated ancestry against current visible candidates first. */
+export function resolveContentEditTextItems(snapshot,selected){
+ const resolved=resolve(index(snapshot),selected).sort((a,b)=>a.position-b.position);
+ return {segments:resolved.map(({position,...segment})=>segment)};
 }

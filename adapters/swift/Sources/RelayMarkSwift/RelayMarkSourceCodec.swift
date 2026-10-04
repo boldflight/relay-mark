@@ -53,6 +53,10 @@ public enum RelayMarkSourceCodec {
     public static func foldSourceReferences(binding: Data, candidateSelector: Data, references: Data) throws -> Data {
         try call("foldSourceReferences",arguments:[json(binding),json(candidateSelector),json(references)])
     }
+    /// Visible current candidates only; unavailable items never imply deletion.
+    public static func resolveTextItems(identitySnapshot: Data, selector: Data) throws -> Data {
+        try call("resolveContentEditTextItems",arguments:[json(identitySnapshot),json(selector)])
+    }
     public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)

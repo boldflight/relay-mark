@@ -259,3 +259,5 @@ import {importPublication} from './form-publication-import.js';
 export function importFormPublication(publication,options){return importPublication(publication,options,{importSource:importDocumentSource,identity:id,normalize:normalizeDocument});}
 
 export {classifyContentEditReference,foldSourceReferences} from './document-source-identities.js';
+
+export {resolveContentEditTextItems} from './content-edit-witness.js';
