@@ -54,3 +54,16 @@ test('pure-delete owned inverse cannot infer manager scope from fresh writer IDs
     receipts: f.operations.slice(0, 2).map(receipt) }),
   /Mixed maintained history owner|Owned history differs|Actual maintained inverse|accepted group|prefix differs/);
 });
+
+ test('retained manager reconnect uses one owner across new groups and cannot undo an older group out of order',()=>{
+ const f=load('content-edit-reconnect-groups.json'),first=f.operations[0],second=f.operations[1];
+ assert.notEqual(first.origin,second.origin);
+ assert.equal(first.content_edit.group.owner_id,second.content_edit.group.owner_id);
+ assert.notEqual(first.content_edit.group.reference,second.content_edit.group.reference);
+ for(const effect of f.proofs)assert.equal(replayContentEditMutation(effect.evidence).owned_history_correspondence,true);
+ const premature=structuredClone(f.proofs[0].evidence);premature.operation.history={kind:'undo',...first.content_edit.group};
+ assert.throws(()=>replayContentEditMutation(premature),/actual accepted group/);
+ const originOnly={...f.proofs[1].evidence,receipts:f.operations.slice(0,3).filter(row=>row.origin===second.origin).map(receipt)};
+ assert.throws(()=>replayContentEditMutation(originOnly),/actual accepted group/);
+ for(const row of f.operations.slice(2))assert.deepEqual(snapshot(row.before_state_base64).children[1],snapshot(row.after_state_base64).children[1]);
+ });
