@@ -27,6 +27,9 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
  proseMirrorToRelayMark(admittedDocument);
  let document=schema.nodeFromJSON(admittedDocument);document.check();
  const step_maps=[];
+ // Identity preparation uses only actual maintained maps. Equal replacement
+ // text is not retained source; structural gap/suffix text maps through unchanged.
+ let retained_ranges=document.content.size?[{source_from:0,destination_from:0,length:document.content.size}]:[];
  for(const json of operation.steps){
   const step=Step.fromJSON(schema,json);
   // Never quietly drop unknown slice/mark/node/step attrs through upstream defaults.
@@ -35,13 +38,29 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
   if(result.failed)throw new TypeError('Canonical content edit refused: '+result.failed);
   document=result.doc;
   const map=step.getMap();step_maps.push({ranges:[...map.ranges],inverted:map.inverted});
+  const changed=[];map.forEach((from,to)=>changed.push([from,to]));
+  const next=[];
+  for(const range of retained_ranges){
+   const start=range.destination_from,end=start+range.length;
+   const boundaries=[start,end,...changed.flatMap(([from,to])=>[from,to]).filter(p=>p>start&&p<end)].sort((a,b)=>a-b);
+   for(let i=1;i<boundaries.length;i++){
+    const from=boundaries[i-1],to=boundaries[i];if(from===to||changed.some(([a,b])=>a<b&&from>=a&&to<=b))continue;
+    const destination=map.map(from,1),upper=map.map(to,-1);
+    if(upper-destination!==to-from)throw new TypeError('Unprovable maintained map interval');
+    const source=range.source_from+from-start,last=next.at(-1);
+    if(last&&last.source_from+last.length===source&&last.destination_from+last.length===destination)last.length+=to-from;
+    else next.push({source_from:source,destination_from:destination,length:to-from});
+    if(next.length>65536)throw new TypeError('Content edit causal mapping budget exceeded');
+   }
+  }
+  retained_ranges=next;
  }
  document.check();
  const json=JSON.parse(JSON.stringify(document.toJSON()));
  // Closed final ancestry/identities/media/forms use the one portable grammar.
  // Intermediate open Slices are validated in their actual maintained context.
  const authored_document=proseMirrorToRelayMark(json);
- return {document:json,authored_document,step_maps};
+ return {document:json,authored_document,step_maps,retained_ranges};
 }
 
 /** Same operation owner for a host-admitted portable AST. Authored envelope metadata
