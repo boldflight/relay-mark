@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument,importDocument} from '../src/document-source.js';
+import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument,importDocument,documentToSnapshot,snapshotToDocument} from '../src/document-source.js';
 test('canonical source imports CommonMark and directives; exact interchange retains metadata and identity',()=>{
  const source='# Title\n\n> **A** and [B](https://example.com)\n\n- [x] Task\n- [ ] Next\n\n| Name | Value |\n| --- | ---: |\n| A | B |\n\n@Callout(tone: "info", emphasis: "soft", title: "Read") {\n![Diagram](/m/asset)\n}\n';
  const ast=parseDocument(source,{namespace:'import-one'});
@@ -49,4 +49,14 @@ test('finite migration wraps historic inline directives once, preserving existin
  assert.deepEqual(first.identity_mapping.added,[{id:'bb756b5f57e434fa48ec0d909a25264c1',parent:canonical.blocks[0].id,role:'inline_body',index:0}]);
  assert.deepEqual(importDocument(first.document,{namespace:'historic-corpus'}).document,first.document);
  assert.throws(()=>serializeDocument(original));
+});
+
+test('canonical XML construction retains form text ownership and envelope metadata',()=>{
+ const ast=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-directives.json',import.meta.url)));
+ const xml=documentToSnapshot(ast);assert.deepEqual(xml.metadata,{frontmatter:{},annotations:[],resources:[],meta:{origin:'generic-independent'}});
+ assert.deepEqual(xml.children[1].children[0].children,[{kind:'text',delta:[{insert:'Résumé 世界',attributes:{bold:{}}}]}]);
+ assert.deepEqual(snapshotToDocument(xml),ast);
+ const q=parseDocument('<!-- relay:question id="q" type="multiple_choice" -->\n**Label**\n- ( ) A\n<!-- /relay:question -->',{namespace:'native-question'});
+ assert.deepEqual(documentToSnapshot(q).children[0].children.map(n=>n.name),['questionLabel','questionOption']);
+ assert.deepEqual(snapshotToDocument(documentToSnapshot(q)),q);
 });

@@ -50,7 +50,8 @@ let package = Package(
         ),
         .target(
             name: "RelayMarkSwift",
-            path: "adapters/swift/Sources/RelayMarkSwift"
+            path: "adapters/swift/Sources/RelayMarkSwift",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "RelayMarkSwiftTests",

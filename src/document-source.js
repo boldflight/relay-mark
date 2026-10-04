@@ -14,7 +14,7 @@ import {parseEntityReferenceSource} from './document-reference.js';
 const md=new MarkdownIt({html:false,linkify:false,typographer:false});
 const marksOrder=['link','bold','code','italic','strike','underline','highlight','superscript','subscript'];
 function valid(ast){relayMarkToProseMirror(ast);return ast;}
-function id(namespace,path){const hash=bytesToHex(sha256(new TextEncoder().encode(namespace+'\0'+path.join('.'))));return 'b'+hash.slice(0,12)+'4'+hash.slice(13,16)+'8'+hash.slice(17,32);}
+function id(namespace,path){const hash=bytesToHex(sha256(utf8Bytes(namespace+'\0'+path.join('.'))));return 'b'+hash.slice(0,12)+'4'+hash.slice(13,16)+'8'+hash.slice(17,32);}
 function block(ns,path,type,content=[],props){return {id:id(ns,path),type,...(props?{props}:{}),content};}
 function longestTicks(s){return Math.max(0,...Array.from(s.matchAll(/`+/g),m=>m[0].length));}
 export function serializeDocument(ast){valid(ast);const json=JSON.stringify(ast),f='`'.repeat(Math.max(3,longestTicks(json)+1));return `${f}relaymark-ast\n${json}\n${f}\n`;}
@@ -27,10 +27,25 @@ export function parseDocument(source,{namespace}={}){
  const blocks=sourceBlocks(source,namespace,[]);if(!blocks.length)blocks.push(block(namespace,[0],'paragraph'));
  return valid({type:'relaymark.document',...(frontmatter?{frontmatter}:{}),blocks});
 }
+// UTF-8 encoding is portable across JSCore and browser hosts without Web API globals.
+function utf8Bytes(string){const bytes=[];for(const char of string){let c=char.codePointAt(0);if(c>=0xd800&&c<=0xdfff)c=0xfffd;if(c<128)bytes.push(c);else if(c<2048)bytes.push(192|(c>>6),128|(c&63));else if(c<65536)bytes.push(224|(c>>12),128|((c>>6)&63),128|(c&63));else bytes.push(240|(c>>18),128|((c>>12)&63),128|((c>>6)&63),128|(c&63));}return new Uint8Array(bytes);}
+function cloneJSON(value){if(value===null||typeof value==='string'||typeof value==='boolean')return value;if(typeof value==='number'&&Number.isFinite(value))return value;if(Array.isArray(value))return value.map(cloneJSON);if(value&&Object.getPrototypeOf(value)===Object.prototype)return Object.fromEntries(Object.entries(value).map(([k,v])=>[k,cloneJSON(v)]));throw new TypeError('Invalid authored JSON value');}
+const metadataKeys=['frontmatter','annotations','resources','meta'];
+export function documentToSnapshot(ast){valid(ast);const pm=relayMarkToProseMirror(ast);
+ function node(n){if(n.type==='text')return {kind:'text',delta:[{insert:n.text,attributes:Object.fromEntries((n.marks||[]).map(m=>[m.type,m.attrs||{}]))}]};return {kind:'element',name:n.type,attributes:n.attrs||{},children:(n.content||[]).map(node)};}
+ const metadata=Object.fromEntries(metadataKeys.filter(k=>Object.hasOwn(ast,k)).map(k=>[k,cloneJSON(ast[k])]));return {kind:'fragment',children:pm.content.map(node),...(Object.keys(metadata).length?{metadata}: {})};
+}
+export function snapshotToDocument(snapshot){
+ const only=(value,keys)=>{if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!keys.includes(k)))throw new TypeError('Invalid portable snapshot shape');};
+ only(snapshot,['kind','children','metadata']);if(snapshot.kind!=='fragment'||!Array.isArray(snapshot.children))throw new TypeError('Invalid portable fragment');
+ function nodes(children,depth=0){if(depth>64||!Array.isArray(children))throw new TypeError('Invalid portable children');return children.flatMap(n=>{if(n.kind==='text'){only(n,['kind','delta']);if(!Array.isArray(n.delta))throw new TypeError('Invalid text delta');return n.delta.map(run=>{only(run,['insert','attributes']);if(typeof run.insert!=='string'||!run.insert)throw new TypeError('Invalid text insert');const attributes=run.attributes||{};only(attributes,['link','bold','code','italic','strike','underline','highlight','superscript','subscript']);const marks=Object.entries(attributes).map(([type,attrs])=>{only(attrs,type==='link'?['href','target','rel','class','title']:[]);return type==='link'?{type,attrs}:{type};});return {type:'text',text:run.insert,...(marks.length?{marks}: {})};});}
+ only(n,['kind','name','attributes','children']);if(n.kind!=='element'||typeof n.name!=='string')throw new TypeError('Invalid portable element');only(n.attributes,Object.keys(n.attributes||{}));const content=nodes(n.children,depth+1),attributes=n.attributes;return [{type:n.name,...(Object.keys(attributes).length?{attrs:attributes}:{}),...(content.length?{content}: {})}];});}
+ const document=proseMirrorToRelayMark({type:'doc',content:nodes(snapshot.children)});if(Object.hasOwn(snapshot,'metadata')){only(snapshot.metadata,metadataKeys);Object.assign(document,cloneJSON(snapshot.metadata));}return valid(document);
+}
 /** Finite historical AST conversion; never called by normal edits/current admission. */
 export function importDocument(original,{namespace}={}){
  if(!original||typeof original!=='object'||Array.isArray(original)||typeof namespace!=='string'||!namespace)throw new TypeError('Migration requires document and retained namespace');
- const document=structuredClone(original),identity_mapping={retained:[],remapped:[],added:[]},ids=new Map(),seen=new Set();
+ const document=cloneJSON(original),identity_mapping={retained:[],remapped:[],added:[]},ids=new Map(),seen=new Set();
  if(Object.hasOwn(document,'version')){if(document.version!==1)throw new TypeError('Unknown historical document version');delete document.version;}
  const profiles={'relaymark.agent_answer.v1':'relaymark.agent_answer','relaymark.scripture_release.v1':'relaymark.scripture_release','relaymark.scripture_span.v1':'relaymark.scripture_span'};
  function profile(value){if(Array.isArray(value))return value.map(profile);if(value&&typeof value==='object'){for(const[key,child]of Object.entries(value))value[key]=key==='profile'&&profiles[child]?profiles[child]:profile(child);}return value;}
