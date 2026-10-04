@@ -39,6 +39,7 @@ const replayConstructorRandom={name:'ephemeral-replay-constructor',setup(b){b.on
 // Maintained PM/Yjs proof runtime: no host authorization or durable replica.
 
 await build({ plugins:[historyHookPlugin,historySelectionPlugin,replayConstructorRandom],entryPoints:['src/content-edit.js'],bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-runtime.js' })
+await copyFile('adapters/elixir/priv/collaboration/content-edit-runtime.js','adapters/swift/Sources/RelayMarkSwift/Resources/content-edit-runtime.js')
 await build({ entryPoints:['src/content-edit.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['prosemirror-model','prosemirror-transform','yjs','@tiptap/y-tiptap'],minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit.js' })
 
 // Read-only complete original-update observer shares the host maintained Yjs instance.

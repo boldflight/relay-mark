@@ -62,6 +62,22 @@ public final class RelayMarkNativeDocument {
         installHistoryObservers()
     }
 
+    /// Maintained identities and full rich runs, including authored envelope
+    /// metadata, without a host traversal or text-diff reconstruction.
+    public func captureIdentitySnapshot() throws -> Data {
+        _ = try authoredDocument()
+        var tree=try JSONSerialization.jsonObject(with:document.inspectXMLSnapshot()) as! [String:Any]
+        let envelope=metadata.toMap()
+        if !envelope.isEmpty {tree["metadata"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(envelope))}
+        return try JSONSerialization.data(withJSONObject:tree,options:[.sortedKeys])
+    }
+    /// The exact original update's allocated/deleted/hidden items and maintained
+    /// clocks. Empty update bytes obtain a trusted vector without a wire decoder.
+    public func captureUpdateFootprint(_ update: Data) throws -> Data {
+        _ = try authoredDocument()
+        return try document.inspectUpdateFootprint(update)
+    }
+
     /// Exact upstream sender Snapshot bytes from this same settled retained owner.
     public func captureSenderSnapshot() throws -> Data {
         _ = try authoredDocument()

@@ -233,6 +233,32 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try JSONSerialization.jsonObject(with:peer.authoredDocument()) as? NSDictionary == fixture["expected_ast"] as? NSDictionary)
  }
 
+ @Test @MainActor func maintainedNativeContentWitnessSeparatesRichRelocationFromHumanText() throws {
+  let doc=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  try peer.applyUpdate(doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("**Generated 😀 suffix**",namespace:"native-content-witness")))
+  let observed=try doc.captureContentEditObservation()
+  let original=(try JSONSerialization.jsonObject(with:doc.captureTextItems(path:[0,0],start:10,length:9)) as! [String:Any])["runs"] as! [[String:Any]]
+  let change=try RelayMarkNativeRichEditing.replace(document:doc,range:NSRange(location:10,length:0),runs:[("\n",[:])],expectedSnapshot:doc.snapshot())
+  #expect(change.beforeSnapshot==observed.beforeSnapshot)
+  #expect(throws:(any Error).self){try peer.buildContentEditWitness(observed,steps:change.steps,update:change.update)}
+  #expect(throws:(any Error).self){try doc.buildContentEditWitness(observed,steps:change.steps,update:Data([0,0]))}
+  let proof=try JSONSerialization.jsonObject(with:doc.buildContentEditWitness(observed,steps:change.steps,update:change.update)) as! [String:Any]
+  #expect(((proof["text_items"] as! [String:Any])["runs"] as! [Any]).isEmpty)
+  let copies=proof["proven_copies"] as! [[String:Any]]
+  #expect(copies.count==1)
+  #expect((copies[0]["source"] as! [String:Any])["runs"] as? NSArray == original as NSArray)
+  #expect(((copies[0]["destination"] as! [String:Any])["runs"] as! [[String:Any]])[0]["count"] as? Int == 9)
+  #expect(proof["requires_mutation_correspondence"] as? Bool == true)
+  #expect(throws:(any Error).self){try doc.buildContentEditWitness(observed,steps:change.steps,update:change.update)}
+  try peer.applyUpdate(change.update);#expect(try doc.authoredDocument()==peer.authoredDocument())
+  let typedObservation=try doc.captureContentEditObservation()
+  let typing=try RelayMarkNativeRichEditing.replace(document:doc,range:NSRange(location:0,length:0),runs:[("A🌍Z",["underline":[:]])],expectedSnapshot:doc.snapshot())
+  let typed=try JSONSerialization.jsonObject(with:doc.buildContentEditWitness(typedObservation,steps:typing.steps,update:typing.update)) as! [String:Any]
+  let human=(typed["text_items"] as! [String:Any])["runs"] as! [[String:Any]]
+  #expect(human.reduce(0){$0+($1["count"] as! Int)}==4)
+  #expect((typed["proven_copies"] as! [Any]).isEmpty)
+ }
+
  @Test @MainActor func firstOwnedTypingColdReopenUndoPreservesPeerBranchThroughAnotherReopen() throws {
   let first=UUID(),second=UUID(),doc=RelayMarkNativeDocument(guid:"first-owned-typing")
   try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("",namespace:"first-owned-typing"))
@@ -350,9 +376,13 @@ struct RelayMarkNativeCanonicalMetadataTests {
   try peer.applyUpdate(document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument(source,namespace:"format-choice")))
   let items=try document.captureTextItems(path:[0,0,0],start:0,length:4)
   let before=try document.captureSenderSnapshot()
+  let observation=try document.captureContentEditObservation()
   let maybeChange=try RelayMarkNativeRichEditing.format(document:document,range:NSRange(location:1,length:2),mark:"bold",enabled:true,expectedSnapshot:document.snapshot())
   let change=try #require(maybeChange)
   #expect(change.beforeSnapshot == before)
+  let formatProof=try JSONSerialization.jsonObject(with:document.buildContentEditWitness(observation,steps:change.steps,update:change.update)) as! [String:Any]
+  #expect(((formatProof["text_items"] as! [String:Any])["runs"] as! [Any]).isEmpty)
+  #expect((formatProof["proven_copies"] as! [Any]).isEmpty)
   let steps=try JSONSerialization.jsonObject(with:change.steps) as! [[String:Any]]
   #expect(steps as NSArray == [["stepType":"addMark","from":3,"to":5,"mark":["type":"bold"]]] as NSArray)
   try peer.applyUpdate(change.update)

@@ -140,3 +140,18 @@ proof helpers; no dependency directory is edited. The package pin remains the
 actually published 3.0.9. Fork publication and consumer rebuild are operational
 follow-ups. The optional `fallow` binary was unavailable; lint, typecheck, bundle
 and all behavior tests ran through the maintained `npm test` owner.
+
+
+Native `captureContentEditObservation()` retains a branded same-owner pre-command
+identity tree, maintained clocks and Snapshot bytes. After the actual command,
+`buildContentEditWitness(observation,steps:update:explicitCopies:)` reads that
+original update's full Yrs footprint and current identity tree, then delegates to
+the same shipped `buildContentEditWitness` interpreter used by browser/server.
+It derives automatic structural relocations separately from fresh human text;
+explicit clipboard claims still require independent source authority. Foreign,
+reused and omitted-footprint observations refuse. This immediate synchronous
+preparation does not reconstruct accepted peers, confer scoped receipts, prove
+all non-text mutations, or enable source capability by itself. It returns the
+existing `requires_mutation_correspondence` gate unchanged. Native normal Steps,
+actual inverse Steps and immutable group/history metadata are evidence from one
+live owner, not alternative operation formats.
