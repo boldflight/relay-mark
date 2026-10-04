@@ -5,12 +5,26 @@ import Foundation
 // step maps they emit. Control flow mirrors the JavaScript source.
 
 enum PMStep {
+    case addMark(from: Int, to: Int, mark: PMMark)
+    case removeMark(from: Int, to: Int, mark: PMMark)
     case attr(pos: Int, name: String, value: Any)
     case replace(from: Int, to: Int, slice: PMSlice, structure: Bool = false)
     case replaceAround(from: Int, to: Int, gapFrom: Int, gapTo: Int, slice: PMSlice, insert: Int, structure: Bool = false)
 
     func apply(_ doc: PMNode) throws -> PMNode {
         switch self {
+        case let .addMark(from, to, mark):
+            let old = try doc.slice(from, to), resolved = try doc.resolve(from)
+            let parent = resolved.node(resolved.sharedDepth(to))
+            let content = pmMapInlineFragment(old.content, parent: parent) { node, parent in
+                guard node.isAtom, parent.type.allowsMarkType(mark.type) else { return node }
+                return node.mark(mark.addToSet(node.marks))
+            }
+            return try doc.replace(from, to, PMSlice(content, openStart: old.openStart, openEnd: old.openEnd))
+        case let .removeMark(from, to, mark):
+            let old = try doc.slice(from, to)
+            let content = pmMapInlineFragment(old.content, parent: doc) { node, _ in node.mark(mark.removeFromSet(node.marks)) }
+            return try doc.replace(from, to, PMSlice(content, openStart: old.openStart, openEnd: old.openEnd))
         case let .attr(pos, name, value):
             // prosemirror-transform 1.12.2 AttrStep.apply: replace only the
             // opening token; the open Slice preserves the node's rich children.
@@ -39,6 +53,8 @@ enum PMStep {
     /// Exact maintained Step.toJSON shape, including upstream Slice fields.
     func json() -> [String:Any] {
         switch self {
+        case let .addMark(from,to,mark):return ["stepType":"addMark","from":from,"to":to,"mark":mark.json()]
+        case let .removeMark(from,to,mark):return ["stepType":"removeMark","from":from,"to":to,"mark":mark.json()]
         case let .attr(pos,name,value):return ["stepType":"attr","pos":pos,"attr":name,"value":value]
         case let .replace(from,to,slice,structure):
             var result:[String:Any]=["stepType":"replace","from":from,"to":to]
@@ -54,7 +70,7 @@ enum PMStep {
     /// StepMap ranges: (start, oldSize, newSize) triples.
     var ranges: [(Int, Int, Int)] {
         switch self {
-        case .attr: return []
+        case .attr, .addMark, .removeMark: return []
         case let .replace(from, to, slice, _):
             return [(from, to - from, slice.size)]
         case let .replaceAround(from, to, gapFrom, gapTo, slice, insert, _):
@@ -79,6 +95,16 @@ enum PMStep {
     }
 }
 
+// Exact mapFragment algorithm from prosemirror-transform 1.12.2 mark_step.ts.
+private func pmMapInlineFragment(_ fragment: PMFragment, parent: PMNode,
+                                 transform: (PMNode, PMNode) -> PMNode) -> PMFragment {
+    PMFragment.fromArray(fragment.children.map { original in
+        var child = original
+        if child.content.size > 0 { child = child.copy(pmMapInlineFragment(child.content, parent: child, transform: transform)) }
+        return child.isInline ? transform(child, parent) : child
+    })
+}
+
 struct PMTransform {
     private(set) var doc: PMNode
     private(set) var steps: [PMStep] = []
@@ -92,6 +118,39 @@ struct PMTransform {
 
     func map(_ pos: Int, assoc: Int = 1) -> Int {
         steps.reduce(pos) { $1.map($0, assoc: assoc) }
+    }
+
+    // Exact bounded traversal/coalescing from prosemirror-transform 1.12.2 mark.ts.
+    mutating func addMark(_ from: Int, _ to: Int, _ mark: PMMark) throws {
+        var removed: [PMStep] = [], added: [PMStep] = [], removing: Int?, adding: Int?
+        doc.content.nodesBetween(from, to, { node, pos, parent, _ in
+            guard node.isInline, let parent, !mark.isInSet(node.marks), parent.type.allowsMarkType(mark.type) else { return true }
+            let start = max(pos, from), end = min(pos + node.nodeSize, to), set = mark.addToSet(node.marks)
+            for old in node.marks where !old.isInSet(set) {
+                if let index = removing, case let .removeMark(a,b,previous) = removed[index], b == start, previous.eq(old) {
+                    removed[index] = .removeMark(from:a,to:end,mark:old)
+                } else { removed.append(.removeMark(from:start,to:end,mark:old)); removing = removed.count - 1 }
+            }
+            if let index = adding, case let .addMark(a,b,_) = added[index], b == start {
+                added[index] = .addMark(from:a,to:end,mark:mark)
+            } else { added.append(.addMark(from:start,to:end,mark:mark)); adding = added.count - 1 }
+            return true
+        }, parent: doc)
+        for change in removed + added { try step(change) }
+    }
+
+    mutating func removeMark(_ from: Int, _ to: Int, _ mark: PMMark) throws {
+        var matches: [(mark: PMMark, from: Int, to: Int, step: Int)] = [], visited = 0
+        doc.content.nodesBetween(from, to, { node, pos, _, _ in
+            guard node.isInline else { return true }; visited += 1
+            guard mark.isInSet(node.marks) else { return true }
+            let end = min(pos + node.nodeSize, to)
+            if let index = matches.lastIndex(where: { $0.step == visited - 1 && $0.mark.eq(mark) }) {
+                matches[index].to = end; matches[index].step = visited
+            } else { matches.append((mark,max(pos,from),end,visited)) }
+            return true
+        }, parent: doc)
+        for change in matches { try step(.removeMark(from:change.from,to:change.to,mark:change.mark)) }
     }
 
     mutating func replace(_ from: Int, _ to: Int? = nil, _ slice: PMSlice = .empty) throws {

@@ -73,7 +73,9 @@ struct RelayMarkNativeCanonicalMetadataTests {
   let q=try RelayMarkNativeDocumentProjection.project(document:first).blocks[0]
   let settings=try RelayMarkNativeWidgetMutation.updateAttributes(document:first,path:[0],expectedID:q.id,
       expected:Data(#"{"required":false}"#.utf8),changes:Data(#"{"required":true}"#.utf8))
-  try second.applyUpdate(settings)
+  let settingsSteps=try JSONSerialization.jsonObject(with:settings.steps) as! [[String:Any]]
+  #expect(settingsSteps as NSArray == [["stepType":"attr","pos":0,"attr":"required","value":true]] as NSArray)
+  try second.applyUpdate(settings.update)
   #expect(try first.authoredDocument()==second.authoredDocument())
   #expect(try RelayMarkNativeDocumentProjection.project(document:first).blocks[0].props["required"]?.boolValue==true)
  }
@@ -295,6 +297,34 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(throws:(any Error).self){try doc.groupingUndo{try doc.performOwnedCommand(operationID:UUID()){Data()}}}
  }
 
+ @Test @MainActor func actualRichMarkStepPreservesUnicodeItemsAndPeerChoice() throws {
+  let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  let source="<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\nA🌍Z\n- ( ) Paris\n<!-- /relay:question -->"
+  try peer.applyUpdate(document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument(source,namespace:"format-choice")))
+  let items=try document.captureTextItems(path:[0,0,0],start:0,length:4)
+  let before=try document.captureSenderSnapshot()
+  let maybeChange=try RelayMarkNativeRichEditing.format(document:document,range:NSRange(location:1,length:2),mark:"bold",enabled:true,expectedSnapshot:document.snapshot())
+  let change=try #require(maybeChange)
+  #expect(change.beforeSnapshot == before)
+  let steps=try JSONSerialization.jsonObject(with:change.steps) as! [[String:Any]]
+  #expect(steps as NSArray == [["stepType":"addMark","from":3,"to":5,"mark":["type":"bold"]]] as NSArray)
+  try peer.applyUpdate(change.update)
+  #expect(try document.captureTextItems(path:[0,0,0],start:0,length:4)==items)
+  let remote=try RelayMarkNativeRichEditing.replace(document:peer,range:NSRange(location:5,length:0),runs:[("Peer ",[:])],expectedSnapshot:peer.snapshot())
+  try document.applyUpdate(remote.update)
+  let maybeUndo=try document.undo();let undo=try #require(maybeUndo);try peer.applyUpdate(undo)
+  #expect(String(try document.richProseProjection().text.characters)=="A🌍Z\nPeer Paris")
+  #expect(try document.authoredDocument()==peer.authoredDocument())
+  let maybeRemove=try RelayMarkNativeRichEditing.format(document:peer,range:NSRange(location:1,length:2),mark:"italic",enabled:true,expectedSnapshot:peer.snapshot())
+  let remove=try #require(maybeRemove)
+  try document.applyUpdate(remove.update)
+  let maybeUnmark=try RelayMarkNativeRichEditing.format(document:document,range:NSRange(location:1,length:2),mark:"italic",enabled:false,expectedSnapshot:document.snapshot())
+  let unmark=try #require(maybeUnmark)
+  let removed=try JSONSerialization.jsonObject(with:unmark.steps) as! [[String:Any]]
+  #expect(removed as NSArray == [["stepType":"removeMark","from":3,"to":5,"mark":["type":"italic"]]] as NSArray)
+  #expect(try RelayMarkNativeRichEditing.format(document:document,range:NSRange(location:1,length:2),mark:"italic",enabled:false,expectedSnapshot:document.snapshot())==nil)
+ }
+
  @Test @MainActor func addingRichChoiceValidatesTheActualQuestionAndKeepsExistingPeerItems() throws {
   let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
   let source="<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\nCapital?\n- ( ) Paris\n<!-- /relay:question -->"
@@ -305,7 +335,9 @@ struct RelayMarkNativeCanonicalMetadataTests {
       "content":[["type":"strong","content":[["type":"text","text":"London"]]]]]
   let update=try RelayMarkNativeWidgetMutation.insert(document:document,parentPath:[0],at:2,
       authoredBlock:JSONSerialization.data(withJSONObject:option),expectedSnapshot:document.snapshot())
-  try peer.applyUpdate(update)
+  let widgetSteps=try JSONSerialization.jsonObject(with:update.steps) as! [[String:Any]]
+  #expect(widgetSteps.count==1 && widgetSteps[0]["stepType"] as? String == "replace")
+  try peer.applyUpdate(update.update)
   #expect(try document.authoredDocument()==peer.authoredDocument())
   #expect(try document.captureTextItems(path:[0,1,0],start:0,length:5)==retained)
   #expect(String(try document.richProseProjection().text.characters)=="Capital?\nParis\nLondon")
@@ -328,7 +360,9 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try document.encodeUpdate()==state)
   let retained=try document.captureTextItems(path:[0,1,0],start:0,length:5)
   let update=try RelayMarkNativeWidgetMutation.remove(document:document,path:[0,2],expectedID:parts[2]["id"] as! String,expectedSnapshot:snapshot)
-  try peer.applyUpdate(update)
+  let widgetSteps=try JSONSerialization.jsonObject(with:update.steps) as! [[String:Any]]
+  #expect(widgetSteps.count==1 && widgetSteps[0]["stepType"] as? String == "replace")
+  try peer.applyUpdate(update.update)
   #expect(try document.authoredDocument()==peer.authoredDocument())
   #expect(try document.captureTextItems(path:[0,1,0],start:0,length:5)==retained)
   #expect(String(try document.richProseProjection().text.characters)=="Capital?\nParis")

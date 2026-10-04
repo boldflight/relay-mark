@@ -5,7 +5,7 @@ import RelayMarkSwift
 /// Domain publication, answers and permission changes remain host actions.
 @MainActor public enum RelayMarkNativeWidgetMutation {
     public static func insert(document: RelayMarkNativeDocument,parentPath: [Int],at index: Int,
-                              authoredBlock: Data,expectedSnapshot: Data) throws -> Data {
+                              authoredBlock: Data,expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
         guard try document.snapshot()==expectedSnapshot,let block=try JSONSerialization.jsonObject(with:authoredBlock) as? [String:Any],
               let type=block["type"] as? String,type.hasPrefix("relay.") else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         guard let tree=try JSONSerialization.jsonObject(with:expectedSnapshot) as? [String:Any],
@@ -38,25 +38,30 @@ import RelayMarkSwift
         let parent=try RelayMarkNativeRichXML.node(at:parentPath,in:canonical)
         let children=try RelayMarkNativeRichXML.children(parent)
         guard children.indices.contains(index) else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
-        let nodes=[children[index]]
-        return try RelayMarkNativeRichXML.apply(document:document,tree:tree,
-          edits:[.init(parentPath:parentPath,start:index,count:0,nodes:nodes)])
+        let parentID: String?
+        if parentPath.isEmpty { parentID = nil }
+        else {
+            let originalParent = try RelayMarkNativeRichXML.node(at: parentPath, in: tree)
+            parentID = (originalParent["attributes"] as? [String: Any])?["relaymarkId"] as? String
+            guard parentID != nil else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        }
+        return try RelayMarkNativeRichEditing.insertWidget(document: document, tree: tree,
+            candidate: canonical, parentID: parentID, index: index)
     }
     /// Remove an identified authored child through the same complete parent/tree
     /// preflight. Required labels and other invalid final ancestry refuse before mutation.
     public static func remove(document:RelayMarkNativeDocument,path:[Int],expectedID:String,
-                              expectedSnapshot:Data) throws -> Data {
+                              expectedSnapshot:Data) throws -> RelayMarkNativeRichEditing.Change {
         guard !path.isEmpty,try document.snapshot()==expectedSnapshot,
               let tree=try JSONSerialization.jsonObject(with:expectedSnapshot) as? [String:Any] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let node=try RelayMarkNativeRichXML.node(at:path,in:tree)
         guard let attributes=node["attributes"] as? [String:Any],attributes["relaymarkId"] as? String==expectedID else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
-        return try RelayMarkNativeRichXML.apply(document:document,tree:tree,
-          edits:[.init(parentPath:Array(path.dropLast()),start:path.last!,count:1,nodes:[])])
+        return try RelayMarkNativeRichEditing.removeWidget(document: document, tree: tree, id: expectedID)
     }
 
     /// Compare only the touched attribute keys, preserving independent peer fields and child text.
     public static func updateAttributes(document: RelayMarkNativeDocument,path: [Int],expectedID: String,
-                                        expected: Data,changes: Data) throws -> Data {
+                                        expected: Data,changes: Data) throws -> RelayMarkNativeRichEditing.Change {
         let snapshot=try document.snapshot()
         guard let tree=try JSONSerialization.jsonObject(with:snapshot) as? [String:Any],
               let before=try JSONSerialization.jsonObject(with:expected) as? [String:Any],
@@ -66,7 +71,7 @@ import RelayMarkSwift
         guard let name=node["name"] as? String,name=="questionBlock" || name=="questionOption" || name=="relayDataView" || name.hasPrefix("relay"),
               let attributes=node["attributes"] as? [String:Any],attributes["relaymarkId"] as? String==expectedID,
               before.allSatisfy({key,value in NSDictionary(dictionary:["value":attributes[key] ?? NSNull()]).isEqual(to:["value":value])}) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        return try RelayMarkNativeRichXML.apply(document:document,tree:tree,edits:[],
-          attributeUpdates:[.init(path:path,attributes:patch)])
+        return try RelayMarkNativeRichEditing.updateWidget(document: document, tree: tree,
+            id: expectedID, attributes: patch)
     }
 }

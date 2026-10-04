@@ -639,6 +639,7 @@ extension PMStep {
     var from: Int {
         switch self {
         case let .attr(pos,_,_):return pos
+        case let .addMark(from,_,_), let .removeMark(from,_,_):return from
         case let .replace(from, _, _, _): return from
         case let .replaceAround(from, _, _, _, _, _, _): return from
         }
@@ -647,6 +648,7 @@ extension PMStep {
     var to: Int {
         switch self {
         case let .attr(pos,_,_):return pos
+        case let .addMark(_,to,_), let .removeMark(_,to,_):return to
         case let .replace(_, to, _, _): return to
         case let .replaceAround(_, to, _, _, _, _, _): return to
         }
@@ -654,7 +656,7 @@ extension PMStep {
 
     var slice: PMSlice {
         switch self {
-        case .attr:return .empty
+        case .attr,.addMark,.removeMark:return .empty
         case let .replace(_, _, slice, _): return slice
         case let .replaceAround(_, _, _, _, slice, _, _): return slice
         }

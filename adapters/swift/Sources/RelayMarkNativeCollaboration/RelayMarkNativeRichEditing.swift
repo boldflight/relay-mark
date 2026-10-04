@@ -283,6 +283,86 @@ public enum RelayMarkNativeRichEditing {
         return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: caret(pos, in: updated))
     }
 
+    /// Actual maintained AddMark/RemoveMark commands in the same canonical schema.
+    /// A no-op selection returns nil without an authored transaction.
+    public static func format(document: RelayMarkNativeDocument, range: NSRange,
+                              mark: String, attributes: [String: Any] = [:], enabled: Bool,
+                              expectedSnapshot: Data) throws -> Change? {
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              range.location >= 0, range.length > 0,
+              JSONSerialization.isValidJSONObject(attributes),
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let bridge = try PMYXmlBridge.canonical(), doc = try bridge.document(fromSnapshot: tree)
+        guard let type = bridge.schema.marks[mark],
+              Set(attributes.keys).isSubset(of: Set(type.attrs.map(\.name))) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let projection = try document.richProseProjection()
+        let from = try position(range.location, projection: projection, doc: doc)
+        let to = try position(NSMaxRange(range), projection: projection, doc: doc)
+        var transform = PMTransform(doc)
+        if enabled { try transform.addMark(from, to, type.create(attributes)) }
+        else { try transform.removeMark(from, to, type.create(attributes)) }
+        guard !transform.steps.isEmpty else { return nil }
+        return try change(transform, source: doc, bridge: bridge, document: document)
+    }
+
+    /// Widget host commands supply their actual identified target and insertion
+    /// index. The command becomes a maintained Step, never a document diff.
+    static func insertWidget(document: RelayMarkNativeDocument, tree: [String: Any],
+                             candidate: [String: Any], parentID: String?, index: Int) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let candidateBridge = try PMYXmlBridge.canonical()
+        let prospective = try candidateBridge.document(fromSnapshot: candidate)
+        let parent = try identifiedNode(parentID, in: source)
+        let candidateParent = try identifiedNode(parentID, in: prospective)
+        guard index >= 0, index <= parent.node.childCount,
+              index < candidateParent.node.childCount else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        let position = parent.position + (parentID == nil ? 0 : 1) + parent.node.content.children.prefix(index).reduce(0) { $0 + $1.nodeSize }
+        var transform = PMTransform(source)
+        try transform.step(.replace(from: position, to: position, slice: PMSlice(PMFragment.from(candidateParent.node.child(index)), openStart: 0, openEnd: 0)))
+        return try change(transform, source: source, bridge: bridge, document: document)
+    }
+
+    static func removeWidget(document: RelayMarkNativeDocument, tree: [String: Any], id: String) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let target = try identifiedNode(id, in: source)
+        var transform = PMTransform(source)
+        try transform.step(.replace(from: target.position, to: target.position + target.node.nodeSize, slice: .empty))
+        return try change(transform, source: source, bridge: bridge, document: document)
+    }
+
+    static func updateWidget(document: RelayMarkNativeDocument, tree: [String: Any], id: String,
+                             attributes: [String: Any]) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let target = try identifiedNode(id, in: source)
+        guard Set(attributes.keys).isSubset(of: Set(target.node.type.attrs.map(\.name))) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        var transform = PMTransform(source)
+        for name in attributes.keys.sorted() { try transform.step(.attr(pos: target.position, name: name, value: attributes[name]!)) }
+        return try change(transform, source: source, bridge: bridge, document: document)
+    }
+
+    private static func identifiedNode(_ id: String?, in doc: PMNode) throws -> (node: PMNode, position: Int) {
+        guard let id else { return (doc, 0) }
+        var result: (PMNode, Int)?
+        doc.content.nodesBetween(0, doc.content.size, { node, position, _, _ in
+            if node.attrs["relaymarkId"] as? String == id { result = (node, position) }
+            return true
+        })
+        guard let result else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        return result
+    }
+
+    private static func change(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
+                               document: RelayMarkNativeDocument) throws -> Change {
+        let (update, _, beforeSnapshot, steps) = try commit(transform, source: source, bridge: bridge, document: document)
+        return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: nil)
+    }
+
     /// Applies identity rules, validates the prospective document on a
     /// scratch replica, then writes it through y-prosemirror's diff.
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
