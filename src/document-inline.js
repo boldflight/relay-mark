@@ -26,6 +26,18 @@ function href(value) {
   return value;
 }
 
+/** Shared typing attributes use the same full rich mark/link validator as XML. */
+export function validateTextAttributes(attributes){
+ keys(attributes,markTypes,'typing attributes');
+ const marks=markTypes.filter(type=>Object.hasOwn(attributes,type)).map(type=>{
+  const value=object(attributes[type],'typing mark');
+  if(type==='link')return {type,attrs:value};
+  if(Object.keys(value).length)throw new TypeError('Unsupported typing mark attrs');
+  return {type};
+ });
+ mapInline({type:'text',text:'x',marks});return true;
+}
+
 export function mapInline(node) {
   object(node, "inline");
   if (node.type === 'relayReference' || node.type === 'relayTag') return mapAtom(node);

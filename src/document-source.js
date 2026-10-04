@@ -4,6 +4,7 @@ import {sha256} from '@noble/hashes/sha2.js';
 import {bytesToHex} from '@noble/hashes/utils.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror,identifiedDocumentNodeNames} from './document-adapter.js';
 import {mapInline} from './document-inline.js';
+export {validateTextAttributes} from './document-inline.js';
 import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
 export {safeImageSource} from './document-links.js';

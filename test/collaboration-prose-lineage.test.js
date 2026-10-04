@@ -41,6 +41,7 @@ test('middle split copies mixed-origin marked Unicode tail by identity, retains 
   const prefix = captureTextItems(root, { path: [0, 0], index: 0, length: 7 })
   const tail = captureTextItems(root, { path: [0, 0], index: 7, length: root.get(0).get(0).length - 7 })
   const result = call('replaceProseWithLineage', { start: 7, end: 7, text: 'typed\nnext ' })
+  assert.deepEqual(result.lineage.operation.start_anchor,JSON.parse(JSON.stringify(Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(root.get(0).get(0),7,0)))))
   const doc = replay(original, result.updates)
   assert.equal(selected(doc, prefix), 'PREFIX ')
   assert.equal(selected(doc, decode(result.insertedTextItems)), 'typednext ')

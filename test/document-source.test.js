@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument,importDocument,importDocumentSnapshot,importDocumentSource,documentToSnapshot,snapshotToDocument} from '../src/document-source.js';
+import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument,importDocument,importDocumentSnapshot,importDocumentSource,validateTextAttributes,documentToSnapshot,snapshotToDocument} from '../src/document-source.js';
 test('canonical source imports CommonMark and directives; exact interchange retains metadata and identity',()=>{
  const source='# Title\n\n> **A** and [B](https://example.com)\n\n- [x] Task\n- [ ] Next\n\n| Name | Value |\n| --- | ---: |\n| A | B |\n\n@Callout(tone: "info", emphasis: "soft", title: "Read") {\n![Diagram](/m/asset)\n}\n';
  const ast=parseDocument(source,{namespace:'import-one'});
@@ -196,4 +196,11 @@ test('finite exact source import resets historical counters and identities throu
 test('portable identified node owner covers the independently exported production editor schema',()=>{
  const schema=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-editor-schema.json',import.meta.url)));
  assert.deepEqual([...identifiedDocumentNodeNames].sort(),schema.nodes.filter(n=>Object.hasOwn(n.attrs||{},'relaymarkId')).map(n=>n.name).sort());
+});
+
+test('canonical typing attributes admit all rich marks and refuse executable links and mixed code',()=>{
+ assert.equal(validateTextAttributes({underline:{},highlight:{},superscript:{}}),true);
+ const link={href:'https://example.com/evidence',target:'_blank',rel:'noopener noreferrer nofollow',class:null,title:null};
+ assert.equal(validateTextAttributes({link,bold:{}}),true);
+ for(const attributes of [{code:{},bold:{}},{link:{...link,href:'javascript:alert(1)'}},{underline:{enabled:true}},{unknown:{}}])assert.throws(()=>validateTextAttributes(attributes));
 });

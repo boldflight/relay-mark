@@ -410,4 +410,32 @@ defmodule RelayMark.DocumentSourceTest do
     assert hd(first.document["blocks"])["id"] == "b3caafb0d7c034362851808ae213c59be"
     refute Map.has_key?(first.document, "version")
   end
+
+  test "canonical typing attributes share full mark and safe link validation" do
+    assert :ok =
+             RelayMark.DocumentXML.validate_text_attributes(%{
+               "underline" => %{},
+               "highlight" => %{},
+               "superscript" => %{}
+             })
+
+    link = %{
+      "href" => "https://example.com/evidence",
+      "target" => "_blank",
+      "rel" => "noopener noreferrer nofollow",
+      "class" => nil,
+      "title" => nil
+    }
+
+    assert :ok = RelayMark.DocumentXML.validate_text_attributes(%{"link" => link, "bold" => %{}})
+
+    for attrs <- [
+          %{"code" => %{}, "bold" => %{}},
+          %{"link" => Map.put(link, "href", "javascript:alert(1)")},
+          %{"underline" => %{"enabled" => true}},
+          %{"unknown" => %{}}
+        ] do
+      assert {:error, _} = RelayMark.DocumentXML.validate_text_attributes(attrs)
+    end
+  end
 end

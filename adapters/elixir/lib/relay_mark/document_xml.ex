@@ -214,6 +214,19 @@ defmodule RelayMark.DocumentXML do
     end
   end
 
+  @doc "Validates typing attributes through the existing canonical rich text/mark owner."
+  def validate_text_attributes(attributes) do
+    case result(fn ->
+           decode_inline_node(%{
+             "kind" => "text",
+             "delta" => [%{"insert" => "x", "attributes" => attributes}]
+           })
+         end) do
+      {:ok, _} -> :ok
+      error -> error
+    end
+  end
+
   defp decode_snapshot!(snapshot) do
     only!(snapshot, ~w(kind children metadata))
     require!(snapshot["kind"] == "fragment", :root)

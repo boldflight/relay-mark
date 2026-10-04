@@ -124,6 +124,51 @@ public final class RelayMarkNativeDocument {
         return try JSONSerialization.data(withJSONObject:event,options:[.sortedKeys])
     }
 
+    /// Immediate maintained undo/redo ancestry. Capture before checkpointing and
+    /// retain it in the host's immutable operation journal; wire bytes lack redone links.
+    public func captureRestoredTextItems(since stateVector: Data) throws -> Data {
+        _ = try authoredDocument()
+        return try document.inspectRestoredTextItems(since:stateVector,rootName:"default")
+    }
+
+    /// Capture intent before mutation using the same rich text owner and upstream
+    /// RelativePosition JSON as browser/headless operations. No flat-text indexing.
+    public func captureReplaceProseOperation(start: Position, end: Position, text: String,
+                                             attributes: [String:Any] = [:]) throws -> Data {
+        _ = try authoredDocument()
+        guard (start.path==end.path && start.index<=end.index) || start.path.lexicographicallyPrecedes(end.path),
+              JSONSerialization.isValidJSONObject(attributes) else { throw Failure.unsupportedProseEdit }
+        let typeIdentities = try document.transactSync { tx -> [[String:Any]] in
+            var types:[[String:Any]]=[]
+            for position in [start,end] {
+                var node=self.root
+                for index in position.path {
+                    guard let index=UInt32(exactly:index),let child=node.child(at:index,in:tx) else {throw Failure.invalidTextPath}
+                    node=child
+                }
+                guard node.kind(in:tx)=="text" else {throw Failure.invalidTextPath}
+                let units=Array(try node.text(in:tx).utf16)
+                guard position.index>=0,position.index<=units.count else {throw Failure.invalidUTF16Range}
+                if position.index>0 && position.index<units.count && (0xd800...0xdbff).contains(units[position.index-1]) && (0xdc00...0xdfff).contains(units[position.index]) {throw Failure.invalidUTF16Range}
+                // Binary item anchors omit parent type. The maintained end-of-type
+                // anchor supplies that exact binding without scanning text per unit.
+                let typeAnchor=try node.relativePosition(at:node.length(in:tx),association:0,in:tx)
+                guard let identity=try YDocument.relativePositionJSON(from:typeAnchor)["type"] as? [String:Any] else {throw Failure.invalidAnchor}
+                types.append(identity)
+            }
+            return types
+        }
+        // The shared grammar validates typing marks/links, including exclusivity,
+        // without inventing another application mark allowlist or changing this owner.
+        try RelayMarkSourceCodec.validateTextAttributes(attributes)
+        let a=try anchor(path:start.path,index:start.index,association:start.association)
+        let b=try anchor(path:end.path,index:end.index,association:end.association)
+        var startJSON=try YDocument.relativePositionJSON(from:a),endJSON=try YDocument.relativePositionJSON(from:b)
+        startJSON["type"]=typeIdentities[0];endJSON["type"]=typeIdentities[1]
+        let operation:[String:Any]=["kind":"replace_prose","start_anchor":startJSON,"end_anchor":endJSON,"inserted_text":text,"inserted_attributes":attributes]
+        return try JSONSerialization.data(withJSONObject:operation,options:[.sortedKeys])
+    }
+
     public var documentGUID: String { document.guid }
 
     /// One scoped retained Yrs checkpoint. The host owns authorization and durable storage.

@@ -102,7 +102,7 @@ export function prepareProseLineage(live, input, replace) {
       for (const p of blocks) {
         const length = p.toArray().reduce((sum, leaf) => sum + leaf.length, 0)
         if (offset <= length) {
-          if (!p.length) return Array.from(Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(p, 0, 0)))
+          if (!p.length) return Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(p, 0, 0))
           for (const leaf of p.toArray()) {
             if (offset <= leaf.length) {
               // Empty item selections do not validate scalar boundaries. Reject
@@ -113,7 +113,7 @@ export function prepareProseLineage(live, input, replace) {
                 throw Error('Prose anchor splits a surrogate pair')
               }
               capture(root, leaf, offset, 0)
-              return Array.from(Y.encodeRelativePosition(Y.createRelativePositionFromTypeIndex(leaf, offset, 0)))
+              return Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(leaf, offset, 0))
             }
             offset -= leaf.length
           }

@@ -42,6 +42,9 @@ public enum RelayMarkSourceCodec {
         guard let value=try json(data) as? Bool else { throw Failure.invalidAuthoredDocument }
         return value
     }
+    public static func validateTextAttributes(_ attributes: [String:Any]) throws {
+        guard try json(call("validateTextAttributes",arguments:[attributes])) as? Bool == true else { throw Failure.invalidAuthoredDocument }
+    }
     public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)

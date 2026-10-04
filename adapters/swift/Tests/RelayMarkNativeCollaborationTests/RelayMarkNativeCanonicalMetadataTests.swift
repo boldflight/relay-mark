@@ -151,4 +151,25 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(throws:(any Error).self){try doc.captureFormatEvent(update:update,mark:"bold",textItems:wrong,operationID:UUID())}
   #expect(try doc.encodeUpdate()==before)
  }
+ @Test @MainActor func nativeOwnedUndoCopiesAndRichAnchoredOperationsUseCanonicalEvidence() throws {
+  let doc=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("@FormQuestion(id: \"q\", type: \"short_text\") {\nA🌍Z\n}",namespace:"undo-source"))
+  let selected=try JSONSerialization.jsonObject(with:doc.captureTextItems(path:[0,0,0],start:1,length:2)) as! [String:Any]
+  let operation=try JSONSerialization.jsonObject(with:doc.captureReplaceProseOperation(start:.init(path:[0,0,0],index:1),end:.init(path:[0,0,0],index:3),text:"")) as! [String:Any]
+  #expect(operation["kind"] as? String == "replace_prose")
+  #expect((operation["start_anchor"] as? [String:Any])?["type"] != nil)
+  #expect((operation["end_anchor"] as? [String:Any])?["assoc"] as? Int == 0)
+  #expect(throws:(any Error).self){try doc.captureReplaceProseOperation(start:.init(path:[0,0,0],index:2),end:.init(path:[0,0,0],index:3),text:"")}
+  try doc.replaceText(at:1,length:2,with:"",path:[0,0,0])
+  try peer.applyUpdate(doc.encodeUpdate())
+  try doc.applyUpdate(peer.insertText("🌍",at:1,path:[0,0,0]))
+  let vector=doc.stateVector();#expect(try doc.undo() != nil)
+  let state=try doc.encodeUpdate()
+  let observation=try JSONSerialization.jsonObject(with:doc.captureRestoredTextItems(since:vector)) as! [String:Any]
+  let copies=observation["copies"] as! [[String:Any]];#expect(copies.count==1)
+  #expect((copies[0]["source"] as! [String:Any])["runs"] as? NSArray == selected["runs"] as? NSArray)
+  #expect((copies[0]["source"] as? NSDictionary) != (copies[0]["destination"] as? NSDictionary))
+  #expect(try doc.encodeUpdate()==state)
+ }
+
 }
