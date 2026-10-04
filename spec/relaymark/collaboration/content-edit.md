@@ -157,3 +157,16 @@ all non-text mutations, or enable source capability by itself. It returns the
 existing `requires_mutation_correspondence` gate unchanged. Native normal Steps,
 actual inverse Steps and immutable group/history metadata are evidence from one
 live owner, not alternative operation formats.
+
+### Reviewed native authored recovery
+
+`RelayMarkNativeRichEditing.replaceDocument(document:authoredAST:expectedSnapshot:)`
+validates the complete shared AST and candidate before mutation, then writes its
+actual full ReplaceStep through the same maintained body diff and replaces the
+existing `relaymark` metadata map in the same Yrs transaction and UndoManager.
+Original recovery bytes remain the host's immutable evidence. It does not reseed
+an incarnation or flatten rich blocks. `Change.authoredMetadataChanged` currently
+marks a metadata consequence that the PM-only source witness cannot prove yet;
+hosts keep source attribution fenced until the shared DocAttrStep correspondence
+is implemented. Peer state, stale candidates, invalid grammar and exact undo/redo
+are exercised by the named reviewed full-document replacement regression.

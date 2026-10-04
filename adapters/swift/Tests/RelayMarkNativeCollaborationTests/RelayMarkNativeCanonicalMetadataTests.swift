@@ -389,6 +389,34 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(throws:(any Error).self){try doc.groupingUndo{try doc.performOwnedCommand(operationID:UUID()){Data()}}}
  }
 
+ @Test @MainActor func reviewedFullDocumentReplacementRetainsRichIdentitiesMetadataPeerAndUndo() throws {
+  let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+  var raw=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-directives.json"))) as! [String:Any]
+  var blocks=raw["blocks"] as! [[String:Any]]
+  let question=try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.parseDocument("<!-- relay:question id=\"reviewed-q\" type=\"multiple_choice\" -->\n**Rich question?**\n- ( ) Paris\n- ( ) London\n<!-- /relay:question -->",namespace:"reviewed-recovery")) as! [String:Any]
+  blocks += question["blocks"] as! [[String:Any]]
+  blocks.append(["id":"b00000000000040008000000000000090","type":"image","content":[],"props":["src":"/m/retained-image","alt":"Diagram","title":NSNull(),"width":120,"height":80]])
+  raw["blocks"]=blocks;raw["frontmatter"]=["title":"Exact recovery"];raw["annotations"]=[] as [Any];raw["resources"]=[] as [Any];raw["meta"]=["retained":"original"]
+  let authored=try JSONSerialization.data(withJSONObject:raw,options:[.sortedKeys]),doc=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  try peer.applyUpdate(doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Original",namespace:"original-recovery")))
+  let original=try doc.authoredDocument(),snapshot=try doc.snapshot(),command=UUID()
+  var change:RelayMarkNativeRichEditing.Change?
+  _ = try doc.performOwnedCommand(operationID:command,separateHistoryItem:true){let result=try RelayMarkNativeRichEditing.replaceDocument(document:doc,authoredAST:authored,expectedSnapshot:snapshot);change=result;return result.update}
+  let effect=try #require(change);#expect(effect.authoredMetadataChanged);try peer.applyUpdate(effect.update)
+  #expect(try JSONSerialization.jsonObject(with:doc.authoredDocument()) as? NSDictionary == raw as NSDictionary)
+  #expect(try doc.authoredDocument()==peer.authoredDocument())
+  #expect(throws:(any Error).self){try RelayMarkNativeRichEditing.replaceDocument(document:doc,authoredAST:authored,expectedSnapshot:snapshot)}
+  let updatedSnapshot=try doc.snapshot(),updatedState=try doc.encodeUpdate()
+  var malformed=raw;malformed["blocks"]=[["id":"bad","type":"unsupported-rich-node","content":[]]]
+  #expect(throws:(any Error).self){try RelayMarkNativeRichEditing.replaceDocument(document:doc,authoredAST:JSONSerialization.data(withJSONObject:malformed),expectedSnapshot:updatedSnapshot)}
+  #expect(try doc.encodeUpdate()==updatedState)
+  let undo=try #require(try doc.undoWithReference());try peer.applyUpdate(undo.update)
+  #expect(try doc.authoredDocument()==original);#expect(try peer.authoredDocument()==original)
+  let redo=try #require(try doc.redoWithReference());try peer.applyUpdate(redo.update)
+  #expect(try doc.authoredDocument()==peer.authoredDocument())
+  #expect(try JSONSerialization.jsonObject(with:doc.authoredDocument()) as? NSDictionary == raw as NSDictionary)
+ }
+
  @Test @MainActor func sameDocumentNewManagerCannotRestoreAnotherHistoryNamespace() throws {
   let owner=UUID(),doc=RelayMarkNativeDocument(guid:"manager-owner",historyOwnerID:owner)
   try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Base",namespace:"manager-owner"))

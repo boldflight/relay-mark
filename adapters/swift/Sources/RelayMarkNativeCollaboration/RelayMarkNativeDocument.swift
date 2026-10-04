@@ -2482,10 +2482,15 @@ public final class RelayMarkNativeDocument {
 
     /// Writes a transformed ProseMirror document through y-prosemirror's
     /// updateYFragment diff as one local transaction and one undo item.
-    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge) throws -> Data {
+    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge,metadataReplacement:[String:RelayMarkValue]?=nil) throws -> Data {
         wrapUndo()
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try bridge.update(self.root, updated, source: source, in: transaction)
+            if let metadataReplacement {
+                let existing=self.metadata.toMap(transaction:transaction)
+                for key in existing.keys.sorted() where metadataReplacement[key]==nil {_ = self.metadata.removeValue(forKey:key,transaction:transaction)}
+                for key in metadataReplacement.keys.sorted() where existing[key] != metadataReplacement[key] {self.metadata.updateValue(metadataReplacement[key]!,forKey:key,transaction:transaction)}
+            }
             return Data(transaction.transactionEncodeUpdate())
         }
         wrapUndo()
