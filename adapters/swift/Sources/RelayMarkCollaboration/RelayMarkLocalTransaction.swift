@@ -34,20 +34,24 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     public struct NativeContentEdit: Codable, Equatable, Sendable {
         public let beforeSnapshot: Data
         public let steps: Data
+        /// Exact packaged witness bytes captured once with this update. Nil is
+        /// unproven; a local witness still requires complete server mutation and
+        /// authenticated source/history proof. Persistence never re-encodes it.
+        public let witness: Data?
         /// Exact actual maintained StackItem membership captured before persistence.
         /// Nil retains unproven ordinary command evidence; no membership is inferred.
         public let ownedGroup: OwnedGroup?
         /// Actual same-manager inverse membership; excludes this inverse's UUID.
         /// Normal group and inverse history are mutually exclusive.
         public let ownedHistory: OwnedHistory?
-        public init(beforeSnapshot: Data, steps: Data, ownedGroup: OwnedGroup? = nil) {
-            self.beforeSnapshot = beforeSnapshot; self.steps = steps; self.ownedGroup = ownedGroup; self.ownedHistory = nil
+        public init(beforeSnapshot: Data, steps: Data, ownedGroup: OwnedGroup? = nil, witness: Data? = nil) {
+            self.beforeSnapshot = beforeSnapshot; self.steps = steps; self.ownedGroup = ownedGroup; self.ownedHistory = nil; self.witness = witness
         }
-        public init(beforeSnapshot: Data, steps: Data, ownedHistory: OwnedHistory) {
+        public init(beforeSnapshot: Data, steps: Data, ownedHistory: OwnedHistory, witness: Data? = nil) {
             self.beforeSnapshot = beforeSnapshot; self.steps = steps
-            self.ownedGroup = nil; self.ownedHistory = ownedHistory
+            self.ownedGroup = nil; self.ownedHistory = ownedHistory; self.witness = witness
         }
-        enum CodingKeys: String, CodingKey { case beforeSnapshot, steps, ownedGroup, ownedHistory }
+        enum CodingKeys: String, CodingKey { case beforeSnapshot, steps, ownedGroup, ownedHistory, witness }
         public init(from decoder: Decoder) throws {
             let container=try decoder.container(keyedBy:CodingKeys.self)
             let group=try container.decodeIfPresent(OwnedGroup.self,forKey:.ownedGroup)
@@ -58,6 +62,7 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
             self.beforeSnapshot=try container.decode(Data.self,forKey:.beforeSnapshot)
             self.steps=try container.decode(Data.self,forKey:.steps)
             self.ownedGroup=group;self.ownedHistory=history
+            self.witness=try container.decodeIfPresent(Data.self,forKey:.witness)
         }
         public struct OwnedHistory: Codable, Equatable, Sendable {
             public enum Kind: String, Codable, Sendable { case undo, redo }

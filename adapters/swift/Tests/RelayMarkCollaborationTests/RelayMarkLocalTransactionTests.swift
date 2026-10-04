@@ -29,6 +29,35 @@ struct RelayMarkLocalTransactionTests {
         #expect(throws:(any Error).self){try JSONDecoder().decode(RelayMarkLocalTransaction.NativeContentEdit.self,from:ambiguousBytes)}
     }
 
+    @Test func sharedWitnessBytesSurviveJournalDecodeWithoutNormalization() throws {
+        let operationID = UUID()
+        let candidate = RelayMarkLocalTransaction(id: operationID, update: Data([4, 8]), changes: [],
+            nativeContentEdit: .init(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8),
+                ownedGroup: try .init(reference: operationID, operationIDs: [operationID])))
+        // The journal must retain the exact packaged builder result. Decoding it
+        // does not authenticate its source or turn a partial witness into admission.
+        let witness = Data(" {\"requires_mutation_correspondence\":true,\"text_items\":{\"runs\":[]}}\n  ".utf8)
+        var object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate)) as? [String: Any])
+        var evidence = try #require(object["nativeContentEdit"] as? [String: Any])
+        evidence["witness"] = witness.base64EncodedString()
+        object["nativeContentEdit"] = evidence
+        let restored = try JSONDecoder().decode(RelayMarkLocalTransaction.self,
+            from: JSONSerialization.data(withJSONObject: object))
+        let written = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(restored)) as? [String: Any])
+        let savedEvidence = try #require(written["nativeContentEdit"] as? [String: Any])
+        #expect(savedEvidence["witness"] as? String == witness.base64EncodedString())
+        #expect(restored.id == operationID)
+        #expect(restored.update == candidate.update)
+        #expect(restored.nativeContentEdit?.witness == witness)
+        let inverse = RelayMarkLocalTransaction(id: UUID(), update: Data([9]), changes: [],
+            nativeContentEdit: .init(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8),
+                ownedHistory: try .init(kind: .redo, reference: operationID, operationIDs: [operationID]), witness: witness))
+        let savedInverse = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(inverse))
+        #expect(savedInverse.nativeContentEdit?.witness == witness)
+        #expect(savedInverse == inverse)
+        #expect(candidate.nativeContentEdit?.witness == nil)
+    }
+
     @Test func legacyInitializerFunctionReferenceAndJSONRemainCompatible() throws {
         let initializer: (UUID, Data, [RelayMarkLocalTransaction.TextChange]) -> RelayMarkLocalTransaction = RelayMarkLocalTransaction.init
         let transaction = initializer(UUID(), Data([1, 2]), [])
