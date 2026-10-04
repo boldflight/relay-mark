@@ -61,6 +61,12 @@ public final class RelayMarkNativeDocument {
         installHistoryObservers()
     }
 
+    /// Exact upstream sender Snapshot bytes from this same settled retained owner.
+    public func captureSenderSnapshot() throws -> Data {
+        _ = try authoredDocument()
+        return try document.stateSnapshot()
+    }
+
     /// Actual visible UTF-16 item identities on this canonical rich document.
     /// Positions count text units, including both units of a surrogate pair.
     public func captureTextItems(path: [Int], start: Int, length: Int) throws -> Data {

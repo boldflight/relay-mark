@@ -5,11 +5,19 @@ import Foundation
 // step maps they emit. Control flow mirrors the JavaScript source.
 
 enum PMStep {
+    case attr(pos: Int, name: String, value: Any)
     case replace(from: Int, to: Int, slice: PMSlice, structure: Bool = false)
     case replaceAround(from: Int, to: Int, gapFrom: Int, gapTo: Int, slice: PMSlice, insert: Int, structure: Bool = false)
 
     func apply(_ doc: PMNode) throws -> PMNode {
         switch self {
+        case let .attr(pos, name, value):
+            // prosemirror-transform 1.12.2 AttrStep.apply: replace only the
+            // opening token; the open Slice preserves the node's rich children.
+            guard let node = doc.nodeAt(pos) else { throw PMReplaceError(message: "No node at attribute step position") }
+            var attrs=node.attrs;attrs[name]=value
+            let updated=try node.type.create(attrs,.empty,marks:node.marks)
+            return try doc.replace(pos,pos+1,PMSlice(PMFragment.from(updated),openStart:0,openEnd:node.isLeaf ? 0 : 1))
         case let .replace(from, to, slice, structure):
             if structure, try pmContentBetween(doc, from, to) {
                 throw PMReplaceError(message: "Structure replace would overwrite content")
@@ -28,9 +36,25 @@ enum PMStep {
         }
     }
 
+    /// Exact maintained Step.toJSON shape, including upstream Slice fields.
+    func json() -> [String:Any] {
+        switch self {
+        case let .attr(pos,name,value):return ["stepType":"attr","pos":pos,"attr":name,"value":value]
+        case let .replace(from,to,slice,structure):
+            var result:[String:Any]=["stepType":"replace","from":from,"to":to]
+            if slice.size != 0 { result["slice"]=slice.json() }
+            if structure { result["structure"]=true };return result
+        case let .replaceAround(from,to,gapFrom,gapTo,slice,insert,structure):
+            var result:[String:Any]=["stepType":"replaceAround","from":from,"to":to,"gapFrom":gapFrom,"gapTo":gapTo,"insert":insert]
+            if slice.size != 0 { result["slice"]=slice.json() }
+            if structure { result["structure"]=true };return result
+        }
+    }
+
     /// StepMap ranges: (start, oldSize, newSize) triples.
     var ranges: [(Int, Int, Int)] {
         switch self {
+        case .attr: return []
         case let .replace(from, to, slice, _):
             return [(from, to - from, slice.size)]
         case let .replaceAround(from, to, gapFrom, gapTo, slice, insert, _):
@@ -566,4 +590,29 @@ private func pmContentAfterFits(_ to$: PMResolvedPos, _ depth: Int, _ type: PMNo
 
 private func pmInvalidMarks(_ type: PMNodeType, _ fragment: PMFragment, _ start: Int) -> Bool {
     (start..<max(start, fragment.childCount)).contains { !type.allowsMarks(fragment.child($0).marks) }
+}
+
+// prosemirror-model 1.25.12 Node/Mark/Slice.toJSON, matching the browser wire.
+extension PMNode {
+    func json() -> [String:Any] {
+        var result:[String:Any]=["type":type.name]
+        if !attrs.isEmpty { result["attrs"]=attrs }
+        if content.size != 0 { result["content"]=content.children.map { $0.json() } }
+        if !marks.isEmpty { result["marks"]=marks.map { $0.json() } }
+        if isText { result["text"]=textString };return result
+    }
+}
+extension PMMark {
+    func json() -> [String:Any] {
+        var result:[String:Any]=["type":type.name]
+        if !attrs.isEmpty { result["attrs"]=attrs };return result
+    }
+}
+extension PMSlice {
+    func json() -> Any {
+        if content.size == 0 { return NSNull() }
+        var result:[String:Any]=["content":content.children.map { $0.json() }]
+        if openStart>0 { result["openStart"]=openStart }
+        if openEnd>0 { result["openEnd"]=openEnd };return result
+    }
 }

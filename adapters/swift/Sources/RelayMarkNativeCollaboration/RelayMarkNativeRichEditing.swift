@@ -1,7 +1,7 @@
 import Foundation
 import RelayMarkProseProjection
 
-/// Native selection replacement through ProseMirror's own algorithm. The v3
+/// Native selection replacement through ProseMirror's own algorithm. Canonical
 /// XML is read as a ProseMirror document in the browser's exact schema,
 /// edited with the ported prosemirror-transform deleteRange / insertText /
 /// replaceRange, and written back with y-prosemirror's diff, so selections
@@ -17,6 +17,10 @@ public enum RelayMarkNativeRichEditing {
 
     public struct Change {
         public let update: Data
+        /// Exact upstream Snapshot before this command, from the same retained owner.
+        public let beforeSnapshot: Data
+        /// Actual maintained Step JSON, including identity repair AttrSteps.
+        public let steps: Data
         /// ProseMirror's mapped selection head; nil when it leaves textblocks.
         public let caret: Caret?
     }
@@ -88,7 +92,7 @@ public enum RelayMarkNativeRichEditing {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document)
+        let (update, updated, beforeSnapshot, steps) = try commit(transform, source: doc, bridge: bridge, document: document)
         // deleteSelection places the caret with selectionToInsertionEnd;
         // insertText and replaceRange map the TextSelection head.
         let head: Int?
@@ -103,7 +107,7 @@ public enum RelayMarkNativeRichEditing {
                     if case .text(let pos) = $0 { return pos } else { return nil }
                 }
         }
-        return Change(update: update, caret: head.flatMap { caret($0, in: updated) })
+        return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: head.flatMap { caret($0, in: updated) })
     }
 
     /// Inline content for insertion: marked text or an inline node such as
@@ -156,9 +160,9 @@ public enum RelayMarkNativeRichEditing {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document)
+        let (update, updated, beforeSnapshot, steps) = try commit(transform, source: doc, bridge: bridge, document: document)
         let head = transform.map(to, assoc: 1)
-        return Change(update: update, caret: caret(head, in: updated))
+        return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: caret(head, in: updated))
     }
 
     /// How a block is placed, matching the browser command that inserts it.
@@ -229,7 +233,7 @@ public enum RelayMarkNativeRichEditing {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document)
+        let (update, updated, beforeSnapshot, steps) = try commit(transform, source: doc, bridge: bridge, document: document)
         // selectionToInsertionEnd: the end of the last step's replaced range,
         // biased backward for insertContent and forward for replaceSelectionWith.
         var head: Int?
@@ -243,7 +247,7 @@ public enum RelayMarkNativeRichEditing {
            case .text(let inside)? = PMCommands.near(next$) {
             head = inside
         }
-        return Change(update: update, caret: head.flatMap { caret($0, in: updated) })
+        return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: head.flatMap { caret($0, in: updated) })
     }
 
     public enum Key: Sendable {
@@ -274,21 +278,35 @@ public enum RelayMarkNativeRichEditing {
             return nil
         }
         guard !result.transform.steps.isEmpty else { return nil }
-        let (update, updated) = try commit(result.transform, source: doc, bridge: bridge, document: document)
-        guard case .text(let pos) = result.selection else { return Change(update: update, caret: nil) }
-        return Change(update: update, caret: caret(pos, in: updated))
+        let (update, updated, beforeSnapshot, steps) = try commit(result.transform, source: doc, bridge: bridge, document: document)
+        guard case .text(let pos) = result.selection else { return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: nil) }
+        return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: caret(pos, in: updated))
     }
 
     /// Applies identity rules, validates the prospective document on a
     /// scratch replica, then writes it through y-prosemirror's diff.
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
-                               document: RelayMarkNativeDocument) throws -> (Data, PMNode) {
+                               document: RelayMarkNativeDocument) throws -> (Data, PMNode, Data, Data) {
         var seen = Set<String>(), anchors = Set<String>()
         transform.doc.content.nodesBetween(0, transform.doc.content.size, { node, _, _, _ in
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
             return true
         })
-        let updated = identified(transform.doc, seen: &seen, anchors: &anchors)
+        let identifiedDocument = identified(transform.doc, seen: &seen, anchors: &anchors)
+        var witnessed=transform
+        var repairs:[PMStep]=[]
+        identifiedDocument.content.nodesBetween(0,identifiedDocument.content.size,{node,pos,_,_ in
+            if let original=transform.doc.nodeAt(pos) {
+                for name in node.attrs.keys.sorted() where !pmCompareDeep(node.attrs[name]!,original.attrs[name] ?? NSNull()) {
+                    repairs.append(.attr(pos:pos,name:name,value:node.attrs[name]!))
+                }
+            };return true
+        })
+        for repair in repairs { try witnessed.step(repair) }
+        guard witnessed.doc.eq(identifiedDocument) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let updated=witnessed.doc
+        let beforeSnapshot=try document.captureSenderSnapshot()
+        let steps=try JSONSerialization.data(withJSONObject:witnessed.steps.map { $0.json() },options:[.sortedKeys])
         let prospective = bridge.snapshot(updated)
         let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
@@ -299,7 +317,7 @@ public enum RelayMarkNativeRichEditing {
               try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        return (try document.applyProseMirror(updated, source: source, bridge: bridge), updated)
+        return (try document.applyProseMirror(updated, source: source, bridge: bridge), updated, beforeSnapshot, steps)
     }
 
     /// The ProseMirror position of a projected offset inside a textblock.

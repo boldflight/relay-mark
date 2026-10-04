@@ -638,6 +638,7 @@ func pmJoinPoint(_ doc: PMNode, _ pos: Int, dir: Int = -1) -> Int? {
 extension PMStep {
     var from: Int {
         switch self {
+        case let .attr(pos,_,_):return pos
         case let .replace(from, _, _, _): return from
         case let .replaceAround(from, _, _, _, _, _, _): return from
         }
@@ -645,6 +646,7 @@ extension PMStep {
 
     var to: Int {
         switch self {
+        case let .attr(pos,_,_):return pos
         case let .replace(_, to, _, _): return to
         case let .replaceAround(_, to, _, _, _, _, _): return to
         }
@@ -652,6 +654,7 @@ extension PMStep {
 
     var slice: PMSlice {
         switch self {
+        case .attr:return .empty
         case let .replace(_, _, slice, _): return slice
         case let .replaceAround(_, _, _, _, slice, _, _): return slice
         }

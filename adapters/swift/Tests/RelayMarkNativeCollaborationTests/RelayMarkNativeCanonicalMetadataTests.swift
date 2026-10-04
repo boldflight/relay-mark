@@ -264,3 +264,33 @@ struct RelayMarkNativeCanonicalMetadataTests {
  }
 
 }
+
+extension RelayMarkNativeCanonicalMetadataTests {
+ @Test @MainActor func actualRichReplacementExportsSenderSnapshotAndCompleteSteps() throws {
+  let document=RelayMarkNativeDocument()
+  try document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Hello world",namespace:"native-steps"))
+  let before=try document.captureSenderSnapshot()
+  let change=try RelayMarkNativeRichEditing.replace(document:document,range:NSRange(location:6,length:5),runs:[("peer",["bold":true]),("!",["italic":true])],expectedSnapshot:document.snapshot())
+  #expect(change.beforeSnapshot == before)
+  let steps=try JSONSerialization.jsonObject(with:change.steps) as! [[String:Any]]
+  #expect(steps.count==1)
+  #expect(steps[0]["stepType"] as? String == "replace")
+  #expect(steps[0]["from"] as? Int == 7);#expect(steps[0]["to"] as? Int == 12)
+  let content=(steps[0]["slice"] as! [String:Any])["content"] as! [[String:Any]]
+  #expect(content[0]["text"] as? String == "peer")
+  #expect((content[0]["marks"] as! [[String:Any]])[0]["type"] as? String == "bold")
+  #expect(content[1]["text"] as? String == "!")
+  #expect((content[1]["marks"] as! [[String:Any]])[0]["type"] as? String == "italic")
+  #expect(String(try document.richProseProjection().text.characters)=="Hello peer!")
+  let enter=try RelayMarkNativeRichEditing.replace(document:document,range:NSRange(location:3,length:0),runs:[("\n",[:])],expectedSnapshot:document.snapshot())
+  let enterSteps=try JSONSerialization.jsonObject(with:enter.steps) as! [[String:Any]]
+  #expect(enterSteps.contains{$0["stepType"] as? String == "replace"})
+  #expect(String(try document.richProseProjection().text.characters)=="Hel\nlo peer!")
+  let inserted=try RelayMarkNativeRichEditing.insertBlock(document:document,range:NSRange(location:0,length:0),block:["type":"paragraph","content":[["type":"text","text":"New"]]],placement:.insertContent,expectedSnapshot:document.snapshot())
+  let insertedSteps=try JSONSerialization.jsonObject(with:inserted.steps) as! [[String:Any]]
+  let repair=try #require(insertedSteps.first{$0["stepType"] as? String == "attr" && $0["attr"] as? String == "relaymarkId"})
+  #expect(repair["value"] as? String != nil)
+  let insertedProse=String(try document.richProseProjection().text.characters)
+  #expect(insertedProse=="\nNew\nHel\nlo peer!")
+ }
+}
