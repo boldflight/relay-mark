@@ -24,6 +24,16 @@
       "markSet": null
     },
     {
+      "name": "doc",
+      "content": "block+",
+      "attrs": {
+        "relaymark": {
+          "default": {}
+        }
+      },
+      "markSet": []
+    },
+    {
       "name": "blockquote",
       "content": "block+",
       "group": "block",
@@ -44,11 +54,6 @@
           "default": null
         }
       },
-      "markSet": []
-    },
-    {
-      "name": "doc",
-      "content": "block+",
       "markSet": []
     },
     {

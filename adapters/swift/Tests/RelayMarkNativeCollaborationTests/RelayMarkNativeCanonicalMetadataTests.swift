@@ -3,6 +3,21 @@ import Testing
 import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 struct RelayMarkNativeCanonicalMetadataTests {
+ @Test @MainActor func actualRepeatedAndIdenticalHumanTextRetainsCanonicalSourceIdentity() throws {
+  let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/content-edit-identical-human-replacement.json"))) as! [String:Any]
+  for length in [0,2] {
+   let document=RelayMarkNativeDocument()
+   try document.applyUpdate(Data(base64Encoded:fixture["sender_state_base64"] as! String)!)
+   let observation=try document.captureContentEditObservation()
+   let change=try RelayMarkNativeRichEditing.replace(document:document,range:NSRange(location:1,length:length),runs:[("🌍",[:])],expectedSnapshot:document.snapshot())
+   let witness=try JSONSerialization.jsonObject(with:document.buildContentEditWitness(observation,steps:change.steps,update:change.update)) as! [String:Any]
+   let human=(witness["text_items"] as! [String:Any])["runs"] as! [[String:Any]]
+   #expect(human.reduce(0){$0+($1["count"] as! Int)} == 2)
+   #expect(!change.update.isEmpty)
+   #expect(String(try document.richProseProjection().text.characters).hasPrefix(length==0 ? "A🌍🌍Z" : "A🌍Z"))
+  }
+ }
  @Test func currentSourceSelectorUsesSharedRichIdentityResolver() throws {
   let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
   let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/content-edit-repeated-peer-input.json"))) as! [String:Any]
@@ -481,10 +496,16 @@ struct RelayMarkNativeCanonicalMetadataTests {
 
  @Test @MainActor func removeLinkTypeEmitsEachAuthoredHrefWithoutDefaultAttributeGuessing() throws {
   let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
-  try peer.applyUpdate(document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("[A](https://one.example) [B](https://two.example)",namespace:"remove-links")))
+  let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/retained-marked-text-branches.json"))) as! [String:Any]
+  let original=Data(base64Encoded:fixture["state_base64"] as! String)!
+  try document.applyUpdate(original);try peer.applyUpdate(original)
+  let observation=try document.captureContentEditObservation()
   let maybeChange=try RelayMarkNativeRichEditing.format(document:document,range:NSRange(location:0,length:3),mark:"link",enabled:false,expectedSnapshot:document.snapshot())
   let change=try #require(maybeChange)
   let steps=try JSONSerialization.jsonObject(with:change.steps) as! [[String:Any]]
+  let proof=try JSONSerialization.jsonObject(with:document.buildContentEditWitness(observation,steps:change.steps,update:change.update)) as! [String:Any]
+  #expect(((proof["text_items"] as! [String:Any])["runs"] as! [Any]).isEmpty)
   #expect(steps.count==2)
   #expect(steps.map{$0["stepType"] as! String} == ["removeMark","removeMark"])
   #expect(steps.map{(($0["mark"] as! [String:Any])["attrs"] as! [String:Any])["href"] as! String} == ["https://one.example","https://two.example"])

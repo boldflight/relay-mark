@@ -62,7 +62,7 @@ defmodule RelayMark.ContentEditMutationTest do
 
   test "explicit rich Slice source IDs can repeat while exact fresh destinations remain disjoint" do
     fixture =
-      File.read!(Path.join(@root, "content-edit-duplicated-slice-witness.json"))
+      File.read!(Path.join(@root, "content-edit-duplicated-slice-causal.json"))
       |> Jason.decode!()
 
     assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()

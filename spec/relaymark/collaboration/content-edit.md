@@ -197,5 +197,26 @@ selection replacement can also produce no Yjs update. Three preserved fixtures
 (`content-edit-repeated-human-input.json`, `content-edit-repeated-peer-input.json`
 and `content-edit-identical-human-replacement.json`) capture these real faults.
 This refusal uses maintained StepMaps and item clocks, never equal text to
-relabel provenance. The same writer still needs the complete actual command
-identity port; refusing unproven source is not completion of those operations.
+relabel provenance. Canonical local commands now prepare their complete initial and appended Step
+sequence before the maintained writer runs. `createContentEditWrite(before,
+steps, after)` verifies the actual final PM tree and plans retained text solely
+from maintained StepMaps. The browser binding receives this through
+`ySyncOptions.prepareContentEditWrite`; native uses the same packaged planner
+before its existing Yrs writer. Authoritative normal replay requires that same
+causal context. Remote/read synchronization carries no local authoring intent.
+
+Each original XML text branch retains its exact type and item ranges even when
+several adjacent branches represent one marked text group. Equal values only
+check already-mapped retained ranges; they never discover retained input.
+Identical selection replacement therefore deletes the selected items and
+allocates the actual inserted input. Construction of new documents groups
+adjacent text runs into one XML text branch with full delta marks; existing
+multi-branch checkpoints remain unchanged and admitted.
+
+Actual step-mapped retained text can acquire changed formatting during a move;
+copy proof requires that exact retained source/destination mapping plus the
+complete admitted Step consequence. Explicit inserted Slice copies still
+require original source text and full attributes. Shared full-footprint replay,
+scoped receipts and owned history remain separate mandatory admission gates.
+These focused writer checks do not enable a source capability or establish
+published client integration.

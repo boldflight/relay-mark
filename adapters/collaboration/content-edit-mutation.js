@@ -9,7 +9,7 @@ import btoa from 'core-js-pure/actual/btoa.js';
 const toBase64=bytes=>btoa(Array.from(bytes,v=>String.fromCharCode(v)).join(''));
 const fromBase64=value=>Uint8Array.from(atob(value),v=>v.charCodeAt(0));
 import {createCanonicalEditorSchema} from '../../src/editor-model.js';
-import {applyContentEdit} from '../../src/content-edit.js';
+import {applyContentEdit,createContentEditWrite} from '../../src/content-edit.js';
 import {stableStringify,cloneCanonicalJSON as clone} from '../../src/canonical-json.js';
 import {bindOwnedHistoryOwner,readOwnedCommandGroup,bindOwnedCommandGroup,bindOwnedCommandHistory,validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
 import {captureContentEditFootprint,captureContentEditSnapshot} from './content-edit-observer.js';
@@ -39,7 +39,7 @@ export function replayContentEditMutation(evidence){
   const initialized=initProseMirrorDoc(sender.getXmlFragment('default'),schema),expected=applyContentEdit(initialized.doc.toJSON(),evidence.operation);let result=initialized.doc;
   for(const json of evidence.operation.steps){const applied=Step.fromJSON(schema,json).apply(result);if(applied.failed)throw TypeError('Refused maintained command');result=applied.doc;}
   if(!same(result.toJSON(),expected.document))throw TypeError('Maintained command execution disagrees');
-  sender.clientID=evidence.writer_client??0;const updates=[];sender.on('update',update=>updates.push(update));updateYFragment(sender,sender.getXmlFragment('default'),result,initialized.meta);
+  sender.clientID=evidence.writer_client??0;const updates=[];sender.on('update',update=>updates.push(update));initialized.meta.contentEditWrite=createContentEditWrite(initialized.doc,evidence.operation.steps,result);updateYFragment(sender,sender.getXmlFragment('default'),result,initialized.meta);
   if(updates.length!==1)throw TypeError('Command must produce one maintained mutation transaction');const update=updates[0];
   const known=new Map();for(const record of captureContentEditFootprint(current,currentBytes).structs){const list=known.get(record.item.client)||[];list.push(record);known.set(record.item.client,list);}const ds=Y.createDeleteSetFromStructStore(current.store),deleted=[];for(const [client,ranges]of ds.clients)for(const r of ranges)deleted.push({item:{client,clock:r.clock},count:r.len});
   Y.applyUpdate(current,update);const footprint=captureContentEditFootprint(current,update),actual=normalized(evidence.footprint,before,known,deleted),replayed=normalized(footprint,before,known,deleted);

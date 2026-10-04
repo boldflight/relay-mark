@@ -7,7 +7,8 @@ const schema=createCanonicalEditorSchema();
 function valid(document){relayMarkToProseMirror(document);return document;}
 const metadataKeys=['frontmatter','annotations','resources','meta'];
 export function documentToSnapshot(ast){ast=normalizeDocument(ast);const pm=relayMarkToProseMirror(ast);
- function node(n){if(n.type==='text')return {kind:'text',delta:[{insert:n.text,attributes:Object.fromEntries((n.marks||[]).map(m=>[m.type,m.attrs||{}]))}]};return {kind:'element',name:n.type,attributes:n.attrs||{},children:(n.content||[]).map(node)};}
+ function children(nodes){const result=[];for(const n of nodes){const next=node(n),last=result.at(-1);if(next.kind==='text'&&last?.kind==='text')last.delta.push(...next.delta);else result.push(next)}return result;}
+ function node(n){if(n.type==='text')return {kind:'text',delta:[{insert:n.text,attributes:Object.fromEntries((n.marks||[]).map(m=>[m.type,m.attrs||{}]))}]};return {kind:'element',name:n.type,attributes:n.attrs||{},children:children(n.content||[])};}
  const metadata=Object.fromEntries(metadataKeys.filter(k=>Object.hasOwn(ast,k)).map(k=>[k,cloneJSON(ast[k])]));return {kind:'fragment',children:pm.content.map(node),...(Object.keys(metadata).length?{metadata}: {})};
 }
 export function snapshotToDocument(snapshot){

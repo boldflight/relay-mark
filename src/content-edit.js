@@ -85,3 +85,38 @@ export function buildOwnedHistoryWitness(evidence){return buildObservedHistory(e
 export {classifyContentEditReference,foldSourceReferences} from './document-source-identities.js';
 
 export {resolveContentEditTextItems} from './content-edit-witness.js';
+
+import {contentEditTextGroups,planContentEditTextWrite} from './content-edit-write.js';
+export {planContentEditTextWrite} from './content-edit-write.js';
+/** In-process causal writer evidence, never a transport claim or authority. */
+export function prepareContentEditWrite(before,steps,after){
+ const expected=applyContentEdit(before,{kind:'content_edit',steps});
+ if(stableStringify(expected.document)!==stableStringify(after))throw TypeError('Causal writer result disagrees with actual steps');
+ const groups=document=>Object.fromEntries(contentEditTextGroups(schema.nodeFromJSON(document)).map(group=>[group.parent+':'+group.index,group]));
+ const prepared={retained_ranges:expected.retained_ranges,before_groups:groups(before),after_groups:groups(after)};
+ const causal_targets=[];
+ for(const target of Object.values(prepared.after_groups)){
+  const source=prepared.before_groups[target.parent+':'+target.index];
+  let retained=false;
+  if(source&&source.text.length===target.text.length){
+   if(!source.text.length)retained=true;
+   else{
+    let lower=0,upper=prepared.retained_ranges.length;
+    while(lower<upper){const middle=(lower+upper)>>>1,range=prepared.retained_ranges[middle];if(range.source_from+range.length<=source.position)lower=middle+1;else upper=middle;}
+    const range=prepared.retained_ranges[lower];
+    retained=!!range&&range.source_from<=source.position&&range.source_from+range.length>=source.position+source.text.length&&range.destination_from+source.position-range.source_from===target.position;
+   }
+  }
+  if(!retained)causal_targets.push(target.parent);
+ }
+ return {...prepared,causal_targets:[...new Set(causal_targets)]};
+}
+
+/** Callback for the maintained binding, also used by exact headless replay. */
+export function createContentEditWrite(before,steps,after){
+ const prepared=prepareContentEditWrite(before.toJSON(),steps,after.toJSON());
+ const targets=new Set(prepared.causal_targets),needed=new WeakMap();
+ function visit(node){let changed=targets.has(node.attrs.relaymarkId);node.forEach(child=>{if(visit(child))changed=true});needed.set(node,changed);return changed}
+ visit(after);
+ return {requiresWrite:node=>needed.get(node)===true,planText:(sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)=>planContentEditTextWrite(prepared,sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)};
+}

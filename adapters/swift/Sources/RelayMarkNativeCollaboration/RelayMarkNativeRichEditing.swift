@@ -410,6 +410,8 @@ public enum RelayMarkNativeRichEditing {
         let updated=witnessed.doc
         let beforeSnapshot=try document.captureSenderSnapshot()
         let steps=try JSONSerialization.data(withJSONObject:witnessed.steps.map { $0.json() },options:[.sortedKeys])
+        let prepared=try RelayMarkContentEditCodec.prepareWrite(before:JSONSerialization.data(withJSONObject:source.json()),steps:steps,after:JSONSerialization.data(withJSONObject:updated.json()))
+        try bridge.prepareWrite(prepared)
         let prospective = bridge.snapshot(updated)
         let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))

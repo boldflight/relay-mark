@@ -5568,6 +5568,83 @@ var schema = createCanonicalEditorSchema();
 // src/content-edit-witness.js
 var schema2 = createCanonicalEditorSchema();
 
+// src/content-edit-write.js
+function contentEditTextGroups(document2) {
+  const groups = [];
+  function visit(node, position) {
+    let groupIndex = 0, group = null;
+    node.forEach((child, offset) => {
+      const start = (node.type.name === "doc" ? 0 : position + 1) + offset;
+      if (child.isText) {
+        if (!group) {
+          group = { parent: node.attrs.relaymarkId, index: groupIndex++, position: start, text: "" };
+          groups.push(group);
+        }
+        group.text += child.text;
+      } else {
+        group = null;
+        visit(child, start);
+        groupIndex++;
+      }
+    });
+    if (node.inlineContent && node.content.size === 0) groups.push({ parent: node.attrs.relaymarkId, index: 0, position: position + 1, text: "" });
+  }
+  visit(document2, -1);
+  return groups;
+}
+function boundary(text, offset) {
+  if (offset > 0 && offset < text.length) {
+    const a = text.charCodeAt(offset - 1), b = text.charCodeAt(offset);
+    if (a >= 55296 && a <= 56319 && b >= 56320 && b <= 57343) throw TypeError("Causal writer boundary splits Unicode");
+  }
+}
+function planContentEditTextWrite(prepared, sourceParent, sourceGroup, targetParent, targetGroup, sourceSpan) {
+  let source = prepared.before_groups[sourceParent + ":" + sourceGroup], target = prepared.after_groups[targetParent + ":" + targetGroup];
+  if (!source || !target) throw TypeError("Causal writer text group unavailable");
+  if (sourceSpan !== void 0) {
+    if (!sourceSpan || Object.keys(sourceSpan).sort().join(",") !== "length,offset" || !Number.isSafeInteger(sourceSpan.offset) || !Number.isSafeInteger(sourceSpan.length) || sourceSpan.offset < 0 || sourceSpan.length < 0 || sourceSpan.offset + sourceSpan.length > source.text.length) throw TypeError("Invalid causal source branch span");
+    boundary(source.text, sourceSpan.offset);
+    boundary(source.text, sourceSpan.offset + sourceSpan.length);
+    source = { ...source, position: source.position + sourceSpan.offset, text: source.text.slice(sourceSpan.offset, sourceSpan.offset + sourceSpan.length) };
+  }
+  const kept = [];
+  let lower = 0, upper = prepared.retained_ranges.length;
+  while (lower < upper) {
+    const middle = lower + upper >>> 1, range = prepared.retained_ranges[middle];
+    if (range.source_from + range.length <= source.position) lower = middle + 1;
+    else upper = middle;
+  }
+  for (let i = lower; i < prepared.retained_ranges.length && prepared.retained_ranges[i].source_from < source.position + source.text.length; i++) {
+    const range = prepared.retained_ranges[i];
+    const from2 = Math.max(range.source_from, source.position, range.source_from + target.position - range.destination_from);
+    const to2 = Math.min(range.source_from + range.length, source.position + source.text.length, range.source_from + target.position + target.text.length - range.destination_from);
+    if (from2 < to2) kept.push({ source: from2 - source.position, target: range.destination_from + from2 - range.source_from - target.position, count: to2 - from2 });
+  }
+  kept.sort((a, b) => a.target - b.target);
+  const delta = [];
+  let from = 0, to = 0;
+  function gaps(nextSource, nextTarget) {
+    boundary(source.text, from);
+    boundary(source.text, nextSource);
+    boundary(target.text, to);
+    boundary(target.text, nextTarget);
+    if (nextSource < from || nextTarget < to) throw TypeError("Causal writer retention order disagrees");
+    if (nextSource > from) delta.push({ delete: nextSource - from });
+    if (nextTarget > to) delta.push({ insert: target.text.slice(to, nextTarget) });
+  }
+  for (const range of kept) {
+    gaps(range.source, range.target);
+    boundary(source.text, range.source + range.count);
+    boundary(target.text, range.target + range.count);
+    if (source.text.slice(range.source, range.source + range.count) !== target.text.slice(range.target, range.target + range.count)) throw TypeError("Causal writer retained contents disagree");
+    delta.push({ retain: range.count });
+    from = range.source + range.count;
+    to = range.target + range.count;
+  }
+  gaps(source.text.length, target.text.length);
+  return delta;
+}
+
 // src/content-edit.js
 var schema3 = createCanonicalEditorSchema();
 function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = {}) {
@@ -5623,6 +5700,46 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   }
   if (cursor < document2.content.size) inserted_ranges.push({ destination_from: cursor, length: document2.content.size - cursor });
   return { document: json, authored_document, step_maps, retained_ranges, inserted_ranges };
+}
+function prepareContentEditWrite(before, steps, after) {
+  const expected = applyContentEdit(before, { kind: "content_edit", steps });
+  if (stableStringify(expected.document) !== stableStringify(after)) throw TypeError("Causal writer result disagrees with actual steps");
+  const groups = (document2) => Object.fromEntries(contentEditTextGroups(schema3.nodeFromJSON(document2)).map((group) => [group.parent + ":" + group.index, group]));
+  const prepared = { retained_ranges: expected.retained_ranges, before_groups: groups(before), after_groups: groups(after) };
+  const causal_targets = [];
+  for (const target of Object.values(prepared.after_groups)) {
+    const source = prepared.before_groups[target.parent + ":" + target.index];
+    let retained = false;
+    if (source && source.text.length === target.text.length) {
+      if (!source.text.length) retained = true;
+      else {
+        let lower = 0, upper = prepared.retained_ranges.length;
+        while (lower < upper) {
+          const middle = lower + upper >>> 1, range2 = prepared.retained_ranges[middle];
+          if (range2.source_from + range2.length <= source.position) lower = middle + 1;
+          else upper = middle;
+        }
+        const range = prepared.retained_ranges[lower];
+        retained = !!range && range.source_from <= source.position && range.source_from + range.length >= source.position + source.text.length && range.destination_from + source.position - range.source_from === target.position;
+      }
+    }
+    if (!retained) causal_targets.push(target.parent);
+  }
+  return { ...prepared, causal_targets: [...new Set(causal_targets)] };
+}
+function createContentEditWrite(before, steps, after) {
+  const prepared = prepareContentEditWrite(before.toJSON(), steps, after.toJSON());
+  const targets = new Set(prepared.causal_targets), needed = /* @__PURE__ */ new WeakMap();
+  function visit(node) {
+    let changed = targets.has(node.attrs.relaymarkId);
+    node.forEach((child) => {
+      if (visit(child)) changed = true;
+    });
+    needed.set(node, changed);
+    return changed;
+  }
+  visit(after);
+  return { requiresWrite: (node) => needed.get(node) === true, planText: (sourceParent, sourceGroup, targetParent, targetGroup, sourceSpan) => planContentEditTextWrite(prepared, sourceParent, sourceGroup, targetParent, targetGroup, sourceSpan) };
 }
 
 // node_modules/lib0/webcrypto.js
@@ -6012,6 +6129,7 @@ function replayContentEditMutation(evidence) {
     sender.clientID = evidence.writer_client ?? 0;
     const updates = [];
     sender.on("update", (update2) => updates.push(update2));
+    initialized.meta.contentEditWrite = createContentEditWrite(initialized.doc, evidence.operation.steps, result);
     updateYFragment(sender, sender.getXmlFragment("default"), result, initialized.meta);
     if (updates.length !== 1) throw TypeError("Command must produce one maintained mutation transaction");
     const update = updates[0];

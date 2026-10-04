@@ -47,7 +47,19 @@ final class RelayMarkNativeRichEditingTests: XCTestCase {
         let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let exported=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-editor-schema.json")))
         let embedded = try JSONSerialization.jsonObject(with: Data(RelayMarkNativeProseMirrorSchema.json.utf8))
-        XCTAssertEqual(try canonical(embedded), try canonical(exported))
+        // The host registers PaperDocument at a different priority; paragraph
+        // remains the shared default fill. Compare every serializable semantic
+        // property by node/mark name rather than registration position.
+        func namedSchema(_ value: Any) throws -> [String: Any] {
+            var schema = try XCTUnwrap(value as? [String: Any])
+            for key in ["nodes", "marks"] {
+                let entries = try XCTUnwrap(schema[key] as? [[String: Any]])
+                if key == "nodes" { XCTAssertEqual(entries.first?["name"] as? String, "paragraph") }
+                schema[key] = entries.sorted { ($0["name"] as? String ?? "") < ($1["name"] as? String ?? "") }
+            }
+            return schema
+        }
+        XCTAssertEqual(try canonical(namedSchema(embedded)), try canonical(namedSchema(exported)))
         XCTAssertNoThrow(try PMYXmlBridge.canonical())
     }
 

@@ -1,6 +1,7 @@
 import Foundation
 import Yniffi
 import YSwift
+import RelayMarkSwift
 
 /// The y-prosemirror binding between a canonical Y.XmlFragment and a ProseMirror
 /// document: createNodeFromYElement for reading, and updateYFragment /
@@ -23,6 +24,24 @@ final class PMYXmlBridge {
     /// Children of each converted PM element in Y order; identity mapping for updateYFragment.
     private var sources: [ObjectIdentifier: [Child]] = [:]
     private var retained: [PMNode] = []
+
+    private var causalWrite: Data?
+    private var causalTargets = Set<String>()
+    private var causalNodes: [ObjectIdentifier:Bool] = [:]
+    func prepareWrite(_ prepared: Data) throws {
+        guard let value=try JSONSerialization.jsonObject(with:prepared) as? [String:Any],
+              let targets=value["causal_targets"] as? [String] else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
+        causalWrite=prepared;causalTargets=Set(targets);causalNodes.removeAll()
+    }
+    private func requiresWrite(_ node:PMNode) -> Bool {
+        let key=ObjectIdentifier(node)
+        if let value=causalNodes[key] {return value}
+        let result=(node.attrs["relaymarkId"] as? String).map{causalTargets.contains($0)} == true || node.content.children.contains{requiresWrite($0)}
+        causalNodes[key]=result;return result
+    }
+    private func requiresWrite(_ child:Child,parent:PMNode) -> Bool {
+        switch child {case .node(let node):return requiresWrite(node);case .text:return requiresWrite(parent)}
+    }
 
     init(schema: PMSchema) { self.schema = schema }
 
@@ -162,12 +181,14 @@ final class PMYXmlBridge {
         let mapping = mapped(source, count: yCount)
         var left = 0, right = 0
         while left < minCount {
+            if requiresWrite(pChildren[left],parent:p) {break}
             if !Self.mappedIdentity(mapping?[left], pChildren[left]),
                !(try equal(yChildren[left], pChildren[left], in: tx)) { break }
             left += 1
         }
         while right + left < minCount {
             let yIndex = yCount - right - 1, pIndex = pCount - right - 1
+            if requiresWrite(pChildren[pIndex],parent:p) {break}
             if !Self.mappedIdentity(mapping?[yIndex], pChildren[pIndex]),
                !(try equal(yChildren[yIndex], pChildren[pIndex], in: tx)) { break }
             right += 1
@@ -177,7 +198,8 @@ final class PMYXmlBridge {
             let rightIndex = yCount - right - 1
             let rightY = yChildren[rightIndex], rightP = pChildren[pCount - right - 1]
             if leftY.kind(in: tx) == "text", case .text(let texts) = leftP {
-                if !(try equalText(leftY, texts, in: tx)) { try updateText(leftY, texts, in: tx) }
+                let matches=try equalText(leftY,texts,in:tx)
+                if requiresWrite(p) || !matches { try updateText(leftY, texts, sourceParent:source,sourceGroup:left,targetParent:p,targetGroup:left,in:tx) }
                 left += 1
                 continue
             }
@@ -271,26 +293,31 @@ final class PMYXmlBridge {
         return true
     }
 
-    private func updateText(_ y: YXmlNode, _ texts: [PMNode], in tx: YrsTransaction) throws {
+    private func updateText(_ y: YXmlNode, _ texts: [PMNode], sourceParent:PMNode?,sourceGroup:Int,targetParent:PMNode,targetGroup:Int,in tx: YrsTransaction) throws {
         let delta = try y.delta(in: tx)
         var cleared: [String: Any] = [:]
         for run in delta { for key in run.attributes.keys { cleared[key] = NSNull() } }
-        let current = delta.flatMap { Array($0.text.utf16) }
         let content = texts.map { text -> ([UInt16], [String: Any]) in
             (text.text!, cleared.merging(Self.attributes(text.marks)) { $1 })
         }
-        let target = content.flatMap(\.0)
-        var left = 0, right = 0
-        while left < current.count && left < target.count && current[left] == target[left] { left += 1 }
-        if left > 0 && UTF16.isLeadSurrogate(current[left - 1]) { left -= 1 }
-        while right + left < current.count && right + left < target.count &&
-            current[current.count - right - 1] == target[target.count - right - 1] { right += 1 }
-        if right > 0 && UTF16.isTrailSurrogate(current[current.count - right]) { right -= 1 }
-        let remove = current.count - left - right
-        let insert = Array(target[left..<(target.count - right)])
-        if remove > 0 { try y.removeText(start: UInt32(left), length: UInt32(remove), in: tx) }
-        if !insert.isEmpty {
-            try y.insert(String(decoding: insert, as: UTF16.self), attributes: [:], at: UInt32(left), in: tx)
+        guard let prepared=causalWrite,let sourceID=sourceParent?.attrs["relaymarkId"] as? String,
+              let targetID=targetParent.attrs["relaymarkId"] as? String else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
+        guard let sourceParent,let rawGroups=sources[ObjectIdentifier(sourceParent)],sourceGroup<rawGroups.count else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
+        var group=0, sourceOffset=0, inText=false
+        for raw in rawGroups.prefix(sourceGroup) {
+            switch raw {
+            case .text(let texts):inText=true;sourceOffset+=texts.reduce(0){$0+$1.textString.utf16.count}
+            case .node:if inText {group+=1;inText=false};group+=1;sourceOffset=0
+            }
+        }
+        let planned=try RelayMarkContentEditCodec.planTextWrite(prepared:prepared,sourceParent:sourceID,sourceGroup:group,targetParent:targetID,targetGroup:targetGroup,sourceOffset:sourceOffset,sourceLength:delta.reduce(0){$0+$1.text.utf16.count})
+        let changes=try JSONSerialization.jsonObject(with:planned) as! [[String:Any]]
+        var cursor=0
+        for change in changes {
+            if let count=change["retain"] as? Int {cursor+=count}
+            else if let count=change["delete"] as? Int {try y.removeText(start:UInt32(cursor),length:UInt32(count),in:tx)}
+            else if let text=change["insert"] as? String {try y.insert(text,attributes:[:],at:UInt32(cursor),in:tx);cursor+=text.utf16.count}
+            else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
         }
         var offset = 0
         for (text, attributes) in content {
