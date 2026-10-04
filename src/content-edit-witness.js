@@ -45,7 +45,7 @@ export function prepareWitness(evidence,interpret){
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','text_items','footprint']);
  const {footprint,operation}=evidence;keys(footprint,['state_vector','structs','declared_deletes','deleted_items']);if(!Array.isArray(footprint.structs)||!Array.isArray(footprint.declared_deletes)||!Array.isArray(footprint.deleted_items)||footprint.structs.length+footprint.deleted_items.length>1_000_000)throw TypeError('Invalid complete mutation footprint');
  const beforeClocks=clocks(evidence.before_state_vector),afterClocks=clocks(footprint.state_vector);for(const [client,clock]of beforeClocks)if(clock>(afterClocks.get(client)||0))throw TypeError('Mutation frontier is behind trusted prestate');
- keys(operation,['kind','steps','copies','history'],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
+ keys(operation,['kind','steps','copies','history','group'],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
  const sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),before=index(evidence.before_snapshot),after=index(evidence.after_snapshot),expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm))throw TypeError('Actual sender result disagrees with maintained steps');
  if(!same(evidence.sender_after_snapshot.metadata??{},evidence.sender_before_snapshot.metadata??{})||!same(evidence.after_snapshot.metadata??{},evidence.before_snapshot.metadata??{}))throw TypeError('Content steps cannot mutate authored envelope');
@@ -74,7 +74,7 @@ export function prepareWitness(evidence,interpret){
  * for inserted Slice content remains an independent host obligation. */
 export function buildWitness(evidence,interpret){
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint']);
- keys(evidence.operation,['kind','steps','history'],['kind','steps']);
+ keys(evidence.operation,['kind','steps','history','group'],['kind','steps']);
  const sender=index(evidence.sender_before_snapshot),after=index(evidence.sender_after_snapshot),frontier=clocks(evidence.before_state_vector),expected=interpret(sender.pm,{...evidence.operation,copies:[]});
  if(!same(after.pm,expected.document))throw TypeError('Actual sender disagrees with maintained command');
  const copies=[],human=[];

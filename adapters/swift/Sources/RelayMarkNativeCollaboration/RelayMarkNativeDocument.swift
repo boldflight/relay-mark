@@ -41,7 +41,7 @@ public final class RelayMarkNativeDocument {
     private var ownedOperationID: UUID?
     private final class HistoryCapture {
         var inverseMetadata: [NSMutableData] = []
-        var reference: UUID?
+        var operations: [UUID]?
     }
     private var historyCapture: HistoryCapture?
 
@@ -186,7 +186,6 @@ public final class RelayMarkNativeDocument {
 
     /// One scoped retained Yrs checkpoint. The host owns authorization and durable storage.
     public func exportHistoryState(scopeToken: String) throws -> Data {
-        wrapUndo()
         let archive = try undoManager.exportHistory(scopeToken:scopeToken) { object in
             guard let data=object as? NSData else { throw Failure.unsupportedProseEdit }
             return data as Data
@@ -200,6 +199,33 @@ public final class RelayMarkNativeDocument {
     /// Load the checkpoint update before restoring stacks; integrate newer peer updates afterward.
     public static func historyDocumentState(_ state: Data) throws -> Data { try historyArchive(state).documentState }
     public static func historyDocumentGUID(_ state: Data) throws -> String { try historyArchive(state).documentGUID }
+
+    public struct RetainedHistoryImport: Sendable {
+        public let originalState: Data
+        public let state: Data
+        public let normalizations: Data
+    }
+
+    /// Explicit finite conversion of saved single-command receipt metadata.
+    /// Preserve originalState durably before installing state. Unknown metadata
+    /// remains unbound evidence; it never becomes an owned command receipt.
+    public static func importRetainedHistoryState(_ state: Data) throws -> RetainedHistoryImport {
+        _ = try historyArchive(state)
+        var envelope = try JSONSerialization.jsonObject(with:state) as! [String:Any]
+        var archive = envelope["history"] as! [String:Any]
+        let metadata = archive["metadata"] as! [Any]
+        var changes:[[String:Any]]=[]
+        archive["metadata"] = try metadata.enumerated().map { index,value -> Any in
+            guard let object=value as? [String:Any],Set(object.keys)==["operation_id"] else { return value }
+            guard let text=object["operation_id"] as? String,let id=UUID(uuidString:text) else {throw Failure.unboundOwnedHistory}
+            changes.append(["path":["history","metadata",index],"operation":"owned_command_group"])
+            return ["operation_ids":[id.uuidString.lowercased()]]
+        }
+        envelope["history"] = archive
+        let imported = changes.isEmpty ? state : try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
+        _ = try historyArchive(imported)
+        return RetainedHistoryImport(originalState:state,state:imported,normalizations:try JSONSerialization.data(withJSONObject:changes,options:[.sortedKeys]))
+    }
 
     /// Rejection preserves the current document and manager. No reconstruction or second engine.
     public func restoreHistoryState(_ state: Data, scopeToken: String) throws {
@@ -226,7 +252,7 @@ public final class RelayMarkNativeDocument {
 
     /// Closes the current undo item unless an enclosing group is open.
     private func wrapUndo() {
-        if undoGroupDepth == 0 { undoManager.wrap() }
+        if undoGroupDepth == 0 && ownedOperationID == nil { undoManager.wrap() }
     }
 
     /// Runs several local edits as one undo item, as one ProseMirror
@@ -704,54 +730,85 @@ public final class RelayMarkNativeDocument {
         return result
     }
 
-    /// One actual local command owns exactly one maintained stack item. The host
-    /// allocates the immutable operation UUID before mutation and retains it for retry.
-    /// A thrown command is recovered through the host checkpoint, not a generic rollback.
-    public func performOwnedCommand(operationID: UUID, _ command: () throws -> Data) throws -> Data {
+    /// Bind each immutable command UUID to the maintained typing group. Capturing
+    /// a durable checkpoint does not close that live group. Hosts may explicitly
+    /// request a boundary for a semantic command, never for every keystroke.
+    public func performOwnedCommand(operationID: UUID, separateHistoryItem: Bool = false,
+                                    _ command: () throws -> Data) throws -> Data {
         guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
+        let history = undoManager.undoMetadata() + undoManager.redoMetadata()
+        guard !history.contains(where: { Self.operationReferences($0)?.contains(operationID) == true }) else { throw Failure.conflictingOwnedCommand }
+        if separateHistoryItem || undoManager.undoMetadata().last.map({ Self.operationReferences($0).map({$0.count>=4096}) ?? true }) == true {
+            undoManager.wrap()
+        }
         ownedOperationID = operationID
-        defer { ownedOperationID = nil }
-        return try groupingUndo(command)
+        defer { ownedOperationID = nil; if separateHistoryItem { undoManager.wrap() } }
+        return try command()
+    }
+
+    public func closeOwnedHistoryGroup() throws {
+        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
+        undoManager.wrap()
+    }
+
+    public struct OwnedCommandGroup: Sendable {
+        public let reference: UUID
+        public let operationIDs: [UUID]
+    }
+    public func ownedCommandGroup(operationID: UUID) throws -> OwnedCommandGroup {
+        guard let metadata=undoManager.undoMetadata().last,
+              let operations=Self.operationReferences(metadata),operations.last==operationID,
+              let first=operations.first else {throw Failure.unboundOwnedHistory}
+        return OwnedCommandGroup(reference:first,operationIDs:operations)
     }
 
     public struct OwnedHistoryEffect: Sendable {
         public let update: Data
         public let reference: UUID
+        public let operationIDs: [UUID]
     }
 
-    /// Refuses unknown receipts before consuming history or changing CRDT state.
-    /// The actual Popped event identifies the consumed item, including skipped
-    /// obsolete items; it never guesses the source from text or the visible top item.
+    /// The actual Popped event identifies the consumed group, including skipped
+    /// obsolete items. Receipts remain the host's independent authority.
     public func undoWithReference() throws -> OwnedHistoryEffect? { try ownedHistory(redo:false) }
     public func redoWithReference() throws -> OwnedHistoryEffect? { try ownedHistory(redo:true) }
     private func ownedHistory(redo: Bool) throws -> OwnedHistoryEffect? {
         guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
         let metadata = redo ? undoManager.redoMetadata() : undoManager.undoMetadata()
-        for object in metadata { guard Self.operationReference(object) != nil else { throw Failure.unboundOwnedHistory } }
+        for object in metadata { guard Self.operationReferences(object) != nil else { throw Failure.unboundOwnedHistory } }
         guard let update = try performHistory(redo:redo) else { return nil }
-        guard let reference = lastHistoryReference else { throw Failure.unboundOwnedHistory }
-        return OwnedHistoryEffect(update:update,reference:reference)
+        guard let operations = lastHistoryOperations,let reference = operations.first else { throw Failure.unboundOwnedHistory }
+        return OwnedHistoryEffect(update:update,reference:reference,operationIDs:operations)
     }
-    private var lastHistoryReference: UUID?
+    private var lastHistoryOperations: [UUID]?
 
-    private static func operationReference(_ object: NSObject?) -> UUID? {
+    private static func operationReferences(_ object: NSObject?) -> [UUID]? {
         guard let data=object as? NSData,
               let value=(try? JSONSerialization.jsonObject(with:data as Data)) as? [String:Any],
-              Set(value.keys)==["operation_id"],let id=value["operation_id"] as? String else { return nil }
-        return UUID(uuidString:id)
+              Set(value.keys)==["operation_ids"],let ids=value["operation_ids"] as? [String],
+              !ids.isEmpty,ids.count<=4096 else { return nil }
+        let operations=ids.compactMap(UUID.init(uuidString:))
+        guard operations.count==ids.count,Set(operations).count==operations.count,
+              operations.map({$0.uuidString.lowercased()})==ids else {return nil}
+        return operations
     }
-    private static func operationMetadata(_ operationID: UUID) -> Data {
-        // A UUID contains no escaping-sensitive characters.
-        Data("{\"operation_id\":\"\(operationID.uuidString.lowercased())\"}".utf8)
+    private static func operationMetadata(_ operationIDs: [UUID]) -> Data {
+        let ids=operationIDs.map{"\""+$0.uuidString.lowercased()+"\""}.joined(separator:",")
+        return Data(("{\"operation_ids\":["+ids+"]}").utf8)
     }
-    private func bindStackMetadata() -> NSObject? {
+    private func bindStackMetadata(current: NSObject? = nil, extending: Bool = false) -> NSObject? {
         if let capture=self.historyCapture {
             let placeholder=NSMutableData(data:Data("null".utf8))
             capture.inverseMetadata.append(placeholder)
             return placeholder
         }
         guard let id=self.ownedOperationID else { return nil }
-        return Self.operationMetadata(id) as NSData
+        if extending {
+            guard var operations=Self.operationReferences(current),operations.count<4096 else {return nil}
+            if !operations.contains(id){operations.append(id)}
+            return Self.operationMetadata(operations) as NSData
+        }
+        return Self.operationMetadata([id]) as NSData
     }
     private func installHistoryObservers() {
         historySubscriptions = [
@@ -759,12 +816,12 @@ public final class RelayMarkNativeDocument {
                 guard let self else { return current }; return self.bindStackMetadata()
             },
             undoManager.observeUpdated { [weak self] _, current in
-                guard let self else { return current }; return self.bindStackMetadata()
+                guard let self else { return current }; return self.bindStackMetadata(current:current,extending:true)
             },
             undoManager.observePopped { [weak self] _, current in
                 guard let self,let capture=self.historyCapture else { return current }
-                capture.reference=Self.operationReference(current)
-                let bytes=capture.reference.map(Self.operationMetadata) ?? Data("null".utf8)
+                capture.operations=Self.operationReferences(current)
+                let bytes=capture.operations.map(Self.operationMetadata) ?? Data("null".utf8)
                 for inverse in capture.inverseMetadata { inverse.setData(bytes) }
                 return current
             }
@@ -774,10 +831,10 @@ public final class RelayMarkNativeDocument {
         guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
         let before=stateVector()
         wrapUndo()
-        let capture=HistoryCapture();historyCapture=capture;lastHistoryReference=nil
+        let capture=HistoryCapture();historyCapture=capture;lastHistoryOperations=nil
         defer { historyCapture=nil }
         guard try redo ? undoManager.redo() : undoManager.undo() else { return nil }
-        wrapUndo();lastHistoryReference=capture.reference
+        wrapUndo();lastHistoryOperations=capture.operations
         return try encodeUpdate(since:before)
     }
 

@@ -43,3 +43,5 @@ await build({ entryPoints:['src/content-edit.js'],bundle:true,format:'esm',platf
 await build({entryPoints:['adapters/collaboration/content-edit-observer.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-observer.js'});
 
 await build({entryPoints:['adapters/collaboration/content-edit-mutation.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs','@tiptap/y-tiptap','prosemirror-model','prosemirror-transform'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-mutation.js'});
+
+await build({entryPoints:['adapters/collaboration/owned-command-group.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/owned-command-group.js'});

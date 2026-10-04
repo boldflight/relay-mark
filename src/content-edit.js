@@ -6,6 +6,7 @@ import {createCanonicalEditorSchema} from './editor-model.js';
 export {createCanonicalEditorSchema} from './editor-model.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror} from './document-adapter.js';
 import {stableStringify} from './canonical-json.js';
+import {validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
 
 const schema=createCanonicalEditorSchema();
 
@@ -14,6 +15,8 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
     !Number.isSafeInteger(maximumSteps)||maximumSteps<1||maximumSteps>4096||
     operation.steps.length<1||operation.steps.length>maximumSteps)
   throw new TypeError('Invalid or oversized canonical content edit');
+ if(operation.group&&operation.history)throw TypeError('Command group and inverse history are exclusive');
+ if(operation.group)validateOwnedCommandGroup(operation.group);if(operation.history)validateOwnedHistory(operation.history);
  // Validate original attributes before maintained Node.fromJSON can fill defaults.
  proseMirrorToRelayMark(admittedDocument);
  let document=schema.nodeFromJSON(admittedDocument);document.check();

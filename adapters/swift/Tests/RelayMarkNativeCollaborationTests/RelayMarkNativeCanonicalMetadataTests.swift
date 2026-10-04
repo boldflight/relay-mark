@@ -231,6 +231,30 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try JSONSerialization.jsonObject(with:peer.authoredDocument()) as? NSDictionary == fixture["expected_ast"] as? NSDictionary)
  }
 
+ @Test @MainActor func durableCheckpointDoesNotBreakNormalOwnedTypingGroup() throws {
+  let first=UUID(uuidString:"11111111-1111-4111-8111-111111111111")!,second=UUID(uuidString:"22222222-2222-4222-8222-222222222222")!
+  let doc=RelayMarkNativeDocument(guid:"owned-typing-group")
+  try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("Base",namespace:"owned-typing-group"))
+  _ = try doc.performOwnedCommand(operationID:first){try doc.insertText("!",at:4,path:[0,0])}
+  _ = try doc.exportHistoryState(scopeToken:"owner/typing-group")
+  _ = try doc.performOwnedCommand(operationID:second){try doc.insertText("?",at:5,path:[0,0])}
+  let undo=try doc.undoWithReference();#expect(undo?.reference == first);#expect(undo?.operationIDs == [first,second])
+  #expect(try String(doc.richProseProjection().text.characters)=="Base")
+  let archive=try doc.exportHistoryState(scopeToken:"owner/typing-group")
+  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(archive))
+  try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive));try reopened.restoreHistoryState(archive,scopeToken:"owner/typing-group")
+  let redo=try reopened.redoWithReference();#expect(redo?.reference == first);#expect(redo?.operationIDs == [first,second])
+  #expect(try String(reopened.richProseProjection().text.characters)=="Base!?")
+  let third=UUID(uuidString:"33333333-3333-4333-8333-333333333333")!
+  _ = try reopened.performOwnedCommand(operationID:third,separateHistoryItem:true){try reopened.insertText(".",at:6,path:[0,0])}
+  let separate=try reopened.undoWithReference();#expect(separate?.operationIDs == [third])
+  #expect(try String(reopened.richProseProjection().text.characters)=="Base!?")
+  let before=try reopened.encodeUpdate()
+  #expect(throws:(any Error).self){try reopened.performOwnedCommand(operationID:first){try reopened.insertText("duplicate",at:0,path:[0,0])}}
+  #expect(try reopened.encodeUpdate()==before)
+
+ }
+
  @Test @MainActor func ownedSourceCommandReferenceSurvivesUndoRedoReopenAndRefusesUnboundHistoryBeforeMutation() throws {
   let operationID=UUID(uuidString:"11111111-1111-4111-8111-111111111111")!
   let doc=RelayMarkNativeDocument(guid:"source-reference")
@@ -240,6 +264,19 @@ struct RelayMarkNativeCanonicalMetadataTests {
    return try doc.mergeUpdates([a,b])
   }
   let archive=try doc.exportHistoryState(scopeToken:"owner/source-reference")
+  var retained=try JSONSerialization.jsonObject(with:archive) as! [String:Any]
+  var legacyHistory=retained["history"] as! [String:Any]
+  legacyHistory["metadata"]=(legacyHistory["metadata"] as! [Any]).map{ value -> Any in
+   if value is NSNull {return value};return ["operation_id":operationID.uuidString.lowercased()]
+  }
+  retained["history"]=legacyHistory
+  let originalRetained=try JSONSerialization.data(withJSONObject:retained,options:[.sortedKeys])
+  let converted=try RelayMarkNativeDocument.importRetainedHistoryState(originalRetained)
+  #expect(converted.originalState==originalRetained)
+  let historical=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(converted.state))
+  try historical.applyUpdate(RelayMarkNativeDocument.historyDocumentState(converted.state));try historical.restoreHistoryState(converted.state,scopeToken:"owner/source-reference")
+  #expect(try historical.undoWithReference()?.operationIDs==[operationID])
+
   let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(archive))
   try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive))
   try reopened.restoreHistoryState(archive,scopeToken:"owner/source-reference")

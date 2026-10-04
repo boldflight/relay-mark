@@ -5515,6 +5515,23 @@ function cloneCanonicalJSON(value) {
   throw new TypeError("Invalid authored JSON value");
 }
 
+// src/owned-command-group.js
+function canonicalOperationID(value) {
+  if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)) throw TypeError("Invalid owned operation UUID");
+  return value;
+}
+function validateOwnedCommandGroup(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !["reference", "operation_ids"].includes(k)) || !Array.isArray(value.operation_ids) || value.operation_ids.length < 1 || value.operation_ids.length > 4096) throw TypeError("Invalid maintained command group");
+  value.operation_ids.forEach(canonicalOperationID);
+  if (value.reference !== value.operation_ids[0] || new Set(value.operation_ids).size !== value.operation_ids.length) throw TypeError("Invalid maintained command membership");
+  return value;
+}
+function validateOwnedHistory(value) {
+  if (!value || !["undo", "redo"].includes(value.kind) || Object.keys(value).some((k) => !["kind", "reference", "operation_ids"].includes(k))) throw TypeError("Invalid owned history");
+  validateOwnedCommandGroup({ reference: value.reference, operation_ids: value.operation_ids });
+  return value;
+}
+
 // src/document-snapshot.js
 var schema = createCanonicalEditorSchema();
 
@@ -5526,6 +5543,9 @@ var schema3 = createCanonicalEditorSchema();
 function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = {}) {
   if (!operation || operation.kind !== "content_edit" || !Array.isArray(operation.steps) || !Number.isSafeInteger(maximumSteps) || maximumSteps < 1 || maximumSteps > 4096 || operation.steps.length < 1 || operation.steps.length > maximumSteps)
     throw new TypeError("Invalid or oversized canonical content edit");
+  if (operation.group && operation.history) throw TypeError("Command group and inverse history are exclusive");
+  if (operation.group) validateOwnedCommandGroup(operation.group);
+  if (operation.history) validateOwnedHistory(operation.history);
   proseMirrorToRelayMark(admittedDocument);
   let document2 = schema3.nodeFromJSON(admittedDocument);
   document2.check();
