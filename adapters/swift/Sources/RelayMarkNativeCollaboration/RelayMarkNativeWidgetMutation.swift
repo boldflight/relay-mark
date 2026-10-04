@@ -8,10 +8,37 @@ import RelayMarkSwift
                               authoredBlock: Data,expectedSnapshot: Data) throws -> Data {
         guard try document.snapshot()==expectedSnapshot,let block=try JSONSerialization.jsonObject(with:authoredBlock) as? [String:Any],
               let type=block["type"] as? String,type.hasPrefix("relay.") else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let ast=try JSONSerialization.data(withJSONObject:["type":"relaymark.document","blocks":[block]])
-        guard let snapshot=try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.documentToSnapshot(ast)) as? [String:Any],
-              let nodes=snapshot["children"] as? [[String:Any]],nodes.count==1,
-              let tree=try JSONSerialization.jsonObject(with:expectedSnapshot) as? [String:Any] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        guard let tree=try JSONSerialization.jsonObject(with:expectedSnapshot) as? [String:Any],
+              var ast=try JSONSerialization.jsonObject(with:document.authoredDocument()) as? [String:Any] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        // A nested option/label is not a legal document root. Resolve its actual
+        // identified parent, then validate the complete prospective authored tree.
+        if parentPath.isEmpty {
+            guard var blocks=ast["blocks"] as? [[String:Any]],index>=0,index<=blocks.count else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+            blocks.insert(block,at:index);ast["blocks"]=blocks
+        } else {
+            let parent=try RelayMarkNativeRichXML.node(at:parentPath,in:tree)
+            guard let attributes=parent["attributes"] as? [String:Any],let id=attributes["relaymarkId"] as? String,
+                  var blocks=ast["blocks"] as? [[String:Any]] else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+            func insert(in node: inout [String:Any]) throws -> Bool {
+                if node["id"] as? String == id {
+                    guard var children=node["content"] as? [[String:Any]],index>=0,index<=children.count else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+                    children.insert(block,at:index);node["content"]=children;return true
+                }
+                guard var children=node["content"] as? [[String:Any]] else { return false }
+                for position in children.indices where try insert(in:&children[position]) { node["content"]=children;return true }
+                return false
+            }
+            var found=false
+            for position in blocks.indices where try insert(in:&blocks[position]) { found=true;break }
+            guard found else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+            ast["blocks"]=blocks
+        }
+        let candidate=try RelayMarkSourceCodec.documentToSnapshot(JSONSerialization.data(withJSONObject:ast))
+        guard let canonical=try JSONSerialization.jsonObject(with:candidate) as? [String:Any] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let parent=try RelayMarkNativeRichXML.node(at:parentPath,in:canonical)
+        let children=try RelayMarkNativeRichXML.children(parent)
+        guard children.indices.contains(index) else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        let nodes=[children[index]]
         return try RelayMarkNativeRichXML.apply(document:document,tree:tree,
           edits:[.init(parentPath:parentPath,start:index,count:0,nodes:nodes)])
     }

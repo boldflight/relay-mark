@@ -224,4 +224,23 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(throws:(any Error).self){try doc.groupingUndo{try doc.performOwnedCommand(operationID:UUID()){Data()}}}
  }
 
+ @Test @MainActor func addingRichChoiceValidatesTheActualQuestionAndKeepsExistingPeerItems() throws {
+  let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  let source="<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\nCapital?\n- ( ) Paris\n<!-- /relay:question -->"
+  let seed=try document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument(source,namespace:"add-choice"));try peer.applyUpdate(seed)
+  let retained=try document.captureTextItems(path:[0,1,0],start:0,length:5)
+  let option:[String:Any] = ["id":"b11111111111141118111111111111111","type":"relay.form_option",
+      "props":["id":"london","correct":false,"points":NSNull(),"settings":[:]],
+      "content":[["type":"strong","content":[["type":"text","text":"London"]]]]]
+  let update=try RelayMarkNativeWidgetMutation.insert(document:document,parentPath:[0],at:2,
+      authoredBlock:JSONSerialization.data(withJSONObject:option),expectedSnapshot:document.snapshot())
+  try peer.applyUpdate(update)
+  #expect(try document.authoredDocument()==peer.authoredDocument())
+  #expect(try document.captureTextItems(path:[0,1,0],start:0,length:5)==retained)
+  #expect(String(try document.richProseProjection().text.characters)=="Capital?\nParis\nLondon")
+  let result=try document.undo();let undo=try #require(result);try peer.applyUpdate(undo)
+  #expect(try document.authoredDocument()==peer.authoredDocument())
+  #expect(String(try document.richProseProjection().text.characters)=="Capital?\nParis")
+ }
+
 }
