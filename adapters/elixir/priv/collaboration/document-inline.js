@@ -1,4 +1,5 @@
 /** Canonical text-run mapping. Each mark wraps exactly one child, in schema order. */
+import { safeLinkHref } from './document-links.js';
 import { mapAtom, unmapAtom } from './document-atoms.js';
 const markTypes = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
 const inlineTypes = { link: "link", bold: "strong", code: "code_span",
@@ -19,7 +20,7 @@ function keys(value, allowed, label) {
 }
 
 function href(value) {
-  if (typeof value !== "string" || !value || /[\u0000-\u001f\u007f<>]/u.test(value)) {
+  if (!safeLinkHref(value)) {
     throw new TypeError("Invalid link href");
   }
   return value;

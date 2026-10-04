@@ -36,3 +36,7 @@ test('authored image dimensions survive rich conversion without temporary media'
  assert.deepEqual(relayMarkToProseMirror(ast),{type:'doc',content:[node]});
  for(const width of [0,-1,Infinity,'640px']) assert.throws(()=>proseMirrorToRelayMark({type:'doc',content:[{...node,attrs:{...node.attrs,width}}]}),/dimension/i);
 });
+test('data view declarations reject nested predicate objects before host resolution',()=>{
+ const node={type:'relayDataView',attrs:{relaymarkId:id(8),source:'paper.related_tasks',projection:'table',filter:{sql:{nested:'1'}}}};
+ assert.throws(()=>proseMirrorToRelayMark({type:'doc',content:[node]}),/filter/);
+});

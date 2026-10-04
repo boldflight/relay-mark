@@ -535,6 +535,7 @@ defmodule RelayMark.DocumentXML do
           {"relay.agent_suggestion", Map.delete(props, "content")}
 
         "relayDataView" ->
+          validate_data_view!(props)
           {"relay.data_view", props |> Enum.reject(fn {_k, v} -> is_nil(v) end) |> Map.new()}
 
         _ ->
@@ -556,6 +557,55 @@ defmodule RelayMark.DocumentXML do
     node = %{"id" => id, "type" => type, "content" => content}
     if props == %{}, do: node, else: Map.put(node, "props", props)
   end
+
+  defp validate_data_view!(props) do
+    require!(
+      is_binary(props["source"]) and
+        Regex.match?(~r/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/, props["source"]),
+      :data_view_source
+    )
+
+    require!(
+      props["projection"] in ~w(list table feed calendar kanban chart),
+      :data_view_projection
+    )
+
+    Enum.each(~w(columns sort), fn key ->
+      require!(
+        is_nil(props[key]) or (is_list(props[key]) and Enum.all?(props[key], &is_binary/1)),
+        :data_view_keys
+      )
+    end)
+
+    if props["filter"] do
+      require!(is_map(props["filter"]), :data_view_filter)
+
+      Enum.each(props["filter"], fn {key, value} ->
+        require!(Regex.match?(~r/^[a-z][a-z0-9_]*$/, key), :data_view_filter_key)
+
+        require!(
+          filter_scalar?(value) or (is_list(value) and Enum.all?(value, &filter_scalar?/1)),
+          :data_view_filter_value
+        )
+      end)
+    end
+
+    require!(
+      is_nil(props["group"]) or
+        (is_binary(props["group"]) and Regex.match?(~r/^[a-z][a-z0-9_]*$/, props["group"])),
+      :data_view_group
+    )
+
+    require!(
+      is_nil(props["limit"]) or (is_integer(props["limit"]) and props["limit"] in 1..1000),
+      :data_view_limit
+    )
+
+    require!(is_nil(props["title"]) or is_binary(props["title"]), :data_view_title)
+  end
+
+  defp filter_scalar?(value),
+    do: is_nil(value) or is_binary(value) or is_boolean(value) or is_number(value)
 
   defp normalize_structural_numbers(attributes) do
     fields = ~w(level start colspan rowspan width height limit points min max)
@@ -720,7 +770,7 @@ defmodule RelayMark.DocumentXML do
             )
 
             require!(
-              is_binary(value["href"]) and not Regex.match?(~r/[\x00-\x1f\x7f<>]/, value["href"]),
+              RelayMark.Link.safe_href?(value["href"]),
               :link_href
             )
 

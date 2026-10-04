@@ -16,7 +16,14 @@
     "projection": {
       "type": "enum",
       "required": true,
-      "values": ["list", "table", "feed", "calendar", "kanban", "chart"]
+      "values": [
+        "list",
+        "table",
+        "feed",
+        "calendar",
+        "kanban",
+        "chart"
+      ]
     },
     "columns": {
       "type": "array",
@@ -25,7 +32,7 @@
     },
     "filter": {
       "type": "object",
-      "description": "Declarative host-validated filter values; never SQL or executable predicates."
+      "description": "Declarative host-allowlisted field keys to JSON scalar or scalar-list values. Nested objects and executable predicates are unsupported; these values are never SQL."
     },
     "sort": {
       "type": "array",
@@ -47,7 +54,10 @@
   },
   "children": {
     "mode": "mixed",
-    "allowed_types": ["paragraph", "text"],
+    "allowed_types": [
+      "paragraph",
+      "text"
+    ],
     "min": 0
   },
   "validation": [

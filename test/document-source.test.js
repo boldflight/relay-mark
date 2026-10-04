@@ -22,3 +22,10 @@ test('historical form comments import rich labels, original slug choices and set
  assert.equal(q1.type,'relay.form_question');assert.deepEqual(q1.props,{id:'q1',type:'multiple_choice',required:true,points:5,min:null,max:null,settings:{conditional:'show-q0'}});
  assert.deepEqual(q1.content[0].content,[{type:'strong',content:[{type:'text',text:'Capital?'}]}]);assert.deepEqual(q1.content.slice(1).map(o=>[o.props.id,o.props.correct]),[['paris',true],['london',false]]);assert.equal(q2.props.id,'q2');assert.deepEqual(q2.content[0].content,[]);
 });
+test('authored renderer rejects executable link schemes instead of emitting clickable HTML',()=>{
+ const ast=parseDocument('[Evidence](https://example.com)',{namespace:'safe-link'});
+ for(const href of ['javascript:alert(1)','data:text/html,<script>','vbscript:msgbox(1)','//evil.example','https://u:p@example.com']){
+  const unsafe=structuredClone(ast);unsafe.blocks[0].content[0].href=href;
+  assert.throws(()=>renderDocument(unsafe),/link href/i);
+ }
+});

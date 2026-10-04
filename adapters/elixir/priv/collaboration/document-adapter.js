@@ -772,7 +772,10 @@ function dataViewProps(attrs) {
   const props={};for(const key of dataViewFields) if(attrs[key]!=null) props[key]=attrs[key];
   if(typeof props.source!=="string" || !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u.test(props.source) || !["list","table","feed","calendar","kanban","chart"].includes(props.projection)) throw new TypeError("Invalid data view source/projection");
   for(const key of ["columns","sort"]) if(props[key]!==undefined && (!Array.isArray(props[key]) || props[key].some(v=>typeof v!=="string"))) throw new TypeError("Invalid data view keys");
-  if(props.filter!==undefined){assertObject(props.filter,"data view filter");validateJSONValue(props.filter);}
+  if(props.filter!==undefined){assertObject(props.filter,"data view filter");
+    const scalar=v=>v===null||typeof v==="string"||typeof v==="boolean"||(typeof v==="number"&&Number.isFinite(v));
+    for(const [key,value]of Object.entries(props.filter)) if(!/^[a-z][a-z0-9_]*$/u.test(key)||!(scalar(value)||(Array.isArray(value)&&value.every(scalar))))throw new TypeError("Invalid declarative data view filter");
+  }
   if(props.group!==undefined && (typeof props.group!=="string" || !/^[a-z][a-z0-9_]*$/u.test(props.group))) throw new TypeError("Invalid data view group");
   if(props.limit!==undefined && (!Number.isSafeInteger(props.limit) || props.limit<1 || props.limit>1000)) throw new TypeError("Invalid data view limit");
   if(props.title!==undefined && typeof props.title!=="string") throw new TypeError("Invalid data view title");
