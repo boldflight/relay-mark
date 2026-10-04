@@ -4652,7 +4652,7 @@ var require_url5 = __commonJS({
 // adapters/collaboration/content-edit-mutation.js
 var import_atob = __toESM(require_atob2(), 1);
 var import_btoa = __toESM(require_btoa2(), 1);
-import * as Y2 from "yjs";
+import * as Y3 from "yjs";
 import { Step as Step2 } from "prosemirror-transform";
 import { initProseMirrorDoc, updateYFragment } from "@tiptap/y-tiptap";
 
@@ -5748,6 +5748,64 @@ function captureContentEditFootprint(doc, bytes2, { maximumSteps = 1e6 } = {}) {
   return { state_vector: [...current].sort((a, b) => a[0] - b[0]).map(([client, clock]) => ({ client, clock })), structs, declared_deletes, deleted_items };
 }
 
+// adapters/collaboration/owned-history-branches.js
+import * as Y2 from "yjs";
+var installed = /* @__PURE__ */ new WeakMap();
+function protectOwnedHistoryBranches(manager) {
+  if (installed.has(manager)) return installed.get(manager);
+  if (manager?.supportsUndoDeleteContext !== true) throw TypeError("Maintained UndoManager deletion context is unavailable");
+  const previous = manager.deleteFilter, contexts = /* @__PURE__ */ new WeakMap();
+  manager.deleteFilter = (item, context) => {
+    let protectedItems = contexts.get(context);
+    if (!protectedItems) {
+      protectedItems = protectedSkeleton(context.itemsToDelete);
+      contexts.set(context, protectedItems);
+    }
+    return !protectedItems.has(item) && previous(item, context);
+  };
+  const release = () => {
+    manager.deleteFilter = previous;
+    installed.delete(manager);
+  };
+  installed.set(manager, release);
+  return release;
+}
+function protectedSkeleton(items) {
+  const owned = new Set(items), protectedItems = /* @__PURE__ */ new Set();
+  const xml = (item) => item.content instanceof Y2.ContentType && (item.content.type instanceof Y2.XmlElement || item.content.type instanceof Y2.XmlText);
+  const roots = items.filter((item) => xml(item) && !hasOwnedAncestor(item));
+  function hasOwnedAncestor(item) {
+    let parent2 = item.parent;
+    while (parent2?._item) {
+      if (owned.has(parent2._item) && xml(parent2._item)) return true;
+      parent2 = parent2._item.parent;
+    }
+    return false;
+  }
+  for (const root of roots) {
+    const skeleton = /* @__PURE__ */ new Set([root]), pending = [root.content.type];
+    let survivor = false;
+    while (pending.length) {
+      const branch = pending.pop();
+      for (const item of branch._map.values()) {
+        if (item.deleted) continue;
+        skeleton.add(item);
+        if (!owned.has(item)) survivor = true;
+      }
+      for (let item = branch._start; item; item = item.right) {
+        if (item.deleted) continue;
+        if (!owned.has(item)) survivor = true;
+        if (xml(item)) {
+          skeleton.add(item);
+          pending.push(item.content.type);
+        }
+      }
+    }
+    if (survivor) for (const item of skeleton) protectedItems.add(item);
+  }
+  return protectedItems;
+}
+
 // adapters/collaboration/content-edit-mutation.js
 var toBase64 = (bytes2) => (0, import_btoa.default)(Array.from(bytes2, (v) => String.fromCharCode(v)).join(""));
 var fromBase64 = (value) => Uint8Array.from((0, import_atob.default)(value), (v) => v.charCodeAt(0));
@@ -5764,8 +5822,8 @@ function bytes(value) {
   return result;
 }
 function owner(state) {
-  const doc = new Y2.Doc({ gc: false, guid: "relaymark:ephemeral-command-proof" });
-  Y2.applyUpdate(doc, state);
+  const doc = new Y3.Doc({ gc: false, guid: "relaymark:ephemeral-command-proof" });
+  Y3.applyUpdate(doc, state);
   if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled retained replay state");
   for (const name of doc.share.keys()) if (!["default", "relaymark"].includes(name)) throw TypeError("Unknown retained replay root");
   if (!doc.share.has("default")) throw TypeError("Missing retained editor root");
@@ -5862,7 +5920,7 @@ function replayContentEditMutation(evidence) {
   fields2(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint"]);
   const senderBytes = bytes(evidence.sender_state_base64), currentBytes = bytes(evidence.current_state_base64), sender = owner(senderBytes), current = owner(currentBytes);
   try {
-    const before = Y2.decodeStateVector(Y2.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
+    const before = Y3.decodeStateVector(Y3.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
     for (const r of evidence.footprint.structs ?? []) if (r.item.clock + r.count > (before.get(r.item.client) || 0)) clients.add(r.item.client);
     if (clients.size > 1 || (clients.size === 0 ? evidence.writer_client !== null : !clients.has(evidence.writer_client) || !Number.isSafeInteger(evidence.writer_client) || evidence.writer_client < 0)) throw TypeError("Replay writer must be independently observed from fresh structs");
     const initialized = initProseMirrorDoc(sender.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), evidence.operation);
@@ -5885,9 +5943,9 @@ function replayContentEditMutation(evidence) {
       list.push(record);
       known.set(record.item.client, list);
     }
-    const ds = Y2.createDeleteSetFromStructStore(current.store), deleted = [];
+    const ds = Y3.createDeleteSetFromStructStore(current.store), deleted = [];
     for (const [client, ranges] of ds.clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
-    Y2.applyUpdate(current, update);
+    Y3.applyUpdate(current, update);
     const footprint = captureContentEditFootprint(current, update), actual = normalized(evidence.footprint, before, known, deleted), replayed = normalized(footprint, before, known, deleted);
     if (!same(actual, replayed)) throw TypeError("Original mutation differs from executed maintained command");
     return { footprint, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, retained_field_changes: fieldChanges(replayed) };
@@ -5897,21 +5955,21 @@ function replayContentEditMutation(evidence) {
   }
 }
 function observedWriter(footprint, doc) {
-  const clocks = Y2.decodeStateVector(Y2.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
+  const clocks = Y3.decodeStateVector(Y3.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
   for (const item of footprint.structs) if (item.item.clock + item.count > (clocks.get(item.item.client) || 0)) clients.add(item.item.client);
   if (clients.size > 1) throw TypeError("Multiple actual command writers");
   return clients.size ? [...clients][0] : null;
 }
 function compareUpdate(current, originalFootprint, update) {
-  const state = Y2.encodeStateAsUpdate(current), before = Y2.decodeStateVector(Y2.encodeStateVector(current)), known = /* @__PURE__ */ new Map();
+  const state = Y3.encodeStateAsUpdate(current), before = Y3.decodeStateVector(Y3.encodeStateVector(current)), known = /* @__PURE__ */ new Map();
   for (const record of captureContentEditFootprint(current, state).structs) {
     const list = known.get(record.item.client) || [];
     list.push(record);
     known.set(record.item.client, list);
   }
   const deleted = [];
-  for (const [client, ranges] of Y2.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
-  Y2.applyUpdate(current, update);
+  for (const [client, ranges] of Y3.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
+  Y3.applyUpdate(current, update);
   const footprint = captureContentEditFootprint(current, update);
   if (!same(normalized(originalFootprint, before, known, deleted), normalized(footprint, before, known, deleted))) throw TypeError("Original mutation differs from maintained owned history");
   return { footprint, retained_field_changes: fieldChanges(normalized(footprint, before, known, deleted)) };
@@ -5925,7 +5983,7 @@ function redoneLinks(doc) {
   let remaining = 1e6;
   for (const structs of doc.store.clients.values()) for (const item of structs) {
     if (--remaining < 0) throw TypeError("Owned history observation budget exhausted");
-    if (item instanceof Y2.Item) result.set(item.id.client + ":" + item.id.clock, item.redone ? item.redone.client + ":" + item.redone.clock : null);
+    if (item instanceof Y3.Item) result.set(item.id.client + ":" + item.id.clock, item.redone ? item.redone.client + ":" + item.redone.clock : null);
   }
   return result;
 }
@@ -5939,12 +5997,15 @@ function restoredCopies(doc, prior, links) {
   visit(snapshot);
   for (const structs of doc.store.clients.values()) for (const source of structs) {
     if (--remaining < 0) throw TypeError("Restored copy observation budget exhausted");
-    if (!(source instanceof Y2.Item) || !(source.content instanceof Y2.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
-    const destination = Y2.getItem(doc.store, source.redone);
-    if (!(destination instanceof Y2.Item) || destination.id.clock !== source.redone.clock || destination.length !== source.length || !(destination.content instanceof Y2.ContentString) || destination.content.str !== source.content.str || !(source.parent instanceof Y2.XmlText) || !(destination.parent instanceof Y2.XmlText) || !source.parent._item || !destination.parent._item) throw TypeError("Unavailable exact maintained restored copy");
-    if (destination.deleted || destination.id.clock < (prior.get(destination.id.client) || 0) || !visible.has(destination.parent._item.id.client + ":" + destination.parent._item.id.clock)) throw TypeError("Unreachable maintained restored copy");
+    if (!(source instanceof Y3.Item) || !(source.content instanceof Y3.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
+    const destination = Y3.getItem(doc.store, source.redone);
+    if (!(destination instanceof Y3.Item) || destination.id.clock > source.redone.clock || destination.id.clock + destination.length < source.redone.clock + source.length || !(destination.content instanceof Y3.ContentString) || destination.content.str.slice(source.redone.clock - destination.id.clock, source.redone.clock - destination.id.clock + source.length) !== source.content.str || !(source.parent instanceof Y3.XmlText) || !(destination.parent instanceof Y3.XmlText) || !source.parent._item || !destination.parent._item) throw TypeError("Unavailable exact maintained restored copy");
+    if (destination.deleted || source.redone.clock < (prior.get(destination.id.client) || 0) || !visible.has(destination.parent._item.id.client + ":" + destination.parent._item.id.clock)) throw TypeError("Unreachable maintained restored copy");
     const selected = (item) => ({ runs: [{ type: { client: item.parent._item.id.client, clock: item.parent._item.id.clock }, item: { client: item.id.client, clock: item.id.clock }, count: item.length }] });
-    copies.push({ source: selected(source), destination: selected(destination) });
+    const target = selected(destination);
+    target.runs[0].item = { client: source.redone.client, clock: source.redone.clock };
+    target.runs[0].count = source.length;
+    copies.push({ source: selected(source), destination: target });
   }
   return copies;
 }
@@ -5983,11 +6044,27 @@ function ownedTextAccounting(doc, before, copies) {
   if (!same(extent(fresh), extent(copies.flatMap((copy) => copy.destination.runs)))) throw TypeError("Unaccounted maintained inverse text allocation");
   return { fresh_items: { runs: fresh }, text_items: { runs: [] }, proven_copies: copies };
 }
+var ownedObservations = /* @__PURE__ */ new WeakMap();
+function captureOwnedHistoryObservation(doc) {
+  if (!(doc instanceof Y3.Doc) || doc.gc !== false || doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unavailable retained owned history observer");
+  captureContentEditSnapshot(doc.getXmlFragment("default"));
+  const token = Object.freeze({});
+  ownedObservations.set(token, { doc, before: Y3.decodeStateVector(Y3.encodeStateVector(doc)), links: redoneLinks(doc) });
+  return token;
+}
+function finishOwnedHistoryObservation(doc, observation) {
+  const before = ownedObservations.get(observation);
+  if (!before || before.doc !== doc) throw TypeError("Unavailable same-owner history observation");
+  const copies = restoredCopies(doc, before.before, before.links), accounting = ownedTextAccounting(doc, before.before, copies);
+  ownedObservations.delete(observation);
+  return accounting;
+}
 function replayOwnedHistory(evidence) {
   fields2(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint", "initial_state_base64", "receipts"]);
   validateOwnedHistory(evidence.operation.history);
   if (!Array.isArray(evidence.receipts) || evidence.receipts.length < 1 || evidence.receipts.length > 4096) throw TypeError("Unavailable bounded accepted history");
-  const doc = owner(bytes(evidence.initial_state_base64)), origin = {}, manager = new Y2.UndoManager(doc.getXmlFragment("default"), { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+  const doc = owner(bytes(evidence.initial_state_base64)), origin = {}, manager = new Y3.UndoManager(doc.getXmlFragment("default"), { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+  protectOwnedHistoryBranches(manager);
   let activeID = null, popped = null, lastRestored = [];
   const event = (e) => {
     if (!manager.undoing && !manager.redoing && activeID) bindOwnedCommandGroup(manager, e, activeID);
@@ -6002,7 +6079,7 @@ function replayOwnedHistory(evidence) {
     validateOwnedHistory(operation.history);
     const stack = operation.history.kind === "undo" ? manager.undoStack : manager.redoStack, ids = stack.at(-1)?.meta.get("relaymark:operation_ids");
     if (!ids || !same({ reference: ids[0], operation_ids: ids }, { reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
-    const prior = Y2.decodeStateVector(Y2.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
+    const prior = Y3.decodeStateVector(Y3.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
     doc.clientID = writer ?? 0;
     popped = null;
     doc.on("update", capture);
@@ -6027,11 +6104,11 @@ function replayOwnedHistory(evidence) {
       validateOwnedCommandGroup({ reference: receipt.transaction_id, operation_ids: [receipt.transaction_id] });
       total += sender2.length + update.length;
       if (total > 32 * 1024 * 1024) throw TypeError("Oversized accepted history replay");
-      Y2.applyUpdate(doc, sender2);
+      Y3.applyUpdate(doc, sender2);
       if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled accepted sender frontier");
-      const beforeBytes = Y2.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
+      const beforeBytes = Y3.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
       try {
-        Y2.applyUpdate(candidate, update);
+        Y3.applyUpdate(candidate, update);
         const footprint = captureContentEditFootprint(candidate, update), writer = observedWriter(footprint, doc);
         if (receipt.operation.history) {
           const actual = inverse(receipt.operation, writer), locked = owner(beforeBytes);
@@ -6047,7 +6124,7 @@ function replayOwnedHistory(evidence) {
           if (group.reference === receipt.transaction_id) manager.stopCapturing();
           activeID = receipt.transaction_id;
           try {
-            Y2.applyUpdate(doc, update, origin);
+            Y3.applyUpdate(doc, update, origin);
           } finally {
             activeID = null;
           }
@@ -6058,17 +6135,17 @@ function replayOwnedHistory(evidence) {
         candidate.destroy();
       }
     }
-    Y2.applyUpdate(doc, bytes(evidence.sender_state_base64));
-    const candidateFrontier = Y2.decodeStateVector(Y2.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
+    Y3.applyUpdate(doc, bytes(evidence.sender_state_base64));
+    const candidateFrontier = Y3.decodeStateVector(Y3.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
     try {
-      if (!same([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y2.decodeStateVector(Y2.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same(intervals(captureContentEditFootprint(doc, Y2.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y2.encodeStateAsUpdate(sender)).declared_deletes)) || !same(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
+      if (!same([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y3.decodeStateVector(Y3.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same(intervals(captureContentEditFootprint(doc, Y3.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y3.encodeStateAsUpdate(sender)).declared_deletes)) || !same(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
     } finally {
       sender.destroy();
     }
     const current = owner(bytes(evidence.current_state_base64));
     try {
       if (observedWriter(evidence.footprint, current) !== evidence.writer_client) throw TypeError("History writer is not independently observed");
-      const frontier = Y2.decodeStateVector(Y2.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, lastRestored);
+      const frontier = Y3.decodeStateVector(Y3.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, lastRestored);
       return { ...proof, ...accounting, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: lastRestored };
     } finally {
       current.destroy();
@@ -6079,5 +6156,7 @@ function replayOwnedHistory(evidence) {
   }
 }
 export {
+  captureOwnedHistoryObservation,
+  finishOwnedHistoryObservation,
   replayContentEditMutation
 };

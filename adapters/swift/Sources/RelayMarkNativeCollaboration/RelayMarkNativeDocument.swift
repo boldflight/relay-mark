@@ -52,6 +52,7 @@ public final class RelayMarkNativeDocument {
         let origin = Origin(UUID().uuidString)
         let undoManager: YUndoManager<NSObject> = document.undoManager(trackedRefs: [root,metadata])
         undoManager.addOrigin(origin)
+        undoManager.preserveChangedXML()
         self.document = document
         self.root = root
         self.metadata = metadata
@@ -234,6 +235,7 @@ public final class RelayMarkNativeDocument {
             trackedRefs:[root,metadata],history:archive,scopeToken:scopeToken,
             decodeMetadata:{ $0 as NSData })
         manager.addOrigin(localOrigin)
+        manager.preserveChangedXML()
         historySubscriptions.forEach { $0.cancel() }
         undoManager=manager
         installHistoryObservers()
@@ -763,6 +765,11 @@ public final class RelayMarkNativeDocument {
     }
 
     public struct OwnedHistoryEffect: Sendable {
+        /// Actual sender frontier captured before the same manager inverse.
+        public let beforeSnapshot: Data
+        /// Actual maintained synchronization ReplaceStep, independently applied
+        /// to the pre-tree. It observes the effect; receipts still prove ownership.
+        public let steps: Data
         public let update: Data
         public let reference: UUID
         public let operationIDs: [UUID]
@@ -776,9 +783,24 @@ public final class RelayMarkNativeDocument {
         guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
         let metadata = redo ? undoManager.redoMetadata() : undoManager.undoMetadata()
         for object in metadata { guard Self.operationReferences(object) != nil else { throw Failure.unboundOwnedHistory } }
+        let bridge = try PMYXmlBridge.canonical()
+        let beforeTree = try JSONSerialization.jsonObject(with:snapshot()) as! [String:Any]
+        let beforePM = try bridge.document(fromSnapshot:beforeTree)
+        let beforeSnapshot = try captureSenderSnapshot()
         guard let update = try performHistory(redo:redo) else { return nil }
         guard let operations = lastHistoryOperations,let reference = operations.first else { throw Failure.unboundOwnedHistory }
-        return OwnedHistoryEffect(update:update,reference:reference,operationIDs:operations)
+        _ = try authoredDocument()
+        let afterTree = try JSONSerialization.jsonObject(with:snapshot()) as! [String:Any]
+        let afterPM = try bridge.document(fromSnapshot:afterTree)
+        // y-tiptap's _typeChanged/_forceRerender synchronizes the entire current
+        // fragment with one transaction.replace(0, old.content.size, new Slice).
+        // This is a read observer of the actual effect, never a fabricated CRDT
+        // inverse, command rebase or provenance authority.
+        let step = PMStep.replace(from:0,to:beforePM.content.size,
+                                  slice:PMSlice(afterPM.content,openStart:0,openEnd:0))
+        guard try step.apply(beforePM).eq(afterPM) else { throw Failure.unsupportedProseEdit }
+        let steps = try JSONSerialization.data(withJSONObject:[step.json()],options:[.sortedKeys])
+        return OwnedHistoryEffect(beforeSnapshot:beforeSnapshot,steps:steps,update:update,reference:reference,operationIDs:operations)
     }
     private var lastHistoryOperations: [UUID]?
 

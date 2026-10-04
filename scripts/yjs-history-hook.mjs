@@ -8,10 +8,15 @@ export const upstreamSHA256 = '105c7245ab478301529c7d034f59348e51e808f9144e3ea66
 export function patchHistoryHook(source) {
   if (createHash('sha256').update(source).digest('hex') !== upstreamSHA256) throw Error('Pinned Yjs history hook source changed')
   const replacements = [
+    // Same focused modification as committed maintained Yjs canonical-undo:
+    // exact actual popped item and materialized deletion candidates.
+    ['      for (let i = itemsToDelete.length - 1; i >= 0; i--) {',
+     '      const deleteContext = { transaction, stackItem, itemsToDelete, type: eventType };\n      for (let i = itemsToDelete.length - 1; i >= 0; i--) {'],
+    ['undoManager.deleteFilter(item)', 'undoManager.deleteFilter(item, deleteContext)'],
     ['      undoManager.currStackItem = performedChange ? stackItem : null;\n    }\n    transaction.changed.forEach',
      '      if (!performedChange && undoManager.beforeHistoryItemSkip !== null) {\n        performedChange = undoManager.beforeHistoryItemSkip({ transaction, stackItem, type: eventType }) === true;\n      }\n      undoManager.currStackItem = performedChange ? stackItem : null;\n    }\n    if (undoManager.currStackItem !== null && undoManager.beforeHistoryTransactionCommit !== null) {\n      undoManager.beforeHistoryTransactionCommit({ transaction, stackItem: undoManager.currStackItem, type: eventType });\n    }\n    transaction.changed.forEach'],
     ['    captureTimeout = 500,', '    captureTimeout = 500,\n    beforeHistoryTransactionCommit = null,\n    beforeHistoryItemSkip = null,'],
-    ['    this.deleteFilter = deleteFilter;', '    this.deleteFilter = deleteFilter;\n    this.beforeHistoryTransactionCommit = beforeHistoryTransactionCommit;\n    this.relayHistoryTransactionHookVersion = 1;\n    this.beforeHistoryItemSkip = beforeHistoryItemSkip;\n    this.relayHistoryItemSkipHookVersion = 1;']
+    ['    this.deleteFilter = deleteFilter;', '    this.deleteFilter = deleteFilter;\n    this.supportsUndoDeleteContext = true;\n    this.beforeHistoryTransactionCommit = beforeHistoryTransactionCommit;\n    this.relayHistoryTransactionHookVersion = 1;\n    this.beforeHistoryItemSkip = beforeHistoryItemSkip;\n    this.relayHistoryItemSkipHookVersion = 1;']
   ]
   for (const [before, after] of replacements) {
     if (source.split(before).length !== 2) throw Error('Ambiguous Yjs history hook patch')

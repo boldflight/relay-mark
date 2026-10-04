@@ -36,7 +36,7 @@ await build({ entryPoints: ['src/document-url.js'], bundle: true, format: 'esm',
 const replayConstructorRandom={name:'ephemeral-replay-constructor',setup(b){b.onResolve({filter:/^lib0\/webcrypto$/},()=>({path:'ephemeral-constructor-random',namespace:'relaymark-proof'}));b.onLoad({filter:/.*/,namespace:'relaymark-proof'},()=>({contents:'export const getRandomValues = a => { a.fill(0); return a }; export const subtle = undefined;',loader:'js'}));}};
 // Maintained PM/Yjs proof runtime: no host authorization or durable replica.
 
-await build({ plugins:[replayConstructorRandom],entryPoints:['src/content-edit.js'],bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-runtime.js' })
+await build({ plugins:[historyHookPlugin,replayConstructorRandom],entryPoints:['src/content-edit.js'],bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-runtime.js' })
 await build({ entryPoints:['src/content-edit.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['prosemirror-model','prosemirror-transform','yjs','@tiptap/y-tiptap'],minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit.js' })
 
 // Read-only complete original-update observer shares the host maintained Yjs instance.
@@ -45,3 +45,5 @@ await build({entryPoints:['adapters/collaboration/content-edit-observer.js'],bun
 await build({entryPoints:['adapters/collaboration/content-edit-mutation.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs','@tiptap/y-tiptap','prosemirror-model','prosemirror-transform'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-mutation.js'});
 
 await build({entryPoints:['adapters/collaboration/owned-command-group.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/owned-command-group.js'});
+
+await build({entryPoints:['adapters/collaboration/owned-history-branches.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/owned-history-branches.js'});

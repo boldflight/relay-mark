@@ -69,7 +69,7 @@ The pinned binding is `@tiptap/y-tiptap 3.0.9` with the same maintained Yjs fork
 `buildContentEditWitness` / `RelayMark.ContentEdit.build_witness` derive relocation-copy selectors and fresh human selectors from exact sender identities and maintained retained StepMap ranges. Input has the same four snapshots, trusted before vector, operation Steps and complete footprint as preparation, without claimed `copies` or `text_items`. It returns the preparation fields plus the derived operation. It does not classify arbitrary inserted Slice content as an independently proven generated-source copy.
 
 
-Native owned command groups use maintained StackItem metadata `operation_ids`, an ordered unique UUID list. The first UUID is the source history reference; `OwnedHistoryEffect.operationIDs` exposes the exact popped group's membership rather than guessing by time or visible text. `performOwnedCommand(operationID:separateHistoryItem:_:)` keeps normal capture by default; an explicit semantic boundary closes a group. Checkpoint export preserves live capture. Restore retains all group metadata with the same document/items. `importRetainedHistoryState` is the finite saved `operation_id` metadata decoder, returning original bytes, converted state and normalization records; unknown metadata stays unbound. Hosts preserve originals and verify scoped accepted receipts before treating any group as authoritative. This group binding alone does not provide actual inverse Step capture or server-owned manager replay.
+Native owned command groups use maintained StackItem metadata `operation_ids`, an ordered unique UUID list. The first UUID is the source history reference; `OwnedHistoryEffect.operationIDs` exposes the exact popped group's membership rather than guessing by time or visible text. `performOwnedCommand(operationID:separateHistoryItem:_:)` keeps normal capture by default; an explicit semantic boundary closes a group. Checkpoint export preserves live capture. Restore retains all group metadata with the same document/items. `importRetainedHistoryState` is the finite saved `operation_id` metadata decoder, returning original bytes, converted state and normalization records; unknown metadata stays unbound. Hosts preserve originals and verify scoped accepted receipts before treating any group as authoritative. `OwnedHistoryEffect.beforeSnapshot` and `steps` capture the actual inverse effect: the maintained synchronization full-document ReplaceStep is independently applied to the pre-tree and checked against the post-tree. It neither manufactures a CRDT inverse nor authorizes the owned group.
 
 ### Trusted maintained owned inverse replay
 
@@ -77,10 +77,47 @@ Native owned command groups use maintained StackItem metadata `operation_ids`, a
 
 The proof merges peer catch-up under an excluded origin, executes every ordinary receipt through the actual canonical ProseMirror/Yjs writer, and applies its accepted update under one maintained UndoManager origin. Accepted explicit group boundaries reproduce StackItem membership without timer inference. Every accepted and candidate inverse executes that same maintained manager; supplied inverse Step JSON must agree with its actual result and its complete allocation/deletion/format/topology/field footprint. Sender frontier equality includes state vector, retained deletion coverage, full rich identity tree and authored metadata. Original receipts remain unchanged.
 
-A successful inverse returns `owned_history_correspondence: true`, exact `restored_copies` selected from newly changed maintained `Item.redone` links, and `retained_field_changes` with actual allocated/deleted keyed or format item evidence. These supplement existing attribution owners; they are not source classification or permission. Unknown, unavailable, pruned, partial or oversized evidence refuses loudly. Inserted clipboard source authority, structural/field copy ancestry and native actual widget/mark/inverse Step producers remain separate acceptance work; successful inverse correspondence does not enable those capabilities.
+A successful inverse returns `owned_history_correspondence: true`, exact `restored_copies` selected from newly changed maintained `Item.redone` links, and `retained_field_changes` with actual allocated/deleted keyed or format item evidence. These supplement existing attribution owners; they are not source classification or permission. Unknown, unavailable, pruned, partial or oversized evidence refuses loudly. Inserted clipboard source authority, structural/field copy ancestry and remaining native structural Step producers remain separate acceptance work; successful inverse correspondence does not enable those capabilities.
 
 Explicit ordinary `operation.copies` may bind retained source IDs to fresh text inside actual final `inserted_ranges` computed by maintained StepMaps. Source type, exact text/full attributes, actual insertion payload and disjoint destination allocations are independently checked; one source may legitimately be copied twice. The builder combines supplied Slice claims with automatic retained-range relocations and removes their exact destinations from human selectors. It never discovers clipboard source by text equality or authorizes its provenance.
 
 Ordinary witness preparation refuses `history`. The same maintained receipt replay returns inverse `fresh_items`, empty `text_items`, and `proven_copies` selected from actual restored links; those destinations must cover every fresh inverse string exactly. Hosts bind declared wire selectors to this trusted result and immutable accepted source ancestry. A redo allocation cannot be silently relabeled human.
 
 Browser `prepareOwnedCommandGroup(manager,UUID)` checks duplicates before mutation and closes only a pre-existing unbound or full 4096-receipt StackItem boundary. Native `NativeContentEdit.ownedGroup` freezes the actual same membership with update/UUID/snapshot/steps; nil remains unproven. Checkpoint/export never splits normal typing.
+
+
+### Peer-safe owned branch deletion and immediate inverse observation
+
+The canonical owner enables the same optional maintained UndoManager branch policy
+on browser creation/adoption, native creation/history restore, and headless owned
+receipt replay. The actual popped StackItem supplies its materialized deletion
+candidates after redone traversal. A rootmost owned-created XML subtree with a
+surviving item outside that exact inverse retains its XML/attribute skeleton.
+Owned text and format items are still undone. This preserves paragraph identities,
+peer-only widget settings/formatting, and complete table scaffolding without
+retaining unrelated owned insertions. Obsolete skipped groups never supply the
+wrong candidate set. Normal typing capture and checkpoint boundaries stay intact.
+
+Browser `protectOwnedHistoryBranches(manager)` imports the host's single Yjs
+owner and requires its actual-pop deletion context. Native enables Yrs
+`preserve_changed_xml` through `YUndoManager.preserveChangedXML()` on construction
+and archive restore. No additional history stack or inverse engine exists.
+
+`captureOwnedHistoryObservation(doc)` returns a private branded same-owner token
+before the real manager effect. `finishOwnedHistoryObservation(doc, token)` reads
+newly changed maintained redone links and requires exact coverage of all fresh
+visible inverse text. It returns `fresh_items`, empty human `text_items`, and
+`proven_copies`; reused/foreign tokens refuse. It is an immediate read observer,
+not an accepted receipt or a complete mutation proof. Server replay independently
+verifies the accepted group, actual Steps/final tree and original full footprint.
+
+The focused maintained forks are Yjs
+`7f0471751846dc28455668289aeb610145f21321` (base `54193eaa`) and Yrs
+`7296361aa996e9c42c23dbf92a829d3fbea87e34`; YSwift
+`b5ea832069262aa4e14f5af43abaff29efdd6f66` binds the latter. The existing exact-base
+Yjs preparation hook consumes the reviewed three execution changes from that
+fork: materialize the context once per actual pop, pass it to the deletion filter,
+and advertise its availability. Existing other hook changes remain distinct.
+No `node_modules` edits are used. The npm release pin remains the actually
+published `v13.6.33-relay.1`; publishing the committed fork and rebuilding consumer
+artifacts are still operational follow-ups, not a fabricated package release.

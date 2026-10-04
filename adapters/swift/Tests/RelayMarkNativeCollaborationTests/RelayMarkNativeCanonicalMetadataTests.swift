@@ -233,6 +233,38 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try JSONSerialization.jsonObject(with:peer.authoredDocument()) as? NSDictionary == fixture["expected_ast"] as? NSDictionary)
  }
 
+ @Test @MainActor func firstOwnedTypingColdReopenUndoPreservesPeerBranchThroughAnotherReopen() throws {
+  let first=UUID(),second=UUID(),doc=RelayMarkNativeDocument(guid:"first-owned-typing")
+  try doc.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("",namespace:"first-owned-typing"))
+  let seed=try JSONSerialization.jsonObject(with:doc.authoredDocument()) as! [String:Any]
+  let identity=(seed["blocks"] as! [[String:Any]])[0]["id"] as! String
+  _ = try doc.performOwnedCommand(operationID:first){try RelayMarkNativeRichEditing.replace(document:doc,range:NSRange(location:0,length:0),runs:[("He",[:])],expectedSnapshot:doc.snapshot()).update}
+  _ = try doc.exportHistoryState(scopeToken:"first-typing-owner")
+  _ = try doc.performOwnedCommand(operationID:second){try RelayMarkNativeRichEditing.replace(document:doc,range:NSRange(location:2,length:0),runs:[("llo",[:])],expectedSnapshot:doc.snapshot()).update}
+  let checkpoint=try doc.exportHistoryState(scopeToken:"first-typing-owner")
+  let reopened=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(checkpoint))
+  try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(checkpoint));try reopened.restoreHistoryState(checkpoint,scopeToken:"first-typing-owner")
+  let peer=RelayMarkNativeDocument();try peer.applyUpdate(reopened.encodeUpdate())
+  try reopened.applyUpdate(peer.insertText("Peer ",at:0,path:[0,0]))
+  let senderSnapshot=try reopened.captureSenderSnapshot()
+  let undo=try #require(try reopened.undoWithReference())
+  #expect(undo.beforeSnapshot==senderSnapshot)
+  let sync=try JSONSerialization.jsonObject(with:undo.steps) as! [[String:Any]]
+  #expect(sync.count==1);#expect(sync[0]["stepType"] as? String == "replace")
+  #expect(sync[0]["from"] as? Int == 0);#expect(sync[0]["to"] as? Int == 12)
+  #expect(undo.operationIDs == [first,second]);#expect(try String(reopened.richProseProjection().text.characters)=="Peer ")
+  let blocks=(try JSONSerialization.jsonObject(with:reopened.authoredDocument()) as! [String:Any])["blocks"] as! [[String:Any]]
+  #expect(blocks[0]["id"] as? String == identity)
+  try peer.applyUpdate(undo.update);#expect(try peer.authoredDocument()==reopened.authoredDocument())
+  let afterUndo=try reopened.exportHistoryState(scopeToken:"first-typing-owner")
+  let again=RelayMarkNativeDocument(guid:try RelayMarkNativeDocument.historyDocumentGUID(afterUndo))
+  try again.applyUpdate(RelayMarkNativeDocument.historyDocumentState(afterUndo));try again.restoreHistoryState(afterUndo,scopeToken:"first-typing-owner")
+  let redo=try #require(try again.redoWithReference());#expect(redo.operationIDs == [first,second])
+  #expect(try String(again.richProseProjection().text.characters)=="Peer Hello")
+  let finalUndo=try #require(try again.undoWithReference());#expect(finalUndo.operationIDs == [first,second])
+  #expect(try String(again.richProseProjection().text.characters)=="Peer ")
+ }
+
  @Test @MainActor func durableCheckpointDoesNotBreakNormalOwnedTypingGroup() throws {
   let first=UUID(uuidString:"11111111-1111-4111-8111-111111111111")!,second=UUID(uuidString:"22222222-2222-4222-8222-222222222222")!
   let doc=RelayMarkNativeDocument(guid:"owned-typing-group")
