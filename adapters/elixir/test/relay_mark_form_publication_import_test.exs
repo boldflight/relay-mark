@@ -7,6 +7,13 @@ defmodule RelayMark.FormPublicationImportTest do
     publication = fixture("historical-form-publication.json")
     expected = fixture("form-publication-import-expected.json")
 
+    assert {:ok, leaf} =
+             RelayMark.parse_document("![Saved image](/images/onboarding/connected-note.png)",
+               namespace: "publication-leaf"
+             )
+
+    expected = update_in(expected, ["document", "blocks"], &(&1 ++ leaf["blocks"]))
+
     current =
       publication
       |> Map.put("document", expected["document"])
@@ -27,6 +34,7 @@ defmodule RelayMark.FormPublicationImportTest do
     assert result.identity_mapping["added"] == []
     assert result.identity_mapping["remapped"] == []
     assert Enum.at(result.document["blocks"], 2)["id"] in result.identity_mapping["retained"]
+    assert List.last(result.document["blocks"])["id"] in result.identity_mapping["retained"]
 
     assert {:ok, exact_source} = RelayMark.serialize_document(result.document)
 

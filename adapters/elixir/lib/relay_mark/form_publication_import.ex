@@ -45,7 +45,7 @@ defmodule RelayMark.FormPublicationImport do
 
   defp identities(nodes) do
     Enum.flat_map(nodes, fn node ->
-      own = if is_binary(node["id"]) and is_list(node["content"]), do: [node["id"]], else: []
+      own = if is_binary(node["id"]), do: [node["id"]], else: []
       own ++ identities(Map.get(node, "content", []))
     end)
   end
@@ -299,12 +299,12 @@ defmodule RelayMark.FormPublicationImport do
 
   defp semantic(value) when is_map(value) do
     value =
-      if is_binary(value["type"]) and is_list(value["content"]) and is_binary(value["id"]) and
+      if is_binary(value["type"]) and is_binary(value["id"]) and
            Regex.match?(~r/^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/, value["id"]),
          do: Map.delete(value, "id"),
          else: value
 
-    Map.new(value, fn {key, item} -> {key, semantic(item)} end)
+    Map.new(value, fn {key, item} -> {key, if(key == "props", do: item, else: semantic(item))} end)
   end
 
   defp semantic(value), do: value
