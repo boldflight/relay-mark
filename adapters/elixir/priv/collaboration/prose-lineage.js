@@ -1,5 +1,6 @@
+import { validateTextAttributes } from './document-inline.js'
 import * as Y from 'yjs'
-import { captureTextItems, resolveTextItems } from './text-items.js'
+import { captureTextItems, resolveTextItems, captureVisibleTextItems } from './text-items.js'
 
 // Uniform canonical marks supported by the existing native/browser formatting commands.
 export function validProseAttributes(value) {
@@ -166,4 +167,80 @@ export function prepareProseLineage(live, input, replace) {
     return { input: operationInput, expectedUpdates, expectedState: Y.encodeStateAsUpdate(staged), insertedTextItems: Array.from(new TextEncoder().encode(JSON.stringify(typed))),
       lineage: { operation, copies } }
   } finally { staged.destroy() }
+}
+
+
+/** Capture actual rich text intent before its host-owned editor command. This
+ * observes upstream anchors, not numeric flattened prose or another mutation. */
+export function captureProseOperation(doc, root, input) {
+  if(root.doc!==doc||!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!['start','end','text','attributes'].includes(k))||typeof input.text!=='string'||input.text.length>131072)throw Error('Invalid rich prose operation')
+  unicode(input.text);const attributes=structuredClone(input.attributes??{});validateTextAttributes(attributes)
+  const positions=[input.start,input.end],paths=positions.map(position=>{
+    if(!position||Object.keys(position).sort().join(',')!=='index,path'||!Array.isArray(position.path)||!position.path.length||position.path.length>128||position.path.some(n=>!Number.isSafeInteger(n)||n<0)||!Number.isSafeInteger(position.index)||position.index<0)throw Error('Invalid rich prose position')
+    let leaf=root;for(const index of position.path){if(!(leaf instanceof Y.XmlFragment)||index>=leaf.length)throw Error('Invalid rich prose path');leaf=leaf.get(index)}
+    if(!(leaf instanceof Y.XmlText)||position.index>leaf.length)throw Error('Expected rich text leaf')
+    const text=plainLeaf(leaf),a=text.charCodeAt(position.index-1),b=text.charCodeAt(position.index)
+    if(a>=0xD800&&a<=0xDBFF&&b>=0xDC00&&b<=0xDFFF)throw Error('Rich prose anchor splits a surrogate pair')
+    return leaf
+  })
+  const compare=(a,b)=>{for(let n=0;n<Math.min(a.path.length,b.path.length);n++)if(a.path[n]!==b.path[n])return a.path[n]-b.path[n];return a.path.length-b.path.length||a.index-b.index}
+  if(compare(...positions)>0)throw Error('Reversed rich prose operation')
+  const anchor=(leaf,index)=>JSON.parse(JSON.stringify(Y.relativePositionToJSON(Y.createRelativePositionFromTypeIndex(leaf,index,0))))
+  return {kind:'replace_prose',start_anchor:anchor(paths[0],input.start.index),end_anchor:anchor(paths[1],input.end.index),inserted_text:input.text,inserted_attributes:attributes}
+}
+function plainLeaf(leaf){return leaf.toDelta().map(run=>{if(typeof run.insert!=='string')throw Error('Unsupported rich text embed');return run.insert}).join('')}
+function stable(value){if(Array.isArray(value))return value.map(stable);if(value&&typeof value==='object')return Object.fromEntries(Object.keys(value).sort().map(k=>[k,stable(value[k])]));return value}
+const equal=(a,b)=>JSON.stringify(stable(a))===JSON.stringify(stable(b))
+function richSelection(doc,root,selection){
+ const resolved=resolveTextItems(doc,root,selection)
+ if(resolved.unavailableRuns.length||resolved.collapsedUnits)throw Error('Unprovable rich item selection')
+ const runs=[]
+ for(const segment of resolved.segments){let leaf=root;for(const index of segment.path)leaf=leaf.get(index)
+  let offset=0;for(const part of leaf.toDelta()){
+   if(typeof part.insert!=='string')throw Error('Unsupported rich text embed')
+   const first=Math.max(offset,segment.index),last=Math.min(offset+part.insert.length,segment.index+segment.length)
+   if(first<last){const attributes=structuredClone(part.attributes??{});validateTextAttributes(attributes);const text=part.insert.slice(first-offset,last-offset),previous=runs.at(-1)
+    if(previous&&equal(previous.attributes,attributes))previous.text+=text;else runs.push({text,attributes})
+   }offset+=part.insert.length
+  }
+ }
+ return runs
+}
+function intervals(runs){
+ const sorted=runs.map(run=>({client:run.item.client,start:run.item.clock,end:run.item.clock+run.count})).sort((a,b)=>a.client-b.client||a.start-b.start),result=[]
+ for(const interval of sorted){const previous=result.at(-1);if(previous&&previous.client===interval.client){if(interval.start<previous.end)throw Error('Overlapping rich allocation evidence');if(interval.start===previous.end){previous.end=interval.end;continue}}result.push(interval)}
+ return result
+}
+/** Validate read-only identity/accounting consequences of one exact host command.
+ * The host must independently prove the PM command/StepMap/expected document and
+ * authorize immutable receipts. Equal text alone never grants source ownership.
+ * Undo copies use the maintained redone observer, not this live-source copier. */
+export function validateProseWitness(before, after, witness) {
+ if(before===after||!witness||Object.keys(witness).sort().join(',')!=='copies,insertedTextItems,operation'||!Array.isArray(witness.copies))throw Error('Invalid rich prose witness')
+ const operation=witness.operation
+ if(!operation||Object.keys(operation).sort().join(',')!=='end_anchor,inserted_attributes,inserted_text,kind,start_anchor'||operation.kind!=='replace_prose'||typeof operation.inserted_text!=='string')throw Error('Invalid rich prose operation')
+ validateTextAttributes(operation.inserted_attributes);unicode(operation.inserted_text)
+ const preRoot=before.getXmlFragment('default'),postRoot=after.getXmlFragment('default'),vector=Y.encodeStateVector(before)
+ const typed=richSelection(after,postRoot,witness.insertedTextItems)
+ const start=Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(operation.start_anchor),before,false)
+ const end=Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(operation.end_anchor),before,false)
+ if(!start||!end||!(start.type instanceof Y.XmlText)||!(end.type instanceof Y.XmlText))throw Error('Unavailable rich command anchor')
+ for(const [anchor,position] of [[operation.start_anchor,start],[operation.end_anchor,end]]){
+  if(Object.keys(anchor).some(key=>!['type','item','assoc'].includes(key))||!anchor.type||!Number.isSafeInteger(anchor.assoc)||anchor.assoc<-(2**31)||anchor.assoc>=2**31||!equal(anchor.type,position.type._item?.id))throw Error('Rich anchor type binding mismatch')
+  let ancestor=position.type;while(ancestor&&ancestor!==preRoot)ancestor=ancestor.parent
+  if(ancestor!==preRoot)throw Error('Rich anchor outside authored scope')
+ }
+ const expectedText=start.type.parent?.nodeName==='codeBlock'?operation.inserted_text:operation.inserted_text.replace(/\n/g,'')
+ if(typed.map(run=>run.text).join('')!==expectedText||typed.some(run=>!equal(run.attributes,operation.inserted_attributes)))throw Error('Unproven rich typed text or attributes')
+ const claimed=[...witness.insertedTextItems.runs]
+ for(const copy of witness.copies){
+  if(!copy||Object.keys(copy).sort().join(',')!=='destination,source')throw Error('Invalid rich copy witness')
+  const source=richSelection(before,preRoot,copy.source),destination=richSelection(after,postRoot,copy.destination)
+  if(!source.length||!equal(source,destination))throw Error('Copied rich text or attributes changed')
+  claimed.push(...copy.destination.runs)
+ }
+ if(claimed.length>4096||claimed.reduce((n,run)=>n+run.count,0)>131072)throw Error('Rich operation allocation evidence limit')
+ const actual=captureVisibleTextItems(postRoot,{since:vector})
+ if(!equal(intervals(claimed),intervals(actual.runs)))throw Error('Unaccounted rich allocation')
+ return {operation:structuredClone(operation),copies:structuredClone(witness.copies)}
 }

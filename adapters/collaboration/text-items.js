@@ -69,21 +69,66 @@ export function captureTextItems(root, input) {
   }
   if (!(leaf instanceof Y.XmlText) || input.index + input.length > leaf.length) throw Error('Expected text item leaf range')
   validUnicode(plain(leaf).slice(input.index, input.index + input.length))
-  const runs = []
-  let previous = null
-  for (let index = input.index; index < input.index + input.length; index++) {
-    const position = Y.createRelativePositionFromTypeIndex(leaf, index, 0)
-    if (previous && previous.item.client === position.item.client && previous.item.clock + runs.at(-1).count === position.item.clock) runs.at(-1).count++
-    else {
-      if (runs.length === MAX_RUNS) throw Error('Too many text item runs')
-      runs.push({ item: { client: position.item.client, clock: position.item.clock },
-        type: { client: position.type.client, clock: position.type.clock }, count: 1 }); previous = position
-    }
-  }
+  const runs = observeLeaf(leaf, input.index, input.length, new Map(), () => {})
+  if (runs.length > MAX_RUNS) throw Error("Too many text item runs")
   const result = { runs }
   selection(result)
   return result
 }
+// The exact pinned maintained Yjs owner's linked structs supply UTF-16 clocks.
+// Cost is proportional to visited items, never one RelativePosition lookup per unit.
+function observeLeaf(leaf, start, length, prior, step) {
+  const type = leaf._item?.id
+  if (!type) throw Error('Unavailable text item branch')
+  const runs=[],end=start+length
+  let offset=0
+  for(let item=leaf._start;item;item=item.right){
+    step();if(item.deleted)continue
+    if(item.content instanceof Y.ContentFormat)continue
+    if(!(item.content instanceof Y.ContentString))throw Error('Unprovable non-string text item')
+    const upper=offset+item.length,first=Math.max(offset,start),last=Math.min(upper,end)
+    if(first<last){
+      const clock=Math.max(item.id.clock+first-offset,prior.get(item.id.client)||0)
+      const itemEnd=item.id.clock+last-offset
+      if(clock<itemEnd){
+        const id={client:item.id.client,clock},count=itemEnd-clock,lastRun=runs.at(-1)
+        if(lastRun&&lastRun.item.client===id.client&&lastRun.item.clock+lastRun.count===clock)lastRun.count+=count
+        else runs.push({type:{client:type.client,clock:type.clock},item:id,count})
+      }
+    }
+    offset=upper;if(offset>=end)break
+  }
+  return runs
+}
+
+/** Complete visible XML string accounting; operation selection limits do not
+ * impose a document length cap. `since` is the exact pre-mutation state vector.
+ * Results establish item identity, never authorship/authorization/copy intent. */
+export function captureVisibleTextItems(root, options={}) {
+  if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(key=>!['since','maximumSteps'].includes(key)))throw Error('Invalid visible item options')
+  const maximumSteps=options.maximumSteps??1_000_000
+  if(!Number.isSafeInteger(maximumSteps)||maximumSteps<1||maximumSteps>1_000_000)throw Error('Invalid visible item budget')
+  const doc=root.doc
+  if(!doc||doc.store.pendingStructs||doc.store.pendingDs)throw Error('Visible items require a settled document')
+  const since=options.since??new Uint8Array([0])
+  if(!(since instanceof Uint8Array)||since.length>8*1024*1024)throw Error('Invalid visible item state vector')
+  const prior=Y.decodeStateVector(since),current=Y.decodeStateVector(Y.encodeStateVector(doc))
+  if([...prior].some(([client,clock])=>clock>(current.get(client)||0)))throw Error('Visible item vector is ahead of document')
+  let budget=maximumSteps;const step=()=>{if(--budget<0)throw Error('Visible item traversal budget exhausted')}
+  for(let node=root;node?._item;node=node.parent){step();if(node._item.deleted)throw Error('Unavailable visible item scope')}
+  const runs=[]
+  function visit(type,depth){
+    step();if(depth>128)throw Error('Visible item traversal budget exhausted')
+    if(type instanceof Y.XmlText){runs.push(...observeLeaf(type,0,type.length,prior,step));return}
+    if(!(type instanceof Y.XmlFragment))throw Error('Unsupported visible XML branch')
+    for(let item=type._start;item;item=item.right){step();if(item.deleted)continue
+      if(!(item.content instanceof Y.ContentType))throw Error('Unsupported visible XML item')
+      visit(item.content.type,depth+1)
+    }
+  }
+  visit(root,0);return {runs}
+}
+
 export function resolveTextItems(doc, root, input) {
   const runs = selection(input), paths = reachable(root), units = [], unavailableRuns = []
   const text = new Map()

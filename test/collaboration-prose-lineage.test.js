@@ -616,3 +616,36 @@ test('local placement candidates pair exact emitted operations and persist befor
   assert.deepEqual(restored('exportHistorySnapshot',{scope_token:'new'}).placement,persisted.placement)
   original.destroy();pristine.destroy()
 })
+
+import {captureProseOperation,validateProseWitness} from '../adapters/collaboration/prose-lineage.js';
+import {captureVisibleTextItems} from '../adapters/collaboration/text-items.js';
+test('rich anchored widget input validates full marks and refuses omitted fresh peer-option allocations',()=>{
+ const before=new Y.Doc({gc:false});before.clientID=7;const root=before.getXmlFragment('default');
+ const q=new Y.XmlElement('questionBlock'),label=new Y.XmlElement('questionLabel'),option=new Y.XmlElement('questionOption');
+ const labelText=new Y.XmlText('A🌍Z'),optionText=new Y.XmlText('Choice');root.insert(0,[q]);q.insert(0,[label,option]);label.insert(0,[labelText]);option.insert(0,[optionText]);
+ const attrs={underline:{},link:{href:'https://example.com',target:'_blank',rel:'noopener noreferrer nofollow',class:null,title:null}};
+ const operation=captureProseOperation(before,root,{start:{path:[0,0,0],index:4},end:{path:[0,0,0],index:4},text:'!',attributes:attrs});
+ assert.deepEqual(operation.start_anchor,{type:{client:7,clock:3},assoc:0});assert.deepEqual(operation.inserted_attributes,attrs);
+ assert.throws(()=>captureProseOperation(before,root,{start:{path:[0,0,0],index:2},end:{path:[0,0,0],index:3},text:''}),/surrogate/);
+ const after=new Y.Doc({gc:false});Y.applyUpdate(after,Y.encodeStateAsUpdate(before));after.clientID=7;const post=after.getXmlFragment('default');
+ post.get(0).get(0).get(0).insert(4,'!',structuredClone(attrs));
+ const inserted=captureVisibleTextItems(post,{since:Y.encodeStateVector(before)});
+ assert.deepEqual(validateProseWitness(before,after,{operation,insertedTextItems:inserted,copies:[]}),{operation,copies:[]});
+ const state=Y.encodeStateAsUpdate(after);assert.deepEqual(Y.encodeStateAsUpdate(after),state);
+ post.get(0).get(1).get(0).insert(6,'unclaimed');
+ assert.throws(()=>validateProseWitness(before,after,{operation,insertedTextItems:inserted,copies:[]}),/Unaccounted/);
+ before.destroy();after.destroy();
+});
+
+test('rich command suffix copies retain exact link marks and reject mark loss or unaccounted source duplication',()=>{
+ const before=new Y.Doc({gc:false}),root=before.getXmlFragment('default'),paragraph=new Y.XmlElement('paragraph'),text=new Y.XmlText();
+ root.insert(0,[paragraph]);paragraph.insert(0,[text]);text.insert(0,'A🌍Z',{underline:{}});
+ const operation=captureProseOperation(before,root,{start:{path:[0,0],index:1},end:{path:[0,0],index:1},text:'!'});
+ const source=captureTextItems(root,{path:[0,0],index:1,length:3});
+ const after=new Y.Doc({gc:false});Y.applyUpdate(after,Y.encodeStateAsUpdate(before));const post=after.getXmlFragment('default'),p=post.get(0),left=p.get(0);
+ left.delete(1,3);left.insert(1,'!',{});const right=new Y.XmlText();p.insert(1,[right]);right.insert(0,'🌍Z',{underline:{}});
+ const insertedTextItems=captureTextItems(post,{path:[0,0],index:1,length:1}),destination=captureTextItems(post,{path:[0,1],index:0,length:3});
+ assert.deepEqual(validateProseWitness(before,after,{operation,insertedTextItems,copies:[{source,destination}]}),{operation,copies:[{source,destination}]});
+ right.format(0,3,{underline:null});assert.throws(()=>validateProseWitness(before,after,{operation,insertedTextItems,copies:[{source,destination}]}),/attributes changed/);
+ before.destroy();after.destroy();
+});

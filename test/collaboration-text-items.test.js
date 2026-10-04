@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import * as Y from 'yjs'
-import { captureTextItems, resolveTextItems } from '../adapters/collaboration/text-items.js'
+import { captureTextItems, resolveTextItems, captureVisibleTextItems } from '../adapters/collaboration/text-items.js'
 function seed(value = 'HUMAN') {
   const doc = new Y.Doc(), root = doc.getXmlFragment('default'), leaf = new Y.XmlText()
   root.insert(0, [leaf]); leaf.insert(0, value)
@@ -128,3 +128,25 @@ test('wide trees fail traversal before allocating a child array', () => {
   assert.throws(() => resolve(a, { runs: [] }), /traversal limit exceeded/)
   a.doc.destroy()
 })
+
+test('whole rich XML observation accounts every fresh label and option run without a document character cap',()=>{
+ const doc=new Y.Doc({gc:false});doc.clientID=7;const root=doc.getXmlFragment('default');
+ const question=new Y.XmlElement('questionBlock'),labelNode=new Y.XmlElement('questionLabel'),optionNode=new Y.XmlElement('questionOption');
+ const label=new Y.XmlText('A🌍Z'),option=new Y.XmlText('Choice');
+ root.insert(0,[question]);question.insert(0,[labelNode,optionNode]);labelNode.insert(0,[label]);optionNode.insert(0,[option]);
+ const vector=Y.encodeStateVector(doc),next=Y.decodeStateVector(vector).get(7);
+ // Expected clocks fixed from these independent host allocations, not the observer.
+ assert.equal(next,15);label.insert(4,'!');option.insert(6,'🌍');
+ const state=Y.encodeStateAsUpdate(doc);
+ assert.deepEqual(captureVisibleTextItems(root,{since:vector}),{runs:[
+  {type:{client:7,clock:3},item:{client:7,clock:15},count:1},
+  {type:{client:7,clock:8},item:{client:7,clock:16},count:2}
+ ]});
+ assert.deepEqual(Y.encodeStateAsUpdate(doc),state);
+ assert.throws(()=>captureVisibleTextItems(root,{since:vector,maximumSteps:1}),/budget/);
+ option.delete(6,2);assert.equal(captureVisibleTextItems(root,{since:vector}).runs.length,1);
+ root.delete(0,1);assert.deepEqual(captureVisibleTextItems(root,{since:vector}),{runs:[]});
+ const paragraph=new Y.XmlElement('paragraph'),long=new Y.XmlText('x'.repeat(250000));root.insert(0,[paragraph]);paragraph.insert(0,[long]);
+ assert.equal(captureVisibleTextItems(root,{maximumSteps:8}).runs[0].count,250000);
+ doc.destroy();
+});
