@@ -8,6 +8,7 @@ import {parseAtomSource} from './document-atoms.js';
 import {parseAttributes} from './attributes.js';
 import {directiveNodeForName,directiveNodeForType} from './document-directives.js';
 import {directiveForName,directiveForType} from './registry.js';
+import {isBlockNode} from './node-kind.js';
 import {parsePaperControlSource} from './document-controls.js';
 import {parseEntityReferenceSource} from './document-reference.js';
 const md=new MarkdownIt({html:false,linkify:false,typographer:false});
@@ -25,6 +26,29 @@ export function parseDocument(source,{namespace}={}){
  let frontmatter;const fm=source.match(/^---\n([\s\S]*?)\n---(?:\n|$)/);if(fm){frontmatter={};for(const line of fm[1].split('\n')){const m=line.match(/^([^:]+):\s*(.*)$/);if(!m)throw new TypeError('Invalid frontmatter');try{frontmatter[m[1]]=JSON.parse(m[2]);}catch{frontmatter[m[1]]=m[2];}}source=source.slice(fm[0].length);}
  const blocks=sourceBlocks(source,namespace,[]);if(!blocks.length)blocks.push(block(namespace,[0],'paragraph'));
  return valid({type:'relaymark.document',...(frontmatter?{frontmatter}:{}),blocks});
+}
+/** Finite historical AST conversion; never called by normal edits/current admission. */
+export function importDocument(original,{namespace}={}){
+ if(!original||typeof original!=='object'||Array.isArray(original)||typeof namespace!=='string'||!namespace)throw new TypeError('Migration requires document and retained namespace');
+ const document=structuredClone(original),identity_mapping={retained:[],remapped:[],added:[]},ids=new Map(),seen=new Set();
+ if(Object.hasOwn(document,'version')){if(document.version!==1)throw new TypeError('Unknown historical document version');delete document.version;}
+ const profiles={'relaymark.agent_answer.v1':'relaymark.agent_answer','relaymark.scripture_release.v1':'relaymark.scripture_release','relaymark.scripture_span.v1':'relaymark.scripture_span'};
+ function profile(value){if(Array.isArray(value))return value.map(profile);if(value&&typeof value==='object'){for(const[key,child]of Object.entries(value))value[key]=key==='profile'&&profiles[child]?profiles[child]:profile(child);}return value;}
+ profile(document);
+ function visit(n,path){if(!n||typeof n!=='object'||!isBlockNode(n))throw new TypeError('Historical block shape');const old=n.id;if(typeof old!=='string'||!old||seen.has(old))throw new TypeError('Historical block identity');seen.add(old);
+  if(/^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/.test(old)){identity_mapping.retained.push(old);ids.set(old,old);}else{n.id=id(namespace,['migration','block',old]);identity_mapping.remapped.push({from:old,to:n.id});ids.set(old,n.id);}
+  if(Object.hasOwn(n,'evidence_refs')){if(!Array.isArray(n.evidence_refs)||JSON.stringify(n.evidence_refs)!==JSON.stringify(n.props?.evidence))throw new TypeError('Ambiguous historical evidence');delete n.evidence_refs;}
+  const children=n.content||[];if(!Array.isArray(children))throw new TypeError('Historical content');n.content=children.map((child,i)=>isBlockNode(child)?visit(child,[...path,i]):child);
+  if(directiveNodeForType(n.type)){
+   const normalized=[];let pending=[];const flush=()=>{if(pending.length){const index=normalized.length,wrapper=id(namespace,['migration',old,'inline',index]);identity_mapping.added.push({id:wrapper,parent:n.id,role:'inline_body',index});normalized.push({id:wrapper,type:'paragraph',content:pending});pending=[];}};
+   for(const child of n.content){if(isBlockNode(child)){flush();normalized.push(child);}else pending.push(child);}flush();n.content=normalized;
+  }
+  return n;
+ }
+ if(!Array.isArray(document.blocks))throw new TypeError('Historical document blocks');document.blocks=document.blocks.map((n,i)=>visit(n,[i]));
+ // Only known AST block references are remapped; host entity/resource identities stay exact.
+ function references(value){if(Array.isArray(value))return value.map(references);if(value&&typeof value==='object'){for(const[key,child]of Object.entries(value)){if(['block_id','start_block_id','end_block_id'].includes(key)&&typeof child==='string'&&ids.has(child))value[key]=ids.get(child);else if(key==='evidence'&&Array.isArray(child))value[key]=child.map(v=>ids.get(v)||v);else references(child);}}return value;}
+ references(document);valid(document);return {document,identity_mapping};
 }
 function sourceBlocks(source,ns,prefix){
  const segments=[];let plain=[],directive=null,fence=null;

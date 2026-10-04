@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument} from '../src/document-source.js';
+import {parseDocument,serializeDocument,projectDocumentMarkdown,renderDocument,importDocument} from '../src/document-source.js';
 test('canonical source imports CommonMark and directives; exact interchange retains metadata and identity',()=>{
  const source='# Title\n\n> **A** and [B](https://example.com)\n\n- [x] Task\n- [ ] Next\n\n| Name | Value |\n| --- | ---: |\n| A | B |\n\n@Callout(tone: "info", emphasis: "soft", title: "Read") {\n![Diagram](/m/asset)\n}\n';
  const ast=parseDocument(source,{namespace:'import-one'});
@@ -38,4 +38,15 @@ test('generic authored claim evidence and comparison retain Unicode, IDs and tab
  assert.deepEqual(parseDocument(serializeDocument(ast)),ast);assert.match(renderDocument(ast),/<strong>Résumé 世界<\/strong>/);
  assert.match(projectDocumentMarkdown(ast),/@EvidenceRef\(/);assert.match(projectDocumentMarkdown(ast),/\| Subject \| Value \|/);
  const inline=structuredClone(ast);inline.blocks[1].content=inline.blocks[1].content[0].content;assert.throws(()=>relayMarkToProseMirror(inline));
+});
+
+test('finite migration wraps historic inline directives once, preserving existing IDs and marks',()=>{
+ const canonical=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-directives.json',import.meta.url)));
+ const original=structuredClone(canonical);original.version=1;original.blocks[0].content=original.blocks[0].content[0].content;original.blocks[1].evidence_refs=['e-one'];
+ const first=importDocument(original,{namespace:'historic-corpus'}),second=importDocument(original,{namespace:'historic-corpus'});
+ assert.deepEqual(first,second);assert.deepEqual(original.blocks[0].content,[{type:'emphasis',content:[{type:'text',text:'証拠 café 👩🏽‍💻'}]}]);
+ assert.equal(first.document.blocks[0].id,canonical.blocks[0].id);assert.deepEqual(first.document.blocks[0].content[0].content,original.blocks[0].content);
+ assert.deepEqual(first.identity_mapping.added,[{id:'bb756b5f57e434fa48ec0d909a25264c1',parent:canonical.blocks[0].id,role:'inline_body',index:0}]);
+ assert.deepEqual(importDocument(first.document,{namespace:'historic-corpus'}).document,first.document);
+ assert.throws(()=>serializeDocument(original));
 });

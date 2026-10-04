@@ -5,8 +5,11 @@ const definitions=[
  ['relay.comparison','relayComparison'],['relay.transcript_segment','relayTranscript'],['relay.action_row','relayAction'],
  ['relay.property_sheet','relayPropertySheet'],['relay.layout','relayLayout'],['relay.file_ref','relayFile'],['relay.note_ref','relayNote'],['relay.url_ref','relayUrl']
 ];
+const blockNames={paragraph:['paragraph'],heading:['heading'],quote:['blockquote'],list:['bulletList','orderedList'],list_item:['listItem'],task_list:['taskList'],task_item:['taskItem'],code:['codeBlock'],horizontal_rule:['horizontalRule'],image:['image'],table:['table'],table_row:['tableRow'],table_cell:['tableCell','tableHeader'],'relay.callout':['callout'],'relay.callout_title':['calloutTitle'],'relay.video_embed':['videoEmbed'],'relay.entity_reference':['relayEntityReference'],'relay.agent_suggestion':['agentSuggestion'],'relay.data_view':['relayDataView'],'relay.form_question':['questionBlock'],'relay.form_option':['questionOption'],'relay.paper_control':['relayButton','relayAnchor','relayConnection'],...Object.fromEntries(definitions.map(([type,name])=>[type,[name]]))};
 export const canonicalDirectiveNodes=Object.freeze(definitions.map(([type,name])=>{
- const spec=directiveForType(type);return Object.freeze({type,name,content:spec.children.min>0?'block+':'block*',attributes:spec.attributes,allowed_children:spec.children.allowed_types.filter(t=>t!=='text'&&!t.endsWith('entity_ref')),minimum_children:spec.children.min||0});
+ const spec=directiveForType(type),allowed_children=spec.children.allowed_types,pm_allowed_children=allowed_children.flatMap(t=>{const names=blockNames[t];if(!names)throw new TypeError('Unsupported directive child specification '+t);return names;});
+ const expression=pm_allowed_children.length===1?pm_allowed_children[0]:'('+pm_allowed_children.join(' | ')+')';
+ return Object.freeze({type,name,content:expression+(spec.children.min>0?'+':'*'),attributes:spec.attributes,allowed_children,pm_allowed_children,minimum_children:spec.children.min||0});
 }));
 export function directiveNodeForName(name){return canonicalDirectiveNodes.find(n=>n.name===name);}
 export function directiveNodeForType(type){return canonicalDirectiveNodes.find(n=>n.type===type);}

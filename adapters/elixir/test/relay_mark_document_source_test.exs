@@ -68,4 +68,40 @@ defmodule RelayMark.DocumentSourceTest do
     assert markdown =~ "| Name | Value |"
     refute markdown =~ "relaymark-ast"
   end
+
+  test "finite migration wraps historic directive text and retains a stable identity mapping" do
+    canonical =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/canonical-directives.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    original =
+      canonical
+      |> Map.put("version", 1)
+      |> update_in(["blocks", Access.at(0), "content"], &hd(&1)["content"])
+
+    assert {:ok, result} = RelayMark.import_document(original, namespace: "historic-corpus")
+    assert result == elem(RelayMark.import_document(original, namespace: "historic-corpus"), 1)
+    assert hd(result.document["blocks"])["id"] == hd(original["blocks"])["id"]
+
+    assert hd(hd(result.document["blocks"])["content"])["content"] ==
+             hd(original["blocks"])["content"]
+
+    assert result.identity_mapping["added"] == [
+             %{
+               "id" => "bb756b5f57e434fa48ec0d909a25264c1",
+               "parent" => hd(original["blocks"])["id"],
+               "role" => "inline_body",
+               "index" => 0
+             }
+           ]
+
+    assert {:ok, %{document: doc}} =
+             RelayMark.import_document(result.document, namespace: "historic-corpus")
+
+    assert doc == result.document
+  end
 end

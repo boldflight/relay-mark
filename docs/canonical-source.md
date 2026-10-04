@@ -34,3 +34,15 @@ conversion and exact source interchange preserve it; unknown keys fail loudly.
 
 These APIs do not imply feature completeness of every native authoring operation.
 Missing offered nodes or editing semantics remain explicit implementation gates.
+
+Historical AST input uses JS `importDocument(original, {namespace})` or Elixir
+`RelayMark.import_document(original, namespace: namespace)`. This finite migration
+boundary removes the obsolete AST counter and known historical profile suffixes,
+retains existing canonical block IDs, maps earlier IDs deterministically, and wraps
+inline directive bodies in identified paragraphs without changing text or marks.
+It returns `{document, identity_mapping}` (Elixir uses atom keys for that result;
+the mapping's `retained`, `remapped`, and `added` keys are JSON strings). The caller
+must retain the immutable original, namespace and mapping with migration evidence.
+Only explicit AST block references are remapped; host entity/resource identities
+remain unchanged. Ambiguous duplicated evidence fields and unknown historical
+shapes fail. Current admission and normal editing never invoke this decoder.
