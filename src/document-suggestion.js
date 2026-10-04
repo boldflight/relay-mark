@@ -2,7 +2,7 @@
 const reviews = new Set(['draft', 'ready']);
 const kinds = new Set(['note', 'action', 'match', 'journey', 'source', 'share']);
 
-export function assertV3AgentSuggestion(review, kind, confidence, evidence, content) {
+export function assertAgentSuggestion(review, kind, confidence, evidence, content) {
   if (!reviews.has(review) || !kinds.has(kind) ||
       !(confidence === null || (typeof confidence === 'number' &&
         Number.isFinite(confidence) && confidence >= 0 && confidence <= 1)) ||
@@ -17,7 +17,7 @@ export function assertV3AgentSuggestion(review, kind, confidence, evidence, cont
   return { review, kind, confidence, evidence, content };
 }
 
-export function assertV3AgentSuggestionBlock(block) {
+export function assertAgentSuggestionBlock(block) {
   const props = block?.props;
   if (!props || typeof props !== 'object' || Array.isArray(props) ||
       (Object.keys(props).length !== 3 && Object.keys(props).length !== 4) ||
@@ -28,6 +28,6 @@ export function assertV3AgentSuggestionBlock(block) {
       Object.keys(block.content[0]).some(key => !['type', 'text'].includes(key))) {
     throw new TypeError('Invalid authored AgentSuggestion block');
   }
-  return assertV3AgentSuggestion(props.review, props.kind, props.confidence ?? null,
+  return assertAgentSuggestion(props.review, props.kind, props.confidence ?? null,
     props.evidence, block.content[0].text);
 }

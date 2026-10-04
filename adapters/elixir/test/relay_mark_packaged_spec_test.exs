@@ -35,6 +35,15 @@ defmodule RelayMark.PackagedSpecTest do
     assert File.read!(packaged) == File.read!(canonical)
   end
 
+  test "Hex package ships exact canonical contract and rich adapter modules" do
+    for name <-
+          ~w(contract.js document-adapter.js document-inline.js document-atoms.js document-reference.js document-controls.js document-suggestion.js) do
+      canonical = Path.expand("../../../src/#{name}", __DIR__)
+      packaged = Path.expand("../priv/collaboration/#{name}", __DIR__)
+      assert File.read!(packaged) == File.read!(canonical)
+    end
+  end
+
   defp packaged_relative_paths do
     @packaged_root
     |> Path.join("**/*.json")

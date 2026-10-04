@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
@@ -31,7 +31,7 @@ test('community TipTap/Yjs Markdown blocks project to valid RelayMark AST and in
       'horizontalRule', 'paragraph']);
   assert.equal(xml.toArray()[0].toArray()[1].nodeName, 'hardBreak');
   assert.deepEqual(xml.toArray()[0].toArray()[1].getAttributes(), {});
-  const ast = proseMirrorV3ToRelayMark(fixture.normalized);
+  const ast = proseMirrorToRelayMark(fixture.normalized);
   assert.deepEqual(ast.blocks.map(block => block.type),
     ['paragraph', 'heading', 'quote', 'list', 'list', 'code', 'horizontal_rule', 'paragraph']);
   assert.deepEqual(ast.blocks[0].content[1], { type: 'hard_break' });
@@ -48,8 +48,8 @@ test('community TipTap/Yjs Markdown blocks project to valid RelayMark AST and in
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
   assert.deepEqual(ast, fixture.expected_ast);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), fixture.normalized);
-  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
+  assert.deepEqual(relayMarkToProseMirror(ast), fixture.normalized);
+  assert.deepEqual(proseMirrorToRelayMark(relayMarkToProseMirror(ast)), ast);
   replica.destroy();
 });
 
@@ -63,7 +63,7 @@ test('v3 Markdown block mapper rejects unsupported content before source project
   const reject = (edit, reason) => {
     const doc = base();
     edit(doc);
-    assert.throws(() => proseMirrorV3ToRelayMark(doc), reason);
+    assert.throws(() => proseMirrorToRelayMark(doc), reason);
   };
   reject(doc => { delete heading(doc).attrs.relaymarkId; }, /relaymarkId/);
   reject(doc => { heading(doc).attrs.relaymarkId = doc.content[0].attrs.relaymarkId; }, /Duplicate/);
@@ -90,11 +90,11 @@ test('v3 Markdown block mapper rejects unsupported content before source project
 });
 
 test('inverse mapping rejects malformed portable block properties and nested shapes', () => {
-  const original = proseMirrorV3ToRelayMark(fixture.normalized);
+  const original = proseMirrorToRelayMark(fixture.normalized);
   const reject = (edit, reason) => {
     const ast = clone(original);
     edit(ast);
-    assert.throws(() => relayMarkV3ToProseMirror(ast), reason);
+    assert.throws(() => relayMarkToProseMirror(ast), reason);
   };
   reject(ast => { ast.blocks[1].props.level = 0; }, /heading level/);
   reject(ast => { ast.blocks[2].content.push(clone(ast.blocks[3])); }, /Duplicate/);
@@ -115,20 +115,20 @@ test('community list-item blocks preserve headings code and multiple paragraphs'
     return copy;
   }
   doc.content[3].content[0].content.push(...[doc.content[0], doc.content[1], doc.content[5]].map(copyWithIDs));
-  const ast = proseMirrorV3ToRelayMark(doc);
+  const ast = proseMirrorToRelayMark(doc);
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), doc);
+  assert.deepEqual(relayMarkToProseMirror(ast), doc);
 });
 
 
 test('current community rich quotes preserve all nested blocks and invert', () => {
   const rich = JSON.parse(readFileSync(new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/rich-quote-v3.json', import.meta.url)));
-  const ast = proseMirrorV3ToRelayMark(rich.normalized);
+  const ast = proseMirrorToRelayMark(rich.normalized);
   assert.deepEqual(ast, rich.expected_ast);
   assert.deepEqual(ast.blocks[0].content.map(node => node.type),
     ['heading', 'list', 'quote', 'image', 'relay.callout', 'horizontal_rule', 'paragraph']);
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
-  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
+  assert.deepEqual(proseMirrorToRelayMark(relayMarkToProseMirror(ast)), ast);
 });

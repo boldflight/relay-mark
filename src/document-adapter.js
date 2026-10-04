@@ -1,8 +1,8 @@
 /** Optional relaymark-prosemirror-v3 Markdown-block/table projection; no live profile admits it. */
-import { mapV3Inline, unmapV3Inline } from './collaboration-inline-v3.js';
-import { parseV3EntityReferenceSource, assertV3EntityReferenceProps } from './collaboration-entity-reference-v3.js';
-import { canonicalPaperControlSource, assertV3PaperControlProps, paperControlKind, paperControlNodeName } from './collaboration-paper-controls-v3.js';
-import { assertV3AgentSuggestion, assertV3AgentSuggestionBlock } from './collaboration-agent-suggestion-v3.js';
+import { mapInline, unmapInline } from './document-inline.js';
+import { parseEntityReferenceSource, assertEntityReferenceProps } from './document-reference.js';
+import { canonicalPaperControlSource, assertPaperControlProps, paperControlKind, paperControlNodeName } from './document-controls.js';
+import { assertAgentSuggestion, assertAgentSuggestionBlock } from './document-suggestion.js';
 
 const blockId = /^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/u;
 const alignments = new Set([null, "left", "center", "right"]);
@@ -17,14 +17,14 @@ const maxDocumentDepth = 64;
 const maxTaskChildren = 4096;
 
 export function tableProseMirrorToRelayMark(prosemirror) {
-  const document = proseMirrorV3ToRelayMark(prosemirror);
+  const document = proseMirrorToRelayMark(prosemirror);
   if (document.blocks.some(block => block.type !== "table")) {
     throw new TypeError("Table-only projection requires table blocks");
   }
   return document;
 }
 
-export function proseMirrorV3ToRelayMark(prosemirror) {
+export function proseMirrorToRelayMark(prosemirror) {
   assertObject(prosemirror, "doc");
   onlyKeys(prosemirror, ["type", "content"], "doc");
   requireType(prosemirror, "doc");
@@ -35,14 +35,14 @@ export function proseMirrorV3ToRelayMark(prosemirror) {
 }
 
 export function relayMarkTableToProseMirror(document) {
-  const prosemirror = relayMarkV3ToProseMirror(document);
+  const prosemirror = relayMarkToProseMirror(document);
   if (document.blocks.some(block => block.type !== "table")) {
     throw new TypeError("Table-only projection requires table blocks");
   }
   return prosemirror;
 }
 
-export function relayMarkV3ToProseMirror(document) {
+export function relayMarkToProseMirror(document) {
   assertObject(document, "document");
   onlyKeys(document, ["type", "blocks"], "document");
   if (document.type !== "relaymark.document") {
@@ -57,6 +57,8 @@ export function relayMarkV3ToProseMirror(document) {
 function mapBlock(node, seen, calloutDepth) {
   switch (node?.type) {
     case "paragraph": return mapParagraph(node, seen);
+    case "questionBlock": return mapQuestion(node, seen);
+    case "relayDataView": return mapDataView(node, seen);
     case "heading": return mapHeading(node, seen);
     case "blockquote": return mapQuote(node, seen, calloutDepth);
     case "bulletList": return mapList(node, seen, false, 0);
@@ -84,6 +86,8 @@ function mapBlock(node, seen, calloutDepth) {
 function unmapBlock(block, seen, calloutDepth) {
   switch (block?.type) {
     case "paragraph": return unmapParagraph(block, seen);
+    case "relay.form_question": return unmapQuestion(block, seen);
+    case "relay.data_view": return unmapDataView(block, seen);
     case "heading": return unmapHeading(block, seen);
     case "quote": return unmapQuote(block, seen, calloutDepth);
     case "list": return unmapList(block, seen, 0);
@@ -148,12 +152,12 @@ function mapCalloutTitle(node, seen) {
   const items = inlineChildren(node, "calloutTitle");
   if (items.some(item => item.type !== "text")) throw new TypeError("Unsupported callout title inline node");
   return { id: node.attrs.relaymarkId, type: "relay.callout_title",
-    content: items.map(mapV3Inline) };
+    content: items.map(mapInline) };
 }
 
 function unmapCalloutTitle(block, seen) {
   checkBlock(block, "relay.callout_title", seen);
-  const content = inlineChildren(block, "relay.callout_title").map(unmapV3Inline);
+  const content = inlineChildren(block, "relay.callout_title").map(unmapInline);
   if (content.some(item => item.type !== "text")) throw new TypeError("Unsupported callout title inline node");
   return { type: "calloutTitle", attrs: { relaymarkId: block.id }, content };
 }
@@ -163,7 +167,7 @@ function mapHeading(node, seen) {
   const { level, headingId: anchor } = node.attrs;
   checkHeading(level, anchor);
   return { id: node.attrs.relaymarkId, type: "heading", props: { level, headingId: anchor },
-    content: inlineChildren(node, "heading").map(mapV3Inline) };
+    content: inlineChildren(node, "heading").map(mapInline) };
 }
 
 function unmapHeading(block, seen) {
@@ -173,7 +177,7 @@ function unmapHeading(block, seen) {
   const { level, headingId: anchor } = block.props;
   checkHeading(level, anchor);
   return { type: "heading", attrs: { relaymarkId: block.id, level, headingId: anchor },
-    content: inlineChildren(block, "heading").map(unmapV3Inline) };
+    content: inlineChildren(block, "heading").map(unmapInline) };
 }
 
 function checkHeading(level, anchor) {
@@ -246,7 +250,7 @@ function unmapListItem(block, seen, depth) {
 // Cross-container nesting (for example list/callout/list) has one physical
 // depth bound even when its individual container counters restart.
 function assertContentDepth(node, depth = 0) {
-  if (depth > maxDocumentDepth) throw new TypeError("V3 document nesting limit exceeded");
+  if (depth > maxDocumentDepth) throw new TypeError(" document nesting limit exceeded");
   if (Array.isArray(node?.content)) {
     for (const child of node.content) assertContentDepth(child, depth + 1);
   }
@@ -365,19 +369,23 @@ function mapImage(node, seen) {
   }
   const { src, alt, title, width, height } = node.attrs;
   checkImageProps({ src, alt, title });
-  if (width !== null || height !== null) throw new TypeError("Image dimensions are not portable in v3");
-  return { id: node.attrs.relaymarkId, type: "image", props: { src, alt, title }, content: [] };
+  checkDimensions({ width, height });
+  const props = { src, alt, title };
+  if (width != null) props.width = width;
+  if (height != null) props.height = height;
+  return { id: node.attrs.relaymarkId, type: "image", props, content: [] };
 }
 
 function unmapImage(block, seen) {
   checkBlock(block, "image", seen, true);
   assertObject(block.props, "image.props");
-  onlyKeys(block.props, ["src", "alt", "title"], "image.props");
+  onlyKeys(block.props, ["src", "alt", "title", "width", "height"], "image.props");
   if (block.content !== undefined && children(block, "image").length !== 0) {
     throw new TypeError("Image cannot have children");
   }
   checkImageProps(block.props);
-  return { type: "image", attrs: { relaymarkId: block.id, ...block.props, width: null, height: null } };
+  checkDimensions(block.props);
+  return { type: "image", attrs: { relaymarkId: block.id, width: null, height: null, ...block.props } };
 }
 
 function checkImageProps({ src, alt, title }) {
@@ -405,7 +413,7 @@ function mapEntityReference(node, seen) {
     throw new TypeError("Entity reference atom cannot have children");
   }
   const { entityRef, entityId: id, entityType, label, projection, source } = node.attrs;
-  const authored = parseV3EntityReferenceSource(source);
+  const authored = parseEntityReferenceSource(source);
   if (!authored || authored.id !== entityRef || authored.entityId !== id ||
       entityType !== "Entity" || authored.label !== label || authored.projection !== projection) {
     throw new TypeError("Entity reference source/identity mismatch");
@@ -419,7 +427,7 @@ function unmapEntityReference(block, seen) {
   if (block.content !== undefined && children(block, "relay.entity_reference").length !== 0) {
     throw new TypeError("Entity reference atom cannot have children");
   }
-  const { id, entityId, label, projection, source } = assertV3EntityReferenceProps(block.props);
+  const { id, entityId, label, projection, source } = assertEntityReferenceProps(block.props);
   return { type: "relayEntityReference", attrs: { relaymarkId: block.id,
     entityRef: id, entityId, entityType: "Entity", label, projection, source } };
 }
@@ -443,7 +451,7 @@ function unmapPaperControl(block, seen) {
   if (block.content !== undefined && children(block, "relay.paper_control").length !== 0) {
     throw new TypeError("Paper control cannot have children");
   }
-  const { control, authored } = assertV3PaperControlProps(block.props);
+  const { control, authored } = assertPaperControlProps(block.props);
   return { type: paperControlNodeName(control), attrs: { relaymarkId: block.id, ...authored } };
 }
 
@@ -452,7 +460,7 @@ function mapAgentSuggestion(node, seen) {
   if (node.content !== undefined && children(node, 'agentSuggestion').length !== 0) {
     throw new TypeError('AgentSuggestion atom cannot have children');
   }
-  const { review, kind, confidence, evidence, content } = assertV3AgentSuggestion(
+  const { review, kind, confidence, evidence, content } = assertAgentSuggestion(
     node.attrs.review, node.attrs.kind, node.attrs.confidence, node.attrs.evidence, node.attrs.content);
   return { id: node.attrs.relaymarkId, type: 'relay.agent_suggestion',
     props: { review, kind, evidence, ...(confidence === null ? {} : { confidence }) },
@@ -461,7 +469,7 @@ function mapAgentSuggestion(node, seen) {
 
 function unmapAgentSuggestion(block, seen) {
   checkBlock(block, 'relay.agent_suggestion', seen, true);
-  const { review, kind, confidence, evidence, content } = assertV3AgentSuggestionBlock(block);
+  const { review, kind, confidence, evidence, content } = assertAgentSuggestionBlock(block);
   return { type: 'agentSuggestion', attrs: { relaymarkId: block.id,
     review, kind, confidence, evidence, content } };
 }
@@ -536,7 +544,7 @@ function mapCell(node, seen) {
 function mapParagraph(node, seen) {
   checkNode(node, "paragraph", seen);
   return { id: node.attrs.relaymarkId, type: "paragraph", content: inlineChildren(node, "paragraph")
-    .map(mapV3Inline) };
+    .map(mapInline) };
 }
 
 function mapText(node) {
@@ -584,7 +592,7 @@ function unmapCell(block, seen) {
 function unmapParagraph(block, seen) {
   checkBlock(block, "paragraph", seen);
   return { type: "paragraph", attrs: { relaymarkId: block.id },
-    content: inlineChildren(block, "paragraph").map(unmapV3Inline) };
+    content: inlineChildren(block, "paragraph").map(unmapInline) };
 }
 
 function unmapText(node) {
@@ -694,4 +702,87 @@ function onlyKeys(object, allowed, label) {
   for (const key of Object.keys(object)) {
     if (!allowed.includes(key)) throw new TypeError(`Unsupported ${label} field: ${key}`);
   }
+}
+
+function checkDimensions(props) {
+  for (const key of ["width", "height"]) {
+    const value = props[key];
+    if (value != null && (!Number.isSafeInteger(value) || value <= 0)) throw new TypeError("Image dimensions must be positive safe integers");
+  }
+}
+
+const questionFields = ["id", "type", "required", "points", "min", "max", "settings"];
+const optionFields = ["id", "correct", "points", "settings"];
+const questionTypes = new Set(["short_text","long_text","email","phone","number","multiple_choice","checkboxes","dropdown","linear_scale","date","file_upload","page_break","single_select","multi_select","entity_ref","file","slot_picker","hidden_field","calculated_field","video_question","video_response","payment","payment_block","lightning_payment"]);
+export function validateQuestionProps(props, option = false) {
+  assertObject(props, "form authored props");
+  onlyKeys(props, option ? optionFields : questionFields, "form authored props");
+  if (typeof props.id !== "string" || !props.id.trim() || /[\r\n\u0000]/u.test(props.id)) throw new TypeError("Invalid form identity");
+  if (option ? typeof props.correct !== "boolean" : (!questionTypes.has(props.type) || typeof props.required !== "boolean")) throw new TypeError("Invalid form type or boolean");
+  for (const key of option ? ["points"] : ["points","min","max"]) {
+    if (props[key] != null && (typeof props[key] !== "number" || !Number.isFinite(props[key]))) throw new TypeError("Invalid form numeric setting");
+  }
+  assertObject(props.settings, "form authored settings");
+  validateJSONValue(props.settings);
+}
+function validateJSONValue(value, depth = 0) {
+  if (depth > 32) throw new TypeError("Authored settings nesting exceeds bound");
+  if (value === null || typeof value === "string" || typeof value === "boolean") return;
+  if (typeof value === "number" && Number.isFinite(value)) return;
+  if (Array.isArray(value)) { value.forEach(item => validateJSONValue(item, depth + 1)); return; }
+  if (value && Object.getPrototypeOf(value) === Object.prototype) { Object.values(value).forEach(item => validateJSONValue(item, depth + 1)); return; }
+  throw new TypeError("Authored settings must contain only portable JSON");
+}
+function formProps(attrs, option) {
+  const defaults = option ? {correct:false,points:null,settings:{}} : {required:false,points:null,min:null,max:null,settings:{}};
+  const result={...defaults};
+  for(const key of option ? optionFields : questionFields) if(attrs[key] !== undefined) result[key]=attrs[key];
+  validateQuestionProps(result,option); return result;
+}
+function mapQuestion(node, seen) {
+  checkNode(node,"questionBlock",seen,questionFields);
+  const props=formProps(node.attrs,false), parts=children(node,"questionBlock",1);
+  checkNode(parts[0],"questionLabel",seen);
+  const label={id:parts[0].attrs.relaymarkId,type:"paragraph",content:inlineChildren(parts[0],"questionLabel").map(mapInline)};
+  const optionIDs=new Set();
+  const options=parts.slice(1).map(option=>{
+    checkNode(option,"questionOption",seen,optionFields);
+    const props=formProps(option.attrs,true);
+    if(optionIDs.has(props.id)) throw new TypeError("Duplicate option identity"); optionIDs.add(props.id);
+    return {id:option.attrs.relaymarkId,type:"relay.form_option",props,content:inlineChildren(option,"questionOption").map(mapInline)};
+  });
+  return {id:node.attrs.relaymarkId,type:"relay.form_question",props,content:[label,...options]};
+}
+function unmapQuestion(block, seen) {
+  checkBlock(block,"relay.form_question",seen,true);
+  const props=formProps(block.props,false),parts=children(block,"relay.form_question",1);
+  const label=unmapParagraph(parts[0],seen);label.type="questionLabel";
+  const optionIDs=new Set();
+  const options=parts.slice(1).map(option=>{
+    checkBlock(option,"relay.form_option",seen,true);const props=formProps(option.props,true);
+    if(optionIDs.has(props.id)) throw new TypeError("Duplicate option identity"); optionIDs.add(props.id);
+    return {type:"questionOption",attrs:{relaymarkId:option.id,...props},content:inlineChildren(option,"relay.form_option").map(unmapInline)};
+  });
+  return {type:"questionBlock",attrs:{relaymarkId:block.id,...props},content:[label,...options]};
+}
+const dataViewFields=["source","projection","columns","filter","sort","group","limit","title"];
+function dataViewProps(attrs) {
+  const props={};for(const key of dataViewFields) if(attrs[key]!=null) props[key]=attrs[key];
+  if(typeof props.source!=="string" || !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u.test(props.source) || !["list","table","feed","calendar","kanban","chart"].includes(props.projection)) throw new TypeError("Invalid data view source/projection");
+  for(const key of ["columns","sort"]) if(props[key]!==undefined && (!Array.isArray(props[key]) || props[key].some(v=>typeof v!=="string"))) throw new TypeError("Invalid data view keys");
+  if(props.filter!==undefined){assertObject(props.filter,"data view filter");validateJSONValue(props.filter);}
+  if(props.group!==undefined && (typeof props.group!=="string" || !/^[a-z][a-z0-9_]*$/u.test(props.group))) throw new TypeError("Invalid data view group");
+  if(props.limit!==undefined && (!Number.isSafeInteger(props.limit) || props.limit<1 || props.limit>1000)) throw new TypeError("Invalid data view limit");
+  if(props.title!==undefined && typeof props.title!=="string") throw new TypeError("Invalid data view title");
+  return props;
+}
+function mapDataView(node,seen) {
+  checkNode(node,"relayDataView",seen,dataViewFields);
+  if(node.content!==undefined && children(node,"relayDataView").length) throw new TypeError("Data view cannot carry records/children");
+  return {id:node.attrs.relaymarkId,type:"relay.data_view",props:dataViewProps(node.attrs),content:[]};
+}
+function unmapDataView(block,seen) {
+  checkBlock(block,"relay.data_view",seen,true);onlyKeys(block.props,dataViewFields,"relay.data_view.props");
+  if(children(block,"relay.data_view").length) throw new TypeError("Data view cannot carry records/children");
+  return {type:"relayDataView",attrs:{relaymarkId:block.id,...dataViewProps(block.props)}};
 }

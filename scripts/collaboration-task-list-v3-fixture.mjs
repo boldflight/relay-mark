@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
@@ -66,12 +66,12 @@ const update = Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64');
 const replay = new Y.Doc();
 Y.applyUpdate(replay, Buffer.from(update, 'base64'));
 assert.deepEqual(JSON.parse(JSON.stringify(schema.nodeFromJSON(yDocToProsemirrorJSON(replay, 'default')).toJSON())), normalized);
-const expectedAST = proseMirrorV3ToRelayMark(normalized);
+const expectedAST = proseMirrorToRelayMark(normalized);
 const astSchemaPath = new URL('../spec/relaymark/schemas/relaymark-document.schema.json', import.meta.url);
 assert.deepEqual(validateDocument(expectedAST), []);
 assert.deepEqual(validateJSONSchema(expectedAST, JSON.parse(await readFile(astSchemaPath, 'utf8')),
   astSchemaPath.pathname), []);
-assert.deepEqual(relayMarkV3ToProseMirror(expectedAST), normalized);
+assert.deepEqual(relayMarkToProseMirror(expectedAST), normalized);
 const fixture = { fixture_version: 1, root: 'default', client_id: doc.clientID,
   source: 'Community TipTap StarterKit/TaskList/TaskItem with RelayMark identity attributes + y-tiptap + Yjs',
   linked_entity_id: linkedEntityId, normalized, expected_ast: expectedAST, update };
@@ -90,9 +90,9 @@ const flatDoc = new Y.Doc();
 flatDoc.clientID = 91_505;
 prosemirrorToYXmlFragment(schema.nodeFromJSON(flatNormalized), flatDoc.getXmlFragment('default'));
 const flatUpdate = Buffer.from(Y.encodeStateAsUpdate(flatDoc)).toString('base64');
-const flatAST = proseMirrorV3ToRelayMark(flatNormalized);
+const flatAST = proseMirrorToRelayMark(flatNormalized);
 assert.deepEqual(validateDocument(flatAST), []);
-assert.deepEqual(relayMarkV3ToProseMirror(flatAST), flatNormalized);
+assert.deepEqual(relayMarkToProseMirror(flatAST), flatNormalized);
 const flatFixture = { fixture_version: 1, root: 'default', client_id: flatDoc.clientID,
   source: fixture.source, linked_entity_id: linkedEntityId,
   normalized: flatNormalized, expected_ast: flatAST, update: flatUpdate };

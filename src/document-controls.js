@@ -30,7 +30,7 @@ export function canonicalPaperControlSource(control, authored) {
   return source;
 }
 
-export function assertV3PaperControlProps(props) {
+export function assertPaperControlProps(props) {
   object(props);
   const { control, source, ...authored } = props;
   if (typeof source !== 'string' || source !== canonicalPaperControlSource(control, authored)) {

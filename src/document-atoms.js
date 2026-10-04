@@ -32,7 +32,7 @@ function tagSource(id, name) {
   return `[[Tag: ${identity(id)} | #${name}]]`;
 }
 
-export function mapV3Atom(node) {
+export function mapAtom(node) {
   only(node, ['type', 'attrs'], 'atom');
   if (node.type === 'relayReference') {
     only(node.attrs, ['entityType', 'entityId', 'label', 'source', 'status', 'subtitle'], 'reference attrs');
@@ -51,7 +51,7 @@ export function mapV3Atom(node) {
   throw new TypeError(`Unsupported inline atom ${String(node.type)}`);
 }
 
-export function unmapV3Atom(node) {
+export function unmapAtom(node) {
   if (node?.type === 'relay.entity_ref') {
     only(node, ['type', 'id', 'label', 'props'], 'reference');
     only(node.props, ['entityType', 'source'], 'reference props');
@@ -70,22 +70,22 @@ export function unmapV3Atom(node) {
   throw new TypeError(`Unsupported inline atom ${String(node?.type)}`);
 }
 
-export function parseV3AtomSource(source) {
+export function parseAtomSource(source) {
   if (typeof source !== 'string') return null;
   const tag = source.match(/^\[\[Tag: ([^ ]+) \| #([^\]]+)\]\]$/u);
   if (tag) {
-    try { return mapV3Atom({ type: 'relayTag', attrs: { id: tag[1], name: tag[2], color: null, source } }); }
+    try { return mapAtom({ type: 'relayTag', attrs: { id: tag[1], name: tag[2], color: null, source } }); }
     catch { return null; }
   }
   const reference = source.match(/^\[\[([^:]+): ([^ ]+) \| ([\s\S]+)\]\]$/u);
   if (reference) {
-    try { return mapV3Atom({ type: 'relayReference', attrs: { entityType: reference[1], entityId: reference[2],
+    try { return mapAtom({ type: 'relayReference', attrs: { entityType: reference[1], entityId: reference[2],
       label: reference[3], source, status: null, subtitle: null } }); }
     catch { return null; }
   }
   return null;
 }
 
-export function sourceForV3Atom(node) {
-  return unmapV3Atom(node).attrs.source;
+export function sourceForAtom(node) {
+  return unmapAtom(node).attrs.source;
 }

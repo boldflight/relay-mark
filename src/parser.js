@@ -1,5 +1,5 @@
 import { parseAttributes } from "./attributes.js";
-import { parsePaperControlSource } from "./collaboration-paper-controls-v3.js";
+import { parsePaperControlSource } from "./document-controls.js";
 
 export function parseRelayMark(source) {
   const normalized = source.replace(/\r\n?/g, "\n");

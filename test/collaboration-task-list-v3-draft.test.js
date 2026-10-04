@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
@@ -23,10 +23,10 @@ test('bounded native task fixture is real Yjs with the same portable task identi
       const { entityId, ...attrs } = item.attrs;
       return entityId === null ? attrs : item.attrs;
     }));
-  const ast = proseMirrorV3ToRelayMark(flatFixture.normalized);
+  const ast = proseMirrorToRelayMark(flatFixture.normalized);
   assert.deepEqual(ast, flatFixture.expected_ast);
   assert.deepEqual(validateDocument(ast), []);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), flatFixture.normalized);
+  assert.deepEqual(relayMarkToProseMirror(ast), flatFixture.normalized);
   replica.destroy();
 });
 
@@ -38,7 +38,7 @@ test('community TipTap/Yjs task items keep checked state, optional entity UUID a
   const list = root.toArray()[1];
   assert.deepEqual(list.getAttributes(), fixture.normalized.content[1].attrs);
   assert.deepEqual(list.toArray()[0].getAttributes(), fixture.normalized.content[1].content[0].attrs);
-  const ast = proseMirrorV3ToRelayMark(fixture.normalized);
+  const ast = proseMirrorToRelayMark(fixture.normalized);
   assert.deepEqual(ast, fixture.expected_ast);
   assert.deepEqual(ast.blocks[1].content[0].props,
     { checked: true, entityId: fixture.linked_entity_id });
@@ -47,7 +47,7 @@ test('community TipTap/Yjs task items keep checked state, optional entity UUID a
     ['paragraph', 'paragraph', 'task_list', 'list']);
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), fixture.normalized);
+  assert.deepEqual(relayMarkToProseMirror(ast), fixture.normalized);
   replica.destroy();
 });
 
@@ -55,7 +55,7 @@ test('task projection rejects executable or ambiguous task metadata and invalid 
   const reject = (edit, reason) => {
     const doc = structuredClone(fixture.normalized);
     edit(doc.content[1].content[0], doc);
-    assert.throws(() => proseMirrorV3ToRelayMark(doc), reason);
+    assert.throws(() => proseMirrorToRelayMark(doc), reason);
   };
   reject(item => { item.attrs.entityId = 'Task-1'; }, /entityId/);
   reject(item => { item.attrs.checked = 'true'; }, /checked/);
@@ -68,7 +68,7 @@ test('task projection rejects executable or ambiguous task metadata and invalid 
 
   const ast = structuredClone(fixture.expected_ast);
   ast.blocks[1].content[0].props.checked = 1;
-  assert.throws(() => relayMarkV3ToProseMirror(ast), /checked/);
+  assert.throws(() => relayMarkToProseMirror(ast), /checked/);
   assert.ok(validateDocument(ast).some(issue => issue.code === 'relaymark.task_item.props'));
 
   const nested = structuredClone(fixture.expected_ast);
@@ -84,15 +84,15 @@ test('task projection rejects executable or ambiguous task metadata and invalid 
     item.content.push(list);
     item = list.content[0];
   }
-  assert.throws(() => relayMarkV3ToProseMirror(nested), /nesting/);
+  assert.throws(() => relayMarkToProseMirror(nested), /nesting/);
   assert.ok(validateDocument(nested).some(issue => issue.code === 'relaymark.task_list.children'));
 });
 
 
 test('community task and table-cell bodies retain full authored block structures', () => {
   const rich = JSON.parse(readFileSync(new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/rich-containers-v3.json', import.meta.url)));
-  const ast = proseMirrorV3ToRelayMark(rich.normalized);
+  const ast = proseMirrorToRelayMark(rich.normalized);
   assert.deepEqual(ast, rich.expected_ast);
   assert.deepEqual(validateDocument(ast), []);
-  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
+  assert.deepEqual(proseMirrorToRelayMark(relayMarkToProseMirror(ast)), ast);
 });

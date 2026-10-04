@@ -2,7 +2,7 @@
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const projections = new Set(['link', 'chip', 'card']);
 
-export function parseV3EntityReferenceSource(source) {
+export function parseEntityReferenceSource(source) {
   if (typeof source !== 'string' || source.length > 16_384) return null;
   const match = source.match(/^@EntityRef\s*\(([\s\S]*?)\)\s*\{(?:\r\n|\n|\r)  ([^\r\n{}]+)(?:\r\n|\n|\r)\}$/u);
   if (!match) return null;
@@ -34,12 +34,12 @@ export function parseV3EntityReferenceSource(source) {
   return { id: attrs.id, entityId, label, projection, body, source };
 }
 
-export function assertV3EntityReferenceProps(props) {
+export function assertEntityReferenceProps(props) {
   if (!props || typeof props !== 'object' || Array.isArray(props) ||
       Object.keys(props).some(key => !['id', 'label', 'projection', 'source'].includes(key))) {
     throw new TypeError('Unsupported entity reference props');
   }
-  const parsed = parseV3EntityReferenceSource(props.source);
+  const parsed = parseEntityReferenceSource(props.source);
   if (!parsed || parsed.id !== props.id || parsed.label !== props.label ||
       parsed.projection !== props.projection) {
     throw new TypeError('Entity reference source/identity mismatch');

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
@@ -20,10 +20,10 @@ test('TipTap/Yjs video preserves only its durable ID in the portable AST', () =>
     assert.equal(xml[1].getAttribute('videoId'), fixture.normalized.content[1].attrs.videoId);
     assert.equal(xml[1].getAttribute('source'), 'mux');
     assert.equal(xml[1].getAttribute('status'), 'ready');
-    assert.deepEqual(proseMirrorV3ToRelayMark(fixture.normalized), fixture.expected_ast);
+    assert.deepEqual(proseMirrorToRelayMark(fixture.normalized), fixture.expected_ast);
     assert.deepEqual(validateDocument(fixture.expected_ast), []);
     assert.deepEqual(validateJSONSchema(fixture.expected_ast, schema, fileURLToPath(schemaURL)), []);
-    assert.deepEqual(relayMarkV3ToProseMirror(fixture.expected_ast), fixture.normalized);
+    assert.deepEqual(relayMarkToProseMirror(fixture.expected_ast), fixture.normalized);
   } finally { doc.destroy(); }
 });
 
@@ -31,7 +31,7 @@ test('v3 video rejects hydrated or malformed source state', () => {
   const rejectNode = (edit, reason) => {
     const document = structuredClone(fixture.normalized);
     edit(document.content[1]);
-    assert.throws(() => proseMirrorV3ToRelayMark(document), reason);
+    assert.throws(() => proseMirrorToRelayMark(document), reason);
   };
   for (const [key, value] of [
     ['playbackId', 'mux-playback'], ['title', 'Hydrated title'], ['source', 'youtube'],
@@ -46,7 +46,7 @@ test('v3 video rejects hydrated or malformed source state', () => {
 
   const ast = structuredClone(fixture.expected_ast);
   ast.blocks[1].props.status = 'ready';
-  assert.throws(() => relayMarkV3ToProseMirror(ast), /Unsupported/);
+  assert.throws(() => relayMarkToProseMirror(ast), /Unsupported/);
   const malformedAST = structuredClone(fixture.expected_ast);
   malformedAST.blocks[1].props.videoId = '../private';
   assert.deepEqual(validateDocument(malformedAST).map(diagnostic => diagnostic.code),

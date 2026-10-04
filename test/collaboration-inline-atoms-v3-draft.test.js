@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { serializeRelayMark } from '../src/serializer.js';
 import { compileRelayMark } from '../src/runtime.js';
 import { validateDocument } from '../src/validator.js';
@@ -20,11 +20,11 @@ test('real Relay TipTap atoms survive Yjs replay, portable inverse and exact sou
   assert.deepEqual(doc.getXmlFragment('default').toArray().map(node => node.nodeName), ['paragraph', 'heading']);
   assert.deepEqual(doc.getXmlFragment('default').toArray()[0].toArray().map(node => node.nodeName),
     [undefined, 'relayReference', undefined, 'relayTag', undefined]);
-  const ast = proseMirrorV3ToRelayMark(fixture.normalized);
+  const ast = proseMirrorToRelayMark(fixture.normalized);
   assert.deepEqual(ast, fixture.expected_ast);
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), fixture.normalized);
+  assert.deepEqual(relayMarkToProseMirror(ast), fixture.normalized);
   assert.equal(serializeRelayMark(ast), fixture.relaymark_source);
   assert.deepEqual(compileRelayMark(fixture.relaymark_source).document.blocks.map(block => block.content),
     ast.blocks.map(block => block.content));
@@ -36,7 +36,7 @@ test('v3 atom mapping rejects unresolved identity, inconsistent source and host 
   const rejectPM = edit => {
     const value = clone(fixture.normalized);
     edit(value);
-    assert.throws(() => proseMirrorV3ToRelayMark(value));
+    assert.throws(() => proseMirrorToRelayMark(value));
   };
   rejectPM(value => { value.content[0].content[1].attrs.entityId = null; });
   rejectPM(value => { value.content[0].content[1].attrs.source = '[[Ada]]'; });
@@ -47,7 +47,7 @@ test('v3 atom mapping rejects unresolved identity, inconsistent source and host 
   const rejectAST = edit => {
     const value = clone(fixture.expected_ast);
     edit(value);
-    assert.throws(() => relayMarkV3ToProseMirror(value));
+    assert.throws(() => relayMarkToProseMirror(value));
     assert.throws(() => serializeRelayMark(value));
   };
   rejectAST(value => { value.blocks[0].content[1].props.source = '[[Person: bad | Ada]]'; });
@@ -63,7 +63,7 @@ test('v3 atoms accept omitted hydration fields from the current collaboration sc
   delete document.content[0].content[1].attrs.status;
   delete document.content[0].content[1].attrs.subtitle;
   delete document.content[0].content[3].attrs.color;
-  const ast = proseMirrorV3ToRelayMark(document);
+  const ast = proseMirrorToRelayMark(document);
   assert.deepEqual(ast, fixture.expected_ast);
-  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
+  assert.deepEqual(proseMirrorToRelayMark(relayMarkToProseMirror(ast)), ast);
 });

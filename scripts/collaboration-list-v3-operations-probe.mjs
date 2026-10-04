@@ -5,7 +5,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import assert from 'node:assert/strict';
-import { proseMirrorV3ToRelayMark } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark } from '../src/document-adapter.js';
 
 const [assetsInput, mode] = process.argv.slice(2);
 if (!assetsInput || !['--write', '--check'].includes(mode)) throw new Error('assets path and --write|--check required');
@@ -95,7 +95,7 @@ window.fixture=out;`);
       fixture[name] = { source: 'Relay v3 TipTap/UniqueID Enter + community y-tiptap/Yjs',
         accepted: value.accepted, normalized: value.normalized, after: value.prosemirror,
         before_xml: value.before, after_xml: value.after, seed: value.seed, update: value.update,
-        expected_ast: proseMirrorV3ToRelayMark(value.prosemirror), anchors: value.resolved };
+        expected_ast: proseMirrorToRelayMark(value.prosemirror), anchors: value.resolved };
     }
   }
   const path = new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/list-operations-v3.json', import.meta.url);

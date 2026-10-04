@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { serializeRelayMark } from '../src/serializer.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
@@ -19,12 +19,12 @@ test('community TipTap/Yjs v3 marks have an exact, valid portable round trip', (
   Y.applyUpdate(replica, Buffer.from(fixture.update, 'base64'));
   assert.deepEqual(replica.getXmlFragment('default').toArray().map(node => node.nodeName),
     ['paragraph', 'heading', 'bulletList']);
-  const ast = proseMirrorV3ToRelayMark(fixture.normalized);
+  const ast = proseMirrorToRelayMark(fixture.normalized);
   assert.deepEqual(ast, fixture.expected_ast);
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), fixture.normalized);
-  assert.deepEqual(proseMirrorV3ToRelayMark(relayMarkV3ToProseMirror(ast)), ast);
+  assert.deepEqual(relayMarkToProseMirror(ast), fixture.normalized);
+  assert.deepEqual(proseMirrorToRelayMark(relayMarkToProseMirror(ast)), ast);
   assert.throws(() => serializeRelayMark(ast), /Cannot losslessly serialize inline type 'strong'/);
   assert.deepEqual(ast.blocks[0].content[1], { type: 'strong', content: [{ type: 'emphasis',
     content: [{ type: 'strikethrough', content: [{ type: 'text', text: 'bold italic strike' }] }] }] });
@@ -38,7 +38,7 @@ test('v3 marks reject unknown attrs, noncanonical order and lossy wrappers', () 
   const rejectPM = edit => {
     const doc = clone(fixture.normalized);
     edit(doc);
-    assert.throws(() => proseMirrorV3ToRelayMark(doc));
+    assert.throws(() => proseMirrorToRelayMark(doc));
   };
   rejectPM(doc => { doc.content[0].content[1].marks[0].attrs = { color: 'red' }; });
   rejectPM(doc => { doc.content[0].content[1].marks.reverse(); });
@@ -48,7 +48,7 @@ test('v3 marks reject unknown attrs, noncanonical order and lossy wrappers', () 
   const rejectAST = edit => {
     const ast = clone(fixture.expected_ast);
     edit(ast);
-    assert.throws(() => relayMarkV3ToProseMirror(ast));
+    assert.throws(() => relayMarkToProseMirror(ast));
   };
   rejectAST(ast => { ast.blocks[0].content[5].props = { title: 'hidden' }; });
   rejectAST(ast => { ast.blocks[0].content[7].content.push({ type: 'text', text: 'hidden' }); });
@@ -61,11 +61,11 @@ test('community TipTap/Yjs offered marks preserve exact wrappers, order, IDs and
   Y.applyUpdate(replica, Buffer.from(offered.update, 'base64'));
   assert.deepEqual(replica.getXmlFragment('default').toArray().map(node => node.nodeName),
     ['paragraph', 'heading', 'paragraph']);
-  const ast = proseMirrorV3ToRelayMark(offered.normalized);
+  const ast = proseMirrorToRelayMark(offered.normalized);
   assert.deepEqual(ast, offered.expected_ast);
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), offered.normalized);
+  assert.deepEqual(relayMarkToProseMirror(ast), offered.normalized);
   assert.throws(() => serializeRelayMark(ast), /Cannot losslessly serialize inline type/);
   assert.deepEqual(ast.blocks.map(block => block.id), [21, 22, 23].map(n =>
     `b0000000000004000800000000000${n.toString(16).padStart(4, '0')}`));
@@ -83,7 +83,7 @@ test('offered mark mapping rejects attributed, repeated, reordered or lossy mark
   const rejectPM = edit => {
     const doc = clone(offered.normalized);
     edit(doc);
-    assert.throws(() => proseMirrorV3ToRelayMark(doc));
+    assert.throws(() => proseMirrorToRelayMark(doc));
   };
   rejectPM(doc => { doc.content[0].content[0].marks[0].attrs = { color: 'red' }; });
   rejectPM(doc => { doc.content[0].content[2].marks[0].attrs = { color: null }; });
@@ -93,7 +93,7 @@ test('offered mark mapping rejects attributed, repeated, reordered or lossy mark
   const rejectAST = edit => {
     const ast = clone(offered.expected_ast);
     edit(ast);
-    assert.throws(() => relayMarkV3ToProseMirror(ast));
+    assert.throws(() => relayMarkToProseMirror(ast));
   };
   rejectAST(ast => { ast.blocks[0].content[0].props = { style: 'single' }; });
   rejectAST(ast => { ast.blocks[0].content[8].content[0].content.push({ type: 'text', text: 'extra' }); });

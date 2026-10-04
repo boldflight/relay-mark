@@ -5,8 +5,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   tableProseMirrorToRelayMark, relayMarkTableToProseMirror,
-  proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror,
-} from '../src/collaboration-table-v3.js';
+  proseMirrorToRelayMark, relayMarkToProseMirror,
+} from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 import * as Y from 'yjs';
@@ -140,7 +140,7 @@ test('normalized concurrent table round-trips with ordered prose before and afte
   assert.equal(before.attrs.relaymarkId, beforeXML.getAttribute('relaymarkId'));
   assert.equal(empty.attrs.relaymarkId, emptyXML.getAttribute('relaymarkId'));
   assert.equal(after.attrs.relaymarkId, afterXML.getAttribute('relaymarkId'));
-  const ast = proseMirrorV3ToRelayMark(mixed.normalized);
+  const ast = proseMirrorToRelayMark(mixed.normalized);
 
   assert.deepEqual(ast.blocks.map(block => block.type), ['paragraph', 'table', 'paragraph', 'paragraph']);
   assert.equal(ast.blocks[0].id, before.attrs.relaymarkId);
@@ -154,12 +154,12 @@ test('normalized concurrent table round-trips with ordered prose before and afte
   assert.deepEqual(validateDocument(ast), []);
   assert.deepEqual(validateJSONSchema(ast, astSchema, fileURLToPath(astSchemaURL)), []);
 
-  const inverse = relayMarkV3ToProseMirror(ast);
+  const inverse = relayMarkToProseMirror(ast);
   assert.deepEqual(inverse.content[0], before);
   assert.deepEqual(inverse.content[1], concurrent.inverse.content[0]);
   assert.deepEqual(inverse.content[2], { ...empty, content: [] });
   assert.deepEqual(inverse.content[3], after);
-  assert.deepEqual(proseMirrorV3ToRelayMark(inverse), ast);
+  assert.deepEqual(proseMirrorToRelayMark(inverse), ast);
   assert.throws(() => tableProseMirrorToRelayMark(mixed.normalized), /Table-only/);
   assert.throws(() => relayMarkTableToProseMirror(ast), /Table-only/);
   doc.destroy();
@@ -171,19 +171,19 @@ test('mixed projection rejects unsupported prose nodes, marks, attributes and cr
   const base = () => ({ type: 'doc', content: [clone(paragraph), clone(concurrent.normalized.content[0])] });
   const marked = base();
   marked.content[0].content[0].marks = [{ type: 'textStyle' }];
-  assert.throws(() => proseMirrorV3ToRelayMark(marked), /Unsupported/);
+  assert.throws(() => proseMirrorToRelayMark(marked), /Unsupported/);
   const attributed = base();
   attributed.content[0].attrs.class = 'unexpected';
-  assert.throws(() => proseMirrorV3ToRelayMark(attributed), /Unsupported/);
+  assert.throws(() => proseMirrorToRelayMark(attributed), /Unsupported/);
   const duplicate = base();
   duplicate.content[0].attrs.relaymarkId = duplicate.content[1].attrs.relaymarkId;
-  assert.throws(() => proseMirrorV3ToRelayMark(duplicate), /Duplicate/);
+  assert.throws(() => proseMirrorToRelayMark(duplicate), /Duplicate/);
   const unsupported = base();
   unsupported.content.push({ type: 'unsupportedBlock', attrs: { relaymarkId: proseID(2) } });
-  assert.throws(() => proseMirrorV3ToRelayMark(unsupported), /Unsupported v3 block/);
-  const invalidAst = proseMirrorV3ToRelayMark(base());
+  assert.throws(() => proseMirrorToRelayMark(unsupported), /Unsupported v3 block/);
+  const invalidAst = proseMirrorToRelayMark(base());
   invalidAst.blocks[0].props = { style: 'unexpected' };
-  assert.throws(() => relayMarkV3ToProseMirror(invalidAst), /Unsupported/);
+  assert.throws(() => relayMarkToProseMirror(invalidAst), /Unsupported/);
 });
 
 test('v3 table mapping rejects missing IDs, duplicate IDs, unknown attrs and unsupported content', () => {

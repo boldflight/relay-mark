@@ -1621,6 +1621,8 @@ defmodule RelayMark.SemanticValidator do
     validation_context["surface"] || validation_context[:surface]
   end
 
+  defp validate_attribute(_type, _name, nil, %{"nullable" => true}, diagnostics), do: diagnostics
+
   defp validate_attribute(type, name, value, %{"type" => "enum"} = attribute, diagnostics) do
     values = attribute["values"] || []
 

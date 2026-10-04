@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
-import { proseMirrorV3ToRelayMark } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark } from '../src/document-adapter.js';
 
 const [assetsInput, mode] = process.argv.slice(2);
 if (!assetsInput || !['--write', '--check'].includes(mode)) throw new Error('assets path and --write|--check required');
@@ -58,7 +58,7 @@ const emptyTitleUpdate = Buffer.from(Y.encodeStateAsUpdate(emptyDoc)).toString('
 const fixture = { fixture_version: 1, root: 'default', client_id: doc.clientID,
   source: 'Relay v3 TipTap Callout/UniqueID + community y-tiptap/Yjs',
   normalized, expected_after_add_title: expected,
-  expected_ast_after_add_title: proseMirrorV3ToRelayMark(expected), update,
+  expected_ast_after_add_title: proseMirrorToRelayMark(expected), update,
   nested_body_update: nestedUpdate, empty_title_update: emptyTitleUpdate };
 const output = `${JSON.stringify(fixture, null, 2)}\n`;
 const path = new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/callout-add-title-v3-draft.json', import.meta.url);

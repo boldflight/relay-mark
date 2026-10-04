@@ -1,0 +1,46 @@
+{
+  "$schema": "../schemas/relaymark-directive.schema.json",
+  "version": 1,
+  "category": "form",
+  "validation": [
+    "Question and option identities are stable; form authorization and publishing remain host-owned."
+  ],
+  "projections": {
+    "relay_kit": "FormQuestion",
+    "html": "form-question",
+    "plain_text": "authored labels",
+    "manifest": [
+      "forms"
+    ]
+  },
+  "policy": {
+    "requires_review": false,
+    "requires_evidence": false,
+    "allows_agent_creation": true
+  },
+  "name": "FormOption",
+  "ast_type": "relay.form_option",
+  "description": "Stable independently editable choice label and authored grading metadata.",
+  "attributes": {
+    "id": {
+      "type": "string",
+      "required": true
+    },
+    "correct": {
+      "type": "boolean",
+      "default": false
+    },
+    "points": {
+      "type": "number",
+      "nullable": true
+    },
+    "settings": {
+      "type": "object",
+      "default": {}
+    }
+  },
+  "children": {
+    "mode": "inline",
+    "min": 0
+  }
+}

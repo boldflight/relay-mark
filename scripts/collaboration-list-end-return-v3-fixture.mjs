@@ -5,7 +5,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve, join } from 'node:path';
 import assert from 'node:assert/strict';
-import { proseMirrorV3ToRelayMark } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark } from '../src/document-adapter.js';
 
 const [assetsInput, mode] = process.argv.slice(2);
 if (!assetsInput || !['--write', '--check'].includes(mode)) throw new Error('assets path and --write|--check required');
@@ -66,7 +66,7 @@ window.fixture=out;`);
   await page.goto(server.url.href);
   await page.waitForFunction(() => window.fixture);
   const cases = await page.evaluate(() => window.fixture);
-  for (const value of Object.values(cases)) value.expected_ast = proseMirrorV3ToRelayMark(value.after);
+  for (const value of Object.values(cases)) value.expected_ast = proseMirrorToRelayMark(value.after);
   const path = new URL('../adapters/swift/Tests/RelayMarkNativeCollaborationTests/Fixtures/list-end-return-v3.json', import.meta.url);
   const output = `${JSON.stringify(cases, null, 2)}\n`;
   if (mode === '--write') await writeFile(path, output);

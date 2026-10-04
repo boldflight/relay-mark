@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { directiveForType } from "./registry.js";
+import { validateQuestionProps } from "./document-adapter.js";
 import { isBlockNode } from "./node-kind.js";
-import { assertV3EntityReferenceProps } from "./collaboration-entity-reference-v3.js";
-import { assertV3PaperControlProps } from "./collaboration-paper-controls-v3.js";
+import { assertEntityReferenceProps } from "./document-reference.js";
+import { assertPaperControlProps } from "./document-controls.js";
 
 export function validateDocument(document, validationContext = {}) {
   const diagnostics = [];
@@ -64,6 +65,19 @@ function validateBlock(block, diagnostics, seenIds, evidenceTargets, scriptureRe
   }
   if (block.type === "relay.callout_title" && parentType !== "relay.callout") {
     diagnostics.push(error("relaymark.callout.title_parent", "Callout title must be a direct callout child."));
+  }
+
+  if (block.type === "relay.form_question" || block.type === "relay.form_option") {
+    try {
+      const option = block.type === "relay.form_option";
+      validateQuestionProps(block.props, option);
+      if (option && parentType !== "relay.form_question") throw new TypeError("Form option parent");
+      if (!option && (!Array.isArray(block.content) || block.content[0]?.type !== "paragraph" || block.content.slice(1).some(n=>n.type!=="relay.form_option"))) throw new TypeError("Form label/options shape");
+      if (!option) {
+        const ids=block.content.slice(1).map(n=>n.props?.id);
+        if(new Set(ids).size!==ids.length) throw new TypeError("Duplicate option identity");
+      }
+    } catch (failure) { diagnostics.push(error("relaymark.form.authored",failure.message)); }
   }
 
   if (block.type === "task_list") {
@@ -171,7 +185,7 @@ function validateRelayBlock(block, diagnostics, evidenceTargets, scriptureResour
 
   if (block.type === "relay.paper_control") {
     try {
-      assertV3PaperControlProps(block.props);
+      assertPaperControlProps(block.props);
       if (!Array.isArray(block.content) || block.content.length !== 0) throw new TypeError('Paper control content');
     } catch {
       diagnostics.push(error("relaymark.paper_control.source", "Paper control fields, source, and empty content must agree."));
@@ -209,7 +223,7 @@ function validateEntityReference(block, diagnostics) {
   }
   if (block.props?.source !== undefined) {
     try {
-      const authored = assertV3EntityReferenceProps(block.props);
+      const authored = assertEntityReferenceProps(block.props);
       const content = block.content || [];
       const parsedBody = content.length === 1 && content[0].type === "paragraph" &&
         content[0].content?.length === 1 && content[0].content[0].type === "text" &&
@@ -1185,6 +1199,7 @@ function sha256Digest(value) {
 }
 
 function validateAttribute(type, name, value, attribute, diagnostics) {
+  if (value === null && attribute.nullable === true) return;
   if (attribute.type === "enum") {
     if (!attribute.values?.includes(value)) {
       diagnostics.push(error("relaymark.attribute.enum", `${type}.${name} must be one of ${attribute.values.join(", ")}.`));

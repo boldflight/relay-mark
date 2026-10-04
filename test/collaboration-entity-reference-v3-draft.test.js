@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { compileRelayMark } from '../src/runtime.js';
 import { serializeRelayMark } from '../src/serializer.js';
 import { validateDocument } from '../src/validator.js';
@@ -21,8 +21,8 @@ test('real TipTap/Yjs EntityRef atom preserves authored source and stable block 
     assert.deepEqual(xml.map(node => node.nodeName), ['paragraph', 'relayEntityReference', 'paragraph']);
     assert.equal(xml[1].getAttribute('source'), fixture.authored_source);
     assert.equal(xml[1].getAttribute('relaymarkId'), fixture.expected_ast.blocks[1].id);
-    assert.deepEqual(proseMirrorV3ToRelayMark(fixture.normalized), fixture.expected_ast);
-    assert.deepEqual(relayMarkV3ToProseMirror(fixture.expected_ast), fixture.normalized);
+    assert.deepEqual(proseMirrorToRelayMark(fixture.normalized), fixture.expected_ast);
+    assert.deepEqual(relayMarkToProseMirror(fixture.expected_ast), fixture.normalized);
     assert.deepEqual(validateDocument(fixture.expected_ast), []);
     assert.deepEqual(validateJSONSchema(fixture.expected_ast, schema, fileURLToPath(schemaURL)), []);
     assert.equal(serializeRelayMark(fixture.expected_ast), `Before\n\n${fixture.authored_source}\n\nAfter\n`);
@@ -36,7 +36,7 @@ test('v3 EntityRef rejects contradictory, hydrated, or unsupported atom state', 
   const reject = (edit, reason = /Entity reference|Unsupported/) => {
     const input = structuredClone(fixture.normalized);
     edit(input.content[1]);
-    assert.throws(() => proseMirrorV3ToRelayMark(input), reason);
+    assert.throws(() => proseMirrorToRelayMark(input), reason);
   };
   reject(node => { node.attrs.entityRef = 'entity:other'; });
   reject(node => { node.attrs.entityId = 'other'; });
@@ -48,7 +48,7 @@ test('v3 EntityRef rejects contradictory, hydrated, or unsupported atom state', 
   reject(node => { node.content = [{ type: 'text', text: 'hidden' }]; });
   const ast = structuredClone(fixture.expected_ast);
   ast.blocks[1].props.label = 'Hydrated label';
-  assert.throws(() => relayMarkV3ToProseMirror(ast), /source\/identity/);
+  assert.throws(() => relayMarkToProseMirror(ast), /source\/identity/);
   assert.throws(() => serializeRelayMark(ast), /source\/identity/);
   assert.deepEqual(validateDocument(ast).map(item => item.code), ['relaymark.entity_reference.source']);
 });
@@ -57,9 +57,9 @@ test('v3 EntityRef accepts authored defaults and multiline attributes without re
   const input = structuredClone(fixture.normalized);
   const source = `@EntityRef(\r\n  id: "entity:${input.content[1].attrs.entityId}"\r\n) {\r\n  Fallback\r\n}`;
   Object.assign(input.content[1].attrs, { label: 'Fallback', projection: 'link', source });
-  const ast = proseMirrorV3ToRelayMark(input);
+  const ast = proseMirrorToRelayMark(input);
   assert.equal(ast.blocks[1].props.source, source);
-  assert.deepEqual(relayMarkV3ToProseMirror(ast), input);
+  assert.deepEqual(relayMarkToProseMirror(ast), input);
   assert.deepEqual(validateDocument(ast), []);
   assert.equal(serializeRelayMark(ast), `Before\n\n${source}\n\nAfter\n`);
   assert.equal(compileRelayMark(source).document.blocks[0].props.source, source);

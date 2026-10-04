@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import * as Y from 'yjs';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 import { parseRelayMark } from '../src/parser.js';
@@ -20,7 +20,7 @@ test('community TipTap/Yjs callout keeps title, marks, body and stable IDs in th
     const xml = doc.getXmlFragment(fixture.root).toArray();
     assert.deepEqual(xml.map(node => node.nodeName), ['paragraph', 'callout', 'paragraph']);
     assert.deepEqual(xml[1].toArray().map(node => node.nodeName), ['calloutTitle', 'paragraph']);
-    const ast = proseMirrorV3ToRelayMark(fixture.normalized);
+    const ast = proseMirrorToRelayMark(fixture.normalized);
     assert.deepEqual(ast.blocks.map(block => block.type), ['paragraph', 'relay.callout', 'paragraph']);
     assert.deepEqual(ast.blocks[1].props, { tone: 'warning', emphasis: 'strong' });
     assert.deepEqual(ast.blocks[1].content.map(block => block.type), ['relay.callout_title', 'paragraph']);
@@ -28,7 +28,7 @@ test('community TipTap/Yjs callout keeps title, marks, body and stable IDs in th
       [{ type: 'strong', content: [{ type: 'text', text: 'Pay attention' }] }]);
     assert.deepEqual(validateDocument(ast), []);
     assert.deepEqual(validateJSONSchema(ast, schema, fileURLToPath(schemaURL)), []);
-    assert.deepEqual(relayMarkV3ToProseMirror(ast), fixture.normalized);
+    assert.deepEqual(relayMarkToProseMirror(ast), fixture.normalized);
   } finally { doc.destroy(); }
 });
 
@@ -36,7 +36,7 @@ test('callout projection rejects missing identity, extra metadata and invalid ti
   const rejectNode = (mutate, message) => {
     const input = structuredClone(fixture.normalized);
     mutate(input.content[1]);
-    assert.throws(() => proseMirrorV3ToRelayMark(input), message);
+    assert.throws(() => proseMirrorToRelayMark(input), message);
   };
   rejectNode(node => { node.attrs.tone = 'custom'; }, /tone or emphasis/);
   rejectNode(node => { node.attrs.uploadPercent = 40; }, /Unsupported/);
@@ -45,10 +45,10 @@ test('callout projection rejects missing identity, extra metadata and invalid ti
   rejectNode(node => { node.content = [node.content[0]]; }, /body block/);
   rejectNode(node => { node.content[0].content = [{ type: 'hardBreak' }]; }, /title inline node/);
 
-  const ast = proseMirrorV3ToRelayMark(fixture.normalized);
+  const ast = proseMirrorToRelayMark(fixture.normalized);
   const misplaced = structuredClone(ast);
   misplaced.blocks[1].content.reverse();
-  assert.throws(() => relayMarkV3ToProseMirror(misplaced), /title must be first/);
+  assert.throws(() => relayMarkToProseMirror(misplaced), /title must be first/);
   assert.ok(validateDocument(misplaced).some(diagnostic => diagnostic.code === 'relaymark.callout.children'));
 });
 

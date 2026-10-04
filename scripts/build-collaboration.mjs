@@ -10,3 +10,8 @@ for (const name of ['text-items.js', 'prose-operation.js', 'prose-lineage.js', '
 }
 // Browser build tools must apply this same exact-version hook to host Yjs.
 await copyFile('scripts/yjs-history-hook.mjs', 'adapters/elixir/priv/collaboration/yjs-history-hook.mjs')
+
+// Canonical portable contract/grammar adapters are shipped, not imported from a Git checkout's src tree.
+for (const name of ['contract.js', 'document-adapter.js', 'document-inline.js', 'document-atoms.js', 'document-reference.js', 'document-controls.js', 'document-suggestion.js']) {
+  await copyFile(`src/${name}`, `adapters/elixir/priv/collaboration/${name}`)
+}

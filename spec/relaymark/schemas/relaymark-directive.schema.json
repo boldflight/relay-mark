@@ -136,6 +136,7 @@
           "type": "string",
           "enum": ["string", "number", "integer", "boolean", "array", "object", "enum"]
         },
+        "nullable": { "type": "boolean", "default": false },
         "required": {
           "type": "boolean",
           "default": false

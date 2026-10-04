@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import assert from 'node:assert/strict';
-import { proseMirrorV3ToRelayMark, relayMarkV3ToProseMirror } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
@@ -74,11 +74,11 @@ const update = Buffer.from(Y.encodeStateAsUpdate(doc)).toString('base64');
 const replay = new Y.Doc();
 Y.applyUpdate(replay, Buffer.from(update, 'base64'));
 assert.deepEqual(JSON.parse(JSON.stringify(schema.nodeFromJSON(yDocToProsemirrorJSON(replay, 'default')).toJSON())), normalized);
-const expectedAST = proseMirrorV3ToRelayMark(normalized);
+const expectedAST = proseMirrorToRelayMark(normalized);
 const astSchemaPath = new URL('../spec/relaymark/schemas/relaymark-document.schema.json', import.meta.url);
 assert.deepEqual(validateDocument(expectedAST), []);
 assert.deepEqual(validateJSONSchema(expectedAST, JSON.parse(await readFile(astSchemaPath, 'utf8')), astSchemaPath.pathname), []);
-assert.deepEqual(relayMarkV3ToProseMirror(expectedAST), normalized);
+assert.deepEqual(relayMarkToProseMirror(expectedAST), normalized);
 const fixture = { fixture_version: 1, root: 'default', client_id: doc.clientID,
   source: `Community TipTap StarterKit/PaperHeading${offered ? '/Highlight/Superscript/Subscript' : ''} + stable relaymarkId attrs + y-tiptap + Yjs`, normalized,
   expected_ast: expectedAST, update };

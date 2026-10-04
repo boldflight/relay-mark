@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { proseMirrorV3ToRelayMark } from '../src/collaboration-table-v3.js';
+import { proseMirrorToRelayMark } from '../src/document-adapter.js';
 
 const [assetsInput, mode] = process.argv.slice(2);
 if (!assetsInput || !['--write', '--check'].includes(mode)) throw Error('assets path and --write|--check required');
@@ -71,7 +71,7 @@ const fixture = { source: 'TipTap 3.30.5 TableKit/UniqueID/Collaboration + y-tip
   command: 'addRowAfter', normalized, before_xml: before, after,
   after_xml: snapshot(root), seed,
   update: Buffer.from(Y.encodeStateAsUpdate(doc, vector)).toString('base64'),
-  expected_ast: proseMirrorV3ToRelayMark(after) };
+  expected_ast: proseMirrorToRelayMark(after) };
 const mergedSource = { type: 'doc', content: [{ ...source.content[0], content: [
   row(2, [{ ...cell(3, 4, 'Merged', true, 120),
     attrs: { relaymarkId: id(3), colspan: 2, rowspan: 1, colwidth: [120, 180], align: null } }]),
@@ -112,7 +112,7 @@ const columnFixture = { source: fixture.source, command: 'addColumnAfter',
   normalized: columnNormalized, before_xml: columnBefore, after: columnAfter,
   after_xml: snapshot(columnRoot), seed: columnSeed,
   update: Buffer.from(Y.encodeStateAsUpdate(columnDoc, columnVector)).toString('base64'),
-  expected_ast: proseMirrorV3ToRelayMark(columnAfter), merged_seed: fixture.merged_seed,
+  expected_ast: proseMirrorToRelayMark(columnAfter), merged_seed: fixture.merged_seed,
   selection_after: { cell_id: id(8), text_offset: 2 } };
 columnEditor.destroy(); columnDoc.destroy();
 for (const [name, value] of [['row', fixture], ['column', columnFixture]]) {

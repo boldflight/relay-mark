@@ -1,0 +1,152 @@
+{
+  "contract_version": 1,
+  "source": "Independently specified existing question and option identities with rich authored labels",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "questionBlock",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000001",
+          "id": "question-existing",
+          "type": "multiple_choice",
+          "required": true,
+          "points": 3,
+          "min": null,
+          "max": null,
+          "settings": {
+            "randomize": false
+          }
+        },
+        "content": [
+          {
+            "type": "questionLabel",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000002"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Choose ",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "a plan"
+              }
+            ]
+          },
+          {
+            "type": "questionOption",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000003",
+              "id": "option-existing-a",
+              "correct": true,
+              "points": null,
+              "settings": {}
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Plan A"
+              }
+            ]
+          },
+          {
+            "type": "questionOption",
+            "attrs": {
+              "relaymarkId": "b00000000000040008000000000000004",
+              "id": "option-existing-b",
+              "correct": false,
+              "points": null,
+              "settings": {}
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Plan B"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000001",
+        "type": "relay.form_question",
+        "props": {
+          "id": "question-existing",
+          "type": "multiple_choice",
+          "required": true,
+          "points": 3,
+          "min": null,
+          "max": null,
+          "settings": {
+            "randomize": false
+          }
+        },
+        "content": [
+          {
+            "id": "b00000000000040008000000000000002",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "strong",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Choose "
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "a plan"
+              }
+            ]
+          },
+          {
+            "id": "b00000000000040008000000000000003",
+            "type": "relay.form_option",
+            "props": {
+              "id": "option-existing-a",
+              "correct": true,
+              "points": null,
+              "settings": {}
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Plan A"
+              }
+            ]
+          },
+          {
+            "id": "b00000000000040008000000000000004",
+            "type": "relay.form_option",
+            "props": {
+              "id": "option-existing-b",
+              "correct": false,
+              "points": null,
+              "settings": {}
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Plan B"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
