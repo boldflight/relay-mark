@@ -22,21 +22,21 @@ function header(record,updateHash){
  let value
  if(record?.kind==='format'){
   keys(record,['kind','update','event','operation']);value=record.event
-  keys(value,['version','operation_id','update_sha256','mark','text_items','inserted_markers','deleted_markers','changes'])
-  if(!['bold','italic'].includes(value.mark))throw Error('Invalid attribution record mark')
+  keys(value,['contract_version','kind','operation_id','update_sha256','mark','text_items','inserted_markers','deleted_markers','changes'])
+  if(value.kind !== 'format_event'||!['bold','italic'].includes(value.mark))throw Error('Invalid attribution record mark')
   if(record.operation!==null){
    keys(record.operation,['kind','reference'])
    if(!['undo','redo'].includes(record.operation.kind)||!uuid(record.operation.reference)||record.operation.reference===value.operation_id)throw Error('Invalid attribution record inverse')
   }
  }else if(record?.kind==='placement'){
   keys(record,['kind','update','receipt','trust']);value=record.receipt
-  keys(value,['version','document_id','incarnation','operation_id','update_sha256','operation','copies'])
-  if(!['local','server'].includes(record.trust)||!uuid(value.document_id)||typeof value.incarnation!=='string'||!value.incarnation.length||new TextEncoder().encode(value.incarnation).length>256)throw Error('Invalid attribution record binding')
+  keys(value,['contract_version','kind','document_id','incarnation','operation_id','update_sha256','operation','copies'])
+  if(value.kind !== 'placement_receipt'||!['local','server'].includes(record.trust)||!uuid(value.document_id)||typeof value.incarnation!=='string'||!value.incarnation.length||new TextEncoder().encode(value.incarnation).length>256)throw Error('Invalid attribution record binding')
   keys(value.operation,['kind','reference'])
   const inverse=['undo','redo'].includes(value.operation.kind)
   if(!['replace_prose','format','undo','redo'].includes(value.operation.kind)||(inverse?!uuid(value.operation.reference):value.operation.reference!==null)||value.operation.reference===value.operation_id)throw Error('Invalid attribution record operation')
  }else throw Error('Unknown attribution record kind')
- if(value.version!==1||!uuid(value.operation_id)||value.update_sha256!==updateHash)throw Error('Attribution record update binding mismatch')
+ if(value.contract_version!==1||!uuid(value.operation_id)||value.update_sha256!==updateHash)throw Error('Attribution record update binding mismatch')
  return value.operation_id
 }
 

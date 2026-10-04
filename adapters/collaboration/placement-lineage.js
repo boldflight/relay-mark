@@ -21,8 +21,8 @@ function id(x) {
 }
 const key = x => `${x.item.client}:${x.item.clock}@${x.type.client}:${x.type.clock}`
 function selection(x) {
-  keys(x, ['version', 'runs'])
-  if (x.version !== 1 || !Array.isArray(x.runs) || x.runs.length > 4096) throw Error('Invalid placement selection')
+  keys(x, ['runs'])
+  if (!Array.isArray(x.runs) || x.runs.length > 4096) throw Error('Invalid placement selection')
   let count = 0
   const found = new Set()
   return x.runs.flatMap(run => {
@@ -38,8 +38,8 @@ function selection(x) {
   })
 }
 function receipt(x, expected) {
-  keys(x, ['version', 'document_id', 'incarnation', 'update_sha256', 'operation_id', 'operation', 'copies'])
-  if (x.version !== 1 || x.document_id !== expected.document_id || x.incarnation !== expected.incarnation ||
+  keys(x, ['contract_version', 'kind', 'document_id', 'incarnation', 'update_sha256', 'operation_id', 'operation', 'copies'])
+  if (x.contract_version !== 1 || x.kind !== 'placement_receipt' || x.document_id !== expected.document_id || x.incarnation !== expected.incarnation ||
       !uuid(x.operation_id) || typeof x.update_sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(x.update_sha256) ||
       !Array.isArray(x.copies) || x.copies.length > 4096) throw Error('Invalid placement receipt')
   keys(x.operation, ['kind', 'reference'])
@@ -70,9 +70,9 @@ function receipt(x, expected) {
     const follows=(run,unit)=>run && run.item.client===unit.item.client && run.item.clock+run.count===unit.item.clock &&
       run.type.client===unit.type.client && run.type.clock===unit.type.clock
     if (follows(a,pair.source) && follows(b,pair.destination)) { a.count++; b.count++ }
-    else copies.push({source:{version:1,runs:[{...clone(pair.source),count:1}]},destination:{version:1,runs:[{...clone(pair.destination),count:1}]}})
+    else copies.push({source:{runs:[{...clone(pair.source),count:1}]},destination:{runs:[{...clone(pair.destination),count:1}]}})
   }
-  return { value: { version: 1, ...expected, update_sha256:x.update_sha256, operation_id:x.operation_id,
+  return { value: { contract_version: 1, kind: 'placement_receipt', ...expected, update_sha256:x.update_sha256, operation_id:x.operation_id,
     operation:{kind:x.operation.kind,reference:x.operation.reference}, copies }, pairs }
 }
 
@@ -156,7 +156,7 @@ export function createPlacementResolver(state, expectedBinding, receiptIDs) {
     return result
   }
   return input=>{
-    const [source]=selection({version:1,runs:[{...input,count:1}]})
+    const [source]=selection({runs:[{...input,count:1}]})
     const item=`${source.item.client}:${source.item.clock}`, type=`${source.type.client}:${source.type.clock}`
     if (projection.types.has(item) && projection.types.get(item)!==type) throw Error('Conflicting placement target type')
     const destination=projection.units.get(endpoint(key(source))) || source

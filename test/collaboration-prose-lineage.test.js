@@ -65,7 +65,7 @@ test('join preserves exact copied provenance and repeated operations keep one lo
   const joinedDoc = replay(splitDoc, joined.updates)
   assert.deepEqual(joined.lineage.copies[0].source, before)
   assert.equal(selected(joinedDoc, joined.lineage.copies[0].destination), '🌍 generated 人🌍人')
-  assert.deepEqual(decode(joined.insertedTextItems), { version: 1, runs: [] })
+  assert.deepEqual(decode(joined.insertedTextItems), { runs: [] })
   assert.deepEqual([...Y.decodeStateVector(Uint8Array.from(call('vector'))).keys()].sort(), [...firstVector.keys()].sort())
   assert.equal(joinedDoc.getXmlFragment('default').get(0).toArray().flatMap(text => text.toDelta()).map(run => run.insert).join(''),
     'PREFIX 🌍 generated 人🌍人')
@@ -117,7 +117,7 @@ test('durable-reference undo restores deleted and replaced text, redo references
       const result = call(redo ? 'redoWithLineage' : 'undoWithLineage', { operation_id: next })
       assert.equal(result.lineage.operation.transaction_id, reference)
       assert.equal(result.lineage.operation.kind, redo ? 'redo' : 'undo')
-      assert.deepEqual(decode(result.insertedTextItems), { version: 1, runs: [] })
+      assert.deepEqual(decode(result.insertedTextItems), { runs: [] })
       all.push(...result.updates)
       const restored = replay(original, all)
       const plain = restored.getXmlFragment('default').get(0).toArray().flatMap(t => t.toDelta()).map(r => r.insert).join('')
@@ -265,7 +265,7 @@ test('copied Unicode retains current peer mark additions/removals across inverse
       for (const bytes of [...result.updates, ...result.updates]) Y.applyUpdate(doc, Uint8Array.from(bytes))
       assert.deepEqual(paragraphAttributes(doc, redo ? 1 : 0, redo ? 0 : 7), expected)
       assert.equal(result.lineage.operation.transaction_id, operationID(60 + cycle))
-      assert.deepEqual(decode(result.insertedTextItems), { version: 1, runs: [] })
+      assert.deepEqual(decode(result.insertedTextItems), { runs: [] })
       doc.destroy()
       if (cycle === 0) {
         // A peer changes the restored source before redo. Current marks must
@@ -373,7 +373,7 @@ test('host-identified ordinary formatting survives restart with existing formatt
     attributes: { bold: null }, operation_id: operationID(110) })
   const snapshot = call('exportHistorySnapshot', { scope_token: 'format|cut:110' })
   assert.equal(snapshot.undo[0].formatting_mark, 'bold')
-  assert.deepEqual(snapshot.undo[0].inserted_text_items, { version: 1, runs: [] })
+  assert.deepEqual(snapshot.undo[0].inserted_text_items, { runs: [] })
   const empty = new Y.Doc(), restored = runtime(empty)
   restored('restoreHistorySnapshot', { snapshot, scope_token: snapshot.scope_token, transaction_ids: [operationID(110)] })
   const state = restored('state')
@@ -594,7 +594,7 @@ test('local placement candidates pair exact emitted operations and persist befor
   const forward=call('replaceProseWithLineage',{start:7,end:7,text:'\n',operation_id:op})
   const update=Array.from(Y.mergeUpdates(forward.updates.map(u=>Uint8Array.from(u))))
   const binding={document_id:operationID(211),incarnation:'one'}
-  const receipt={version:1,...binding,operation_id:op,update_sha256:placementUpdateHash(Uint8Array.from(update)),
+  const receipt={contract_version:1,kind:'placement_receipt',...binding,operation_id:op,update_sha256:placementUpdateHash(Uint8Array.from(update)),
     operation:{kind:'replace_prose',reference:null},copies:forward.lineage.copies}
   assert.throws(()=>call('preparePlacementReceipt',{expected_binding:binding,trust:'local',update,receipt:{...receipt,copies:[]}}))
   const candidate=call('preparePlacementReceipt',{expected_binding:binding,trust:'local',update,receipt})

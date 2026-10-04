@@ -8,8 +8,8 @@ function keys(value, expected) {
       Object.keys(value).sort().join(',') !== [...expected].sort().join(',')) throw Error('Invalid text item fields')
 }
 function selection(value) {
-  keys(value, ['version', 'runs'])
-  if (value.version !== 1 || !Array.isArray(value.runs) || value.runs.length > MAX_RUNS) throw Error('Invalid text item selection')
+  keys(value, ['runs'])
+  if (!Array.isArray(value.runs) || value.runs.length > MAX_RUNS) throw Error('Invalid text item selection')
   let total = 0
   const intervals = new Map()
   return value.runs.map(run => {
@@ -80,7 +80,7 @@ export function captureTextItems(root, input) {
         type: { client: position.type.client, clock: position.type.clock }, count: 1 }); previous = position
     }
   }
-  const result = { version: 1, runs }
+  const result = { runs }
   selection(result)
   return result
 }

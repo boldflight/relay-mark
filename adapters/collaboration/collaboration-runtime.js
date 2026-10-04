@@ -203,7 +203,7 @@ function attributedProse(input) {
   const prepared = prepareProseLineage(doc, input.operation, replaceProse)
   if (!prepared.expectedUpdates.length) throw Error('No effective attributed prose operation')
   const update = Y.mergeUpdates(prepared.expectedUpdates)
-  const record = {kind:'placement',update:Array.from(update),receipt:{version:1,
+  const record = {kind:'placement',update:Array.from(update),receipt:{contract_version:1,kind:'placement_receipt',
     document_id:input.expected.binding.document_id,incarnation:input.expected.binding.incarnation,
     operation_id:input.operation.operation_id,update_sha256:placementUpdateHash(update),
     operation:{kind:'replace_prose',reference:null},copies:prepared.lineage.copies},trust:'local'}
@@ -271,7 +271,7 @@ function attributedProseHistory(redo, input, reference) {
   const prepared = prepareHistoryEvidence(doc, undo, redo, {operation_id:input.operation_id}, lineageKey)
   if (prepared.kind !== 'prose' || prepared.reference !== reference) throw Error('Attributed prose history candidate was skipped')
   const update = Y.mergeUpdates(prepared.expectedUpdates)
-  const record = {kind:'placement',update:Array.from(update),receipt:{version:1,
+  const record = {kind:'placement',update:Array.from(update),receipt:{contract_version:1,kind:'placement_receipt',
     document_id:input.expected.binding.document_id,incarnation:input.expected.binding.incarnation,
     operation_id:input.operation_id,update_sha256:placementUpdateHash(update),
     operation:{kind:redo?'redo':'undo',reference},copies:prepared.lineage.copies},trust:'local'}
@@ -304,7 +304,7 @@ function attributedHistory(redo, input) {
     const successor=nextAttributionReplay(input.replay_json,record,input.expected.cut)
     packAttributionMetadata(successor.record_json)
     replayFormatAttribution(successor.replay_json,{...input.expected,replay_sha256:successor.replay_sha256,cut:successor.cut})
-    const result={kind:'formatting',updates:[],insertedTextItems:Array.from(new TextEncoder().encode('{"version":1,"runs":[]}')),
+    const result={kind:'formatting',updates:[],insertedTextItems:Array.from(new TextEncoder().encode('{"runs":[]}')),
       lineage:null,formattingMark:prepared.mark,...successor}
     historyCapture={inverse:[],performed:[],mixed:false}
     try{result.notificationErrorCount=prepared.commit()}finally{historyCapture=null}
@@ -347,7 +347,7 @@ function prepareNativeFormatting(operation) {
       (operation.ranges !== undefined && ['path', 'index', 'length'].some(key => Object.hasOwn(operation, key)))) {
     throw Error('Invalid native formatting ranges')
   }
-  const selected = { version: 1, runs: [] }, seen = new Set()
+  const selected = { runs: [] }, seen = new Set()
   const commands = ranges.map(range => {
     const captured = captureTextItems(root, range)
     selected.runs.push(...captured.runs)
@@ -568,7 +568,7 @@ function nativeParagraphPaste(input) {
       target.length !== 1 || target.get(0) !== leaf || Object.keys(target.getAttributes()).length ||
       leaf.length !== oldLength + lines[0].length || JSON.stringify(prefix) !== JSON.stringify(oldDelta) ||
       JSON.stringify(retained.filter(p => p !== target).map(snapshot)) !== oldOthers) throw Error('Unproven paste mutation')
-  const selection = { version: 1, runs: [] }
+  const selection = { runs: [] }
   for (let i = 0; i < lines.length; i++) {
     const p = root.get(input.index + i), text = p.get(0)
     if (i && (p !== added[i - 1] || p.nodeName !== 'paragraph' || Object.keys(p.getAttributes()).length || p.length !== 1 ||
@@ -669,7 +669,7 @@ function call(command, input) {
     case 'prepareLocalPlacementReceipt': {
       if (!input || Object.keys(input).sort().join() !== 'expected_binding,update' || !lastPlacementOperation) throw Error('Missing local placement operation')
       return call('preparePlacementReceipt',{expected_binding:input.expected_binding,trust:'local',update:input.update,
-        receipt:{version:1,...input.expected_binding,...JSON.parse(JSON.stringify(lastPlacementOperation))}})
+        receipt:{contract_version:1,kind:'placement_receipt',...input.expected_binding,...JSON.parse(JSON.stringify(lastPlacementOperation))}})
     }
     case 'preparePlacementReceipt': {
       if (input?.trust === 'local') {

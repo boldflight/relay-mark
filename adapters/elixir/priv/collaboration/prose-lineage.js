@@ -8,7 +8,7 @@ export function validProseAttributes(value) {
       attributes !== null && typeof attributes === 'object' && !Array.isArray(attributes) && !Object.keys(attributes).length)
 }
 
-const empty = () => ({ version: 1, runs: [] })
+const empty = () => ({ runs: [] })
 const equalBytes = (a, b) => a.length === b.length && a.every((value, i) => value === b[i])
 function unicode(value) {
   for (let i = 0; i < value.length; i++) {
@@ -147,7 +147,7 @@ export function prepareProseLineage(live, input, replace) {
       }
     })
     if (copies.length !== sources.length) throw Error('Missing copied prose evidence')
-    const accounted = { version: 1, runs: [...typed.runs, ...copies.flatMap(copy => copy.destination.runs)] }
+    const accounted = { runs: [...typed.runs, ...copies.flatMap(copy => copy.destination.runs)] }
     if (accounted.runs.length > 4096 || units(accounted) > 131072) throw Error('Prose lineage evidence limit')
     const expected = identities(accounted), actual = empty(), prior = Y.decodeStateVector(vector)
     for (const p of root.toArray()) for (const leaf of p.toArray()) {
@@ -164,6 +164,6 @@ export function prepareProseLineage(live, input, replace) {
         resolved.segments.map(segment => segment.text).join('') !== input.text.split('\n').join('')) throw Error('Unproven typed prose')
     if (live.clientID !== clientID || !equalBytes(state, Y.encodeStateAsUpdate(live))) throw Error('Prose prestate changed')
     return { input: operationInput, expectedUpdates, expectedState: Y.encodeStateAsUpdate(staged), insertedTextItems: Array.from(new TextEncoder().encode(JSON.stringify(typed))),
-      lineage: { version: 1, operation, copies } }
+      lineage: { operation, copies } }
   } finally { staged.destroy() }
 }

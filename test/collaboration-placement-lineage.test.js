@@ -5,9 +5,9 @@ import { createPlacementState, preparePlacementReceipt, restorePlacementState, p
 const id=n=>`00000000-0000-0000-0000-${String(n).padStart(12,'0')}`
 const binding={document_id:id(1),incarnation:'incarnation-1'}, update=[0,0]
 const sha=Array.from(digest(Uint8Array.from(update)),b=>b.toString(16).padStart(2,'0')).join('')
-const selection=(clock,count=1)=>({version:1,runs:[{item:{client:1,clock},type:{client:1,clock:0},count}]})
+const selection=(clock,count=1)=>({runs:[{item:{client:1,clock},type:{client:1,clock:0},count}]})
 const pair=(a,b)=>({source:selection(a),destination:selection(b)})
-const receipt=(n,copies=[],kind='replace_prose',reference=null)=>({version:1,...binding,update_sha256:sha,operation_id:id(n),operation:{kind,reference},copies})
+const receipt=(n,copies=[],kind='replace_prose',reference=null)=>({contract_version:1,kind:'placement_receipt',...binding,update_sha256:sha,operation_id:id(n),operation:{kind,reference},copies})
 const add=(state,r,trust='server')=>preparePlacementReceipt(state,{expected_binding:binding,trust,update,receipt:r})
 
 test('immutable local and server receipt candidates retain directed inverse cycles across restart',()=>{
@@ -85,11 +85,17 @@ test('client identities accept the shared safe integer bound while clocks remain
 
 test('aggregate source and destination runs are each capped across copy pairs',()=>{
  const runs=(base,n)=>Array.from({length:n},(_,i)=>selection(base+i).runs[0])
- const make=n=>[{source:{version:1,runs:runs(10,2048)},destination:{version:1,runs:runs(10000,2048)}},
-  {source:{version:1,runs:runs(3000,n)},destination:{version:1,runs:runs(14000,n)}}]
+ const make=n=>[{source:{runs:runs(10,2048)},destination:{runs:runs(10000,2048)}},
+  {source:{runs:runs(3000,n)},destination:{runs:runs(14000,n)}}]
  assert.equal(add(createPlacementState(binding),receipt(10,make(2048))).receipts.length,1)
  assert.throws(()=>add(createPlacementState(binding),receipt(10,make(2049))),/aggregate run/)
 })
+
+// Historical fixture counters are recovery input only; current producers never emit them.
+const recoverReceipt = value => {
+ const {version,...receipt}=value
+ return {contract_version:1,kind:'placement_receipt',...receipt,copies:value.copies.map(({source,destination})=>({source:{runs:source.runs},destination:{runs:destination.runs}}))}
+}
 
 test('actual server accepted split undo redo sidecars match updates and restore directed history',async()=>{
  const {readFile}=await import('node:fs/promises')
@@ -98,7 +104,7 @@ test('actual server accepted split undo redo sidecars match updates and restore 
  let state=createPlacementState(expected)
  for(let i=0;i<fixture.receipts.length;i++) {
   assert.equal(fixture.operation_updates_base64[i].length,1)
-  const receipt=fixture.receipts[i], update=Array.from(Buffer.from(fixture.operation_updates_base64[i][0],'base64'))
+  const receipt=recoverReceipt(fixture.receipts[i]), update=Array.from(Buffer.from(fixture.operation_updates_base64[i][0],'base64'))
   state=preparePlacementReceipt(state,{expected_binding:expected,trust:'server',update,receipt})
   assert.deepEqual(preparePlacementReceipt(state,{expected_binding:expected,trust:'server',update,receipt}),state)
  }
@@ -114,9 +120,9 @@ test('actual local endpoint copies normalize identically to accepted server expo
  const expected={document_id:server.receipts[0].document_id,incarnation:server.receipts[0].incarnation}
  let state=createPlacementState(expected)
  for(let i=0;i<local.steps.length;i++) {
-  const step=local.steps[i], accepted=server.receipts[i], original=JSON.stringify(step.lineage)
+  const step=local.steps[i], accepted=recoverReceipt(server.receipts[i]), original=JSON.stringify(step.lineage)
   const update=Array.from(Buffer.from(step.operation_updates_base64[0],'base64'))
-  const emitted={...accepted,copies:step.lineage.copies}
+  const emitted={...accepted,copies:step.lineage.copies.map(({source,destination})=>({source:{runs:source.runs},destination:{runs:destination.runs}}))}
   state=preparePlacementReceipt(state,{expected_binding:expected,trust:'local',update,receipt:emitted})
   assert.deepEqual(state.receipts.at(-1).receipt,accepted)
   assert.deepEqual(preparePlacementReceipt(state,{expected_binding:expected,trust:'server',update,receipt:accepted}),state)

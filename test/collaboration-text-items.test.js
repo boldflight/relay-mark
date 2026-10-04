@@ -44,7 +44,7 @@ test('output order is current document order across reversed runs and leaves', (
   const a = seed('abc'), second = new Y.XmlText(); a.root.insert(1, [second]); second.insert(0, 'def')
   const one = capture(a, 0, 1), three = capture(a, 2, 1)
   const two = captureTextItems(a.root, { path: [1], index: 0, length: 3 })
-  const result = resolve(a, { version: 1, runs: [...two.runs, ...three.runs, ...one.runs] })
+  const result = resolve(a, { runs: [...two.runs, ...three.runs, ...one.runs] })
   assert.equal(combined(result), 'acdef'); assert.deepEqual(result.segments.map(x => x.path), [[0], [0], [1]])
   a.doc.destroy()
 })
@@ -75,7 +75,7 @@ test('strict decoder rejects malformed, overflowing, duplicate and mismatched id
 })
 test('capture refuses unsupported or oversized selections without truncation', () => {
   const a = seed('x'.repeat(131073))
-  assert.throws(() => capture(a)); assert.deepEqual(capture(a, 0, 0), { version: 1, runs: [] })
+  assert.throws(() => capture(a)); assert.deepEqual(capture(a, 0, 0), { runs: [] })
   assert.throws(() => captureTextItems(a.root, { path: [0], index: 0, length: 1, extra: 0 }))
   a.leaf.insertEmbed(0, { atom: true }); assert.throws(() => capture(a, 0, 1), /atoms/)
   a.doc.destroy()
@@ -115,7 +115,7 @@ test('portable exact item fixtures resolve through production API', () => {
   const fixture = JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/text-items-v1.json', import.meta.url), 'utf8'))
   for (const row of fixture.cases) {
     const doc = new Y.Doc(); Y.applyUpdate(doc, Buffer.from(row.update, 'base64'))
-    assert.deepEqual(resolveTextItems(doc, doc.getXmlFragment('default'), row.selection), row.expected, row.name)
+    assert.deepEqual(resolveTextItems(doc, doc.getXmlFragment('default'), {runs:row.selection.runs}), row.expected, row.name)
     doc.destroy()
   }
 })
@@ -125,6 +125,6 @@ test('wide trees fail traversal before allocating a child array', () => {
   // enumeration to prove the admission check precedes the potentially large copy.
   a.root.insert(1, Array.from({ length: 65536 }, () => new Y.XmlText()))
   a.root.toArray = () => { throw Error('enumeration occurred before admission') }
-  assert.throws(() => resolve(a, { version: 1, runs: [] }), /traversal limit exceeded/)
+  assert.throws(() => resolve(a, { runs: [] }), /traversal limit exceeded/)
   a.doc.destroy()
 })

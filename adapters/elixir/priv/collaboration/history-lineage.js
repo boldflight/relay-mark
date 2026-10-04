@@ -58,7 +58,7 @@ function selection(item, destination) {
   if (!(item.parent instanceof Y.XmlText) || !(item.content instanceof Y.ContentString)) throw Error('Unsupported restored text')
   const type = Y.createRelativePositionFromTypeIndex(item.parent, 0, 0).type
   if (!id(type) || !id(destination)) throw Error('Missing restored text identity')
-  return { version: 1, runs: [{ item: { client: destination.client, clock: destination.clock },
+  return { runs: [{ item: { client: destination.client, clock: destination.clock },
     type: { client: type.client, clock: type.clock }, count: item.length }] }
 }
 function identities(value) {
@@ -267,8 +267,8 @@ export function captureHistoryFormatEvent(beforeDoc, update, input) {
   if (beforeDoc.store.pendingStructs !== null || beforeDoc.store.pendingDs !== null) throw Error('Incomplete format prestate')
   if (!uuid(input.operation_id) || !['bold','italic'].includes(input.mark) || !(update instanceof Uint8Array) ||
       !update.length || update.length>maximumStateBytes) throw Error('Invalid formatting event input')
-  exactKeys(input.text_items,['version','runs'])
-  if (input.text_items.version!==1 || !Array.isArray(input.text_items.runs) || !input.text_items.runs.length || input.text_items.runs.length>4096) throw Error('Invalid format target selection')
+  exactKeys(input.text_items,['runs'])
+  if (!Array.isArray(input.text_items.runs) || !input.text_items.runs.length || input.text_items.runs.length>4096) throw Error('Invalid format target selection')
   for (const run of input.text_items.runs) {
     exactKeys(run,['item','type','count'])
     if (!id(run.item) || !id(run.type) || !Number.isSafeInteger(run.count) || run.count<1 || run.item.clock+run.count>4294967296) throw Error('Invalid format target identity')
@@ -316,13 +316,13 @@ export function captureHistoryFormatEvent(beforeDoc, update, input) {
     }
     if (!changes.length) throw Error('Unprovable or ineffective formatting event')
     const sorted=values=>values.sort((a,b)=>a.client-b.client||a.clock-b.clock)
-    return {version:1,operation_id:input.operation_id,update_sha256:placementUpdateHash(update),mark:input.mark,
+    return {contract_version:1,kind:'format_event',operation_id:input.operation_id,update_sha256:placementUpdateHash(update),mark:input.mark,
       text_items:JSON.parse(JSON.stringify(input.text_items)),inserted_markers:sorted(inserted),deleted_markers:sorted(deleted),changes}
   } finally { scratch.destroy() }
 }
 
 export function validateHistoryFormatEvent(beforeDoc, update, event) {
-  exactKeys(event,['version','operation_id','update_sha256','mark','text_items','inserted_markers','deleted_markers','changes'])
+  exactKeys(event,['contract_version','kind','operation_id','update_sha256','mark','text_items','inserted_markers','deleted_markers','changes'])
   const actual=captureHistoryFormatEvent(beforeDoc,update,{operation_id:event.operation_id,mark:event.mark,text_items:event.text_items})
   if (canonicalAttributes(event)!==canonicalAttributes(actual)) throw Error('Mismatched formatting event witness')
   return actual
@@ -335,8 +335,8 @@ function appendPair(result, source, destination) {
   if (next(a, source) && next(b, destination)) { a.count++; b.count++ }
   else {
     if (result.length >= 4096) throw Error('History formatting counterpart limit')
-    result.push({ source: { version: 1, runs: [{ ...source, count: 1 }] },
-      destination: { version: 1, runs: [{ ...destination, count: 1 }] } })
+    result.push({ source: { runs: [{ ...source, count: 1 }] },
+      destination: { runs: [{ ...destination, count: 1 }] } })
   }
 }
 function canonicalAttributes(value) {
@@ -362,7 +362,7 @@ export function performHistoryWithMarks(doc, manager, redo, lineageKey, formatti
         !Array.isArray(formattingPlan.targets) || !formattingPlan.targets.length || formattingPlan.targets.length > 131072) {
       throw Error('Unavailable or stale formatting attribution plan')
     }
-    attributedTargets = new Map(); attributedSelection = {version:1,runs:[]}
+    attributedTargets = new Map(); attributedSelection = {runs:[]}
     for (const target of formattingPlan.targets) {
       if (!id(target.unit?.item) || !id(target.unit?.type) || target.mark !== formattingPlan.mark ||
           typeof target.enabled !== 'boolean' || attributedTargets.has(key(target.unit.item))) throw Error('Invalid formatting attribution target')
@@ -515,7 +515,7 @@ export function prepareNoEffectHistory(live,owner,redo,input,lineageKey,plan) {
  const original={undo:snapshotStack(owner.undoStack,lineageKey),redo:snapshotStack(owner.redoStack,lineageKey)}
  if([...original.undo,...original.redo].some(row=>row.operation_id===input.operation_id))throw Error('History requires distinct durable operation identities')
  const inverseWire={insertions:[],deletions:[],operation_id:input.operation_id,counterparts:[],
-  inserted_text_items:{version:1,runs:[]},formatting_mark:metadata.formattingMark,
+  inserted_text_items:{runs:[]},formatting_mark:metadata.formattingMark,
   formatting_text_items:JSON.parse(JSON.stringify(metadata.formattingTextItems))}
  const references=new Set()
  restoreStack(original.undo,lineageKey,references);restoreStack(original.redo,lineageKey,references)
@@ -622,8 +622,8 @@ export function prepareHistoryLineage(live, owner, redo, input, lineageKey, form
     if (found.size !== accounted.size || [...found].some(value => !accounted.has(value))) throw Error('Unaccounted restored text')
     if (live.clientID !== clientID || !equal(before, Y.encodeStateAsUpdate(live))) throw Error('History prestate changed')
     return { kind: isFormatting ? 'formatting' : 'prose', reference, operationID: input.operation_id, formattingPlan, formattingTextItems: execution.formattingTextItems, expectedUpdates, expectedCut: formattingPlan ? formatAttributionCut(staged) : null, inverseCopies: execution.inverseCopies, expectedState: Y.encodeStateAsUpdate(staged),
-      insertedTextItems: Array.from(new TextEncoder().encode('{"version":1,"runs":[]}')),
-      lineage: { version: 1, operation: { kind: redo ? 'redo' : 'undo', transaction_id: reference }, copies } }
+      insertedTextItems: Array.from(new TextEncoder().encode('{"runs":[]}')),
+      lineage: { operation: { kind: redo ? 'redo' : 'undo', transaction_id: reference }, copies } }
   } finally { manager?.destroy(); staged.destroy() }
 }
 
@@ -662,7 +662,7 @@ function snapshotStack(stack, lineageKey) {
     if (!uuid(metadata?.operationID) || !Array.isArray(metadata.copies)) throw Error('Untracked history cannot be persisted')
     return { insertions: intervalWire(item.insertions), deletions: intervalWire(item.deletions),
       operation_id: metadata.operationID, counterparts: JSON.parse(JSON.stringify(metadata.copies)),
-      inserted_text_items: metadata.insertedTextItems || { version: 1, runs: [] }, formatting_mark: metadata.formattingMark || null,
+      inserted_text_items: metadata.insertedTextItems || { runs: [] }, formatting_mark: metadata.formattingMark || null,
       formatting_text_items: metadata.formattingTextItems || null }
   })
 }
@@ -674,8 +674,8 @@ function restoreStack(value, lineageKey, references) {
     if (row.formatting_mark && !row.formatting_text_items) throw Error('Missing formatting history targets')
     if (row.formatting_mark !== null && !['bold', 'italic'].includes(row.formatting_mark)) throw Error('Invalid history formatting evidence')
     for (const selection of [row.inserted_text_items, ...(row.formatting_text_items ? [row.formatting_text_items] : [])]) {
-    exactKeys(selection, ['version', 'runs'])
-    if (selection.version !== 1 || !Array.isArray(selection.runs) || selection.runs.length > 4096) throw Error('Invalid history typed evidence')
+    exactKeys(selection, ['runs'])
+    if (!Array.isArray(selection.runs) || selection.runs.length > 4096) throw Error('Invalid history typed evidence')
     for (const run of selection.runs) {
       exactKeys(run, ['item', 'type', 'count']); exactKeys(run.item, ['client', 'clock']); exactKeys(run.type, ['client', 'clock'])
       if (!id(run.item) || !id(run.type) || !Number.isSafeInteger(run.count) || run.count < 1 || run.item.clock + run.count > 4294967296) throw Error('Invalid history typed run')
@@ -690,8 +690,8 @@ function restoreStack(value, lineageKey, references) {
     for (const pair of row.counterparts) {
       exactKeys(pair, ['source', 'destination'])
       for (const selection of [pair.source, pair.destination]) {
-        exactKeys(selection, ['version', 'runs'])
-        if (selection.version !== 1 || !Array.isArray(selection.runs) || selection.runs.length > 4096) throw Error('Invalid history counterpart')
+        exactKeys(selection, ['runs'])
+        if (!Array.isArray(selection.runs) || selection.runs.length > 4096) throw Error('Invalid history counterpart')
         for (const run of selection.runs) {
           exactKeys(run, ['item', 'type', 'count']); exactKeys(run.item, ['client', 'clock']); exactKeys(run.type, ['client', 'clock'])
           if (!id(run.item) || !id(run.type) || !Number.isSafeInteger(run.count) || run.count < 1 || run.item.clock + run.count > 4294967296) {
