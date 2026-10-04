@@ -1,0 +1,58 @@
+{
+  "namespace": "inline-media-paper",
+  "source": "**Before 世界** ![Diagram](/images/onboarding/connected-note.png \"Meaning\") [after](https://example.com)",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "b2a767c2620964f918bc327dc27dbd051",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "Before 世界"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          }
+        ]
+      },
+      {
+        "id": "b28f33f5404484ac7843334ea4b3f47dc",
+        "type": "image",
+        "props": {
+          "src": "/images/onboarding/connected-note.png",
+          "alt": "Diagram",
+          "title": "Meaning"
+        },
+        "content": []
+      },
+      {
+        "id": "b3fc991ca3b6649d3818359d2b115b60e",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "link",
+            "href": "https://example.com",
+            "content": [
+              {
+                "type": "text",
+                "text": "after"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -188,4 +188,13 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try doc.encodeUpdate()==state)
  }
 
+ @Test @MainActor func inlineMediaImportInitializesIdentifiedNativeSiblingsWithoutRichTextLoss() throws {
+  let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-inline-media.json"))) as! [String:Any]
+  let source=try RelayMarkSourceCodec.parseDocument(fixture["source"] as! String,namespace:fixture["namespace"] as! String)
+  let doc=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  try peer.applyUpdate(doc.initializeDocument(authoredAST:source))
+  #expect(try JSONSerialization.jsonObject(with:peer.authoredDocument()) as? NSDictionary == fixture["expected_ast"] as? NSDictionary)
+ }
+
 }

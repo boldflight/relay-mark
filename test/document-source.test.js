@@ -204,3 +204,10 @@ test('canonical typing attributes admit all rich marks and refuse executable lin
  assert.equal(validateTextAttributes({link,bold:{}}),true);
  for(const attributes of [{code:{},bold:{}},{link:{...link,href:'javascript:alert(1)'}},{underline:{enabled:true}},{unknown:{}}])assert.throws(()=>validateTextAttributes(attributes));
 });
+
+test('finite inline media boundary repair preserves rich text, media title and stable independent identities',()=>{
+ const f=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-inline-media.json',import.meta.url)));
+ const ast=parseDocument(f.source,{namespace:f.namespace});assert.deepEqual(ast,f.expected_ast);
+ assert.deepEqual(parseDocument(serializeDocument(ast)),ast);assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+ assert.throws(()=>parseDocument('**before ![diagram](/images/diagram.png) after**',{namespace:f.namespace}),/inline|image/i);
+});

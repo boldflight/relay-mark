@@ -179,8 +179,8 @@ function historicalQuestion(header,body,ns,path){
 function markdownBlocks(tokens,ns,prefix){let at=0;
  const sequence=(end,path)=>{const nodes=[];while(at<tokens.length&&tokens[at].type!==end){const t=tokens[at++],p=[...path,nodes.length];let n;
   switch(t.type){
-   case 'paragraph_open':{const i=tokens[at++];if(i.type!=='inline')throw new TypeError('Paragraph shape');at++;if(i.children?.length===1&&i.children[0].type==='image'){const im=i.children[0];n=safeImageSource(im.attrGet('src'))?block(ns,p,'image',[],{src:im.attrGet('src'),alt:im.content,title:im.attrGet('title')||null}):block(ns,p,'paragraph',[{type:'text',text:literalImage(im)}]);}else n=block(ns,p,'paragraph',inline(i.children||[]));break;}
-   case 'heading_open':{const i=tokens[at++];at++;n=block(ns,p,'heading',inline(i.children||[]),{level:Number(t.tag.slice(1)),headingId:null});break;}
+   case 'paragraph_open':{const i=tokens[at++];if(i.type!=='inline')throw new TypeError('Paragraph shape');at++;n=inlineMediaBlocks(i.children||[],ns,p,'paragraph');break;}
+   case 'heading_open':{const i=tokens[at++];at++;n=inlineMediaBlocks(i.children||[],ns,p,'heading',{level:Number(t.tag.slice(1)),headingId:null});break;}
    case 'blockquote_open':n=block(ns,p,'quote',sequence('blockquote_close',p));break;
    case 'bullet_list_open':case 'ordered_list_open':{const children=sequence(t.type.replace('_open','_close'),p);let task=false;for(const item of children){const first=item.content[0]?.content[0];const m=first?.type==='text'?first.text.match(/^\[([ xX])\]\s+/):null;if(m){task=true;item.type='task_item';item.props={checked:m[1].toLowerCase()==='x',entityId:null};first.text=first.text.slice(m[0].length);if(!first.text)item.content[0].content.shift();}}
     if(task)for(const item of children){item.type='task_item';item.props??={checked:false,entityId:null};linkedTask(item);}
@@ -189,11 +189,27 @@ function markdownBlocks(tokens,ns,prefix){let at=0;
    case 'fence':case 'code_block':if(t.info.startsWith('relaymark-ast'))throw new TypeError('Mixed exact source');n=block(ns,p,'code',t.content?[{type:'text',text:t.content}]:[],{language:t.info||null});break;
    case 'html_block':n=block(ns,p,'paragraph',[{type:'text',text:t.content}]);break;
    case 'hr':n=block(ns,p,'horizontal_rule');break;
-   case 'table_open':{const rows=[];let header=false;while(at<tokens.length&&tokens[at].type!=='table_close'){const rowToken=tokens[at++];if(rowToken.type==='thead_open'){header=true;continue;}if(['thead_close','tbody_open','tbody_close'].includes(rowToken.type)){if(rowToken.type==='thead_close')header=false;continue;}if(rowToken.type!=='tr_open')throw new TypeError('Table row');const rp=[...p,rows.length],cells=[];while(tokens[at].type!=='tr_close'){const cell=tokens[at++],cp=[...rp,cells.length],run=tokens[at++];at++;const align=cell.attrGet('style')?.match(/text-align:(left|center|right)/)?.[1]||null;cells.push(block(ns,cp,'table_cell',[block(ns,[...cp,0],'paragraph',inline(run.children||[]))],{header,colspan:1,rowspan:1,colwidth:null,align}));}at++;rows.push(block(ns,rp,'table_row',cells));}at++;n=block(ns,p,'table',rows);break;}
+   case 'table_open':{const rows=[];let header=false;while(at<tokens.length&&tokens[at].type!=='table_close'){const rowToken=tokens[at++];if(rowToken.type==='thead_open'){header=true;continue;}if(['thead_close','tbody_open','tbody_close'].includes(rowToken.type)){if(rowToken.type==='thead_close')header=false;continue;}if(rowToken.type!=='tr_open')throw new TypeError('Table row');const rp=[...p,rows.length],cells=[];while(tokens[at].type!=='tr_close'){const cell=tokens[at++],cp=[...rp,cells.length],run=tokens[at++];at++;const align=cell.attrGet('style')?.match(/text-align:(left|center|right)/)?.[1]||null;cells.push(block(ns,cp,'table_cell',inlineMediaBlocks(run.children||[],ns,[...cp,0],'paragraph'),{header,colspan:1,rowspan:1,colwidth:null,align}));}at++;rows.push(block(ns,rp,'table_row',cells));}at++;n=block(ns,p,'table',rows);break;}
    default:throw new TypeError('Unsupported CommonMark block '+t.type);
   }
-  nodes.push(n.type==='paragraph'?historicalMedia(n):n);
+  nodes.push(...(Array.isArray(n)?n:[n]).map(value=>value.type==='paragraph'?historicalMedia(value):value));
  }if(end){if(tokens[at]?.type!==end)throw new TypeError('CommonMark nesting');at++;}return nodes;};return sequence(null,prefix);
+}
+// One finite source boundary normalization. Existing canonical AST/Yjs is never
+// reconstructed during edits; these IDs are allocated once from the import namespace.
+function inlineMediaBlocks(tokens,ns,path,type,props){
+ const safe=inertInlineTokens(tokens)
+ if(!safe.some(token=>token.type==='image'))return [block(ns,path,type,inline(safe),props)]
+ const output=[],pending=[];let depth=0
+ const nextPath=()=>output.length?[...path,output.length]:path
+ const flush=()=>{if(pending.length){output.push(block(ns,nextPath(),type,inline(pending),props));pending.length=0}}
+ for(const token of safe){
+  if(token.type==='image'){
+   if(depth)throw new TypeError('Marked or linked inline image requires explicit authored media semantics')
+   flush();output.push(block(ns,nextPath(),'image',[],{src:token.attrGet('src'),alt:token.content,title:token.attrGet('title')||null}))
+  }else{depth+=token.nesting;pending.push(token)}
+ }
+ flush();return output
 }
 function historicalMedia(n){
  const [leaf]=n.content;if(n.content.length!==1)return n;

@@ -242,9 +242,7 @@ defmodule RelayMark.DocumentSource do
 
       case segment do
         {:markdown, body} ->
-          MDEx.parse_document!(body, @options).nodes
-          |> Enum.with_index()
-          |> Enum.map(fn {node, i} -> convert(node, namespace, path ++ [i]) end)
+          convert_children(MDEx.parse_document!(body, @options).nodes, namespace, path)
 
         {:historical_question, header, body} ->
           [historical_question(header, body, namespace, path)]
@@ -274,21 +272,15 @@ defmodule RelayMark.DocumentSource do
 
   defp id(ns, path), do: RelayMark.DocumentIdentity.generate(ns, path)
 
-  defp convert(%MDEx.Paragraph{nodes: [%MDEx.Image{} = image]}, ns, path) do
-    if RelayMark.Link.safe_image_source?(image.url),
-      do: image(image, ns, path),
-      else:
-        block(ns, path, "paragraph", [%{"type" => "text", "text" => literal_image(image)}], nil)
-  end
-
   defp convert(%MDEx.Paragraph{} = n, ns, path),
-    do: block(ns, path, "paragraph", inline(n.nodes), nil) |> historical_media()
+    do: inline_media_blocks(n.nodes, ns, path, "paragraph", nil)
 
   defp convert(%MDEx.HtmlBlock{literal: text}, ns, path),
     do: block(ns, path, "paragraph", [%{"type" => "text", "text" => text}], nil)
 
   defp convert(%MDEx.Heading{} = n, ns, path),
-    do: block(ns, path, "heading", inline(n.nodes), %{"level" => n.level, "headingId" => nil})
+    do:
+      inline_media_blocks(n.nodes, ns, path, "heading", %{"level" => n.level, "headingId" => nil})
 
   defp convert(%MDEx.BlockQuote{} = n, ns, path),
     do: block(ns, path, "quote", convert_children(n.nodes, ns, path), nil)
@@ -351,9 +343,9 @@ defmodule RelayMark.DocumentSource do
           |> Enum.with_index()
           |> Enum.map(fn {cell, c} ->
             alignment = Enum.at(n.alignments, c)
-            para = block(ns, path ++ [r, c, 0], "paragraph", inline(cell.nodes), nil)
+            content = inline_media_blocks(cell.nodes, ns, path ++ [r, c, 0], "paragraph", nil)
 
-            block(ns, path ++ [r, c], "table_cell", [para], %{
+            block(ns, path ++ [r, c], "table_cell", List.wrap(content), %{
               "header" => row.header,
               "colspan" => 1,
               "rowspan" => 1,
@@ -371,7 +363,38 @@ defmodule RelayMark.DocumentSource do
   defp convert(_, _, _), do: fail(:unsupported_commonmark_node)
 
   defp convert_children(nodes, ns, path),
-    do: nodes |> Enum.with_index() |> Enum.map(fn {n, i} -> convert(n, ns, path ++ [i]) end)
+    do:
+      Enum.reduce(nodes, [], fn n, output ->
+        output ++ List.wrap(convert(n, ns, path ++ [length(output)]))
+      end)
+
+  # Import-only boundary repair; canonical editing retains the original XML owner.
+  defp inline_media_blocks(nodes, ns, path, type, props) do
+    if Enum.any?(nodes, fn n ->
+         match?(%MDEx.Image{}, n) and RelayMark.Link.safe_image_source?(n.url)
+       end) do
+      {output, pending} =
+        Enum.reduce(nodes, {[], []}, fn node, {output, pending} ->
+          if match?(%MDEx.Image{}, node) and RelayMark.Link.safe_image_source?(node.url) do
+            output = flush_media_text(output, pending, ns, path, type, props)
+            {output ++ [image(node, ns, media_path(path, output))], []}
+          else
+            {output, pending ++ [node]}
+          end
+        end)
+
+      flush_media_text(output, pending, ns, path, type, props)
+    else
+      block(ns, path, type, inline(nodes), props) |> historical_media()
+    end
+  end
+
+  defp media_path(path, []), do: path
+  defp media_path(path, output), do: path ++ [length(output)]
+  defp flush_media_text(output, [], _ns, _path, _type, _props), do: output
+
+  defp flush_media_text(output, pending, ns, path, type, props),
+    do: output ++ [block(ns, media_path(path, output), type, inline(pending), props)]
 
   defp image(n, ns, path),
     do:

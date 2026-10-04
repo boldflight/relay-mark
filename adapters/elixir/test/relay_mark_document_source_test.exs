@@ -438,4 +438,21 @@ defmodule RelayMark.DocumentSourceTest do
       assert {:error, _} = RelayMark.DocumentXML.validate_text_attributes(attrs)
     end
   end
+
+  test "finite inline media boundary repair preserves rich text and exact independent shared identities" do
+    f =
+      Jason.decode!(
+        File.read!(
+          Path.expand(
+            "../../../spec/relaymark/collaboration/fixtures/canonical-inline-media.json",
+            __DIR__
+          )
+        )
+      )
+
+    assert {:ok, ast} = RelayMark.parse_document(f["source"], namespace: f["namespace"])
+    assert ast == f["expected_ast"]
+    assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
+  end
 end
