@@ -1,9 +1,9 @@
 defmodule RelayMark.ContentEdit do
   @moduledoc """
-  Pure maintained ProseMirror step execution over the canonical editor schema.
+  Maintained ProseMirror/Yjs execution and ephemeral command proof over the canonical editor schema.
 
   Hosts supply an admitted pre-document, prove CRDT anchors/frontiers and copies,
-  and own runtime supervision/pooling. This module owns no document replica,
+  and own runtime supervision/pooling. This module owns no durable editable document replica,
   authorization, transport or global serial runtime. Each runtime has a bounded
   isolated QuickJS-NG thread. Resource refusal never invokes another interpreter.
   """
@@ -46,6 +46,12 @@ defmodule RelayMark.ContentEdit do
     do: execute_arguments(runtime, "buildContentEditWitness", [evidence])
 
   def build_witness(_, _), do: {:error, :invalid_content_edit}
+
+  @doc "Replay actual maintained PM/Yjs command and compare its complete original mutation footprint. Does not authorize source or history."
+  def replay_mutation(runtime, evidence) when is_map(evidence),
+    do: execute_arguments(runtime, "replayContentEditMutation", [evidence])
+
+  def replay_mutation(_, _), do: {:error, :invalid_content_edit}
 
   defp execute_arguments(runtime, function, values) do
     with {:ok, arguments} <- Jason.encode(values) do

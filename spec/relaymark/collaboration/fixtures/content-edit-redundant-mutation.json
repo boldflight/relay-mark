@@ -1,0 +1,1061 @@
+{
+  "description": "Independently captured redundant XML command; exact supplied PM step is declared separately",
+  "sender_state_base64": "ASRlAAcBB2RlZmF1bHQDCXBhcmFncmFwaAcAZQAGBABlAQFBhGUCBfCfjI1aKABlAAtyZWxheW1hcmtJZAF3IWIyZTg3NWI4MjlhOGQ0NDlkOGFkZDhmNGRmZjQxMmJjY4dlAAMNcXVlc3Rpb25CbG9jawcAZQcDDXF1ZXN0aW9uTGFiZWwHAGUIBgYAZQkEYm9sZAJ7fYRlCgZDaG9vc2WGZRAEYm9sZARudWxsKABlCAtyZWxheW1hcmtJZAF3IWJiODE4OTJlZWY4OTQ0YjQ0OGFhM2Q2ZDZiNDUzNzhjYodlCAMOcXVlc3Rpb25PcHRpb24HAGUTBgQAZRQDT25lKABlEwtyZWxheW1hcmtJZAF3IWIzNzdhOTI0NWEyYTc0MGU4ODE1NTU4NTcwMDI1N2Y2ZigAZRMHY29ycmVjdAF5KABlEwZwb2ludHMBfigAZRMIc2V0dGluZ3MBdgAoAGUTAmlkAXcDb25lh2UTAw5xdWVzdGlvbk9wdGlvbgcAZR0GBABlHgNUd28oAGUdC3JlbGF5bWFya0lkAXchYmJlMjAyNjAxODQzZDQxZDA4NzJlZDk1ZWFhMjUwZDNjKABlHQdjb3JyZWN0AXkoAGUdBnBvaW50cwF+KABlHQhzZXR0aW5ncwF2ACgAZR0CaWQBdwN0d28oAGUHC3JlbGF5bWFya0lkAXchYmM3YmNlOGZlZWRiOTQ5YzU4ZTIzYmEwMWJhNGJmY2YxKABlBwhyZXF1aXJlZAF5KABlBwZwb2ludHMBfigAZQcDbWluAX4oAGUHA21heAF+KABlBwhzZXR0aW5ncwF2ACgAZQcCaWQBdwVxLW9uZSgAZQcEdHlwZQF3D211bHRpcGxlX2Nob2ljZQFlBAIBGgEkASkD",
+  "current_state_base64": "ASRlAAcBB2RlZmF1bHQDCXBhcmFncmFwaAcAZQAGBABlAQFBhGUCBfCfjI1aKABlAAtyZWxheW1hcmtJZAF3IWIyZTg3NWI4MjlhOGQ0NDlkOGFkZDhmNGRmZjQxMmJjY4dlAAMNcXVlc3Rpb25CbG9jawcAZQcDDXF1ZXN0aW9uTGFiZWwHAGUIBgYAZQkEYm9sZAJ7fYRlCgZDaG9vc2WGZRAEYm9sZARudWxsKABlCAtyZWxheW1hcmtJZAF3IWJiODE4OTJlZWY4OTQ0YjQ0OGFhM2Q2ZDZiNDUzNzhjYodlCAMOcXVlc3Rpb25PcHRpb24HAGUTBgQAZRQDT25lKABlEwtyZWxheW1hcmtJZAF3IWIzNzdhOTI0NWEyYTc0MGU4ODE1NTU4NTcwMDI1N2Y2ZigAZRMHY29ycmVjdAF5KABlEwZwb2ludHMBfigAZRMIc2V0dGluZ3MBdgAoAGUTAmlkAXcDb25lh2UTAw5xdWVzdGlvbk9wdGlvbgcAZR0GBABlHgNUd28oAGUdC3JlbGF5bWFya0lkAXchYmJlMjAyNjAxODQzZDQxZDA4NzJlZDk1ZWFhMjUwZDNjKABlHQdjb3JyZWN0AXkoAGUdBnBvaW50cwF+KABlHQhzZXR0aW5ncwF2ACgAZR0CaWQBdwN0d28oAGUHC3JlbGF5bWFya0lkAXchYmM3YmNlOGZlZWRiOTQ5YzU4ZTIzYmEwMWJhNGJmY2YxKABlBwhyZXF1aXJlZAF5KABlBwZwb2ludHMBfigAZQcDbWluAX4oAGUHA21heAF+KABlBwhzZXR0aW5ncwF2ACgAZQcCaWQBdwVxLW9uZSgAZQcEdHlwZQF3D211bHRpcGxlX2Nob2ljZQFlBAIBGgEkASkD",
+  "writer_client": 101,
+  "operation": {
+    "kind": "content_edit",
+    "steps": [
+      {
+        "stepType": "replace",
+        "from": 3,
+        "to": 3,
+        "slice": {
+          "content": [
+            {
+              "type": "text",
+              "text": "X"
+            }
+          ]
+        }
+      }
+    ],
+    "copies": []
+  },
+  "footprint": {
+    "state_vector": [
+      {
+        "client": 101,
+        "clock": 48
+      }
+    ],
+    "structs": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 0
+        },
+        "count": 1,
+        "parent": {
+          "root": "default"
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_element",
+          "name": "paragraph"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 1
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 0
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_text",
+          "name": null
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 2
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "string",
+          "text": "A"
+        },
+        "deleted": true
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 3
+        },
+        "count": 3,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 2
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "string",
+          "text": "🌍Z"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 6
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 0
+          }
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "b2e875b829a8d449d8add8f4dff412bcc"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 7
+        },
+        "count": 1,
+        "parent": {
+          "root": "default"
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 0
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_element",
+          "name": "questionBlock"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 8
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_element",
+          "name": "questionLabel"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 9
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 8
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_text",
+          "name": null
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 10
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 9
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "format",
+          "key": "bold",
+          "value": {}
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 11
+        },
+        "count": 6,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 9
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 10
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "string",
+          "text": "Choose"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 17
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 9
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 16
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "format",
+          "key": "bold",
+          "value": null
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 18
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 8
+          }
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "bb81892eef8944b448aa3d6d6b45378cb"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 19
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 8
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_element",
+          "name": "questionOption"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 20
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 19
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_text",
+          "name": null
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 21
+        },
+        "count": 3,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 20
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "string",
+          "text": "One"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 24
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 19
+          }
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "b377a9245a2a740e88155585700257f6f"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 25
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 19
+          }
+        },
+        "key": "correct",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            false
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 26
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 19
+          }
+        },
+        "key": "points",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        },
+        "deleted": true
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 27
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 19
+          }
+        },
+        "key": "settings",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            {}
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 28
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 19
+          }
+        },
+        "key": "id",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "one"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 29
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 19
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_element",
+          "name": "questionOption"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 30
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 29
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_text",
+          "name": null
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 31
+        },
+        "count": 3,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 30
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "string",
+          "text": "Two"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 34
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 29
+          }
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "bbe202601843d41d0872ed95eaa250d3c"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 35
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 29
+          }
+        },
+        "key": "correct",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            false
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 36
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 29
+          }
+        },
+        "key": "points",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        },
+        "deleted": true
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 37
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 29
+          }
+        },
+        "key": "settings",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            {}
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 38
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 29
+          }
+        },
+        "key": "id",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "two"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 39
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "bc7bce8feedb949c58e23ba01ba4bfcf1"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 40
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "required",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            false
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 41
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "points",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        },
+        "deleted": true
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 42
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "min",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        },
+        "deleted": true
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 43
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "max",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        },
+        "deleted": true
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 44
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "settings",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            {}
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 45
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "id",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "q-one"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 46
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "type",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "multiple_choice"
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 47
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 4
+        },
+        "right_origin": {
+          "client": 101,
+          "clock": 5
+        },
+        "content": {
+          "kind": "string",
+          "text": "X"
+        },
+        "deleted": false
+      }
+    ],
+    "declared_deletes": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 2
+        },
+        "count": 1
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 26
+        },
+        "count": 1
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 36
+        },
+        "count": 1
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 41
+        },
+        "count": 3
+      }
+    ],
+    "deleted_items": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 2
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 2
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "content": {
+          "kind": "string",
+          "text": "A"
+        }
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 26
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 26
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 19
+          }
+        },
+        "key": "points",
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 36
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 36
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 29
+          }
+        },
+        "key": "points",
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 41
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 41
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "points",
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 42
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 42
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "min",
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 43
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 43
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 7
+          }
+        },
+        "key": "max",
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,240 @@
+{
+  "description": "Actual TipTap Enter moves generated italic suffix via community copy; fresh IDs are not human typing",
+  "sender_state_base64": "AQplAAcBB2RlZmF1bHQDB2NhbGxvdXQHAGUAAwlwYXJhZ3JhcGgHAGUBBgYAZQIGaXRhbGljAnt9hGUDF0JlZm9yZSBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnQA",
+  "current_state_base64": "AQplAAcBB2RlZmF1bHQDB2NhbGxvdXQHAGUAAwlwYXJhZ3JhcGgHAGUBBgYAZQIGaXRhbGljAnt9hGUDF0JlZm9yZSBnZW5lcmF0ZWQgc3VmZml4hmUaBml0YWxpYwRudWxsKABlAQtyZWxheW1hcmtJZAF3IWI3ZThkNmQ5ZDczYzg0NDA4Yjk3OTliYmNlODU1Yzg3MigAZQALcmVsYXltYXJrSWQBdyFiZjczODQ2MzAyYmI2NGNkNmJhM2RmMDc1ODNjMzlhZjIoAGUABHRvbmUBdwduZXV0cmFsKABlAAhlbXBoYXNpcwF3BHNvZnQA",
+  "writer_client": 101,
+  "operation": {
+    "kind": "content_edit",
+    "steps": [
+      {
+        "stepType": "replace",
+        "from": 9,
+        "to": 9,
+        "slice": {
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+              }
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b7e8d6d9d73c84408b9799bbce855c872"
+              }
+            }
+          ],
+          "openStart": 1,
+          "openEnd": 1
+        },
+        "structure": true
+      },
+      {
+        "stepType": "replaceAround",
+        "from": 10,
+        "to": 28,
+        "gapFrom": 11,
+        "gapTo": 27,
+        "insert": 1,
+        "slice": {
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b227f1b8175494183a2a22ed090b1634f"
+              }
+            }
+          ]
+        },
+        "structure": true
+      }
+    ],
+    "copies": []
+  },
+  "footprint": {
+    "state_vector": [
+      {
+        "client": 101,
+        "clock": 53
+      }
+    ],
+    "structs": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 32
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 0
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 1
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_element",
+          "name": "paragraph"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 33
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 32
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "type",
+          "type_kind": "xml_text",
+          "name": null
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 34
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 33
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "format",
+          "key": "italic",
+          "value": {}
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 35
+        },
+        "count": 16,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 33
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 34
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "string",
+          "text": "generated suffix"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 51
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 33
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 50
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "format",
+          "key": "italic",
+          "value": null
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 52
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 32
+          }
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            "b227f1b8175494183a2a22ed090b1634f"
+          ]
+        },
+        "deleted": false
+      }
+    ],
+    "declared_deletes": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 11
+        },
+        "count": 16
+      }
+    ],
+    "deleted_items": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 11
+        },
+        "count": 16,
+        "stored_item": {
+          "client": 101,
+          "clock": 11
+        },
+        "stored_count": 16,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 2
+          }
+        },
+        "key": null,
+        "content": {
+          "kind": "string",
+          "text": "generated suffix"
+        }
+      }
+    ]
+  }
+}

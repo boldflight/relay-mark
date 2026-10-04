@@ -1,0 +1,60 @@
+{
+  "description": "Independently captured delete XML command; exact supplied PM step is declared separately",
+  "sender_state_base64": "ASNlAAcBB2RlZmF1bHQDCXBhcmFncmFwaAcAZQAGBABlAQZB8J+MjVooAGUAC3JlbGF5bWFya0lkAXchYjJlODc1YjgyOWE4ZDQ0OWQ4YWRkOGY0ZGZmNDEyYmNjh2UAAw1xdWVzdGlvbkJsb2NrBwBlBwMNcXVlc3Rpb25MYWJlbAcAZQgGBgBlCQRib2xkAnt9hGUKBkNob29zZYZlEARib2xkBG51bGwoAGUIC3JlbGF5bWFya0lkAXchYmI4MTg5MmVlZjg5NDRiNDQ4YWEzZDZkNmI0NTM3OGNih2UIAw5xdWVzdGlvbk9wdGlvbgcAZRMGBABlFANPbmUoAGUTC3JlbGF5bWFya0lkAXchYjM3N2E5MjQ1YTJhNzQwZTg4MTU1NTg1NzAwMjU3ZjZmKABlEwdjb3JyZWN0AXkoAGUTBnBvaW50cwF+KABlEwhzZXR0aW5ncwF2ACgAZRMCaWQBdwNvbmWHZRMDDnF1ZXN0aW9uT3B0aW9uBwBlHQYEAGUeA1R3bygAZR0LcmVsYXltYXJrSWQBdyFiYmUyMDI2MDE4NDNkNDFkMDg3MmVkOTVlYWEyNTBkM2MoAGUdB2NvcnJlY3QBeSgAZR0GcG9pbnRzAX4oAGUdCHNldHRpbmdzAXYAKABlHQJpZAF3A3R3bygAZQcLcmVsYXltYXJrSWQBdyFiYzdiY2U4ZmVlZGI5NDljNThlMjNiYTAxYmE0YmZjZjEoAGUHCHJlcXVpcmVkAXkoAGUHBnBvaW50cwF+KABlBwNtaW4BfigAZQcDbWF4AX4oAGUHCHNldHRpbmdzAXYAKABlBwJpZAF3BXEtb25lKABlBwR0eXBlAXcPbXVsdGlwbGVfY2hvaWNlAWUDGgEkASkD",
+  "current_state_base64": "ASNlAAcBB2RlZmF1bHQDCXBhcmFncmFwaAcAZQAGBABlAQZB8J+MjVooAGUAC3JlbGF5bWFya0lkAXchYjJlODc1YjgyOWE4ZDQ0OWQ4YWRkOGY0ZGZmNDEyYmNjh2UAAw1xdWVzdGlvbkJsb2NrBwBlBwMNcXVlc3Rpb25MYWJlbAcAZQgGBgBlCQRib2xkAnt9hGUKBkNob29zZYZlEARib2xkBG51bGwoAGUIC3JlbGF5bWFya0lkAXchYmI4MTg5MmVlZjg5NDRiNDQ4YWEzZDZkNmI0NTM3OGNih2UIAw5xdWVzdGlvbk9wdGlvbgcAZRMGBABlFANPbmUoAGUTC3JlbGF5bWFya0lkAXchYjM3N2E5MjQ1YTJhNzQwZTg4MTU1NTg1NzAwMjU3ZjZmKABlEwdjb3JyZWN0AXkoAGUTBnBvaW50cwF+KABlEwhzZXR0aW5ncwF2ACgAZRMCaWQBdwNvbmWHZRMDDnF1ZXN0aW9uT3B0aW9uBwBlHQYEAGUeA1R3bygAZR0LcmVsYXltYXJrSWQBdyFiYmUyMDI2MDE4NDNkNDFkMDg3MmVkOTVlYWEyNTBkM2MoAGUdB2NvcnJlY3QBeSgAZR0GcG9pbnRzAX4oAGUdCHNldHRpbmdzAXYAKABlHQJpZAF3A3R3bygAZQcLcmVsYXltYXJrSWQBdyFiYzdiY2U4ZmVlZGI5NDljNThlMjNiYTAxYmE0YmZjZjEoAGUHCHJlcXVpcmVkAXkoAGUHBnBvaW50cwF+KABlBwNtaW4BfigAZQcDbWF4AX4oAGUHCHNldHRpbmdzAXYAKABlBwJpZAF3BXEtb25lKABlBwR0eXBlAXcPbXVsdGlwbGVfY2hvaWNlAWUDGgEkASkD",
+  "writer_client": null,
+  "operation": {
+    "kind": "content_edit",
+    "steps": [
+      {
+        "stepType": "replace",
+        "from": 1,
+        "to": 2
+      }
+    ],
+    "copies": []
+  },
+  "footprint": {
+    "state_vector": [
+      {
+        "client": 101,
+        "clock": 47
+      }
+    ],
+    "structs": [],
+    "declared_deletes": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 2
+        },
+        "count": 1
+      }
+    ],
+    "deleted_items": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 2
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 2
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "content": {
+          "kind": "string",
+          "text": "A"
+        }
+      }
+    ]
+  }
+}

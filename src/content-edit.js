@@ -68,3 +68,4 @@ export function prepareContentEditWitness(evidence){return prepareWitness(eviden
 
 import {buildWitness} from './content-edit-witness.js';
 export function buildContentEditWitness(evidence){return buildWitness(evidence,applyContentEdit);}
+export {replayContentEditMutation} from '../adapters/collaboration/content-edit-mutation.js';
