@@ -368,7 +368,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         let dimensions = try changed { blocks in
             var image = blocks[1]
             var attrs = image["attributes"] as! [String: Any]
-            attrs["width"] = 120
+            attrs["width"] = -120
             image["attributes"] = attrs
             blocks[1] = image
         }

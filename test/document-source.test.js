@@ -60,3 +60,9 @@ test('canonical XML construction retains form text ownership and envelope metada
  assert.deepEqual(documentToSnapshot(q).children[0].children.map(n=>n.name),['questionLabel','questionOption']);
  assert.deepEqual(snapshotToDocument(documentToSnapshot(q)),q);
 });
+
+test('portable XML materializes community schema defaults for newly inserted native tasks',()=>{
+ const ast=parseDocument('- [ ] Task',{namespace:'native-new-task'}),snapshot=documentToSnapshot(ast);
+ delete snapshot.children[0].children[0].attributes.entityId;delete snapshot.children[0].children[0].attributes.checked;
+ assert.deepEqual(snapshotToDocument(snapshot),ast);
+});

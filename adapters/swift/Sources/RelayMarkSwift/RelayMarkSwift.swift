@@ -78,6 +78,9 @@ public struct RelayMarkDocument: Codable, Equatable, Sendable {
     public let annotations: [RelayMarkAnnotation]
     public let resources: [RelayMarkResource]
 
+    public let meta: [String: RelayMarkValue]
+    private let presentMetadata: Set<String>
+    private enum CodingKeys: String, CodingKey { case type,frontmatter,blocks,annotations,resources,meta }
     private enum LegacyKeys: CodingKey { case version }
 
     public static func decodeJSON(_ data: Data) throws -> RelayMarkDocument {
@@ -91,11 +94,22 @@ public struct RelayMarkDocument: Codable, Equatable, Sendable {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
                 debugDescription: "Nested AST versions are obsolete; validate the canonical envelope."))
         }
+        presentMetadata = Set([CodingKeys.frontmatter,.annotations,.resources,.meta].filter { container.contains($0) }.map(\.rawValue))
+        meta = try container.decodeIfPresent([String: RelayMarkValue].self, forKey: .meta) ?? [:]
         type = try container.decode(String.self, forKey: .type)
         frontmatter = try container.decodeIfPresent([String: RelayMarkValue].self, forKey: .frontmatter) ?? [:]
         blocks = try container.decode([RelayMarkBlock].self, forKey: .blocks)
         annotations = try container.decodeIfPresent([RelayMarkAnnotation].self, forKey: .annotations) ?? []
         resources = try container.decodeIfPresent([RelayMarkResource].self, forKey: .resources) ?? []
+    }
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy:CodingKeys.self)
+        try container.encode(type,forKey:.type)
+        try container.encode(blocks,forKey:.blocks)
+        if presentMetadata.contains("frontmatter") { try container.encode(frontmatter,forKey:.frontmatter) }
+        if presentMetadata.contains("annotations") { try container.encode(annotations,forKey:.annotations) }
+        if presentMetadata.contains("resources") { try container.encode(resources,forKey:.resources) }
+        if presentMetadata.contains("meta") { try container.encode(meta,forKey:.meta) }
     }
 }
 

@@ -17,16 +17,7 @@ public enum RelayMarkNativeDocumentProjection {
     }
 
     public static func project(snapshot: Data) throws -> RelayMarkDocument {
-        guard snapshot.count <= 4_194_304 else { throw Failure.unsupported("snapshot limit") }
-        let raw = try JSONSerialization.jsonObject(with: snapshot)
-        let root = try object(raw, keys: ["kind", "children"])
-        try require(root["kind"] as? String == "fragment", "root fragment")
-        try validateDepth(root, depth: 0)
-        let nodes = try children(root, minimum: 1, maximum: 4_096)
-        var ids = Set<String>()
-        let blocks = try nodes.map { try block($0, depth: 0, ids: &ids) }
-        let ast: [String: Any] = ["type": "relaymark.document", "blocks": blocks]
-        return try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: ast))
+        try RelayMarkDocument.decodeJSON(RelayMarkSourceCodec.snapshotToDocument(snapshot))
     }
 
     static func block(_ raw: Any, depth: Int, calloutDepth: Int = 0, taskDepth: Int = 0,

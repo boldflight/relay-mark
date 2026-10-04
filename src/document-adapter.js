@@ -1,3 +1,4 @@
+import {URL} from './document-url.js';
 /** Canonical rich editor projection and strict lossless AST inverse. */
 import { directiveNodeForName, directiveNodeForType, authoredDirectiveProps } from './document-directives.js';
 import { mapInline, unmapInline } from './document-inline.js';

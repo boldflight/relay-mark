@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "@noble/hashes": "^2.0.1",
+    "core-js-pure": "3.50.0",
     "markdown-it": "^15.0.2"
   }
 }

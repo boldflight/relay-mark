@@ -1,3 +1,4 @@
+import {URL} from './document-url.js';
 /** Portable inert authored navigation. Hosts still authorize internal destinations. */
 export function safeLinkHref(value) {
  if(typeof value!=='string'||!value||/[\s\u0000-\u001f\u007f<>\\]/u.test(value))return false;

@@ -2,6 +2,7 @@ import Foundation
 import CoreFoundation
 import RelayMarkProseProjection
 import YSwift
+import RelayMarkSwift
 
 /// RelayMark's portable XML projection over the community YSwift/Yrs document.
 /// Authorization, persistence, transport, and UI remain with the host.
@@ -29,6 +30,7 @@ public final class RelayMarkNativeDocument {
 
     private let document: YDocument
     private let root: YXmlNode
+    private let metadata: YMap<RelayMarkValue>
     private let localOrigin: Origin
     private let undoManager: YUndoManager<NSObject>
     public let presence: RelayMarkNativePresence
@@ -36,11 +38,13 @@ public final class RelayMarkNativeDocument {
     public init() {
         let document = YDocument()
         let root = document.getOrCreateXmlFragment(named: "default")
+        let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
         let origin = Origin(UUID().uuidString)
-        let undoManager: YUndoManager<NSObject> = document.undoManager(trackedRefs: [root])
+        let undoManager: YUndoManager<NSObject> = document.undoManager(trackedRefs: [root,metadata])
         undoManager.addOrigin(origin)
         self.document = document
         self.root = root
+        self.metadata = metadata
         localOrigin = origin
         self.undoManager = undoManager
         presence = RelayMarkNativePresence(awareness: document.makeAwareness())
@@ -111,9 +115,25 @@ public final class RelayMarkNativeDocument {
 
     /// The same lossless XML JSON shape used by the existing collaboration adapter.
     public func snapshot() throws -> Data {
-        let object = try snapshot(root)
+        var object = try snapshot(root)
+        let envelope = metadata.toMap()
+        guard Set(envelope.keys).isSubset(of:["frontmatter","annotations","resources","meta"]) else { throw Failure.unsupportedProseEdit }
+        if !envelope.isEmpty { object["metadata"] = try JSONSerialization.jsonObject(with:JSONEncoder().encode(envelope)) }
         return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
     }
+
+    /// Initializes authored AST once, in the same Yrs transaction as its envelope.
+    /// Existing rich replicas must retain their item identities and use incremental commands.
+    @discardableResult public func initializeDocument(authoredAST: Data) throws -> Data {
+        guard root.length()==0,metadata.isEmpty else { throw Failure.unsupportedProseEdit }
+        let portable = try RelayMarkSourceCodec.documentToSnapshot(authoredAST)
+        guard let object = try JSONSerialization.jsonObject(with:portable) as? [String:Any],
+              let nodes = object["children"] as? [[String:Any]] else { throw Failure.unsupportedProseEdit }
+        let envelopeData = try JSONSerialization.data(withJSONObject:object["metadata"] ?? [:])
+        let envelope = try JSONDecoder().decode([String:RelayMarkValue].self,from:envelopeData)
+        return try replaceSnapshotNodes([SnapshotNodeReplacement(parentPath:[],start:0,count:0,nodes:nodes)],metadataUpdates:envelope,origin:Origin("relaymark.initialization"))
+    }
+    public func authoredDocument() throws -> Data { try RelayMarkSourceCodec.snapshotToDocument(snapshot()) }
 
     public func proseProjection() throws -> RelayMarkCollaborativeProse {
         try RelayMarkCollaborativeProse(snapshot: snapshot())
@@ -2131,7 +2151,9 @@ public final class RelayMarkNativeDocument {
     /// retain untouched ancestors and change both locations in one undo item.
     func replaceSnapshotNodes(_ replacements: [SnapshotNodeReplacement],
                               textRemovals: [SnapshotTextRemoval] = [],
-                              attributeUpdates: [SnapshotAttributeUpdate] = []) throws -> Data {
+                              attributeUpdates: [SnapshotAttributeUpdate] = [],
+                              metadataUpdates: [String:RelayMarkValue] = [:],
+                              origin: Origin? = nil) throws -> Data {
         let attributeTargets = try attributeUpdates.map { update -> (YXmlNode, [String: Any]) in
             var node = root
             for index in update.path {
@@ -2163,7 +2185,7 @@ public final class RelayMarkNativeDocument {
             return (parent, first, removed, replacement.nodes)
         }
         wrapUndo()
-        let update = try document.transactSync(origin: localOrigin) { transaction in
+        let update = try document.transactSync(origin: origin ?? localOrigin) { transaction in
             func append(_ raw: [String: Any], to parent: YXmlNode, at index: UInt32) throws {
                 if raw["kind"] as? String == "text" {
                     let leaf = try parent.insertText(at: index, in: transaction)
@@ -2183,6 +2205,7 @@ public final class RelayMarkNativeDocument {
                     }
                 }
             }
+            for (key,value) in metadataUpdates { self.metadata.updateValue(value,forKey:key,transaction:transaction) }
             for (node, attributes) in attributeTargets {
                 for (key, value) in attributes {
                     if value is NSNull { try node.removeAttribute(key, in: transaction) }
