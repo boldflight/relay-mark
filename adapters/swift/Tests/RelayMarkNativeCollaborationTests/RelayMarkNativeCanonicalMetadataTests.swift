@@ -3,6 +3,34 @@ import Testing
 import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 struct RelayMarkNativeCanonicalMetadataTests {
+ @Test @MainActor func historicalVideoMigratesDerivedDefaultsInPlaceThenUsesActualMaintainedReplacement() throws {
+  let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/rich-video-v3-draft.json"))) as! [String:Any]
+  let document=RelayMarkNativeDocument(),peer=RelayMarkNativeDocument()
+  let original=Data(base64Encoded:fixture["update"] as! String)!
+  try document.applyUpdate(original);try peer.applyUpdate(original)
+  let anchors=try [[0],[1],[2],[0,0],[2,0]].map{try document.anchor(path:$0,index:0)}
+  #expect(throws:(any Error).self){try document.authoredDocument()}
+  let prepared=try RelayMarkNativeSnapshotImport.prepare(document:document,namespace:"retained-video",expectedSnapshot:document.snapshot())
+  let retainedOriginal=try document.encodeUpdate()
+  #expect(prepared.originalState == retainedOriginal)
+  let migration=try RelayMarkNativeSnapshotImport.install(document:document,prepared:prepared)
+  try peer.applyUpdate(migration)
+  let migratedAnchors=try [[0],[1],[2],[0,0],[2,0]].map{try document.anchor(path:$0,index:0)}
+  #expect(migratedAnchors == anchors)
+  #expect(try document.authoredDocument() == peer.authoredDocument())
+  let snapshot=try JSONSerialization.jsonObject(with:document.snapshot()) as! [String:Any]
+  let video=(snapshot["children"] as! [[String:Any]])[1]
+  #expect(Set((video["attributes"] as! [String:Any]).keys) == Set(["relaymarkId","videoId"]))
+  let change=try RelayMarkNativeRichEditing.replace(document:document,range:NSRange(location:0,length:6),runs:[("After",[:])],expectedSnapshot:document.snapshot())
+  try peer.applyUpdate(change.update)
+  #expect(String(try document.richProseProjection().text.characters) == "After video\n\u{FFFC}\nAfter video")
+  #expect(try document.authoredDocument() == peer.authoredDocument())
+  #expect(change.caret?.offset == 5)
+  let steps=try JSONSerialization.jsonObject(with:change.steps) as! [[String:Any]]
+  #expect(steps[0]["stepType"] as? String == "replace")
+  #expect(throws:(any Error).self){try RelayMarkNativeSnapshotImport.install(document:document,prepared:prepared)}
+ }
  @Test @MainActor func initializesAndExchangesSameAuthoredEnvelopeOnce() throws {
   let source = "<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\n**Capital?**\n- ( ) Paris\n- ( ) London\n<!-- /relay:question -->"
   var raw = try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.parseDocument(source,namespace:"native-form-peer")) as! [String:Any]

@@ -225,3 +225,11 @@ test('canonical snapshot projection coalesces real CRDT text segmentation but pr
   {type:'text',text:'A🌍Z'},{type:'strong',content:[{type:'text',text:'BC'}]},{type:'hard_break'},{type:'strong',content:[{type:'text',text:'D'}]}
  ]}]});
 });
+
+test('canonical video emits only durable identity and finite import records derived default removals',()=>{
+ const ast=parseDocument('Before video\n\n::video[/v/11111111-1111-4111-8111-111111111111]\n\nAfter video',{namespace:'video-current'});
+ const snapshot=documentToSnapshot(ast);assert.deepEqual(Object.keys(snapshot.children[1].attributes).sort(),['relaymarkId','videoId']);
+ const old=structuredClone(snapshot);old.children[1].attributes.source='mux';old.children[1].attributes.status='ready';assert.throws(()=>snapshotToDocument(old));
+ const imported=importDocumentSnapshot(old,{namespace:'video-import'});assert.deepEqual(imported.document,ast);assert.deepEqual(imported.snapshot,snapshot);assert.deepEqual(imported.normalizations,[{path:[1],operation:'remove_attribute',name:'source',before:'mux'},{path:[1],operation:'remove_attribute',name:'status',before:'ready'}]);
+ const unknown=structuredClone(old);unknown.children[1].attributes.source='youtube';assert.throws(()=>importDocumentSnapshot(unknown,{namespace:'video-import'}));
+});

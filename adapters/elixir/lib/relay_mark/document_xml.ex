@@ -66,8 +66,7 @@ defmodule RelayMark.DocumentXML do
     "tableCell" => ~w(colspan rowspan colwidth align),
     "tableHeader" => ~w(colspan rowspan colwidth align),
     "callout" => ~w(tone emphasis),
-    "videoEmbed" =>
-      ~w(videoId source status playbackId title thumbnailUrl youtubeId uploadPercent),
+    "videoEmbed" => ~w(videoId),
     "relayEntityReference" => ~w(entityRef entityId entityType label projection source),
     "agentSuggestion" => ~w(review kind confidence evidence content),
     "relayDataView" => ~w(source projection columns filter sort group limit title),
@@ -165,6 +164,8 @@ defmodule RelayMark.DocumentXML do
             do: import_xml_identity!(node, node_path, namespace, state),
             else: {node, state}
 
+        {node, state} = import_xml_derived_video!(node, node_path, state)
+
         {children, state} =
           import_xml_nodes!(list!(node["children"]), node_path, depth + 1, namespace, state)
 
@@ -172,6 +173,40 @@ defmodule RelayMark.DocumentXML do
       end
     end)
   end
+
+  defp import_xml_derived_video!(%{"name" => "videoEmbed"} = node, path, state) do
+    defaults = [
+      {"playbackId", nil},
+      {"title", nil},
+      {"source", "mux"},
+      {"thumbnailUrl", nil},
+      {"status", "ready"},
+      {"youtubeId", nil},
+      {"uploadPercent", nil}
+    ]
+
+    {attributes, state} =
+      Enum.reduce(defaults, {attrs(node), state}, fn {key, expected}, {attributes, state} ->
+        if Map.has_key?(attributes, key) do
+          require!(attributes[key] == expected, :historical_video_domain_evidence_required)
+
+          change = %{
+            "path" => path,
+            "operation" => "remove_attribute",
+            "name" => key,
+            "before" => expected
+          }
+
+          {Map.delete(attributes, key), Map.update!(state, "changes", &(&1 ++ [change]))}
+        else
+          {attributes, state}
+        end
+      end)
+
+    {Map.put(node, "attributes", attributes), state}
+  end
+
+  defp import_xml_derived_video!(node, _path, state), do: {node, state}
 
   defp import_xml_identity!(node, path, namespace, state) do
     attributes = attrs(node)
@@ -606,19 +641,6 @@ defmodule RelayMark.DocumentXML do
 
         "videoEmbed" ->
           require!(uuid?(props["videoId"]), :video_identity)
-
-          require!(
-            props["source"] in [nil, "mux"] and props["status"] in [nil, "ready"],
-            :video_transient_state
-          )
-
-          require!(
-            Enum.all?(
-              ~w(playbackId title thumbnailUrl youtubeId uploadPercent),
-              &is_nil(props[&1])
-            ),
-            :video_hydration
-          )
 
           {"relay.video_embed", Map.take(props, ~w(videoId))}
 

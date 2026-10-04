@@ -488,10 +488,6 @@ function unmapAgentSuggestion(block, seen) {
 }
 
 const videoId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-const videoDefaults = {
-  playbackId: null, title: null, source: "mux", thumbnailUrl: null,
-  status: "ready", youtubeId: null, uploadPercent: null
-};
 
 function checkVideoId(value) {
   if (typeof value !== "string" || !videoId.test(value)) {
@@ -500,16 +496,11 @@ function checkVideoId(value) {
 }
 
 function mapVideo(node, seen) {
-  checkNode(node, "videoEmbed", seen, ["videoId", ...Object.keys(videoDefaults)]);
+  checkNode(node, "videoEmbed", seen, ["videoId"]);
   if (node.content !== undefined && children(node, "videoEmbed").length !== 0) {
     throw new TypeError("Video cannot have children");
   }
   checkVideoId(node.attrs.videoId);
-  for (const [key, value] of Object.entries(videoDefaults)) {
-    if (node.attrs[key] !== undefined && node.attrs[key] !== value) {
-      throw new TypeError(`Video ${key} is presentation metadata`);
-    }
-  }
   return { id: node.attrs.relaymarkId, type: "relay.video_embed",
     props: { videoId: node.attrs.videoId }, content: [] };
 }
@@ -523,7 +514,7 @@ function unmapVideo(block, seen) {
   }
   checkVideoId(block.props.videoId);
   return { type: "videoEmbed", attrs: { relaymarkId: block.id,
-    videoId: block.props.videoId, ...videoDefaults } };
+    videoId: block.props.videoId } };
 }
 
 function mapTable(node, seen) {

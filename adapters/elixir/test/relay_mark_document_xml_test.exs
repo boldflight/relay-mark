@@ -1,6 +1,49 @@
 defmodule RelayMark.DocumentXMLTest do
   use ExUnit.Case, async: true
   @fixtures Path.expand("../../../spec/relaymark/collaboration/fixtures", __DIR__)
+  test "canonical video rejects legacy derived attrs and finite import records their removal" do
+    fixture =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/rich-video-v3-draft.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert {:error, _} = RelayMark.DocumentXML.to_document(fixture["xml"])
+
+    assert {:ok, converted} =
+             RelayMark.import_document_snapshot(fixture["xml"], namespace: "retained-video")
+
+    assert converted["document"] == Map.delete(fixture["expected_ast"], "version")
+
+    assert Enum.at(converted["snapshot"]["children"], 1)["attributes"] == %{
+             "relaymarkId" => "b28718f2e96f1458d9608c7222745fbc0",
+             "videoId" => "11111111-1111-4111-8111-111111111111"
+           }
+
+    assert converted["normalizations"] == [
+             %{
+               "path" => [1],
+               "operation" => "remove_attribute",
+               "name" => "source",
+               "before" => "mux"
+             },
+             %{
+               "path" => [1],
+               "operation" => "remove_attribute",
+               "name" => "status",
+               "before" => "ready"
+             }
+           ]
+
+    nondefault =
+      put_in(fixture, ["xml", "children", Access.at(1), "attributes", "source"], "youtube")
+
+    assert {:error, _} =
+             RelayMark.import_document_snapshot(nondefault["xml"], namespace: "retained-video")
+  end
+
   test "independent browser fixture meanings and identities survive generic XML construction" do
     files = Path.wildcard(Path.join(@fixtures, "*.json"))
 
@@ -20,7 +63,13 @@ defmodule RelayMark.DocumentXMLTest do
 
   test "actual browser XML video defaults and Yex whole-number attributes retain authored meaning" do
     fixture = Path.join(@fixtures, "rich-video-v3-draft.json") |> File.read!() |> Jason.decode!()
-    assert RelayMark.DocumentXML.to_document(fixture["xml"]) == {:ok, fixture["expected_ast"]}
+
+    assert {:ok, migrated} =
+             RelayMark.import_document_snapshot(fixture["xml"],
+               namespace: "browser-video-defaults"
+             )
+
+    assert migrated["document"] == fixture["expected_ast"]
 
     ast = %{
       "type" => "relaymark.document",
