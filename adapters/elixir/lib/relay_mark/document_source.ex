@@ -146,6 +146,14 @@ defmodule RelayMark.DocumentSource do
             {header, body, depth} = directive
 
             cond do
+              String.starts_with?(header, "<!--") and
+                  Regex.match?(~r/^<!--\s*\/relay:question\s*-->$/, trimmed) ->
+                {segments ++ [{:historical_question, header, Enum.join(body, "\n")}], [], nil,
+                 nil}
+
+              String.starts_with?(header, "<!--") ->
+                {segments, plain, {header, body ++ [line], depth}, nil}
+
               trimmed == "}" and depth == 1 ->
                 {segments ++ [{:directive, header, Enum.join(body, "\n")}], [], nil, nil}
 
@@ -158,6 +166,12 @@ defmodule RelayMark.DocumentSource do
               true ->
                 {segments, plain, {header, body ++ [line], depth}, nil}
             end
+
+          Regex.match?(~r/^<!--\s*relay:question\s+.*?\s*-->$/, trimmed) ->
+            {flush(segments, plain), [], {trimmed, [], 1}, nil}
+
+          Regex.match?(~r/^<!--\s*\/relay:question\s*-->$/, trimmed) ->
+            fail(:unexpected_question_closing)
 
           Regex.match?(~r/^@[A-Z][A-Za-z0-9]*(?:\(.*\))?\s*\{\s*$/, trimmed) ->
             {flush(segments, plain), [], {trimmed, [], 1}, nil}
@@ -187,6 +201,9 @@ defmodule RelayMark.DocumentSource do
           MDEx.parse_document!(body, @options).nodes
           |> Enum.with_index()
           |> Enum.map(fn {node, i} -> convert(node, namespace, path ++ [i]) end)
+
+        {:historical_question, header, body} ->
+          [historical_question(header, body, namespace, path)]
 
         {:directive, header, body} ->
           [directive(header, body, namespace, path)]
@@ -384,6 +401,166 @@ defmodule RelayMark.DocumentSource do
       end
     end)
   end
+
+  # Finite prerelease input decoder. It emits only canonical rich nodes; the
+  # historical comment syntax is never emitted or admitted as a live editor.
+  defp historical_question(header, body, ns, path) do
+    [raw] = Regex.run(~r/^<!--\s*relay:question\s+(.*?)\s*-->$/, header, capture: :all_but_first)
+    pairs = Regex.scan(~r/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:\\.|[^"\\])*"|'[^']*')/, raw)
+
+    residue =
+      Regex.replace(~r/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:\\.|[^"\\])*"|'[^']*')/, raw, "")
+      |> String.trim()
+
+    if residue != "", do: fail(:historical_question_attributes)
+
+    attrs =
+      Map.new(pairs, fn [_, key, value] ->
+        {key, decode_entities(String.slice(value, 1, String.length(value) - 2))}
+      end)
+
+    if map_size(attrs) != length(pairs), do: fail(:historical_question_attributes)
+    type = attrs["type"] || "short_text"
+
+    settings =
+      case attrs["settings"] do
+        nil ->
+          %{}
+
+        text ->
+          case Jason.decode(text) do
+            {:ok, value} when is_map(value) -> value
+            _ -> fail(:historical_question_settings)
+          end
+      end
+
+    settings =
+      Map.drop(attrs, ~w(id type required points min max settings label options))
+      |> Enum.reduce(settings, fn {key, text}, acc ->
+        if Map.has_key?(acc, key), do: fail(:historical_question_settings)
+        Map.put(acc, key, frontmatter_value(text))
+      end)
+
+    pattern =
+      if type == "checkboxes",
+        do: ~r/^\s*-?\s*\[([xX ])\]\s*(.*)$/,
+        else: ~r/^\s*-?\s*\(([xX ])\)\s*(.*)$/
+
+    {labels, options} =
+      body
+      |> String.split("\n")
+      |> Enum.reduce({[], []}, fn line, {labels, options} ->
+        line = String.trim(line)
+
+        match =
+          if type in ~w(multiple_choice dropdown checkboxes),
+            do: Regex.run(pattern, line),
+            else: nil
+
+        case match do
+          [_, marker, text] ->
+            {labels,
+             options ++
+               [%{"text" => String.trim(text), "correct" => String.downcase(marker) == "x"}]}
+
+          _ ->
+            if line == "", do: {labels, options}, else: {labels ++ [line], options}
+        end
+      end)
+
+    explicit =
+      case attrs["options"] do
+        nil ->
+          nil
+
+        text ->
+          case Jason.decode(text) do
+            {:ok, value} when is_list(value) -> value
+            _ -> fail(:historical_question_options)
+          end
+      end
+
+    if explicit && options != [] && length(explicit) != length(options),
+      do: fail(:historical_question_options)
+
+    options =
+      if explicit,
+        do:
+          explicit
+          |> Enum.with_index()
+          |> Enum.map(fn {option, i} -> Map.merge(Enum.at(options, i, %{}), option) end),
+        else: options
+
+    label = Enum.join(labels, "\n")
+    label = if label == "", do: attrs["label"] || "", else: label
+    label_node = block(ns, path ++ [0], "paragraph", source_inline(label), nil)
+
+    option_nodes =
+      options
+      |> Enum.with_index(1)
+      |> Enum.map(fn {option, index} ->
+        text = option["label"] || option["text"] || ""
+
+        slug =
+          text
+          |> String.downcase()
+          |> String.replace(~r/[^a-z0-9]+/, "-")
+          |> String.trim("-")
+          |> String.slice(0, 80)
+
+        option_id = option["id"] || if(slug == "", do: "option-#{index}", else: slug)
+
+        props = %{
+          "id" => option_id,
+          "correct" => Map.get(option, "correct", false),
+          "points" => option["points"],
+          "settings" => Map.get(option, "settings", %{})
+        }
+
+        extras = Map.drop(option, ~w(id label text correct points settings))
+        props = Map.update!(props, "settings", &Map.merge(&1, extras))
+        block(ns, path ++ [index], "relay.form_option", source_inline(text), props)
+      end)
+
+    props = %{
+      "id" => attrs["id"],
+      "type" => type,
+      "required" => attrs["required"] == "true",
+      "points" => historical_number(attrs["points"]),
+      "min" => historical_number(attrs["min"]),
+      "max" => historical_number(attrs["max"]),
+      "settings" => settings
+    }
+
+    block(ns, path, "relay.form_question", [label_node | option_nodes], props)
+  end
+
+  defp historical_number(nil), do: nil
+
+  defp historical_number(text) do
+    case Jason.decode(text) do
+      {:ok, value} when is_number(value) -> value
+      _ -> fail(:historical_question_number)
+    end
+  end
+
+  defp source_inline(""), do: []
+
+  defp source_inline(text) do
+    case MDEx.parse_document!(text, @options).nodes do
+      [%MDEx.Paragraph{nodes: nodes}] -> inline(nodes)
+      _ -> fail(:question_inline_label)
+    end
+  end
+
+  defp decode_entities(text),
+    do:
+      text
+      |> String.replace("&quot;", "\"")
+      |> String.replace("&#39;", "'")
+      |> String.replace("&lt;", "<")
+      |> String.replace("&gt;", ">")
+      |> String.replace("&amp;", "&")
 
   defp directive(header, body, ns, path) do
     [_, name, raw] = Regex.run(~r/^@([A-Z][A-Za-z0-9]*)(?:\((.*)\))?\s*\{\s*$/, header)

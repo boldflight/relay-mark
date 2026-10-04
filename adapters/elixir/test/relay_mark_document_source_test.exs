@@ -1,6 +1,38 @@
 defmodule RelayMark.DocumentSourceTest do
   use ExUnit.Case, async: true
 
+  test "historical published questions preserve slug choices, rich labels, scoring and empty fields" do
+    source =
+      "<!-- relay:question id=\"q1\" type=\"multiple_choice\" required=\"true\" points=\"5\" conditional=\"show-q0\" -->\n**Capital?**\n- (x) Paris\n- ( ) London\n<!-- /relay:question -->\n\n<!-- relay:question id=\"q2\" type=\"short_text\" -->\n<!-- /relay:question -->\n"
+
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "historic-paper")
+    [q1, q2] = ast["blocks"]
+    assert q1["type"] == "relay.form_question"
+
+    assert q1["props"] == %{
+             "id" => "q1",
+             "type" => "multiple_choice",
+             "required" => true,
+             "points" => 5,
+             "min" => nil,
+             "max" => nil,
+             "settings" => %{"conditional" => "show-q0"}
+           }
+
+    [label, paris, london] = q1["content"]
+
+    assert label["content"] == [
+             %{"type" => "strong", "content" => [%{"type" => "text", "text" => "Capital?"}]}
+           ]
+
+    assert paris["props"]["id"] == "paris"
+    assert paris["props"]["correct"] == true
+    assert london["props"]["id"] == "london"
+    assert london["props"]["correct"] == false
+    assert q2["props"]["id"] == "q2"
+    assert hd(q2["content"])["content"] == []
+  end
+
   test "server CommonMark maps independent shared identities and marks" do
     path =
       Path.expand("../../../spec/relaymark/collaboration/fixtures/canonical-source.json", __DIR__)

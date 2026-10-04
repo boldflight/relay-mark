@@ -33,19 +33,38 @@ function sourceBlocks(source,ns,prefix){
   if(fence){append(line);if(new RegExp('^'+fence[0]+'{'+fence.length+',}\\s*$').test(t))fence=null;continue;}
   const f=t.match(/^(`{3,}|~{3,})/);if(f){fence=f[0];append(line);continue;}
   const header=t.match(/^@([A-Z][A-Za-z0-9]*)(?:\((.*)\))?\s*\{\s*$/);
+  if(directive?.historical){if(/^<!--\s*\/relay:question\s*-->$/.test(t)){segments.push({...directive,kind:'historical_question',source:directive.body.join('\n')});directive=null;}else directive.body.push(line);continue;}
   if(directive){if(t==='}'&&--directive.depth===0){segments.push({...directive,kind:'directive',source:directive.body.join('\n')});directive=null;}else{if(header)directive.depth++;directive.body.push(line);}continue;}
+  if(/^<!--\s*relay:question\s+.*?\s*-->$/.test(t)){flush();directive={historical:true,header:t,body:[]};continue;}
+  if(/^<!--\s*\/relay:question\s*-->$/.test(t))throw new TypeError('Unexpected historical question closing');
   if(header){flush();directive={name:header[1],attrs:parseAttributes(header[2]||''),header:t,body:[],depth:1};continue;}
   const control=parsePaperControlSource(t);if(control){flush();segments.push({kind:'control',control});continue;}
   if(t==='}')throw new TypeError('Unexpected directive closing');plain.push(line);
  }
  if(directive)throw new TypeError('Missing directive closing');flush();
- return segments.flatMap((s,index)=>{const path=[...prefix,index];if(s.kind==='markdown')return markdownBlocks(md.parse(s.source,{}),ns,path);if(s.kind==='control')return [block(ns,path,'relay.paper_control',[],{control:s.control.control,...s.control.attrs,source:s.control.source})];
+ return segments.flatMap((s,index)=>{const path=[...prefix,index];if(s.kind==='markdown')return markdownBlocks(md.parse(s.source,{}),ns,path);if(s.kind==='historical_question')return [historicalQuestion(s.header,s.source,ns,path)];if(s.kind==='control')return [block(ns,path,'relay.paper_control',[],{control:s.control.control,...s.control.attrs,source:s.control.source})];
   const spec=directiveForName(s.name);if(!spec)throw new TypeError('Unknown directive');const props={...s.attrs};for(const [key,a]of Object.entries(spec.attributes||{}))if(props[key]===undefined&&Object.hasOwn(a,'default'))props[key]=a.default;
   let content=sourceBlocks(s.source,ns,[...path,0]);if(spec.ast_type==='relay.callout'&&props.title!==undefined){const title=String(props.title);delete props.title;content.unshift(block(ns,[...path,1],'relay.callout_title',inline(md.parseInline(title,{})[0]?.children||[])));}
   if(['relay.form_option','relay.agent_suggestion'].includes(spec.ast_type)){if(content.length>1||content[0]?.type!=='paragraph')throw new TypeError('Inline directive requires a paragraph');content=content[0]?.content||[];}
   if(spec.ast_type==='relay.entity_reference'){const source=s.header+'\n'+s.source+'\n}';const parsed=parseEntityReferenceSource(source);if(!parsed)throw new TypeError('Invalid entity reference source');props.source=source;content=[];}
   return [block(ns,path,spec.ast_type,content,props)];
  });
+}
+function historicalQuestion(header,body,ns,path){
+ const raw=header.match(/^<!--\s*relay:question\s+(.*?)\s*-->$/)[1],pattern=/([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("(?:\\.|[^"\\])*"|'[^']*')/g;
+ const matches=[...raw.matchAll(pattern)];if(raw.replace(pattern,'').trim())throw new TypeError('Invalid historical question attributes');
+ const decode=s=>s.replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
+ const a={};for(const[,key,value]of matches){if(Object.hasOwn(a,key))throw new TypeError('Duplicate historical question attribute');a[key]=decode(value.slice(1,-1));}
+ const type=a.type||'short_text',number=k=>{if(a[k]===undefined)return null;const value=JSON.parse(a[k]);if(typeof value!=='number'||!Number.isFinite(value))throw new TypeError('Invalid historical question number');return value;};
+ let settings=a.settings?JSON.parse(a.settings):{};if(!settings||typeof settings!=='object'||Array.isArray(settings))throw new TypeError('Invalid historical question settings');
+ for(const[key,value]of Object.entries(a)){if(['id','type','required','points','min','max','settings','label','options'].includes(key))continue;if(Object.hasOwn(settings,key))throw new TypeError('Duplicate historical setting');try{settings[key]=JSON.parse(value);}catch{settings[key]=value;}}
+ const labels=[],options=[],optionPattern=type==='checkboxes'?/^\s*-?\s*\[([xX ])\]\s*(.*)$/:/^\s*-?\s*\(([xX ])\)\s*(.*)$/;
+ for(const rawLine of body.split('\n')){const line=rawLine.trim(),match=['multiple_choice','dropdown','checkboxes'].includes(type)?line.match(optionPattern):null;if(match)options.push({text:match[2].trim(),correct:match[1].toLowerCase()==='x'});else if(line)labels.push(line);}
+ let choices=options;if(a.options){const explicit=JSON.parse(a.options);if(!Array.isArray(explicit)||(options.length&&options.length!==explicit.length))throw new TypeError('Invalid historical question options');choices=explicit.map((o,i)=>({...options[i],...o}));}
+ const label=labels.join('\n')||a.label||'',content=[block(ns,[...path,0],'paragraph',inline(md.parseInline(label,{})[0]?.children||[]))];
+ for(const[o,index]of choices.map((o,i)=>[o,i+1])){const text=o.label||o.text||'',slug=text.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,80),extra=Object.fromEntries(Object.entries(o).filter(([k])=>!['id','label','text','correct','points','settings'].includes(k)));
+ content.push(block(ns,[...path,index],'relay.form_option',inline(md.parseInline(text,{})[0]?.children||[]),{id:o.id||slug||'option-'+index,correct:o.correct??false,points:o.points??null,settings:{...(o.settings||{}),...extra}}));}
+ return block(ns,path,'relay.form_question',content,{id:a.id,type,required:a.required==='true',points:number('points'),min:number('min'),max:number('max'),settings});
 }
 function markdownBlocks(tokens,ns,prefix){let at=0;
  const sequence=(end,path)=>{const nodes=[];while(at<tokens.length&&tokens[at].type!==end){const t=tokens[at++],p=[...path,nodes.length];let n;
