@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "Layout",
   "ast_type": "relay.layout",
-  "version": 1,
   "category": "relay_kit",
   "description": "A renderer-neutral grouping hint with a deterministic single-column fallback.",
   "capability": "layout.adaptive_columns",

@@ -82,7 +82,7 @@ public enum RelayMarkAgentAnswerValidationError: Error, Equatable, Sendable {
 }
 
 public enum RelayMarkAgentAnswerValidator {
-    private static let profile = "relaymark.agent_answer.v1"
+    private static let profile = "relaymark.agent_answer"
     private static let canonicalScopes = ["private", "org", "unlisted", "public"]
     private static let portableBlockReferenceTypes: Set<String> = [
         "relay.evidence_ref",
@@ -312,7 +312,7 @@ public enum RelayMarkAgentAnswerValidator {
             return [
                 diagnostic(
                     "relaymark.agent_answer.profile",
-                    "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
+                    "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer."
                 )
             ]
         }
@@ -878,7 +878,7 @@ public enum RelayMarkAgentAnswerValidator {
         _ props: [String: RelayMarkValue]
     ) -> Bool {
         guard
-            props["profile"]?.stringValue == "relaymark.scripture_release.v1",
+            props["profile"]?.stringValue == "relaymark.scripture_release",
             isNonEmptySchemaString(props["translation_id"]?.stringValue),
             isNonEmptySchemaString(props["edition_id"]?.stringValue),
             isNonEmptySchemaString(props["corpus_release_id"]?.stringValue),
@@ -975,7 +975,7 @@ public enum RelayMarkAgentAnswerValidator {
         ]
 
         return Set(selector.keys).isSubset(of: allowedKeys) &&
-            selector["profile"]?.stringValue == "relaymark.scripture_span.v1" &&
+            selector["profile"]?.stringValue == "relaymark.scripture_span" &&
             scriptureCoordinateHasSchemaShape(selector["start"]?.objectValue) &&
             scriptureCoordinateHasSchemaShape(selector["end"]?.objectValue) &&
             isSHA256Digest(selector["content_digest"]?.stringValue) &&
@@ -1329,11 +1329,11 @@ public enum RelayMarkAgentAnswerValidator {
                 )
             }
 
-            if props["profile"]?.stringValue != "relaymark.scripture_release.v1" {
+            if props["profile"]?.stringValue != "relaymark.scripture_release" {
                 diagnostics.append(
                     diagnostic(
                         "relaymark.scripture.release_profile",
-                        "scripture resource '\(resourceID)' must use relaymark.scripture_release.v1."
+                        "scripture resource '\(resourceID)' must use relaymark.scripture_release."
                     )
                 )
             }
@@ -1561,11 +1561,11 @@ public enum RelayMarkAgentAnswerValidator {
             return diagnostics
         }
 
-        if selector["profile"]?.stringValue != "relaymark.scripture_span.v1" {
+        if selector["profile"]?.stringValue != "relaymark.scripture_span" {
             diagnostics.append(
                 diagnostic(
                     "relaymark.scripture.selector_profile",
-                    "Scripture evidence selector must use relaymark.scripture_span.v1."
+                    "Scripture evidence selector must use relaymark.scripture_span."
                 )
             )
         }
@@ -1954,7 +1954,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.title",
-                    "relaymark.agent_answer.v1 requires a non-empty title."
+                    "relaymark.agent_answer requires a non-empty title."
                 )
             )
         }
@@ -1965,7 +1965,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.scope",
-                    "relaymark.agent_answer.v1 requires an explicit private, org, unlisted, or public scope."
+                    "relaymark.agent_answer requires an explicit private, org, unlisted, or public scope."
                 )
             )
         }
@@ -1977,7 +1977,7 @@ public enum RelayMarkAgentAnswerValidator {
                 diagnostics.append(
                     diagnostic(
                         "relaymark.agent_answer.question_id",
-                        "relaymark.agent_answer.v1 question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
+                        "relaymark.agent_answer question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
                     )
                 )
             }
@@ -1985,7 +1985,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.question",
-                    "relaymark.agent_answer.v1 requires a non-empty exact question."
+                    "relaymark.agent_answer requires a non-empty exact question."
                 )
             )
         }
@@ -1997,7 +1997,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.outcome",
-                    "relaymark.agent_answer.v1 outcome must be answered or refused."
+                    "relaymark.agent_answer outcome must be answered or refused."
                 )
             )
             return diagnostics
@@ -2060,7 +2060,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.answered_structure",
-                    "An answered relaymark.agent_answer.v1 paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
+                    "An answered relaymark.agent_answer paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
                 )
             )
         }
@@ -2153,7 +2153,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.read_only",
-                    "An answered relaymark.agent_answer.v1 paper must not contain agent suggestions or action rows."
+                    "An answered relaymark.agent_answer paper must not contain agent suggestions or action rows."
                 )
             )
         }
@@ -2162,7 +2162,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.refusal_reason",
-                    "An answered relaymark.agent_answer.v1 paper must not contain refusal_reason."
+                    "An answered relaymark.agent_answer paper must not contain refusal_reason."
                 )
             )
         }
@@ -2188,7 +2188,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.refusal_reason",
-                    "A refused relaymark.agent_answer.v1 paper requires refusal_reason insufficient_evidence."
+                    "A refused relaymark.agent_answer paper requires refusal_reason insufficient_evidence."
                 )
             )
         }
@@ -2206,7 +2206,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.refused_structure",
-                    "A refused relaymark.agent_answer.v1 paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
+                    "A refused relaymark.agent_answer paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
                 )
             )
         }
@@ -2230,7 +2230,7 @@ public enum RelayMarkAgentAnswerValidator {
             diagnostics.append(
                 diagnostic(
                     "relaymark.agent_answer.refused_content",
-                    "A refused relaymark.agent_answer.v1 paper must not contain claims, sources, resources, evidence, suggestions, or actions."
+                    "A refused relaymark.agent_answer paper must not contain claims, sources, resources, evidence, suggestions, or actions."
                 )
             )
         }
@@ -2585,7 +2585,6 @@ public enum RelayMarkAgentAnswerValidator {
 
         return RelayMarkManifest(
             type: "relaymark.manifest",
-            version: 1,
             actions: actions,
             mentions: unique(mentions),
             references: unique(references),
@@ -2867,7 +2866,7 @@ public enum RelayMarkAgentAnswerValidator {
     private static func manifestMismatchDiagnostic() -> RelayMarkDiagnostic {
         diagnostic(
             "relaymark.agent_answer.manifest_mismatch",
-            "Transported relaymark.agent_answer.v1 manifest must exactly match the canonical projection of its document."
+            "Transported relaymark.agent_answer manifest must exactly match the canonical projection of its document."
         )
     }
 }
@@ -2916,7 +2915,6 @@ private extension RelayMarkAgentAnswerValidator {
 private extension RelayMarkManifest {
     init(
         type: String,
-        version: Int,
         actions: [RelayMarkAction],
         mentions: [RelayMarkMention],
         references: [RelayMarkReference],
@@ -2927,7 +2925,6 @@ private extension RelayMarkManifest {
         diagnostics: [RelayMarkDiagnostic]
     ) {
         self.type = type
-        self.version = version
         self.actions = actions
         self.mentions = mentions
         self.references = references

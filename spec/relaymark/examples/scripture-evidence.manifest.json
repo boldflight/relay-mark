@@ -1,6 +1,5 @@
 {
   "type": "relaymark.manifest",
-  "version": 1,
   "actions": [],
   "mentions": [],
   "references": [],
@@ -14,7 +13,7 @@
       "source_type": "scripture",
       "source_revision": "urn:relay:scripture:corpus:kjv:1769-fixture-1",
       "selector": {
-        "profile": "relaymark.scripture_span.v1",
+        "profile": "relaymark.scripture_span",
         "start": {
           "book_id": "ACT",
           "coordinate_kind": "chapter",
@@ -34,7 +33,7 @@
       "label": "Acts 18:2-3",
       "excerpt": "And found a certain Jew named Aquila, born in Pontus, lately come from Italy, with his wife Priscilla; (because that Claudius had commanded all Jews to depart from Rome:) and came unto them. And because he was of the same craft, he abode with them, and wrought: for by their occupation they were tentmakers.",
       "scripture_release": {
-        "profile": "relaymark.scripture_release.v1",
+        "profile": "relaymark.scripture_release",
         "translation_id": "urn:relay:scripture:translation:kjv",
         "edition_id": "urn:relay:scripture:edition:kjv-1769-fixture",
         "corpus_release_id": "urn:relay:scripture:corpus:kjv:1769-fixture-1",

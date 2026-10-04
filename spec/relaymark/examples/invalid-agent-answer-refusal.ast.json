@@ -3,7 +3,7 @@
   "frontmatter": {
     "title": "Answer unavailable",
     "scope": "private",
-    "profile": "relaymark.agent_answer.v1",
+    "profile": "relaymark.agent_answer",
     "outcome": "refused",
     "question_id": "sha256:0159cf32c01a0e36895637bdd3242cbcfb8880556bd7f163e35f39554cc8ba25",
     "question": "Can Relay answer this unsupported question?",

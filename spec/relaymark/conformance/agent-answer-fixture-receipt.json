@@ -7,22 +7,22 @@
       "id": "scripture-ask-answered",
       "document": {
         "path": "../examples/scripture-ask-answered.ast.json",
-        "sha256": "c14a888bdcab2e8793054f50df18acd7d2f5c0a0d0130b7a53d472c676a4e756"
+        "sha256": "dfafbc22ce41812218fc95ac322b59a02c846249d617b9a57d40758043b393ef"
       },
       "manifest": {
         "path": "../examples/scripture-ask-answered.manifest.json",
-        "sha256": "c146dbca4874c6e3ca7d6fd789a7040d704b5175c6b0eab5138287c24aefe942"
+        "sha256": "bd46d502727d97681703f5bf83baf1285ac24ae641b9ee72f94f655a0de5ffdd"
       }
     },
     {
       "id": "scripture-ask-refused",
       "document": {
         "path": "../examples/scripture-ask-refused.ast.json",
-        "sha256": "5af6fe6bf3b755bccb3ab732624472fcc7888af7f520537c0e874e6ce4901e4e"
+        "sha256": "82b6defdebf8205e595812c42680f5d8fb5f8daa46d3b2fe6dc3b8ce5f313cc0"
       },
       "manifest": {
         "path": "../examples/scripture-ask-refused.manifest.json",
-        "sha256": "9e10b7d8baae7a10ee91dbd266a9783d9723313177516a88fe7c96a786ad638a"
+        "sha256": "328bdd0a0b7d070d8d7eca99d99dd1207748fca34cba0b950bcfbbec77e3b51f"
       }
     }
   ]

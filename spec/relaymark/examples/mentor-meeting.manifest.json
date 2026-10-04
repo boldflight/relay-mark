@@ -1,6 +1,5 @@
 {
   "type": "relaymark.manifest",
-  "version": 1,
   "actions": [
     {
       "block_id": "b6",
@@ -9,7 +8,9 @@
       "destination": "mentor-follow-up",
       "visibility": "private",
       "review": "draft",
-      "evidence_refs": ["src-1"],
+      "evidence_refs": [
+        "src-1"
+      ],
       "args": {
         "title": "Send interview prep resources before Thursday."
       }

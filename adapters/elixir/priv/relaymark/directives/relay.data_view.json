@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "DataView",
   "ast_type": "relay.data_view",
-  "version": 1,
   "category": "relay_kit",
   "description": "A bound view over an approved host read model without embedding its records in source.",
   "capability": "binding.data_view",

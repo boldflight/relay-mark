@@ -7,7 +7,6 @@ export function projectManifest(document, diagnostics = []) {
   );
   const manifest = {
     type: "relaymark.manifest",
-    version: 1,
     actions: [],
     mentions: [],
     references: [],

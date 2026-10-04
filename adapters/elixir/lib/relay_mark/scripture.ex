@@ -59,11 +59,11 @@ defmodule RelayMark.Scripture.Provenance do
 end
 
 defmodule RelayMark.Scripture.Release do
-  @moduledoc "Typed relaymark.scripture_release.v1 resource properties."
+  @moduledoc "Typed relaymark.scripture_release resource properties."
 
   alias RelayMark.Scripture
 
-  defstruct profile: "relaymark.scripture_release.v1",
+  defstruct profile: "relaymark.scripture_release",
             translation_id: nil,
             edition_id: nil,
             corpus_release_id: nil,
@@ -147,11 +147,11 @@ defmodule RelayMark.Scripture.Coordinate do
 end
 
 defmodule RelayMark.Scripture.Span do
-  @moduledoc "Typed relaymark.scripture_span.v1 selector."
+  @moduledoc "Typed relaymark.scripture_span selector."
 
   alias RelayMark.Scripture
 
-  defstruct profile: "relaymark.scripture_span.v1",
+  defstruct profile: "relaymark.scripture_span",
             start: nil,
             end: nil,
             content_digest: nil,

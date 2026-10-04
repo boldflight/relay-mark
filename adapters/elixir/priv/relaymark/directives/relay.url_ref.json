@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "UrlRef",
   "ast_type": "relay.url_ref",
-  "version": 1,
   "category": "source",
   "description": "A reference to a URL source that grounds nearby content.",
   "attributes": {

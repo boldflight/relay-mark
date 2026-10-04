@@ -19,7 +19,6 @@ defmodule RelayMark.ManifestProjection do
 
     manifest = %{
       "type" => "relaymark.manifest",
-      "version" => 1,
       "actions" => [],
       "mentions" => [],
       "references" => [],

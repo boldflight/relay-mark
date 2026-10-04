@@ -475,11 +475,11 @@ function validateScriptureResources(document, diagnostics) {
       }
     }
 
-    if (props.profile !== "relaymark.scripture_release.v1") {
+    if (props.profile !== "relaymark.scripture_release") {
       diagnostics.push(
         error(
           "relaymark.scripture.release_profile",
-          `scripture resource '${resource.id || "unknown"}' must use relaymark.scripture_release.v1.`
+          `scripture resource '${resource.id || "unknown"}' must use relaymark.scripture_release.`
         )
       );
     }
@@ -583,11 +583,11 @@ function validateScriptureEvidenceRef(block, scriptureResources, diagnostics) {
     return;
   }
 
-  if (selector.profile !== "relaymark.scripture_span.v1") {
+  if (selector.profile !== "relaymark.scripture_span") {
     diagnostics.push(
       error(
         "relaymark.scripture.selector_profile",
-        "Scripture evidence selector must use relaymark.scripture_span.v1."
+        "Scripture evidence selector must use relaymark.scripture_span."
       )
     );
   }
@@ -741,11 +741,11 @@ function validateClaim(block, diagnostics) {
 function validateAgentAnswerProfile(document, diagnostics, validationContext) {
   const frontmatter = document.frontmatter || {};
 
-  if (frontmatter.profile !== "relaymark.agent_answer.v1") return;
+  if (frontmatter.profile !== "relaymark.agent_answer") return;
 
   if (!nonEmptyString(frontmatter.title)) {
     diagnostics.push(
-      error("relaymark.agent_answer.title", "relaymark.agent_answer.v1 requires a non-empty title.")
+      error("relaymark.agent_answer.title", "relaymark.agent_answer requires a non-empty title.")
     );
   }
 
@@ -753,14 +753,14 @@ function validateAgentAnswerProfile(document, diagnostics, validationContext) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.scope",
-        "relaymark.agent_answer.v1 requires an explicit private, org, unlisted, or public scope."
+        "relaymark.agent_answer requires an explicit private, org, unlisted, or public scope."
       )
     );
   }
 
   if (!nonEmptyString(frontmatter.question)) {
     diagnostics.push(
-      error("relaymark.agent_answer.question", "relaymark.agent_answer.v1 requires a non-empty exact question.")
+      error("relaymark.agent_answer.question", "relaymark.agent_answer requires a non-empty exact question.")
     );
   } else {
     const expectedQuestionID = `sha256:${bytesToHex(sha256(new TextEncoder().encode(frontmatter.question)))}`;
@@ -769,7 +769,7 @@ function validateAgentAnswerProfile(document, diagnostics, validationContext) {
       diagnostics.push(
         error(
           "relaymark.agent_answer.question_id",
-          "relaymark.agent_answer.v1 question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
+          "relaymark.agent_answer question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
         )
       );
     }
@@ -779,7 +779,7 @@ function validateAgentAnswerProfile(document, diagnostics, validationContext) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.outcome",
-        "relaymark.agent_answer.v1 outcome must be answered or refused."
+        "relaymark.agent_answer outcome must be answered or refused."
       )
     );
     return;
@@ -821,7 +821,7 @@ function validateAnsweredAgentPaper(document, diagnostics, validationContext) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.answered_structure",
-        "An answered relaymark.agent_answer.v1 paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
+        "An answered relaymark.agent_answer paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
       )
     );
   }
@@ -901,7 +901,7 @@ function validateAnsweredAgentPaper(document, diagnostics, validationContext) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.read_only",
-        "An answered relaymark.agent_answer.v1 paper must not contain agent suggestions or action rows."
+        "An answered relaymark.agent_answer paper must not contain agent suggestions or action rows."
       )
     );
   }
@@ -910,7 +910,7 @@ function validateAnsweredAgentPaper(document, diagnostics, validationContext) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.refusal_reason",
-        "An answered relaymark.agent_answer.v1 paper must not contain refusal_reason."
+        "An answered relaymark.agent_answer paper must not contain refusal_reason."
       )
     );
   }
@@ -930,7 +930,7 @@ function validateRefusedAgentPaper(document, diagnostics) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.refusal_reason",
-        "A refused relaymark.agent_answer.v1 paper requires refusal_reason insufficient_evidence."
+        "A refused relaymark.agent_answer paper requires refusal_reason insufficient_evidence."
       )
     );
   }
@@ -947,7 +947,7 @@ function validateRefusedAgentPaper(document, diagnostics) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.refused_structure",
-        "A refused relaymark.agent_answer.v1 paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
+        "A refused relaymark.agent_answer paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
       )
     );
   }
@@ -969,7 +969,7 @@ function validateRefusedAgentPaper(document, diagnostics) {
     diagnostics.push(
       error(
         "relaymark.agent_answer.refused_content",
-        "A refused relaymark.agent_answer.v1 paper must not contain claims, sources, resources, evidence, suggestions, or actions."
+        "A refused relaymark.agent_answer paper must not contain claims, sources, resources, evidence, suggestions, or actions."
       )
     );
   }

@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "FileRef",
   "ast_type": "relay.file_ref",
-  "version": 1,
   "category": "source",
   "description": "A reference to a file source that grounds nearby content.",
   "attributes": {

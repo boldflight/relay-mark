@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "SourceBundle",
   "ast_type": "relay.source_bundle",
-  "version": 1,
   "category": "source",
   "description": "A bundle of source references that grounds a note, summary, action, or suggestion.",
   "attributes": {

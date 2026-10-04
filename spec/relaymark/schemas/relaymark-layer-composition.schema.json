@@ -5,68 +5,159 @@
   "description": "Portable semantic layer roles and deterministic placement metadata. Authorization and resolved private data are host-owned and intentionally absent.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["type", "version", "layers"],
+  "required": [
+    "type",
+    "layers"
+  ],
   "properties": {
-    "type": {"const": "relaymark.layer_composition"},
-    "version": {"const": 1},
+    "type": {
+      "const": "relaymark.layer_composition"
+    },
     "layers": {
       "type": "array",
-      "items": {"$ref": "#/$defs/layer"}
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
     }
   },
   "$defs": {
-    "id": {"type": "string", "minLength": 1, "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"},
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]*$"
+    },
     "layer": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "role", "items"],
+      "required": [
+        "id",
+        "role",
+        "items"
+      ],
       "properties": {
-        "id": {"$ref": "#/$defs/id"},
-        "role": {"type": "string", "enum": ["authored", "source", "generated", "discussion", "ink"]},
-        "rank": {"type": "integer"},
-        "items": {"type": "array", "items": {"$ref": "#/$defs/item"}}
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "authored",
+            "source",
+            "generated",
+            "discussion",
+            "ink"
+          ]
+        },
+        "rank": {
+          "type": "integer"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/item"
+          }
+        }
       }
     },
     "item": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "block"],
+      "required": [
+        "id",
+        "block"
+      ],
       "properties": {
-        "id": {"$ref": "#/$defs/id"},
-        "rank": {"type": "integer"},
-        "block": {"$ref": "#/$defs/block"},
-        "placement": {"$ref": "#/$defs/placement"}
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "rank": {
+          "type": "integer"
+        },
+        "block": {
+          "$ref": "#/$defs/block"
+        },
+        "placement": {
+          "$ref": "#/$defs/placement"
+        }
       }
     },
     "placement": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind"],
+      "required": [
+        "kind"
+      ],
       "properties": {
-        "kind": {"type": "string", "enum": ["before", "after", "slot"]},
-        "anchor": {"$ref": "#/$defs/anchor"},
-        "slot": {"type": "string", "minLength": 1},
-        "anchor_state": {"type": "string", "enum": ["present", "absent", "stale", "undisclosed"], "default": "present"},
-        "fallback": {"type": "string", "enum": ["append_to_layer", "omit", "unresolved"], "default": "unresolved"}
+        "kind": {
+          "type": "string",
+          "enum": [
+            "before",
+            "after",
+            "slot"
+          ]
+        },
+        "anchor": {
+          "$ref": "#/$defs/anchor"
+        },
+        "slot": {
+          "type": "string",
+          "minLength": 1
+        },
+        "anchor_state": {
+          "type": "string",
+          "enum": [
+            "present",
+            "absent",
+            "stale",
+            "undisclosed"
+          ],
+          "default": "present"
+        },
+        "fallback": {
+          "type": "string",
+          "enum": [
+            "append_to_layer",
+            "omit",
+            "unresolved"
+          ],
+          "default": "unresolved"
+        }
       }
     },
     "anchor": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id"],
+      "required": [
+        "block_id"
+      ],
       "properties": {
-        "block_id": {"$ref": "#/$defs/id"}
+        "block_id": {
+          "$ref": "#/$defs/id"
+        }
       }
     },
     "block": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["id", "type"],
+      "required": [
+        "id",
+        "type"
+      ],
       "properties": {
-        "id": {"$ref": "#/$defs/id"},
-        "type": {"type": "string", "minLength": 1},
-        "props": {"type": "object", "additionalProperties": true},
-        "content": {"type": "array"}
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "props": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "content": {
+          "type": "array"
+        }
       }
     }
   }

@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "TranscriptRange",
   "ast_type": "relay.transcript_segment",
-  "version": 1,
   "category": "transcript",
   "description": "A range or segment from a transcript source.",
   "attributes": {

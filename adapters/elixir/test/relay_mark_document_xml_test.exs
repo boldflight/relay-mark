@@ -96,6 +96,21 @@ defmodule RelayMark.DocumentXMLTest do
     assert {:ok, snapshot} = RelayMark.DocumentXML.from_document(ast)
     assert snapshot["metadata"] == Map.take(ast, ~w(frontmatter meta))
     assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(snapshot)
+
+    empty =
+      Map.merge(ast, %{
+        "frontmatter" => %{},
+        "annotations" => [],
+        "resources" => [],
+        "meta" => %{}
+      })
+
+    assert {:ok, empty_snapshot} = RelayMark.DocumentXML.from_document(empty)
+
+    assert empty_snapshot["metadata"] ==
+             Map.take(empty, ~w(frontmatter annotations resources meta))
+
+    assert {:ok, ^empty} = RelayMark.DocumentXML.to_document(empty_snapshot)
     assert {:error, _} = RelayMark.DocumentXML.to_document(Map.put(snapshot, "unknown", true))
     bad = put_in(snapshot, ["metadata", "permissions"], %{"write" => true})
     assert {:error, _} = RelayMark.DocumentXML.to_document(bad)

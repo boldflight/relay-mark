@@ -471,7 +471,7 @@ struct RelayMarkAgentAnswerTests {
         let expectedProfileDiagnostic = RelayMarkDiagnostic(
             level: "error",
             code: "relaymark.agent_answer.profile",
-            message: "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
+            message: "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer."
         )
 
         let missingTypeAndProfile = try mutateJSON(document) {
@@ -611,7 +611,7 @@ struct RelayMarkAgentAnswerTests {
             RelayMarkDiagnostic(
                 level: "error",
                 code: "relaymark.agent_answer.manifest_mismatch",
-                message: "Transported relaymark.agent_answer.v1 manifest must exactly match the canonical projection of its document."
+                message: "Transported relaymark.agent_answer manifest must exactly match the canonical projection of its document."
             )
         ])
 

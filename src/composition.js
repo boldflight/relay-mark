@@ -60,7 +60,6 @@ export function composeLayerContributions(layers) {
 
   return {
     type: "relaymark.composed_paper",
-    version: 1,
     items,
     diagnostics
   };

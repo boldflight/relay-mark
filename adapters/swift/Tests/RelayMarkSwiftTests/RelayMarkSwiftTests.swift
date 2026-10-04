@@ -226,7 +226,7 @@ struct RelayMarkSwiftTests {
         let document = try RelayMarkDocument.decodeJSON(fixtureData("scripture-ask-answered.ast.json"))
         let manifest = try RelayMarkManifest.decodeJSON(fixtureData("scripture-ask-answered.manifest.json"))
 
-        #expect(document.frontmatter["profile"]?.stringValue == "relaymark.agent_answer.v1")
+        #expect(document.frontmatter["profile"]?.stringValue == "relaymark.agent_answer")
         #expect(document.frontmatter["outcome"]?.stringValue == "answered")
         #expect(document.frontmatter["question_id"]?.stringValue == "sha256:6640f17d592931bf54f6d3bdf1c1b5f1a7a302bcdc4b7a2e626fd9671b6a1da8")
         #expect(document.frontmatter["question"]?.stringValue == "What does Acts 18:2-3 say about Aquila and Priscilla?")
@@ -253,7 +253,7 @@ struct RelayMarkSwiftTests {
         #expect(evidence.sourceID == "askScriptureRelease1")
         #expect(evidence.sourceRevision == "urn:relay:scripture:corpus:kjv:1769-fixture-1")
         #expect(evidence.scope == "public")
-        #expect(evidence.release.profile == "relaymark.scripture_release.v1")
+        #expect(evidence.release.profile == "relaymark.scripture_release")
         #expect(evidence.release.translationID == "urn:relay:scripture:translation:kjv")
         #expect(evidence.release.editionID == "urn:relay:scripture:edition:kjv-1769-fixture")
         #expect(evidence.release.corpusReleaseID == evidence.sourceRevision)
@@ -286,7 +286,7 @@ struct RelayMarkSwiftTests {
         let document = try RelayMarkDocument.decodeJSON(fixtureData("scripture-ask-refused.ast.json"))
         let manifest = try RelayMarkManifest.decodeJSON(fixtureData("scripture-ask-refused.manifest.json"))
 
-        #expect(document.frontmatter["profile"]?.stringValue == "relaymark.agent_answer.v1")
+        #expect(document.frontmatter["profile"]?.stringValue == "relaymark.agent_answer")
         #expect(document.frontmatter["outcome"]?.stringValue == "refused")
         #expect(document.frontmatter["question_id"]?.stringValue == "sha256:b776b0f739964c4ebe9826ffef5212952a7a1ec9e90e2ac22f7839ae7ae56052")
         #expect(document.frontmatter["question"]?.stringValue == "Was Priscilla the author of Hebrews?")

@@ -4,14 +4,12 @@
   "title": "RelayMark Projection Manifest",
   "type": "object",
   "additionalProperties": false,
-  "required": ["type", "version"],
+  "required": [
+    "type"
+  ],
   "properties": {
     "type": {
       "const": "relaymark.manifest"
-    },
-    "version": {
-      "type": "integer",
-      "minimum": 1
     },
     "actions": {
       "type": "array",
@@ -64,27 +62,37 @@
     },
     "entity_references": {
       "type": "array",
-      "items": {"$ref": "#/$defs/entityReference"},
+      "items": {
+        "$ref": "#/$defs/entityReference"
+      },
       "default": []
     },
     "property_sheets": {
       "type": "array",
-      "items": {"$ref": "#/$defs/propertySheet"},
+      "items": {
+        "$ref": "#/$defs/propertySheet"
+      },
       "default": []
     },
     "data_views": {
       "type": "array",
-      "items": {"$ref": "#/$defs/dataView"},
+      "items": {
+        "$ref": "#/$defs/dataView"
+      },
       "default": []
     },
     "layouts": {
       "type": "array",
-      "items": {"$ref": "#/$defs/layout"},
+      "items": {
+        "$ref": "#/$defs/layout"
+      },
       "default": []
     },
     "capabilities": {
       "type": "array",
-      "items": {"$ref": "#/$defs/capability"},
+      "items": {
+        "$ref": "#/$defs/capability"
+      },
       "default": []
     },
     "diagnostics": {
@@ -99,72 +107,202 @@
     "entityReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "id", "projection"],
+      "required": [
+        "block_id",
+        "id",
+        "projection"
+      ],
       "properties": {
-        "block_id": {"type": "string", "minLength": 1},
-        "id": {"type": "string", "minLength": 1},
-        "label": {"type": "string"},
-        "projection": {"type": "string", "enum": ["link", "chip", "card"]}
+        "block_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string"
+        },
+        "projection": {
+          "type": "string",
+          "enum": [
+            "link",
+            "chip",
+            "card"
+          ]
+        }
       }
     },
     "propertySheet": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "binding", "fields", "presentation"],
+      "required": [
+        "block_id",
+        "binding",
+        "fields",
+        "presentation"
+      ],
       "properties": {
-        "block_id": {"type": "string", "minLength": 1},
-        "binding": {"type": "string", "minLength": 1},
+        "block_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "binding": {
+          "type": "string",
+          "minLength": 1
+        },
         "fields": {
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
-          "items": {"type": "string", "minLength": 1}
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         },
-        "title": {"type": "string"},
-        "presentation": {"type": "string", "enum": ["stack", "inline", "compact"]}
+        "title": {
+          "type": "string"
+        },
+        "presentation": {
+          "type": "string",
+          "enum": [
+            "stack",
+            "inline",
+            "compact"
+          ]
+        }
       }
     },
     "dataView": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "source", "projection", "columns", "sort"],
+      "required": [
+        "block_id",
+        "source",
+        "projection",
+        "columns",
+        "sort"
+      ],
       "properties": {
-        "block_id": {"type": "string", "minLength": 1},
-        "source": {"type": "string", "minLength": 1},
-        "projection": {"type": "string", "enum": ["list", "table", "feed", "calendar", "kanban", "chart"]},
-        "columns": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-        "filter": {"type": "object", "additionalProperties": true},
-        "sort": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-        "group": {"type": "string", "minLength": 1},
-        "limit": {"type": "integer", "minimum": 1, "maximum": 1000},
-        "title": {"type": "string"}
+        "block_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projection": {
+          "type": "string",
+          "enum": [
+            "list",
+            "table",
+            "feed",
+            "calendar",
+            "kanban",
+            "chart"
+          ]
+        },
+        "columns": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "filter": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "sort": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "group": {
+          "type": "string",
+          "minLength": 1
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        },
+        "title": {
+          "type": "string"
+        }
       }
     },
     "layout": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "mode"],
+      "required": [
+        "block_id",
+        "mode"
+      ],
       "properties": {
-        "block_id": {"type": "string", "minLength": 1},
-        "mode": {"type": "string", "enum": ["one_column", "adaptive_columns"]},
-        "columns": {"type": "integer", "minimum": 1, "maximum": 4},
-        "label": {"type": "string"}
+        "block_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "one_column",
+            "adaptive_columns"
+          ]
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "label": {
+          "type": "string"
+        }
       }
     },
     "capability": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "id", "fallback"],
+      "required": [
+        "block_id",
+        "id",
+        "fallback"
+      ],
       "properties": {
-        "block_id": {"type": "string", "minLength": 1},
-        "id": {"type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"},
-        "fallback": {"type": "string", "enum": ["children", "plain_text", "summary", "omit"]}
+        "block_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+        },
+        "fallback": {
+          "type": "string",
+          "enum": [
+            "children",
+            "plain_text",
+            "summary",
+            "omit"
+          ]
+        }
       }
     },
     "action": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "action", "review"],
+      "required": [
+        "block_id",
+        "action",
+        "review"
+      ],
       "properties": {
         "block_id": {
           "type": "string"
@@ -199,7 +337,13 @@
         },
         "review": {
           "type": "string",
-          "enum": ["draft", "ready", "accepted", "rejected", "undone"]
+          "enum": [
+            "draft",
+            "ready",
+            "accepted",
+            "rejected",
+            "undone"
+          ]
         },
         "decision_id": {
           "type": "string",
@@ -224,48 +368,109 @@
         {
           "properties": {
             "review": {
-              "enum": ["draft", "ready", "accepted", "rejected"]
+              "enum": [
+                "draft",
+                "ready",
+                "accepted",
+                "rejected"
+              ]
             }
           },
           "not": {
             "anyOf": [
-              {"required": ["proposal_id"]},
-              {"required": ["proposal_record_id"]},
-              {"required": ["proposal_revision"]},
-              {"required": ["decision_id"]},
-              {"required": ["execution_id"]},
-              {"required": ["undo_id"]}
+              {
+                "required": [
+                  "proposal_id"
+                ]
+              },
+              {
+                "required": [
+                  "proposal_record_id"
+                ]
+              },
+              {
+                "required": [
+                  "proposal_revision"
+                ]
+              },
+              {
+                "required": [
+                  "decision_id"
+                ]
+              },
+              {
+                "required": [
+                  "execution_id"
+                ]
+              },
+              {
+                "required": [
+                  "undo_id"
+                ]
+              }
             ]
           }
         },
         {
-          "required": ["proposal_id", "proposal_record_id", "proposal_revision"],
+          "required": [
+            "proposal_id",
+            "proposal_record_id",
+            "proposal_revision"
+          ],
           "properties": {
             "review": {
-              "enum": ["draft", "ready"]
+              "enum": [
+                "draft",
+                "ready"
+              ]
             }
           },
           "not": {
             "anyOf": [
-              {"required": ["decision_id"]},
-              {"required": ["execution_id"]},
-              {"required": ["undo_id"]}
+              {
+                "required": [
+                  "decision_id"
+                ]
+              },
+              {
+                "required": [
+                  "execution_id"
+                ]
+              },
+              {
+                "required": [
+                  "undo_id"
+                ]
+              }
             ]
           }
         },
         {
-          "required": ["proposal_id", "proposal_record_id", "proposal_revision", "decision_id", "execution_id"],
+          "required": [
+            "proposal_id",
+            "proposal_record_id",
+            "proposal_revision",
+            "decision_id",
+            "execution_id"
+          ],
           "properties": {
             "review": {
               "const": "accepted"
             }
           },
           "not": {
-            "required": ["undo_id"]
+            "required": [
+              "undo_id"
+            ]
           }
         },
         {
-          "required": ["proposal_id", "proposal_record_id", "proposal_revision", "decision_id"],
+          "required": [
+            "proposal_id",
+            "proposal_record_id",
+            "proposal_revision",
+            "decision_id"
+          ],
           "properties": {
             "review": {
               "const": "rejected"
@@ -273,13 +478,28 @@
           },
           "not": {
             "anyOf": [
-              {"required": ["execution_id"]},
-              {"required": ["undo_id"]}
+              {
+                "required": [
+                  "execution_id"
+                ]
+              },
+              {
+                "required": [
+                  "undo_id"
+                ]
+              }
             ]
           }
         },
         {
-          "required": ["proposal_id", "proposal_record_id", "proposal_revision", "decision_id", "execution_id", "undo_id"],
+          "required": [
+            "proposal_id",
+            "proposal_record_id",
+            "proposal_revision",
+            "decision_id",
+            "execution_id",
+            "undo_id"
+          ],
           "properties": {
             "review": {
               "const": "undone"
@@ -291,14 +511,24 @@
     "mention": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "kind", "label"],
+      "required": [
+        "block_id",
+        "kind",
+        "label"
+      ],
       "properties": {
         "block_id": {
           "type": "string"
         },
         "kind": {
           "type": "string",
-          "enum": ["entity", "event", "note", "task", "unresolved"]
+          "enum": [
+            "entity",
+            "event",
+            "note",
+            "task",
+            "unresolved"
+          ]
         },
         "id": {
           "type": "string"
@@ -311,7 +541,10 @@
     "reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "type"],
+      "required": [
+        "block_id",
+        "type"
+      ],
       "properties": {
         "block_id": {
           "type": "string"
@@ -320,7 +553,12 @@
           "type": "string",
           "pattern": "^relay\\.[a-z][a-z0-9_]*_ref$",
           "not": {
-            "enum": ["relay.evidence_ref", "relay.file_ref", "relay.note_ref", "relay.url_ref"]
+            "enum": [
+              "relay.evidence_ref",
+              "relay.file_ref",
+              "relay.note_ref",
+              "relay.url_ref"
+            ]
           }
         },
         "id": {
@@ -337,7 +575,12 @@
     "formQuestion": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "key", "label", "field_type"],
+      "required": [
+        "block_id",
+        "key",
+        "label",
+        "field_type"
+      ],
       "properties": {
         "block_id": {
           "type": "string"
@@ -365,14 +608,24 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "kind"],
+      "required": [
+        "block_id",
+        "kind"
+      ],
       "properties": {
         "block_id": {
           "type": "string"
         },
         "kind": {
           "type": "string",
-          "enum": ["source_bundle", "evidence_ref", "transcript_range", "note_ref", "file_ref", "url_ref"]
+          "enum": [
+            "source_bundle",
+            "evidence_ref",
+            "transcript_range",
+            "note_ref",
+            "file_ref",
+            "url_ref"
+          ]
         },
         "evidence_id": {
           "type": "string",
@@ -394,7 +647,12 @@
         },
         "scope": {
           "type": "string",
-          "enum": ["private", "org", "unlisted", "public"]
+          "enum": [
+            "private",
+            "org",
+            "unlisted",
+            "public"
+          ]
         },
         "bundle_revision": {
           "type": "integer",
@@ -424,8 +682,15 @@
       },
       "oneOf": [
         {
-          "required": ["kind", "source_id"],
-          "properties": {"kind": {"const": "source_bundle"}}
+          "required": [
+            "kind",
+            "source_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "source_bundle"
+            }
+          }
         },
         {
           "required": [
@@ -440,27 +705,55 @@
             "scripture_release"
           ],
           "properties": {
-            "kind": {"const": "evidence_ref"},
-            "source_type": {"const": "scripture"},
-            "selector": {"$ref": "#/$defs/scriptureSpan"},
-            "excerpt": {"type": "string", "minLength": 1}
-          }
-        },
-        {
-          "required": ["kind", "evidence_id", "source_id"],
-          "properties": {"kind": {"const": "evidence_ref"}},
-          "not": {
-            "required": ["source_type"],
-            "properties": {
-              "source_type": {"const": "scripture"}
+            "kind": {
+              "const": "evidence_ref"
+            },
+            "source_type": {
+              "const": "scripture"
+            },
+            "selector": {
+              "$ref": "#/$defs/scriptureSpan"
+            },
+            "excerpt": {
+              "type": "string",
+              "minLength": 1
             }
           }
         },
         {
-          "required": ["kind"],
+          "required": [
+            "kind",
+            "evidence_id",
+            "source_id"
+          ],
           "properties": {
             "kind": {
-              "enum": ["transcript_range", "note_ref", "file_ref", "url_ref"]
+              "const": "evidence_ref"
+            }
+          },
+          "not": {
+            "required": [
+              "source_type"
+            ],
+            "properties": {
+              "source_type": {
+                "const": "scripture"
+              }
+            }
+          }
+        },
+        {
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "transcript_range",
+                "note_ref",
+                "file_ref",
+                "url_ref"
+              ]
             }
           }
         }
@@ -481,41 +774,93 @@
         "provenance"
       ],
       "properties": {
-        "profile": {"const": "relaymark.scripture_release.v1"},
-        "translation_id": {"type": "string", "minLength": 1},
-        "edition_id": {"type": "string", "minLength": 1},
-        "corpus_release_id": {"type": "string", "minLength": 1},
-        "versification_id": {"type": "string", "minLength": 1},
-        "source": {"$ref": "#/$defs/scriptureSource"},
-        "license": {"$ref": "#/$defs/scriptureLicense"},
-        "attribution": {"type": "string", "minLength": 1},
-        "provenance": {"$ref": "#/$defs/scriptureProvenance"}
+        "profile": {
+          "const": "relaymark.scripture_release"
+        },
+        "translation_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "edition_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "corpus_release_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "versification_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "$ref": "#/$defs/scriptureSource"
+        },
+        "license": {
+          "$ref": "#/$defs/scriptureLicense"
+        },
+        "attribution": {
+          "type": "string",
+          "minLength": 1
+        },
+        "provenance": {
+          "$ref": "#/$defs/scriptureProvenance"
+        }
       }
     },
     "scriptureSource": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "uri", "digest"],
+      "required": [
+        "name",
+        "uri",
+        "digest"
+      ],
       "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "uri": {"type": "string", "minLength": 1},
-        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
       }
     },
     "scriptureLicense": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "name", "url"],
+      "required": [
+        "id",
+        "name",
+        "url"
+      ],
       "properties": {
-        "id": {"type": "string", "minLength": 1},
-        "name": {"type": "string", "minLength": 1},
-        "url": {"type": "string", "minLength": 1}
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "scriptureProvenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["coordinate_inventory_digest", "normalized_index_input_digest"],
+      "required": [
+        "coordinate_inventory_digest",
+        "normalized_index_input_digest"
+      ],
       "properties": {
         "coordinate_inventory_digest": {
           "type": "string",
@@ -529,8 +874,14 @@
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
         },
-        "authority": {"type": "string", "minLength": 1},
-        "imported_at": {"type": "string", "minLength": 1}
+        "authority": {
+          "type": "string",
+          "minLength": 1
+        },
+        "imported_at": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "scriptureCoordinate": {
@@ -538,23 +889,55 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["book_id", "coordinate_kind", "chapter", "verse_label"],
+          "required": [
+            "book_id",
+            "coordinate_kind",
+            "chapter",
+            "verse_label"
+          ],
           "properties": {
-            "book_id": {"type": "string", "minLength": 1},
-            "coordinate_kind": {"const": "chapter"},
-            "chapter": {"type": "integer", "minimum": 1},
-            "verse_label": {"type": "string", "minLength": 1}
+            "book_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "coordinate_kind": {
+              "const": "chapter"
+            },
+            "chapter": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "verse_label": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["book_id", "coordinate_kind", "section_id", "verse_label"],
+          "required": [
+            "book_id",
+            "coordinate_kind",
+            "section_id",
+            "verse_label"
+          ],
           "properties": {
-            "book_id": {"type": "string", "minLength": 1},
-            "coordinate_kind": {"const": "section"},
-            "section_id": {"type": "string", "minLength": 1},
-            "verse_label": {"type": "string", "minLength": 1}
+            "book_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "coordinate_kind": {
+              "const": "section"
+            },
+            "section_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "verse_label": {
+              "type": "string",
+              "minLength": 1
+            }
           }
         }
       ]
@@ -562,19 +945,42 @@
     "scriptureSpan": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["profile", "start", "end", "content_digest"],
+      "required": [
+        "profile",
+        "start",
+        "end",
+        "content_digest"
+      ],
       "properties": {
-        "profile": {"const": "relaymark.scripture_span.v1"},
-        "start": {"$ref": "#/$defs/scriptureCoordinate"},
-        "end": {"$ref": "#/$defs/scriptureCoordinate"},
-        "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "display_label": {"type": "string", "minLength": 1}
+        "profile": {
+          "const": "relaymark.scripture_span"
+        },
+        "start": {
+          "$ref": "#/$defs/scriptureCoordinate"
+        },
+        "end": {
+          "$ref": "#/$defs/scriptureCoordinate"
+        },
+        "content_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "display_label": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "claim": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "key", "status", "evidence_refs", "text"],
+      "required": [
+        "block_id",
+        "key",
+        "status",
+        "evidence_refs",
+        "text"
+      ],
       "properties": {
         "block_id": {
           "type": "string"
@@ -587,7 +993,13 @@
         },
         "status": {
           "type": "string",
-          "enum": ["unverified", "supported", "disputed", "refuted", "resolved"]
+          "enum": [
+            "unverified",
+            "supported",
+            "disputed",
+            "refuted",
+            "resolved"
+          ]
         },
         "confidence": {
           "type": "number",
@@ -608,7 +1020,15 @@
     "comparison": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["block_id", "subjects", "criteria", "values", "layout", "evidence_refs", "summary"],
+      "required": [
+        "block_id",
+        "subjects",
+        "criteria",
+        "values",
+        "layout",
+        "evidence_refs",
+        "summary"
+      ],
       "properties": {
         "block_id": {
           "type": "string"
@@ -641,7 +1061,14 @@
         },
         "layout": {
           "type": "string",
-          "enum": ["table", "bar", "timeline", "checklist", "radar", "heatmap"]
+          "enum": [
+            "table",
+            "bar",
+            "timeline",
+            "checklist",
+            "radar",
+            "heatmap"
+          ]
         },
         "evidence_refs": {
           "type": "array",

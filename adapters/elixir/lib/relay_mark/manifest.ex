@@ -2,7 +2,6 @@ defmodule RelayMark.Manifest do
   @moduledoc "RelayMark projection manifest struct."
 
   defstruct type: "relaymark.manifest",
-            version: 1,
             actions: [],
             mentions: [],
             references: [],
@@ -19,7 +18,6 @@ defmodule RelayMark.Manifest do
 
   @type t :: %__MODULE__{
           type: String.t(),
-          version: pos_integer(),
           actions: [RelayMark.Manifest.Action.t()],
           mentions: [RelayMark.Manifest.Mention.t()],
           references: [RelayMark.Manifest.Reference.t()],
@@ -37,9 +35,11 @@ defmodule RelayMark.Manifest do
 
   @spec from_map(map()) :: t()
   def from_map(map) do
+    if Map.has_key?(map, "version"),
+      do: raise(ArgumentError, "Independent RelayMark counters are obsolete")
+
     %__MODULE__{
       type: Map.fetch!(map, "type"),
-      version: Map.fetch!(map, "version"),
       actions: Enum.map(Map.get(map, "actions", []), &RelayMark.Manifest.Action.from_map/1),
       mentions: Enum.map(Map.get(map, "mentions", []), &RelayMark.Manifest.Mention.from_map/1),
       references:

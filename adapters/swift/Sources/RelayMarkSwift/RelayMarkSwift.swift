@@ -316,10 +316,24 @@ public struct RelayMarkLayerContribution: Codable, Equatable, Sendable {
     public let items: [RelayMarkLayerItem]
 }
 
+private enum ObsoleteVersionKeys: CodingKey { case version }
+private func rejectObsoleteVersion(_ decoder: Decoder) throws {
+    let old=try decoder.container(keyedBy: ObsoleteVersionKeys.self)
+    guard !old.contains(.version) else {
+        throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Independent RelayMark counters are obsolete; validate canonical envelope."))
+    }
+}
+
 public struct RelayMarkLayerComposition: Codable, Equatable, Sendable {
     public let type: String
-    public let version: Int
     public let layers: [RelayMarkLayerContribution]
+    private enum CodingKeys: CodingKey { case type,layers }
+    public init(from decoder: Decoder) throws {
+        try rejectObsoleteVersion(decoder)
+        let values=try decoder.container(keyedBy: CodingKeys.self)
+        type=try values.decode(String.self,forKey: .type)
+        layers=try values.decode([RelayMarkLayerContribution].self,forKey: .layers)
+    }
 
     public static func decodeJSON(_ data: Data) throws -> Self {
         try RelayMarkDecoder.decode(Self.self, from: data)
@@ -439,7 +453,7 @@ public struct RelayMarkScriptureRelease: Codable, Equatable, Sendable {
     }
 
     public init(
-        profile: String = "relaymark.scripture_release.v1",
+        profile: String = "relaymark.scripture_release",
         translationID: String,
         editionID: String,
         corpusReleaseID: String,
@@ -533,7 +547,7 @@ public struct RelayMarkScriptureSpan: Codable, Equatable, Sendable {
     }
 
     public init(
-        profile: String = "relaymark.scripture_span.v1",
+        profile: String = "relaymark.scripture_span",
         start: RelayMarkScriptureCoordinate,
         end: RelayMarkScriptureCoordinate,
         contentDigest: String,
@@ -559,7 +573,6 @@ public struct RelayMarkScriptureEvidence: Equatable, Sendable {
 
 public struct RelayMarkManifest: Codable, Equatable, Sendable {
     public let type: String
-    public let version: Int
     public let actions: [RelayMarkAction]
     public let mentions: [RelayMarkMention]
     public let references: [RelayMarkReference]
@@ -575,7 +588,7 @@ public struct RelayMarkManifest: Codable, Equatable, Sendable {
     public let diagnostics: [RelayMarkDiagnostic]
 
     enum CodingKeys: String, CodingKey {
-        case type, version, actions, mentions, references, forms, sources, claims, comparisons
+        case type, actions, mentions, references, forms, sources, claims, comparisons
         case entityReferences = "entity_references"
         case propertySheets = "property_sheets"
         case dataViews = "data_views"
@@ -587,9 +600,9 @@ public struct RelayMarkManifest: Codable, Equatable, Sendable {
     }
 
     public init(from decoder: Decoder) throws {
+        try rejectObsoleteVersion(decoder)
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(String.self, forKey: .type)
-        version = try container.decode(Int.self, forKey: .version)
         actions = try container.decodeIfPresent([RelayMarkAction].self, forKey: .actions) ?? []
         mentions = try container.decodeIfPresent([RelayMarkMention].self, forKey: .mentions) ?? []
         references = try container.decodeIfPresent([RelayMarkReference].self, forKey: .references) ?? []
@@ -608,7 +621,6 @@ public struct RelayMarkManifest: Codable, Equatable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(type, forKey: .type)
-        try container.encode(version, forKey: .version)
         try container.encode(actions, forKey: .actions)
         try container.encode(mentions, forKey: .mentions)
         try container.encode(references, forKey: .references)

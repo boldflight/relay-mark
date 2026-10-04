@@ -199,7 +199,7 @@ two identities separately.
 #### Scripture evidence profile
 
 A resource with `type: "scripture"` and
-`props.profile: "relaymark.scripture_release.v1"` identifies one immutable,
+`props.profile: "relaymark.scripture_release"` identifies one immutable,
 publishable Scripture release. Its properties MUST include canonical
 translation lineage, concrete edition, corpus release, versification, source
 digest, license, attribution, and provenance digests for both the coordinate
@@ -212,7 +212,7 @@ that resource's `corpus_release_id`, and its scope MUST NOT be broader than the
 resource scope. The evidence excerpt MUST contain the exact selected source
 text; `selector.content_digest` binds that text to the immutable release.
 
-The selector profile is `relaymark.scripture_span.v1`. Both `start` and `end`
+The selector profile is `relaymark.scripture_span`. Both `start` and `end`
 are required, including for a singleton. Each coordinate has a canonical
 `book_id`, a non-empty string `verse_label`, and exactly one location shape:
 
@@ -227,7 +227,7 @@ text and never contributes to evidence identity.
 
 ### Agent answer profile
 
-`frontmatter.profile: "relaymark.agent_answer.v1"` identifies a bounded,
+`frontmatter.profile: "relaymark.agent_answer"` identifies a bounded,
 evidence-backed answer paper rather than a chat transcript. The profile uses
 existing headings, paragraphs, `relay.claim`, `relay.source_bundle`, and
 `relay.evidence_ref` nodes; it does not define a new directive or manifest

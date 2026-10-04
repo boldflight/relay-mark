@@ -16,7 +16,7 @@ defmodule RelayMark.AgentAnswer do
     SemanticValidator
   }
 
-  @profile "relaymark.agent_answer.v1"
+  @profile "relaymark.agent_answer"
 
   @type validated_pair :: %{
           document: Document.t(),
@@ -49,7 +49,7 @@ defmodule RelayMark.AgentAnswer do
               [
                 Diagnostic.error(
                   "relaymark.agent_answer.profile",
-                  "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
+                  "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer."
                 )
               ]
             end
@@ -60,7 +60,7 @@ defmodule RelayMark.AgentAnswer do
           [
             Diagnostic.error(
               "relaymark.agent_answer.manifest_mismatch",
-              "Transported relaymark.agent_answer.v1 manifest must exactly match the canonical projection of its document."
+              "Transported relaymark.agent_answer manifest must exactly match the canonical projection of its document."
             )
           ]
         else

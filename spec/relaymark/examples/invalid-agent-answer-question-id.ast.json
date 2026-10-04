@@ -3,7 +3,7 @@
   "frontmatter": {
     "title": "Invalid answered paper",
     "scope": "private",
-    "profile": "relaymark.agent_answer.v1",
+    "profile": "relaymark.agent_answer",
     "outcome": "answered",
     "question_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
     "question": "What is the invalid fixture question?"

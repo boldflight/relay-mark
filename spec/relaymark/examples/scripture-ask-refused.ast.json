@@ -3,7 +3,7 @@
   "frontmatter": {
     "title": "Answer unavailable",
     "scope": "private",
-    "profile": "relaymark.agent_answer.v1",
+    "profile": "relaymark.agent_answer",
     "outcome": "refused",
     "question_id": "sha256:b776b0f739964c4ebe9826ffef5212952a7a1ec9e90e2ac22f7839ae7ae56052",
     "question": "Was Priscilla the author of Hebrews?",

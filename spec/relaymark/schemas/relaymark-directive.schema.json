@@ -7,7 +7,6 @@
   "required": [
     "name",
     "ast_type",
-    "version",
     "category",
     "description",
     "attributes",
@@ -27,13 +26,16 @@
       "type": "string",
       "pattern": "^relay\\.[a-z][a-z0-9_]*$"
     },
-    "version": {
-      "type": "integer",
-      "minimum": 1
-    },
     "category": {
       "type": "string",
-      "enum": ["relay_kit", "source", "form", "transcript", "research", "widget"]
+      "enum": [
+        "relay_kit",
+        "source",
+        "form",
+        "transcript",
+        "research",
+        "widget"
+      ]
     },
     "description": {
       "type": "string",
@@ -45,7 +47,12 @@
     },
     "fallback": {
       "type": "string",
-      "enum": ["children", "plain_text", "summary", "omit"]
+      "enum": [
+        "children",
+        "plain_text",
+        "summary",
+        "omit"
+      ]
     },
     "attributes": {
       "type": "object",
@@ -56,11 +63,18 @@
     "children": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["mode"],
+      "required": [
+        "mode"
+      ],
       "properties": {
         "mode": {
           "type": "string",
-          "enum": ["none", "inline", "block", "mixed"]
+          "enum": [
+            "none",
+            "inline",
+            "block",
+            "mixed"
+          ]
         },
         "allowed_types": {
           "type": "array",
@@ -102,7 +116,15 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["actions", "mentions", "references", "forms", "sources", "claims", "comparisons"]
+            "enum": [
+              "actions",
+              "mentions",
+              "references",
+              "forms",
+              "sources",
+              "claims",
+              "comparisons"
+            ]
           }
         }
       }
@@ -130,13 +152,26 @@
     "attribute": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type"],
+      "required": [
+        "type"
+      ],
       "properties": {
         "type": {
           "type": "string",
-          "enum": ["string", "number", "integer", "boolean", "array", "object", "enum"]
+          "enum": [
+            "string",
+            "number",
+            "integer",
+            "boolean",
+            "array",
+            "object",
+            "enum"
+          ]
         },
-        "nullable": { "type": "boolean", "default": false },
+        "nullable": {
+          "type": "boolean",
+          "default": false
+        },
         "required": {
           "type": "boolean",
           "default": false

@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "CalloutTitle",
   "ast_type": "relay.callout_title",
-  "version": 1,
   "category": "relay_kit",
   "description": "An editable callout title with its own stable block identity and inline marks.",
   "attributes": {},

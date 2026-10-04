@@ -2,16 +2,16 @@
   {
     "level": "error",
     "code": "relaymark.agent_answer.refusal_reason",
-    "message": "A refused relaymark.agent_answer.v1 paper requires refusal_reason insufficient_evidence."
+    "message": "A refused relaymark.agent_answer paper requires refusal_reason insufficient_evidence."
   },
   {
     "level": "error",
     "code": "relaymark.agent_answer.refused_structure",
-    "message": "A refused relaymark.agent_answer.v1 paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
+    "message": "A refused relaymark.agent_answer paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
   },
   {
     "level": "error",
     "code": "relaymark.agent_answer.refused_content",
-    "message": "A refused relaymark.agent_answer.v1 paper must not contain claims, sources, resources, evidence, suggestions, or actions."
+    "message": "A refused relaymark.agent_answer paper must not contain claims, sources, resources, evidence, suggestions, or actions."
   }
 ]

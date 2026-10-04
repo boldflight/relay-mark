@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "ActionRow",
   "ast_type": "relay.action_row",
-  "version": 1,
   "category": "relay_kit",
   "description": "A reviewable Relay action proposal attached to document context.",
   "attributes": {

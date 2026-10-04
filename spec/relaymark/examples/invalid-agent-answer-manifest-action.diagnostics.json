@@ -2,6 +2,6 @@
   {
     "level": "error",
     "code": "relaymark.agent_answer.manifest_mismatch",
-    "message": "Transported relaymark.agent_answer.v1 manifest must exactly match the canonical projection of its document."
+    "message": "Transported relaymark.agent_answer manifest must exactly match the canonical projection of its document."
   }
 ]

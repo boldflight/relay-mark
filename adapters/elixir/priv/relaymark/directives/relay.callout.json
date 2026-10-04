@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "Callout",
   "ast_type": "relay.callout",
-  "version": 1,
   "category": "relay_kit",
   "description": "A styled document callout with an optional editable title and nested body blocks.",
   "attributes": {

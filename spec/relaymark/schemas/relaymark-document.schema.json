@@ -346,7 +346,7 @@
         "provenance"
       ],
       "properties": {
-        "profile": {"const": "relaymark.scripture_release.v1"},
+        "profile": {"const": "relaymark.scripture_release"},
         "translation_id": {"type": "string", "minLength": 1},
         "edition_id": {"type": "string", "minLength": 1},
         "corpus_release_id": {"type": "string", "minLength": 1},
@@ -429,7 +429,7 @@
       "additionalProperties": false,
       "required": ["profile", "start", "end", "content_digest"],
       "properties": {
-        "profile": {"const": "relaymark.scripture_span.v1"},
+        "profile": {"const": "relaymark.scripture_span"},
         "start": {"$ref": "#/$defs/scriptureCoordinate"},
         "end": {"$ref": "#/$defs/scriptureCoordinate"},
         "content_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},

@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "Comparison",
   "ast_type": "relay.comparison",
-  "version": 1,
   "category": "research",
   "description": "A structured, evidence-backed comparison of two or more referenced subjects.",
   "attributes": {

@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "EvidenceRef",
   "ast_type": "relay.evidence_ref",
-  "version": 1,
   "category": "source",
   "description": "A stable, version-aware reference to evidence from any host-readable source.",
   "attributes": {
@@ -18,7 +17,7 @@
     },
     "source_type": {
       "type": "string",
-      "description": "Open source category such as transcript, note, event, file, or URL. The reserved scripture value activates the relaymark.scripture_span.v1 profile."
+      "description": "Open source category such as transcript, note, event, file, or URL. The reserved scripture value activates the relaymark.scripture_span profile."
     },
     "source_revision": {
       "type": "string",
@@ -26,7 +25,7 @@
     },
     "selector": {
       "type": "object",
-      "description": "Host-interpreted locator such as a time range, text range, field path, or page region. Scripture sources require a lossless relaymark.scripture_span.v1 selector."
+      "description": "Host-interpreted locator such as a time range, text range, field path, or page region. Scripture sources require a lossless relaymark.scripture_span selector."
     },
     "label": {
       "type": "string",

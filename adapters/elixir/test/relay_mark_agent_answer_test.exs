@@ -28,7 +28,7 @@ defmodule RelayMarkAgentAnswerTest do
                  %{"surface" => "scripture_ask"}
                )
 
-      assert pair.document.frontmatter["profile"] == "relaymark.agent_answer.v1"
+      assert pair.document.frontmatter["profile"] == "relaymark.agent_answer"
       assert pair.manifest.actions == []
       assert pair.document_digest == "sha256:" <> pair_receipt["document"]["sha256"]
       assert pair.manifest_digest == "sha256:" <> pair_receipt["manifest"]["sha256"]

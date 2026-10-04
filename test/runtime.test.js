@@ -355,7 +355,6 @@ describe("RelayMark reference runtime", () => {
 }`);
 
     assert.deepEqual(result.diagnostics, []);
-    assert.equal(result.manifest.version, 1);
     assert.equal(result.manifest.actions[0].args.name, "Canonical task name");
     assert.equal(result.manifest.actions[0].args.title, "Visible action row label");
   });
@@ -999,7 +998,7 @@ describe("RelayMark reference runtime", () => {
   it("enforces action lifecycle invariants in the manifest JSON Schema", () => {
     const schemaPath = resolve("spec/relaymark/schemas/relaymark-manifest.schema.json");
     const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
-    const manifestFor = (action) => ({ type: "relaymark.manifest", version: 1, actions: [action] });
+    const manifestFor = (action) => ({ type: "relaymark.manifest", actions: [action] });
     const base = { block_id: "b1", action: "task_create", review: "ready" };
     const errorsFor = (action) => validateJSONSchema(manifestFor(action), schema, schemaPath);
 
@@ -1075,7 +1074,7 @@ describe("RelayMark reference runtime", () => {
     const manifestSchemaPath = resolve("spec/relaymark/schemas/relaymark-manifest.schema.json");
     const manifestSchema = JSON.parse(readFileSync(manifestSchemaPath, "utf8"));
     const documentFor = (block) => ({ type: "relaymark.document", blocks: [block] });
-    const manifestFor = (source) => ({ type: "relaymark.manifest", version: 1, sources: [source] });
+    const manifestFor = (source) => ({ type: "relaymark.manifest", sources: [source] });
 
     assert.deepEqual(
       validateJSONSchema(

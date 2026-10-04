@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "VideoEmbed",
   "ast_type": "relay.video_embed",
-  "version": 1,
   "category": "relay_kit",
   "description": "An authored video reference whose playback details are resolved by the host.",
   "attributes": {

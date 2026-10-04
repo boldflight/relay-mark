@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "PaperControl",
   "ast_type": "relay.paper_control",
-  "version": 1,
   "category": "relay_kit",
   "description": "Inert authored Paper button, anchor, or connection.",
   "capability": "paper.control",

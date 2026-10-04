@@ -91,10 +91,7 @@ defmodule RelayMark.DocumentXML do
         "children" => Enum.map(document["blocks"], &encode_block/1)
       }
 
-      metadata =
-        Map.take(document, @metadata)
-        |> Enum.reject(fn {_k, v} -> v in [%{}, []] end)
-        |> Map.new()
+      metadata = Map.take(document, @metadata)
 
       snapshot = if metadata == %{}, do: snapshot, else: Map.put(snapshot, "metadata", metadata)
       # Strict inverse validates the rich grammar before any host installs it.

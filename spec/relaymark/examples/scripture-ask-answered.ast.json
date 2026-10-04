@@ -3,7 +3,7 @@
   "frontmatter": {
     "title": "What Acts says about Aquila and Priscilla",
     "scope": "private",
-    "profile": "relaymark.agent_answer.v1",
+    "profile": "relaymark.agent_answer",
     "outcome": "answered",
     "question_id": "sha256:6640f17d592931bf54f6d3bdf1c1b5f1a7a302bcdc4b7a2e626fd9671b6a1da8",
     "question": "What does Acts 18:2-3 say about Aquila and Priscilla?"
@@ -71,7 +71,7 @@
             "source_type": "scripture",
             "source_revision": "urn:relay:scripture:corpus:kjv:1769-fixture-1",
             "selector": {
-              "profile": "relaymark.scripture_span.v1",
+              "profile": "relaymark.scripture_span",
               "start": {
                 "book_id": "ACT",
                 "coordinate_kind": "chapter",
@@ -107,7 +107,7 @@
       "label": "King James Version conformance excerpt",
       "scope": "public",
       "props": {
-        "profile": "relaymark.scripture_release.v1",
+        "profile": "relaymark.scripture_release",
         "translation_id": "urn:relay:scripture:translation:kjv",
         "edition_id": "urn:relay:scripture:edition:kjv-1769-fixture",
         "corpus_release_id": "urn:relay:scripture:corpus:kjv:1769-fixture-1",

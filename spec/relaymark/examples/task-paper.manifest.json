@@ -1,1 +1,63 @@
-{"type":"relaymark.manifest","version":1,"actions":[{"block_id":"b7","action":"relay.task.complete","target":"entity:task-prepare-review","visibility":"private","review":"draft","evidence_refs":[],"args":{"title":"Complete task"}}],"mentions":[{"block_id":"b7","kind":"entity","id":"task-prepare-review","label":"entity:task-prepare-review"}],"references":[],"forms":[],"sources":[],"claims":[],"comparisons":[],"entity_references":[{"block_id":"b2","id":"entity:task-prepare-review","label":"Prepare coaching review","projection":"link"}],"property_sheets":[{"block_id":"b4","binding":"paper.task.properties","fields":["status","due_at","assignee"],"title":"Task","presentation":"stack"}],"capabilities":[{"block_id":"b2","id":"entity.reference","fallback":"plain_text"},{"block_id":"b4","id":"binding.property_sheet","fallback":"summary"}],"diagnostics":[]}
+{
+  "type": "relaymark.manifest",
+  "actions": [
+    {
+      "block_id": "b7",
+      "action": "relay.task.complete",
+      "target": "entity:task-prepare-review",
+      "visibility": "private",
+      "review": "draft",
+      "evidence_refs": [],
+      "args": {
+        "title": "Complete task"
+      }
+    }
+  ],
+  "mentions": [
+    {
+      "block_id": "b7",
+      "kind": "entity",
+      "id": "task-prepare-review",
+      "label": "entity:task-prepare-review"
+    }
+  ],
+  "references": [],
+  "forms": [],
+  "sources": [],
+  "claims": [],
+  "comparisons": [],
+  "entity_references": [
+    {
+      "block_id": "b2",
+      "id": "entity:task-prepare-review",
+      "label": "Prepare coaching review",
+      "projection": "link"
+    }
+  ],
+  "property_sheets": [
+    {
+      "block_id": "b4",
+      "binding": "paper.task.properties",
+      "fields": [
+        "status",
+        "due_at",
+        "assignee"
+      ],
+      "title": "Task",
+      "presentation": "stack"
+    }
+  ],
+  "capabilities": [
+    {
+      "block_id": "b2",
+      "id": "entity.reference",
+      "fallback": "plain_text"
+    },
+    {
+      "block_id": "b4",
+      "id": "binding.property_sheet",
+      "fallback": "summary"
+    }
+  ],
+  "diagnostics": []
+}

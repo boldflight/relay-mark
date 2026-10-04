@@ -1,6 +1,5 @@
 {
   "type": "relaymark.manifest",
-  "version": 1,
   "actions": [
     {
       "block_id": "forgedAction",

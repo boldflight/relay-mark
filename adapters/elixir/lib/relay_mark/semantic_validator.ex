@@ -774,13 +774,13 @@ defmodule RelayMark.SemanticValidator do
       )
 
     diagnostics =
-      if props["profile"] == "relaymark.scripture_release.v1" do
+      if props["profile"] == "relaymark.scripture_release" do
         diagnostics
       else
         append_error(
           diagnostics,
           "relaymark.scripture.release_profile",
-          "scripture resource '#{resource["id"] || "unknown"}' must use relaymark.scripture_release.v1."
+          "scripture resource '#{resource["id"] || "unknown"}' must use relaymark.scripture_release."
         )
       end
 
@@ -926,13 +926,13 @@ defmodule RelayMark.SemanticValidator do
 
     if is_map(selector) do
       diagnostics =
-        if selector["profile"] == "relaymark.scripture_span.v1" do
+        if selector["profile"] == "relaymark.scripture_span" do
           diagnostics
         else
           append_error(
             diagnostics,
             "relaymark.scripture.selector_profile",
-            "Scripture evidence selector must use relaymark.scripture_span.v1."
+            "Scripture evidence selector must use relaymark.scripture_span."
           )
         end
 
@@ -1068,7 +1068,7 @@ defmodule RelayMark.SemanticValidator do
   defp validate_agent_answer_profile(document, diagnostics, validation_context) do
     frontmatter = document["frontmatter"] || %{}
 
-    if frontmatter["profile"] == "relaymark.agent_answer.v1" do
+    if frontmatter["profile"] == "relaymark.agent_answer" do
       diagnostics =
         if non_empty_string?(frontmatter["title"]) do
           diagnostics
@@ -1076,7 +1076,7 @@ defmodule RelayMark.SemanticValidator do
           append_error(
             diagnostics,
             "relaymark.agent_answer.title",
-            "relaymark.agent_answer.v1 requires a non-empty title."
+            "relaymark.agent_answer requires a non-empty title."
           )
         end
 
@@ -1087,7 +1087,7 @@ defmodule RelayMark.SemanticValidator do
           append_error(
             diagnostics,
             "relaymark.agent_answer.scope",
-            "relaymark.agent_answer.v1 requires an explicit private, org, unlisted, or public scope."
+            "relaymark.agent_answer requires an explicit private, org, unlisted, or public scope."
           )
         end
 
@@ -1104,14 +1104,14 @@ defmodule RelayMark.SemanticValidator do
             append_error(
               diagnostics,
               "relaymark.agent_answer.question_id",
-              "relaymark.agent_answer.v1 question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
+              "relaymark.agent_answer question_id must be the lowercase SHA-256 digest of the exact question UTF-8 bytes."
             )
           end
         else
           append_error(
             diagnostics,
             "relaymark.agent_answer.question",
-            "relaymark.agent_answer.v1 requires a non-empty exact question."
+            "relaymark.agent_answer requires a non-empty exact question."
           )
         end
 
@@ -1126,7 +1126,7 @@ defmodule RelayMark.SemanticValidator do
           append_error(
             diagnostics,
             "relaymark.agent_answer.outcome",
-            "relaymark.agent_answer.v1 outcome must be answered or refused."
+            "relaymark.agent_answer outcome must be answered or refused."
           )
       end
     else
@@ -1177,7 +1177,7 @@ defmodule RelayMark.SemanticValidator do
         append_error(
           diagnostics,
           "relaymark.agent_answer.answered_structure",
-          "An answered relaymark.agent_answer.v1 paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
+          "An answered relaymark.agent_answer paper requires one level-one heading, supported claims, an Evidence level-two heading, and source bundles in that order."
         )
       end
 
@@ -1266,7 +1266,7 @@ defmodule RelayMark.SemanticValidator do
         append_error(
           diagnostics,
           "relaymark.agent_answer.read_only",
-          "An answered relaymark.agent_answer.v1 paper must not contain agent suggestions or action rows."
+          "An answered relaymark.agent_answer paper must not contain agent suggestions or action rows."
         )
       else
         diagnostics
@@ -1276,7 +1276,7 @@ defmodule RelayMark.SemanticValidator do
       append_error(
         diagnostics,
         "relaymark.agent_answer.refusal_reason",
-        "An answered relaymark.agent_answer.v1 paper must not contain refusal_reason."
+        "An answered relaymark.agent_answer paper must not contain refusal_reason."
       )
     else
       diagnostics
@@ -1301,7 +1301,7 @@ defmodule RelayMark.SemanticValidator do
         append_error(
           diagnostics,
           "relaymark.agent_answer.refusal_reason",
-          "A refused relaymark.agent_answer.v1 paper requires refusal_reason insufficient_evidence."
+          "A refused relaymark.agent_answer paper requires refusal_reason insufficient_evidence."
         )
       end
 
@@ -1320,7 +1320,7 @@ defmodule RelayMark.SemanticValidator do
         append_error(
           diagnostics,
           "relaymark.agent_answer.refused_structure",
-          "A refused relaymark.agent_answer.v1 paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
+          "A refused relaymark.agent_answer paper requires only an Answer unavailable level-one heading followed by one non-empty explanation paragraph."
         )
       end
 
@@ -1341,7 +1341,7 @@ defmodule RelayMark.SemanticValidator do
       append_error(
         diagnostics,
         "relaymark.agent_answer.refused_content",
-        "A refused relaymark.agent_answer.v1 paper must not contain claims, sources, resources, evidence, suggestions, or actions."
+        "A refused relaymark.agent_answer paper must not contain claims, sources, resources, evidence, suggestions, or actions."
       )
     else
       diagnostics

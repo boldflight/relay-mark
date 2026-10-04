@@ -256,7 +256,7 @@ defmodule RelayMarkTest do
              |> RelayMark.decode_document()
 
     assert %{
-             "profile" => "relaymark.agent_answer.v1",
+             "profile" => "relaymark.agent_answer",
              "outcome" => "answered",
              "question" => "What does Acts 18:2-3 say about Aquila and Priscilla?",
              "question_id" =>
@@ -325,7 +325,7 @@ defmodule RelayMarkTest do
              |> RelayMark.decode_document()
 
     assert %{
-             "profile" => "relaymark.agent_answer.v1",
+             "profile" => "relaymark.agent_answer",
              "outcome" => "refused",
              "question" => "Was Priscilla the author of Hebrews?",
              "question_id" =>

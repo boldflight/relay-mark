@@ -9,16 +9,18 @@ defmodule RelayMark.Composition do
 
   alias RelayMark.Composition.{Anchor, Item, Layer, Placement}
 
-  defstruct type: "relaymark.layer_composition", version: 1, layers: []
+  defstruct type: "relaymark.layer_composition", layers: []
 
   @type role :: :authored | :source | :generated | :discussion | :ink
-  @type t :: %__MODULE__{type: String.t(), version: pos_integer(), layers: [Layer.t()]}
+  @type t :: %__MODULE__{type: String.t(), layers: [Layer.t()]}
 
   @spec from_map(map()) :: t()
   def from_map(map) do
+    if Map.has_key?(map, "version"),
+      do: raise(ArgumentError, "Independent RelayMark counters are obsolete")
+
     %__MODULE__{
       type: Map.fetch!(map, "type"),
-      version: Map.fetch!(map, "version"),
       layers: Enum.map(Map.get(map, "layers", []), &Layer.from_map/1)
     }
   end

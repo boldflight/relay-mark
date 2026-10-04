@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "Claim",
   "ast_type": "relay.claim",
-  "version": 1,
   "category": "research",
   "description": "A factual proposition with explicit evidence and verification state.",
   "attributes": {

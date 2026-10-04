@@ -6,7 +6,7 @@ import { validateJSONSchema } from "./json-schema.js";
 import { projectManifest } from "./projections.js";
 import { validateDocument } from "./validator.js";
 
-const agentAnswerProfile = "relaymark.agent_answer.v1";
+const agentAnswerProfile = "relaymark.agent_answer";
 const documentSchemaPath = fileURLToPath(
   new URL("../spec/relaymark/schemas/relaymark-document.schema.json", import.meta.url)
 );
@@ -37,7 +37,7 @@ export function validateTransportedAgentAnswerPair(
     diagnostics.push(
       error(
         "relaymark.agent_answer.profile",
-        "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer.v1."
+        "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer."
       )
     );
   } else {
@@ -51,7 +51,7 @@ export function validateTransportedAgentAnswerPair(
     diagnostics.push(
       error(
         "relaymark.agent_answer.manifest_mismatch",
-        "Transported relaymark.agent_answer.v1 manifest must exactly match the canonical projection of its document."
+        "Transported relaymark.agent_answer manifest must exactly match the canonical projection of its document."
       )
     );
   }

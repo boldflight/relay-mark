@@ -50,7 +50,7 @@
 
 ## 0.5.0
 
-- Adds the normative `relaymark.agent_answer.v1` profile for bounded answered
+- Adds the normative `relaymark.agent_answer` profile for bounded answered
   and insufficient-evidence papers with exact question identity.
 - Adds canonical answered and refused Scripture Ask AST/manifest fixtures to the
   shared conformance suite.
@@ -80,8 +80,8 @@ and manifest projections.
 
 ## 0.4.0
 
-- Adds the portable `relaymark.scripture_release.v1` resource profile.
-- Adds lossless `relaymark.scripture_span.v1` evidence selectors with
+- Adds the portable `relaymark.scripture_release` resource profile.
+- Adds lossless `relaymark.scripture_span` evidence selectors with
   chapter-or-section coordinates and string verse labels.
 - Projects immutable Scripture release identity and provenance through existing
   `relay.evidence_ref` manifest sources.

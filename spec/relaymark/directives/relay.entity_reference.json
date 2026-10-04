@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "EntityRef",
   "ast_type": "relay.entity_reference",
-  "version": 1,
   "category": "relay_kit",
   "description": "A renderer-neutral reference to any host-resolved entity.",
   "capability": "entity.reference",

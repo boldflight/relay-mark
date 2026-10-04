@@ -2,7 +2,6 @@
   "$schema": "../schemas/relaymark-directive.schema.json",
   "name": "PropertySheet",
   "ast_type": "relay.property_sheet",
-  "version": 1,
   "category": "relay_kit",
   "description": "A schema-bound property group whose values and edit policy are supplied by the host.",
   "capability": "binding.property_sheet",
