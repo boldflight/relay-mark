@@ -16,7 +16,7 @@ public enum RelayMarkNativeRichEditing {
         public let offset: Int
     }
 
-    public struct Change {
+    public struct Change: Sendable {
         public let update: Data
         /// Exact upstream Snapshot before this command, from the same retained owner.
         public let beforeSnapshot: Data
@@ -330,6 +330,47 @@ public enum RelayMarkNativeRichEditing {
         else { try transform.removeMark(from, to, mark: type.create(attributes)) }
         guard !transform.steps.isEmpty else { return nil }
         return try change(transform, source: doc, bridge: bridge, document: document)
+    }
+
+    /// Execute the packaged maintained PM command and apply those exact Steps
+    /// through this existing native PM/Yrs owner. No native XML planner or diff
+    /// manufactures the command evidence.
+    static func command(document: RelayMarkNativeDocument, tree: [String: Any],
+                        name: String, selection: [String: Any]) throws -> (change: Change, kind: String, blockID: String?) {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let response = try RelayMarkContentEditCodec.command(document: JSONSerialization.data(withJSONObject: source.json()),
+            request: JSONSerialization.data(withJSONObject: ["command": name, "selection": selection]))
+        guard let result = try JSONSerialization.jsonObject(with: response) as? [String: Any],
+              let steps = result["steps"] as? [[String: Any]], let expected = result["document"] as? [String: Any],
+              let finalSelection = result["selection"] as? [String: Any], let kind = result["kind"] as? String else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        var transform = PMTransform(source)
+        for json in steps {
+            let step = try PMStep.fromJSON(json, schema: bridge.schema)
+            guard pmCompareDeep(step.json(), json) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+            try transform.step(step)
+        }
+        guard pmCompareDeep(transform.doc.json(), expected) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let (update, updated, beforeSnapshot, witnessedSteps) = try commit(transform, source: source, bridge: bridge, document: document)
+        let caret = (finalSelection["head"] as? Int).flatMap { caret($0, in: updated) }
+        let id = caret.flatMap { value -> String? in
+            var node = updated
+            for index in value.blockPath { guard index < node.childCount else { return nil }; node = node.child(index) }
+            return node.attrs["relaymarkId"] as? String
+        }
+        return (Change(update: update, beforeSnapshot: beforeSnapshot, steps: witnessedSteps, caret: caret), kind, id)
+    }
+
+    static func positionForPath(_ path: [Int], in source: PMNode) throws -> Int {
+        var node = source, position = 0
+        for (depth, index) in path.enumerated() {
+            guard index >= 0, index < node.childCount else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+            position += node.content.children.prefix(index).reduce(0) { $0 + $1.nodeSize }
+            if depth > 0 { position += 1 }
+            node = node.child(index)
+        }
+        return position
     }
 
     /// Widget host commands supply their actual identified target and insertion

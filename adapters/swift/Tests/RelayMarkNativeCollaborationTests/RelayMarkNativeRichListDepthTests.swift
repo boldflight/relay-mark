@@ -20,7 +20,7 @@ final class RelayMarkNativeRichListDepthTests: XCTestCase {
         XCTAssertFalse(native.canChangeRichListDepth(paragraphPath: [0, 0, 0], change: .indent))
         let indent = try native.changeRichListDepth(paragraphPath: [0, 1, 0], change: .indent,
                                                          expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(indent)
+        try peer.applyUpdate(indent.update)
         let nested = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(nested, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(String(try native.richProseProjection().text.characters), String(originalText.characters))
@@ -29,7 +29,7 @@ final class RelayMarkNativeRichListDepthTests: XCTestCase {
         XCTAssertEqual(nested.blocks[0].childBlocks[0].childBlocks[1].childBlocks[0], before.blocks[0].childBlocks[1])
         let outdent = try native.changeRichListDepth(paragraphPath: [0, 0, 1, 0, 0], change: .outdent,
                                                           expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(outdent)
+        try peer.applyUpdate(outdent.update)
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), before)
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
@@ -47,7 +47,7 @@ final class RelayMarkNativeRichListDepthTests: XCTestCase {
         let before = try RelayMarkNativeDocumentProjection.project(document: native)
         let update = try native.changeRichListDepth(paragraphPath: [0, 1, 0], change: .outdent,
                                                          expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(update)
+        try peer.applyUpdate(update.update)
         let after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks.map(\.type), ["list", "paragraph"])

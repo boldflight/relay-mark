@@ -40,7 +40,7 @@ final class RelayMarkNativeRichContainerTests: XCTestCase {
             let before = try native.snapshot(), prose = try native.richProseProjection()
             let row = try XCTUnwrap(prose.blockPaths.firstIndex(of: path))
             let update = try RelayMarkNativeRichReturn.apply(document: native,
-                blockPath: path, utf16Offset: offset, expectedSnapshot: before).update
+                blockPath: path, utf16Offset: offset, expectedSnapshot: before).change.update
             try peer.applyUpdate(update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
             XCTAssertEqual(String(try native.richProseProjection().text.characters),

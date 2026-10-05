@@ -3,6 +3,9 @@ import Foundation
 /// The packaged maintained StepMap/identity witness owner. This stateless
 /// preparation confers neither accepted receipt scope nor source authority.
 public enum RelayMarkContentEditCodec {
+    public static func command(document: Data, request: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "createContentEditCommand", arguments: [JSONSerialization.jsonObject(with: document), JSONSerialization.jsonObject(with: request)])
+    }
     public static func prepareWrite(before: Data, steps: Data, after: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"prepareContentEditWrite",arguments:[JSONSerialization.jsonObject(with:before),JSONSerialization.jsonObject(with:steps),JSONSerialization.jsonObject(with:after)])
     }

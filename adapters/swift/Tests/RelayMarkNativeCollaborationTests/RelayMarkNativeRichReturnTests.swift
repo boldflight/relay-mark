@@ -22,7 +22,7 @@ final class RelayMarkNativeRichReturnTests: XCTestCase {
             let priorText = String(prose.text.characters)
             let change = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0, 0, 0],
                 utf16Offset: offset, expectedSnapshot: native.snapshot())
-            try peer.applyUpdate(change.update)
+            try peer.applyUpdate(change.change.update)
             let after = try RelayMarkNativeDocumentProjection.project(document: native)
             XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
             XCTAssertEqual(String(try native.richProseProjection().text.characters),
@@ -46,7 +46,7 @@ final class RelayMarkNativeRichReturnTests: XCTestCase {
             let priorText = String(prose.text.characters)
             let change = try RelayMarkNativeRichReturn.apply(document: native, blockPath: path,
                 utf16Offset: offset, expectedSnapshot: native.snapshot())
-            try peer.applyUpdate(change.update)
+            try peer.applyUpdate(change.change.update)
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native),
                            try RelayMarkNativeDocumentProjection.project(document: peer))
             XCTAssertEqual(String(try native.richProseProjection().text.characters),
@@ -79,7 +79,7 @@ final class RelayMarkNativeRichReturnTests: XCTestCase {
             let initialText = String(try native.richProseProjection().text.characters)
             let split = try RelayMarkNativeRichReturn.apply(document: native, blockPath: path,
                 utf16Offset: offset, expectedSnapshot: native.snapshot())
-            try peer.applyUpdate(split.update)
+            try peer.applyUpdate(split.change.update)
             let beforeJoin = try native.snapshot(), prose = try native.richProseProjection()
             let row = try XCTUnwrap(prose.blockPaths.firstIndex(of: path))
             let range = NSRange(location: NSMaxRange(prose.blockRanges[row]), length: 1)
@@ -140,7 +140,7 @@ final class RelayMarkNativeRichReturnTests: XCTestCase {
             let change = try RelayMarkNativeRichReturn.apply(document: native,
                 blockPath: XCTUnwrap(receipt["path"] as? [Int]), utf16Offset: 0, expectedSnapshot: before)
             XCTAssertEqual(change.kind, .exit)
-            try peer.applyUpdate(change.update)
+            try peer.applyUpdate(change.change.update)
             let actual = try JSONEncoder().encode(RelayMarkNativeDocumentProjection.project(document: native))
             let expected = try JSONEncoder().encode(RelayMarkNativeDocumentProjection.project(document: browser))
             let a = try JSONSerialization.data(withJSONObject: stripIDs(JSONSerialization.jsonObject(with: actual)), options: [.sortedKeys])

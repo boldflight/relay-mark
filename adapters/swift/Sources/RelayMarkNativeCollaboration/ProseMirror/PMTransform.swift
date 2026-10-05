@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 
 // A port of prosemirror-transform 1.12.2 replace.ts (replaceStep, Fitter,
 // replaceRange, deleteRange, replaceRangeWith) and the replace steps and
@@ -688,5 +689,52 @@ extension PMSlice {
         var result:[String:Any]=["content":content.children.map { $0.json() }]
         if openStart>0 { result["openStart"]=openStart }
         if openEnd>0 { result["openEnd"]=openEnd };return result
+    }
+}
+
+// Maintained Step.fromJSON / Node.fromJSON / Slice.fromJSON for the packaged
+// canonical command result. Closed-document validation remains in the shared
+// schema/command owner; open Slice nodes are intentionally decoded as partial.
+extension PMStep {
+    static func fromJSON(_ json: [String: Any], schema: PMSchema) throws -> PMStep {
+        func number(_ key: String) throws -> Int {
+            guard let value = json[key] as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(),
+                  value.doubleValue.isFinite, value.doubleValue.rounded() == value.doubleValue,
+                  value.doubleValue >= 0, value.doubleValue <= 1_000_000_000 else { throw PMReplaceError(message: "Invalid step position") }
+            return value.intValue
+        }
+        func mark(_ json: [String: Any]) throws -> PMMark {
+            guard let name = json["type"] as? String, let type = schema.marks[name] else { throw PMReplaceError(message: "Unknown mark") }
+            return type.create(json["attrs"] as? [String: Any])
+        }
+        func node(_ json: [String: Any]) throws -> PMNode {
+            guard let name = json["type"] as? String, let type = schema.nodes[name] else { throw PMReplaceError(message: "Unknown node") }
+            let marks = try (json["marks"] as? [[String: Any]] ?? []).map(mark)
+            if type.isText {
+                guard let text = json["text"] as? String, !text.isEmpty else { throw PMReplaceError(message: "Invalid text") }
+                return schema.text(Array(text.utf16), marks: marks)
+            }
+            return try type.create(json["attrs"] as? [String: Any], PMFragment.fromArray(try (json["content"] as? [[String: Any]] ?? []).map(node)), marks: marks)
+        }
+        func slice() throws -> PMSlice {
+            guard let value = json["slice"] as? [String: Any] else { return .empty }
+            return PMSlice(PMFragment.fromArray(try (value["content"] as? [[String: Any]] ?? []).map(node)),
+                openStart: value["openStart"] as? Int ?? 0, openEnd: value["openEnd"] as? Int ?? 0)
+        }
+        switch json["stepType"] as? String {
+        case "replace": return try .replace(from: number("from"), to: number("to"), slice: slice(), structure: json["structure"] as? Bool ?? false)
+        case "replaceAround": return try .replaceAround(from: number("from"), to: number("to"), gapFrom: number("gapFrom"), gapTo: number("gapTo"), slice: slice(), insert: number("insert"), structure: json["structure"] as? Bool ?? false)
+        case "addMark", "removeMark":
+            guard let raw = json["mark"] as? [String: Any] else { throw PMReplaceError(message: "Missing mark") }
+            let from = try number("from"), to = try number("to"), value = try mark(raw)
+            return json["stepType"] as? String == "addMark" ? .addMark(from: from, to: to, mark: value) : .removeMark(from: from, to: to, mark: value)
+        case "attr":
+            guard let name = json["attr"] as? String, let value = json["value"] else { throw PMReplaceError(message: "Missing attribute") }
+            return try .attr(pos: number("pos"), name: name, value: value)
+        case "docAttr":
+            guard let name = json["attr"] as? String, let value = json["value"] else { throw PMReplaceError(message: "Missing document attribute") }
+            return .docAttr(name: name, value: value)
+        default: throw PMReplaceError(message: "Unknown step")
+        }
     }
 }

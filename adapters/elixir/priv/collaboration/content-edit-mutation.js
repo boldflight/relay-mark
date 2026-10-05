@@ -5562,6 +5562,12 @@ function validateOwnedHistory(value) {
   return value;
 }
 
+// src/content-edit.js
+import { EditorState, Selection } from "prosemirror-state";
+import { newlineInCode, createParagraphNear, liftEmptyBlock, splitBlockKeepMarks } from "prosemirror-commands";
+import { splitListItemKeepMarks, sinkListItem, liftListItem } from "prosemirror-schema-list";
+import * as tableCommands from "prosemirror-tables";
+
 // src/document-snapshot.js
 var schema = createCanonicalEditorSchema();
 

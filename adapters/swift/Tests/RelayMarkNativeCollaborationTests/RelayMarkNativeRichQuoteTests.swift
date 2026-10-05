@@ -33,7 +33,7 @@ final class RelayMarkNativeRichQuoteTests: XCTestCase {
             let row = try XCTUnwrap(before.blockPaths.firstIndex(of: path))
             let change = try RelayMarkNativeRichReturn.apply(document: native, blockPath: path,
                 utf16Offset: offset, expectedSnapshot: snapshot)
-            try peer.applyUpdate(change.update)
+            try peer.applyUpdate(change.change.update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
             XCTAssertEqual(String(try native.richProseProjection().text.characters),
                 (String(before.text.characters) as NSString).replacingCharacters(

@@ -30,7 +30,11 @@
     "@tiptap/y-tiptap": "3.0.9",
     "core-js-pure": "3.50.0",
     "markdown-it": "^15.0.2",
+    "prosemirror-commands": "1.7.2",
     "prosemirror-model": "1.25.12",
+    "prosemirror-schema-list": "1.5.1",
+    "prosemirror-state": "1.4.4",
+    "prosemirror-tables": "1.8.5",
     "prosemirror-transform": "1.12.2"
   }
 }

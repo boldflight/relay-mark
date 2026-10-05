@@ -8,7 +8,60 @@ import {proseMirrorToRelayMark,relayMarkToProseMirror,assertAuthoredMetadata} fr
 import {stableStringify} from './canonical-json.js';
 import {validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
 
+import {EditorState,Selection} from 'prosemirror-state';
+import {newlineInCode,createParagraphNear,liftEmptyBlock,splitBlockKeepMarks} from 'prosemirror-commands';
+import {splitListItemKeepMarks,sinkListItem,liftListItem} from 'prosemirror-schema-list';
+import * as tableCommands from 'prosemirror-tables';
+
 const schema=createCanonicalEditorSchema();
+
+/** Actual maintained command execution over the admitted canonical PM tree.
+ * Native uses these exact steps with its existing PM/Yrs writer. No CRDT replica,
+ * original-state replacement, identity allocation or transport authority lives here.
+ * IDs created/copied by the command are repaired once by that same writer owner.
+ */
+export function createContentEditCommand(admittedDocument,request) {
+ if(!request||Object.keys(request).some(key=>!['command','selection'].includes(key))||typeof request.command!=='string'||!request.selection||
+    JSON.stringify(request).length>524288)throw TypeError('Invalid canonical editor command');
+ proseMirrorToRelayMark(admittedDocument);
+ const document=schema.nodeFromJSON(admittedDocument);document.check();
+ const selection=Selection.fromJSON(document,request.selection);
+ if(stableStringify(selection.toJSON())!==stableStringify(request.selection))throw TypeError('Noncanonical editor selection');
+ const state=EditorState.create({schema,doc:document,selection});
+ let transaction,kind='edit';const dispatch=tr=>{if(transaction)throw TypeError('Multiple command transactions');transaction=tr;};
+ const cursor=selection.$from;
+ const item=cursor.depth>=2?cursor.node(-1):null;
+ const listItem=item&&['listItem','taskItem'].includes(item.type.name)?item.type:null;
+ let accepted=false;
+ if(request.command==='return'){
+  if(listItem){
+   // An authored linked-task relationship is domain truth. A whole-item lift
+   // cannot silently discard it; nested lifting retains the same task item.
+   if(cursor.parent.content.size===0&&item.childCount===1&&item.attrs.entityId&&
+      (cursor.depth<4||cursor.node(-3).type!==listItem))throw TypeError('Canonical editor command refused: linked task lift');
+   accepted=splitListItemKeepMarks(listItem,listItem.name==='taskItem'?{checked:false,entityId:null}:undefined)(state,dispatch);
+   if(accepted)kind=cursor.parent.content.size===0?'exit':'split';
+  }
+  if(!accepted){
+   for(const [command,resultKind] of [[newlineInCode,'split'],[createParagraphNear,'split'],[liftEmptyBlock,'exit'],[splitBlockKeepMarks,'split']]){
+    if(command(state,dispatch)){accepted=true;kind=resultKind;break;}
+   }
+  }
+ }else if(request.command==='sink_list_item'||request.command==='lift_list_item'){
+  if(listItem){
+   if(request.command==='lift_list_item'&&item.attrs.entityId&&
+      (cursor.depth<4||cursor.node(-3).type!==listItem))throw TypeError('Canonical editor command refused: linked task lift');
+   accepted=(request.command==='sink_list_item'?sinkListItem:liftListItem)(listItem)(state,dispatch);
+  }
+ }else{
+  const allowed=new Set(['addRowBefore','addRowAfter','deleteRow','addColumnBefore','addColumnAfter','deleteColumn','mergeCells','splitCell','toggleHeaderRow','toggleHeaderColumn','toggleHeaderCell','deleteTable']);
+  if(!allowed.has(request.command))throw TypeError('Unknown canonical editor command');
+  accepted=tableCommands[request.command](state,dispatch);
+ }
+ if(!accepted||!transaction||!transaction.docChanged||transaction.steps.length>512)throw TypeError('Canonical editor command refused');
+ transaction.doc.check();
+ return {kind,steps:transaction.steps.map(step=>step.toJSON()),document:transaction.doc.toJSON(),selection:transaction.selection.toJSON()};
+}
 
 export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={}) {
  if(!operation||operation.kind!=='content_edit'||!Array.isArray(operation.steps)||
