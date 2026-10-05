@@ -6046,7 +6046,7 @@ function snapshotToDocument(snapshot3) {
 }
 
 // src/content-edit-witness.js
-import { Step } from "prosemirror-transform";
+import { Step, Transform } from "prosemirror-transform";
 var schema2 = createCanonicalEditorSchema();
 var MAX_UNITS = 131072;
 var MAX_SOURCE_UNITS = 12582912;
@@ -6572,7 +6572,7 @@ function captureContentEditFootprint(doc, bytes2, { maximumSteps = 1e6 } = {}) {
 }
 
 // src/document-patch.js
-import { Transform, DocAttrStep, AttrStep } from "prosemirror-transform";
+import { Transform as Transform2, DocAttrStep, AttrStep } from "prosemirror-transform";
 import { Mark } from "prosemirror-model";
 var schema3 = createCanonicalEditorSchema();
 

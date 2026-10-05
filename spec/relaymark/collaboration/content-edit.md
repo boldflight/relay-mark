@@ -325,9 +325,12 @@ this library confer no authority.
 
 The exact append Slice ordinal binds each original archive block. The proof
 checks its complete props, marks, atoms and child order, allowing only newly
-allocated `relaymarkId` values. Following AttrSteps may repair null/duplicate
-imported IDs using the same maintained allocator. Unique-ID rewrites, old-node
-repairs, other attributes, open Slices, replacements and metadata changes refuse.
+allocated `relaymarkId` values. Following AttrSteps or the exact maintained `Transform.setNodeMarkup` output
+(ReplaceAroundStep for containers, ReplaceStep for leaves) may repair null or
+duplicate imported IDs. The witness compares the original Step to the maintained
+command with only `relaymarkId` changed, preserving type, marks, content, other
+attributes and exact gap/Slice geometry. Unique-ID rewrites, old-node repairs,
+other attributes, open Slices, content replacements and metadata changes refuse.
 Target document metadata remains unchanged; donor metadata remains review evidence.
 
 The result's `recovery_regions` entries contain original XML `archive_path`,

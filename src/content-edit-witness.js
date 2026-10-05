@@ -1,7 +1,7 @@
 /** Causal identity preparation. This is deliberately not final admission: hosts
  * still prove complete non-text/deletion correspondence and accepted history scope. */
 import {snapshotToDocument} from './document-snapshot.js';
-import {Step} from 'prosemirror-transform';
+import {Step,Transform} from 'prosemirror-transform';
 import {relayMarkToProseMirror} from './document-adapter.js';
 import {stableStringify} from './canonical-json.js';
 import {validateTextAttributes} from './document-inline.js';
@@ -227,12 +227,24 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
  // Any append repair must be the existing ID allocator repairing a null or
  // duplicated imported ID. Arbitrary field changes and old-node repairs refuse.
  for(const step of operation.steps.slice(1)){
-  keys(step,['stepType','pos','attr','value']);
-  if(step.stepType!=='attr'||step.attr!=='relaymarkId'||step.pos<lower||step.pos>=upper)throw TypeError('Illegal reviewed append repair');
-  const doc=schema.nodeFromJSON(intermediate),node=doc.nodeAt(step.pos);
-  if(!node||!Object.hasOwn(node.attrs,'relaymarkId'))throw TypeError('Unavailable reviewed repair node');
+  const attributeStep=step.stepType==='attr';
+  const position=attributeStep?step.pos:step.from;
+  if(attributeStep)keys(step,['stepType','pos','attr','value']);
+  else if(step.stepType!=='replaceAround'&&step.stepType!=='replace')throw TypeError('Illegal reviewed append repair');
+  if((attributeStep&&step.attr!=='relaymarkId')||!Number.isSafeInteger(position)||position<lower||position>=upper)throw TypeError('Illegal reviewed append repair');
+  const doc=schema.nodeFromJSON(intermediate),node=doc.nodeAt(position);
+  if(!node||!Object.hasOwn(node.attrs,'relaymarkId')||position+node.nodeSize>upper)throw TypeError('Unavailable reviewed repair node');
   let matches=0;doc.descendants(n=>{if(n.attrs.relaymarkId===node.attrs.relaymarkId)matches++;});
   if(node.attrs.relaymarkId!==null&&matches<2)throw TypeError('Reviewed repair changed a unique authored identity');
+  const value=attributeStep?step.value:step.slice?.content?.[0]?.attrs?.relaymarkId;
+  if(typeof value!=='string'||value===node.attrs.relaymarkId)throw TypeError('Invalid reviewed allocated identity');
+  // Community UniqueID uses setNodeMarkup: ReplaceAroundStep for non-leaves,
+  // ReplaceStep for leaves. Compare the untouched original JSON to that exact
+  // maintained command with only relaymarkId changed, including its gap/Slice.
+  const repair=new Transform(doc);
+  if(attributeStep)repair.setNodeAttribute(position,'relaymarkId',value);
+  else repair.setNodeMarkup(position,null,{...node.attrs,relaymarkId:value},node.marks);
+  if(repair.steps.length!==1||!same(repair.steps[0].toJSON(),step))throw TypeError('Illegal reviewed append repair');
   const applied=Step.fromJSON(schema,step).apply(doc);if(applied.failed)throw TypeError('Refused maintained identity repair');intermediate=applied.doc.toJSON();
  }
  const expected=interpret(sender.pm,operation);

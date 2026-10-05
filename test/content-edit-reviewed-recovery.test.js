@@ -34,7 +34,7 @@ import {prosemirrorToYXmlFragment,initProseMirrorDoc,updateYFragment} from '@tip
 import {Step,Transform} from 'prosemirror-transform';
 const schema=ContentEdit.createCanonicalEditorSchema();
 const encode=bytes=>Buffer.from(bytes).toString('base64');
-function duplicateEvidence({repairIDs=false}={}){
+function duplicateEvidence({repairIDs=false,markupRepairs=false,afterRepairs=null,repairAttributes=null}={}){
  const donor=new Y.Doc({gc:false}),sender=new Y.Doc({gc:false}),current=new Y.Doc({gc:false});donor.clientID=21;sender.clientID=31;
  const ast=parseDocument('Same **🌍**\n\nSame **🌍**\n\n@Callout(tone: "info") {\nKept *🌍*\n}\n\n| A | B |\n| --- | --- |\n| C | D |\n\n![kept](https://example.com/kept.png)',{namespace:'regional-duplicate'});
  ast.frontmatter={title:'Archived title'};
@@ -56,7 +56,7 @@ function duplicateEvidence({repairIDs=false}={}){
  if(repairIDs)for(const node of content){clear(node,pos);pos+=schema.nodeFromJSON(node).nodeSize;}
  const steps=[{stepType:'replace',from:initialized.doc.content.size,to:initialized.doc.content.size,slice:{content}}];
  let target=Step.fromJSON(schema,steps[0]).apply(initialized.doc).doc;
- if(repairIDs){const tr=new Transform(target);for(const [position,id]of repairs)tr.setNodeAttribute(position,'relaymarkId',id);steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
+ if(repairIDs){const tr=new Transform(target);for(const [position,id]of repairs){const node=tr.doc.nodeAt(position);if(markupRepairs)tr.setNodeMarkup(position,null,repairAttributes?repairAttributes(node,{...node.attrs,relaymarkId:id}):{...node.attrs,relaymarkId:id},node.marks);else tr.setNodeAttribute(position,'relaymarkId',id);}if(afterRepairs)afterRepairs(tr);steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
  const updates=[];sender.on('update',update=>updates.push(update));
  initialized.meta.contentEditWrite=ContentEdit.createContentEditWrite(initialized.doc,steps,target);updateYFragment(sender,sender.getXmlFragment('default'),target,initialized.meta);
  assert.equal(updates.length,1);Y.applyUpdate(current,updates[0]);
@@ -112,6 +112,49 @@ test('actual appended null-ID allocation repairs remain inside imported node pos
  assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
 });
 
+
+test('mounted setNodeMarkup allocator repairs keep exact rich imported regions and original steps',()=>{
+ const {evidence,mutation}=duplicateEvidence({repairIDs:true,markupRepairs:true});
+ assert.ok(evidence.operation.steps.some(step=>step.stepType==='replaceAround'));
+ assert.ok(evidence.operation.steps.slice(1).some(step=>step.stepType==='replace')); // actual image/video leaf repairs
+ const originalSteps=JSON.stringify(evidence.operation.steps),proof=ContentEdit.prepareReviewedRecoveryWitness(evidence);
+ assert.equal(proof.complete_recovery_correspondence,true);assert.deepEqual(proof.text_items,{runs:[]});
+ assert.deepEqual(proof.proven_copies,[]);assert.equal(JSON.stringify(evidence.operation.steps),originalSteps);
+ assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
+ assert.deepEqual(proof.authored_document.frontmatter,{title:'Current title'});
+});
+test('mounted allocator repairs cannot change geometry, rich fields, content or existing target nodes',()=>{
+ const {evidence}=duplicateEvidence({repairIDs:true,markupRepairs:true});
+ const at=evidence.operation.steps.findIndex(step=>step.stepType==='replaceAround');
+ const leaf=evidence.operation.steps.findIndex((step,i)=>i>0&&step.stepType==='replace');
+ for(const mutate of [
+  e=>{e.operation.steps[at].gapFrom++;},
+  e=>{e.operation.steps[at].gapTo--;},
+  e=>{e.operation.steps[at].insert=0;},
+  e=>{e.operation.steps[at].structure=false;},
+  e=>{e.operation.steps[at].slice.content[0].type='heading';},
+  e=>{e.operation.steps[at].slice.content[0].marks=[{type:'bold'}];},
+  e=>{e.operation.steps[at].slice.content[0].content=[{type:'text',text:'Extra'}];},
+  e=>{e.operation.steps[at].slice.content[0].attrs.relaymarkId=null;},
+  e=>{e.operation.steps[leaf].slice.content[0].attrs.width=999;},
+  e=>{e.operation.steps[leaf].to++;},
+  e=>{const tr=new Transform(schema.nodeFromJSON(relayMarkToProseMirror(parseDocument('Current **peer** prefix',{namespace:'regional-target'}))));tr.setNodeMarkup(0,null,{...tr.doc.nodeAt(0).attrs,relaymarkId:'b00000000000040008000000000000001'});e.operation.steps.push(tr.steps[0].toJSON());}
+ ]){const altered=structuredClone(evidence);mutate(altered);assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(altered));}
+});
+
+test('actual matching repair updates cannot alter imported properties or unique retained target identity',()=>{
+ for(const repairAttributes of [
+  (node,attrs)=>node.type.name==='image'?{...attrs,width:999}:attrs,
+  (node,attrs)=>node.type.name==='callout'?{...attrs,tone:'warning'}:attrs
+ ]){
+  const {evidence}=duplicateEvidence({repairIDs:true,markupRepairs:true,repairAttributes});
+  // Every changed field is in the actual Steps, update, snapshots and footprint.
+  // Visible-result equality must not grant an unrelated repair permission.
+  assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(evidence),/Illegal reviewed append repair/);
+ }
+ const {evidence}=duplicateEvidence({repairIDs:true,markupRepairs:true,afterRepairs:tr=>{const node=tr.doc.nodeAt(0);tr.setNodeMarkup(0,null,{...node.attrs,relaymarkId:'b00000000000040008000000000000001'},node.marks);}});
+ assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(evidence),/Illegal reviewed append repair/);
+});
 
 test('regional human mapping follows exact original item/type and path despite duplicated text',()=>{
  const {evidence}=duplicateEvidence(),result=ContentEdit.prepareReviewedRecoveryWitness(evidence);
