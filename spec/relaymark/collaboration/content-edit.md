@@ -264,3 +264,11 @@ Canonical source construction emits only schema-owned reference/tag attrs.
 Null status/subtitle/color from historical presentation are recorded finite
 snapshot removals, with original bytes retained. Non-null authored/presentation
 values require retained evidence and are refused rather than discarded.
+
+Maintained checkpoint hydration uses TextSelection.between on resolved
+endpoints in the new rich document. The initial paragraph caret must not become
+an invalid caret inside a list/table/callout container during force-rerender.
+This selection-only correction allocates no document items or alternate writer.
+Fork 6ffa324bbcc9f61037e5d26b47da123e67afc8f4 is reproduced byte-for-byte
+by the existing exact-3.0.9 binding preparation helper; library publication and
+client artifact rebuild remain separate acceptance.
