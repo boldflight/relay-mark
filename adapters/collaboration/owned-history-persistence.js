@@ -26,7 +26,7 @@ export function restoreOwnedHistoryState(doc,manager,archive,options){
  fields(archive,['scope','state_sha256','snapshot_base64','checkpoint','selections']);fields(archive.scope,['document_id','incarnation']);fields(archive.selections,['undo','redo']);
  if(JSON.stringify(scope(options))!==JSON.stringify(archive.scope)||JSON.stringify(archive).length>32*1024*1024||manager.doc!==doc||doc.gc||manager.undoStack.length||manager.redoStack.length)throw TypeError('Conflicting local history archive');
  const ownerID=readOwnedHistoryOwner(manager);if(archive.checkpoint.owner_id!==ownerID)throw TypeError('Conflicting local history owner');
- const snapshot=Y.decodeSnapshot(decode(archive.snapshot_base64)),cut=Y.createDocFromSnapshot(doc,snapshot);
+ const snapshot=Y.decodeSnapshot(decode(archive.snapshot_base64)),cut=Y.createDocFromSnapshot(doc,snapshot,new Y.Doc({gc:false}));
  try{if(hash(Y.encodeStateAsUpdate(cut))!==archive.state_sha256)throw TypeError('Local history retained state mismatch');}finally{cut.destroy();}
  const selections={};for(const[name,wire]of [['undo',archive.checkpoint.undo_stack],['redo',archive.checkpoint.redo_stack]]){if(!Array.isArray(archive.selections[name])||archive.selections[name].length!==wire.length)throw TypeError('Local cursor stack mismatch');selections[name]=archive.selections[name].map(value=>cursor(value,doc));if(options.selectionKey===undefined&&selections[name].some(value=>value!==null))throw TypeError('Cursor binding is required');}
  // Admission failure must never partly install stacks/redone sidecars on the

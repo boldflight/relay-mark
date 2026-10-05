@@ -7098,7 +7098,7 @@ function restoreOwnedHistoryState(doc, manager, archive, options) {
   if (JSON.stringify(scope(options)) !== JSON.stringify(archive.scope) || JSON.stringify(archive).length > 32 * 1024 * 1024 || manager.doc !== doc || doc.gc || manager.undoStack.length || manager.redoStack.length) throw TypeError("Conflicting local history archive");
   const ownerID = readOwnedHistoryOwner(manager);
   if (archive.checkpoint.owner_id !== ownerID) throw TypeError("Conflicting local history owner");
-  const snapshot3 = Y3.decodeSnapshot(decode(archive.snapshot_base64)), cut = Y3.createDocFromSnapshot(doc, snapshot3);
+  const snapshot3 = Y3.decodeSnapshot(decode(archive.snapshot_base64)), cut = Y3.createDocFromSnapshot(doc, snapshot3, new Y3.Doc({ gc: false }));
   try {
     if (hash(Y3.encodeStateAsUpdate(cut)) !== archive.state_sha256) throw TypeError("Local history retained state mismatch");
   } finally {

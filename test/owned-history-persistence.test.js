@@ -6,6 +6,8 @@ function owner(update){const doc=new Y.Doc({gc:false}),root=doc.getXmlFragment('
 test('cold actual manager restores original group and cursor before selective undo across a later peer',()=>{
  const a=owner(),key={},bkey={};let b,peer;
  try{a.manager.on('stack-item-added',e=>{if(!a.manager.undoing&&!a.manager.redoing)bindOwnedCommandGroup(a.manager,e,command);else bindOwnedCommandHistory(a.manager,e);});
+ // A real editor bootstrap can retain older deleted paragraphs before input.
+ const obsolete=new Y.XmlElement('paragraph');obsolete.setAttribute('relaymarkId','44444444444444448444444444444444');obsolete.insert(0,[new Y.XmlText('obsolete seed')]);a.doc.transact(()=>{a.root.insert(1,[obsolete]);a.root.delete(1,1);},'bootstrap');
  const text=a.root.get(0).get(0),anchor=Y.createRelativePositionFromTypeIndex(text,5);
  a.doc.transact(()=>text.insert(5,'!'),a.origin);a.manager.undoStack[0].meta.set(key,{type:'text',anchor,head:anchor,absAnchor:6,absHead:6,depth:undefined});
  const saved=Runtime.exportOwnedHistoryState(a.doc,a.manager,{...scope,selectionKey:key});const bytes=Y.encodeStateAsUpdate(a.doc);
