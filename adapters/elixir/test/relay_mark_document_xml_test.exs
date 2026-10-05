@@ -305,4 +305,31 @@ defmodule RelayMark.DocumentXMLTest do
 
     assert RelayMark.DocumentXML.to_document(snapshot) == {:ok, expected}
   end
+
+  test "unconfigured form numeric attrs share canonical null defaults across retained XML and rich projections" do
+    fixture = Path.join(@fixtures, "canonical-form.json") |> File.read!() |> Jason.decode!()
+    ast = fixture["expected_ast"] |> Map.put("meta", %{"retain_null" => nil})
+    ast = put_in(ast, ["blocks", Access.at(0), "props", "settings", "retain_null"], nil)
+    assert {:ok, snapshot} = RelayMark.DocumentXML.from_document(ast)
+    # Maintained Yrs/Yex may omit unused numeric null attrs. Those optional
+    # unconfigured numbers have the same canonical AST default as PM.
+    without_unused = omit_unused_form_numbers(snapshot)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(without_unused)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(snapshot)
+    assert {:ok, ^snapshot} = RelayMark.DocumentXML.from_document(ast)
+  end
+
+  defp omit_unused_form_numbers(
+         %{"name" => name, "attributes" => attrs, "children" => children} = node
+       )
+       when name in ["questionBlock", "questionOption"] do
+    unused = if name == "questionBlock", do: ~w(points min max), else: ~w(points)
+    attrs = Map.reject(attrs, fn {key, value} -> key in unused and is_nil(value) end)
+    %{node | "attributes" => attrs, "children" => Enum.map(children, &omit_unused_form_numbers/1)}
+  end
+
+  defp omit_unused_form_numbers(%{"children" => children} = node),
+    do: %{node | "children" => Enum.map(children, &omit_unused_form_numbers/1)}
+
+  defp omit_unused_form_numbers(node), do: node
 end

@@ -470,7 +470,7 @@ defmodule RelayMark.DocumentXML do
         "questionOption" ->
           require!(parent == "questionBlock", :option_parent)
           validate_form_props!(props, true)
-          {"relay.form_option", props}
+          {"relay.form_option", Map.put_new(props, "points", nil)}
 
         "questionBlock" ->
           validate_form_props!(props, false)
@@ -488,7 +488,11 @@ defmodule RelayMark.DocumentXML do
             :duplicate_option_identity
           )
 
-          {"relay.form_question", props}
+          {"relay.form_question",
+           props
+           |> Map.put_new("points", nil)
+           |> Map.put_new("min", nil)
+           |> Map.put_new("max", nil)}
 
         "heading" ->
           require!(is_integer(props["level"]) and props["level"] in 1..6, :heading_level)

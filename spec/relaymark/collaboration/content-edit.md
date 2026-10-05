@@ -294,3 +294,10 @@ Checkpoint export at subsequent cuts and the existing inverse replay API accept 
 A sender frontier earlier than the cut remains valid when later advancement was peer-only and the complete owned stack exists in that retained sender state. The package proves actual offline Enter undo across a later peer paragraph, a second cut using only its first checkpoint plus the original post-cut undo receipt, cold redo with restored generated identities, and natural marked typing continuation after a cut. Omitting a later already accepted same-owner command is a strict conflict; no synthetic rewind is performed. Root authorization must still authenticate original command membership and all supplied suffix receipts.
 
 The exact maintained Yjs fork is `65fe85d366beba7d28bda1367cd6a35e592c620f`, based on the prior scoped history fork. The two new hook bodies in the preparation owner match the committed fork byte-for-byte. The full prepared module SHA256 is `86e2d731c8426e3c5ef01d4b59a7157bb8ada19cbdb9039a1849f4fb96117761`. The published npm pin remains truthful; fork publication and client artifact rebuilds are unfinished operational acceptance. This package proof does not advance a server attribution baseline or enable source/history delivery.
+
+
+Canonical form AST output includes explicit null for unused numeric settings:
+question `points`, `min`, `max`, and option `points`. Maintained XML may omit
+these unused attrs; the shared XML projector supplies the same PM defaults.
+Configured numeric values and every JSON value in authored metadata/settings,
+including explicit nulls, remain exact. Original XML/update bytes are unchanged.
