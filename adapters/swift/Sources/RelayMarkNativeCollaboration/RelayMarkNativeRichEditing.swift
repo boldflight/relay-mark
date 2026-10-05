@@ -410,14 +410,28 @@ public enum RelayMarkNativeRichEditing {
 
     static func updateWidget(document: RelayMarkNativeDocument, tree: [String: Any], id: String,
                              attributes: [String: Any]) throws -> Change {
-        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
-        let target = try identifiedNode(id, in: source)
-        guard Set(attributes.keys).isSubset(of: Set(target.node.type.attrs.map(\.name))) else {
+        return try updateWidgets(document: document, tree: tree, changes: [(id, attributes)])
+    }
+
+    /// One maintained transform/commit for guarded changes to multiple identified nodes.
+    static func updateWidgets(document: RelayMarkNativeDocument, tree: [String: Any],
+                              changes: [(id: String, attributes: [String: Any])]) throws -> Change {
+        guard !changes.isEmpty, Set(changes.map(\.id)).count == changes.count,
+              changes.reduce(0, { $0 + $1.attributes.count }) <= 512 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
         var transform = PMTransform(source)
-        for name in attributes.keys.sorted() { try transform.step(.attr(pos: target.position, name: name, value: attributes[name]!)) }
-        return try change(transform, source: source, bridge: bridge, document: document)
+        for change in changes {
+            let target = try identifiedNode(change.id, in: source)
+            guard Set(change.attributes.keys).isSubset(of: Set(target.node.type.attrs.map(\.name))) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            for name in change.attributes.keys.sorted() {
+                try transform.step(.attr(pos: target.position, name: name, value: change.attributes[name]!))
+            }
+        }
+        return try self.change(transform, source: source, bridge: bridge, document: document)
     }
 
     static func setBlockStyle(document: RelayMarkNativeDocument, tree: [String: Any], id: String,

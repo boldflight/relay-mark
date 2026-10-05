@@ -85,4 +85,56 @@ final class RelayMarkNativeAttributeCommandTests: XCTestCase {
         XCTAssertEqual(NSDictionary(dictionary: (after["blocks"] as! [[String: Any]])[0]), NSDictionary(dictionary: (before["blocks"] as! [[String: Any]])[0]))
     }
 
+    func testLinkedTaskOccurrencesToggleTogetherWithOneOwnedWitnessAndPeerUndo() throws {
+        let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        var ast = try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.parseDocument("- [ ] First **🌍**\n- [ ] Unlinked\n\n> - [ ] Second Ω", namespace: "linked-batch")) as! [String: Any]
+        let entityID = "11111111-1111-4111-8111-111111111111"
+        var blocks = ast["blocks"] as! [[String: Any]]
+        var topItems = blocks[0]["content"] as! [[String: Any]]
+        topItems[0]["props"] = ["checked": false, "entityId": entityID]
+        blocks[0]["content"] = topItems
+        var quote = blocks[1]["content"] as! [[String: Any]]
+        var nestedItems = quote[0]["content"] as! [[String: Any]]
+        nestedItems[0]["props"] = ["checked": false, "entityId": entityID]
+        quote[0]["content"] = nestedItems; blocks[1]["content"] = quote; ast["blocks"] = blocks
+        let seed = try document.initializeDocument(authoredAST: JSONSerialization.data(withJSONObject: ast))
+        try peer.applyUpdate(seed)
+        let items = try document.richProseProjection().taskItems.filter { $0.entityID == entityID }
+        let original = try document.encodeUpdate()
+        let targets = items.map { RelayMarkNativeDocument.TaskItemCheckTarget(path: $0.path, expectedID: $0.id, expectedEntityID: $0.entityID, expectedChecked: $0.checked) }
+        XCTAssertThrowsError(try document.setRichTaskItemsChecked(items: [targets[0]], checked: true, expectedSnapshot: document.snapshot()))
+        XCTAssertThrowsError(try document.setRichTaskItemsChecked(items: [targets[0], targets[0]], checked: true, expectedSnapshot: document.snapshot()))
+        let stale = RelayMarkNativeDocument.TaskItemCheckTarget(path: targets[1].path, expectedID: targets[1].expectedID, expectedEntityID: entityID, expectedChecked: true)
+        XCTAssertThrowsError(try document.setRichTaskItemsChecked(items: [targets[0], stale], checked: true, expectedSnapshot: document.snapshot()))
+        XCTAssertEqual(try document.encodeUpdate(), original)
+        let observation = try document.captureContentEditObservation()
+        let operationID = UUID()
+        var change: RelayMarkNativeRichEditing.Change?
+        _ = try document.performOwnedCommand(operationID: operationID, separateHistoryItem: true) {
+            let targets = items.map { RelayMarkNativeDocument.TaskItemCheckTarget(path: $0.path, expectedID: $0.id, expectedEntityID: $0.entityID, expectedChecked: $0.checked) }
+            let result = try document.setRichTaskItemsChecked(items: targets, checked: true, expectedSnapshot: document.snapshot())
+            change = result; return result.update
+        }
+        XCTAssertEqual(try document.richProseProjection().taskItems.filter { $0.entityID == entityID }.map(\.checked), [true, true])
+        let actual = try XCTUnwrap(change)
+        let steps = try JSONSerialization.jsonObject(with: actual.steps) as! [[String: Any]]
+        XCTAssertEqual(steps.map { $0["stepType"] as! String }, ["attr", "attr"])
+        let witness = try JSONSerialization.jsonObject(with: document.buildContentEditWitness(observation, steps: actual.steps, update: actual.update)) as! [String: Any]
+        XCTAssertEqual(((witness["text_items"] as! [String: Any])["runs"] as! [Any]).count, 0)
+        XCTAssertEqual((witness["proven_copies"] as! [Any]).count, 0)
+        try peer.applyUpdate(actual.update)
+        XCTAssertEqual(try document.authoredDocument(), try peer.authoredDocument())
+        let peerText = try RelayMarkNativeRichEditing.replace(document: peer, range: NSRange(location: 0, length: 0), runs: [("Peer ", [:])], expectedSnapshot: peer.snapshot())
+        try document.applyUpdate(peerText.update)
+        let inverse = try XCTUnwrap(document.undoWithReference())
+        XCTAssertEqual(inverse.reference, operationID)
+        XCTAssertEqual(try document.richProseProjection().taskItems.filter { $0.entityID == entityID }.map(\.checked), [false, false])
+        XCTAssertTrue(String(try document.richProseProjection().text.characters).contains("Peer First 🌍"))
+        let redo = try XCTUnwrap(document.redoWithReference())
+        XCTAssertEqual(redo.reference, operationID)
+        XCTAssertEqual(try document.richProseProjection().taskItems.filter { $0.entityID == entityID }.map(\.checked), [true, true])
+        XCTAssertFalse(try document.richProseProjection().taskItems.first(where: { $0.entityID == nil })!.checked)
+        XCTAssertTrue(String(try document.richProseProjection().text.characters).contains("Peer First 🌍"))
+    }
+
 }

@@ -1485,40 +1485,61 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Toggle an identified canonical task at any supported nesting depth. The
-    /// current whole-document contract and the item's stable ID guard a path
-    /// that may have shifted after a remote insertion.
-    public func setRichTaskItemChecked(path: [Int], expectedID: String,
-                                             expectedEntityID: String?, expectedChecked: Bool,
-                                             checked: Bool) throws -> RelayMarkNativeRichEditing.Change {
-        guard integrationStatus().isComplete, path.count >= 2, checked != expectedChecked,
-              Self.validTaskID(["relaymarkId": expectedID]) else {
+    public struct TaskItemCheckTarget: Sendable {
+        public let path: [Int]
+        public let expectedID: String
+        public let expectedEntityID: String?
+        public let expectedChecked: Bool
+
+        public init(path: [Int], expectedID: String, expectedEntityID: String?, expectedChecked: Bool) {
+            self.path = path; self.expectedID = expectedID
+            self.expectedEntityID = expectedEntityID; self.expectedChecked = expectedChecked
+        }
+    }
+
+    /// All occurrences of a linked Task change together. Every supplied
+    /// identity/status and complete linked occurrence set is guarded before
+    /// the single maintained transform writes any attribute.
+    public func setRichTaskItemsChecked(items: [TaskItemCheckTarget], checked: Bool,
+                                        expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
+        guard integrationStatus().isComplete, !items.isEmpty, items.count <= 512,
+              try snapshot() == expectedSnapshot,
+              Set(items.map(\.expectedID)).count == items.count else {
             throw Failure.unsupportedProseEdit
         }
-        _ = try RelayMarkNativeDocumentProjection.project(document: self)
-        var node = root
-        var parent: YXmlNode?
-        for index in path {
-            guard index >= 0, let child = node.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
-            parent = node
-            node = child
+        let current = try richProseProjection().taskItems
+        for item in items {
+            guard let actual = current.first(where: { $0.id == item.expectedID }),
+                  actual.path == item.path, actual.entityID == item.expectedEntityID,
+                  actual.checked == item.expectedChecked else { throw Failure.invalidAnchor }
         }
-        guard parent?.tag() == "taskList", node.kind() == "element", node.tag() == "taskItem" else {
+        let supplied = Set(items.map(\.expectedID))
+        let entities = Set(items.compactMap(\.expectedEntityID))
+        guard current.filter({ $0.entityID.map(entities.contains) ?? false }).allSatisfy({ supplied.contains($0.id) }) else {
             throw Failure.invalidAnchor
         }
-        let attributes = try node.attributes()
-        guard attributes["relaymarkId"] as? String == expectedID,
-              (attributes["entityId"] as? String) == expectedEntityID else {
-            throw Failure.invalidAnchor
+        let changes = items.filter { $0.expectedChecked != checked }.map { (id: $0.expectedID, attributes: ["checked": checked] as [String: Any]) }
+        guard !changes.isEmpty,
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+            throw Failure.unsupportedProseEdit
         }
-        let current: Bool
-        if let value = attributes["checked"] {
-            guard let number = value as? NSNumber,
-                  CFGetTypeID(number) == CFBooleanGetTypeID() else { throw Failure.unsupportedProseEdit }
-            current = number.boolValue
-        } else { current = false }
-        guard current == expectedChecked else { throw Failure.invalidAnchor }
-        return try authoredAttributeChange(node, attributes: ["checked": checked])
+        return try RelayMarkNativeRichEditing.updateWidgets(document: self, tree: tree, changes: changes)
+    }
+
+    /// The single-item entry point uses the same complete linked occurrence
+    /// guard and maintained batch owner; unlinked tasks remain independent.
+    public func setRichTaskItemChecked(path: [Int], expectedID: String,
+                                      expectedEntityID: String?, expectedChecked: Bool,
+                                      checked: Bool) throws -> RelayMarkNativeRichEditing.Change {
+        let snapshot = try self.snapshot()
+        let current = try richProseProjection().taskItems
+        guard let target = current.first(where: { $0.id == expectedID }), target.path == path,
+              target.entityID == expectedEntityID, target.checked == expectedChecked else { throw Failure.invalidAnchor }
+        let matching = current.filter { expectedEntityID == nil ? $0.id == expectedID : $0.entityID == expectedEntityID }
+        guard matching.allSatisfy({ $0.checked == expectedChecked }) else { throw Failure.invalidAnchor }
+        return try setRichTaskItemsChecked(items: matching.map {
+            TaskItemCheckTarget(path: $0.path, expectedID: $0.id, expectedEntityID: $0.entityID, expectedChecked: $0.checked)
+        }, checked: checked, expectedSnapshot: snapshot)
     }
 
     /// Edit a one-paragraph, one-text-leaf item without replacing the task
