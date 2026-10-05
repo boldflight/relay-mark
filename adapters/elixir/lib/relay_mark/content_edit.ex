@@ -50,6 +50,24 @@ defmodule RelayMark.ContentEdit do
 
   def build_witness(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Prove complete-block reviewed append regions against exact archived structure and actual fresh allocations. The host still authenticates archive hashes, target guard, donor ancestry and complete mutation correspondence."
+  def prepare_reviewed_recovery_witness(runtime, evidence) when is_map(evidence),
+    do: execute_arguments(runtime, "prepareReviewedRecoveryWitness", [evidence])
+
+  def prepare_reviewed_recovery_witness(_, _), do: {:error, :invalid_content_edit}
+
+  @doc "Resolve only reviewed imported archive candidates; this issues no human or donor authority."
+  def reviewed_recovery_source_selection(runtime, evidence) when is_map(evidence),
+    do: execute_arguments(runtime, "reviewedRecoverySourceSelection", [evidence])
+
+  def reviewed_recovery_source_selection(_, _), do: {:error, :invalid_content_edit}
+
+  @doc "Map independently authenticated human archive candidates through recomputed structural recovery regions."
+  def map_reviewed_recovery_selection(runtime, evidence) when is_map(evidence),
+    do: execute_arguments(runtime, "mapReviewedRecoverySelection", [evidence])
+
+  def map_reviewed_recovery_selection(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Replay actual maintained PM/Yjs command and compare its complete original mutation footprint. Optional private accepted-owner receipts reconstruct the same maintained UndoManager for inverse correspondence. Hosts still authorize source, scope, receipt membership and accepted undo/redo cycles."
   def replay_mutation(runtime, evidence) when is_map(evidence),
     do: execute_arguments(runtime, "replayContentEditMutation", [evidence])
@@ -67,6 +85,12 @@ defmodule RelayMark.ContentEdit do
     do: execute_arguments(runtime, "produceDocumentPatch", [input])
 
   def produce_document_patch(_, _), do: {:error, :invalid_content_edit}
+
+  @doc "Retire authenticated complete owned groups through the actual reconstructed manager and capture its surviving checkpoint. Source classification and erasure authority remain with the host."
+  def retire_owned_history(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "retireOwnedHistoryCheckpoint", [input])
+
+  def retire_owned_history(_, _), do: {:error, :invalid_content_edit}
 
   @doc "Checkpoint the actual maintained owner after trusted chronological command replay. The host owns scoped checkpoint persistence, coverage and immutable receipt authentication. No raw update archive is returned."
   def checkpoint_owned_history(runtime, input) when is_map(input),

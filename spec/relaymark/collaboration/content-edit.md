@@ -311,3 +311,89 @@ DeleteSet map order may assign fresh item identities to different authored
 fields. Exact candidate footprints remain mandatory: earlier random-order
 native inverse bytes are retained recovery evidence and are not rewritten or
 accepted merely because their final visible content matches.
+
+## Reviewed complete-block recovery regions
+
+`prepareReviewedRecoveryWitness` uses the current maintained Step/identity owner
+for an explicitly reviewed complete-block root-end append. Its evidence is the
+seven normal witness fields plus `archive_identity_snapshot` and
+`reviewed_document`. The internal operation additionally carries
+`reviewed_recovery` with exact archive/review digests, ascending original
+`block_indices`, a fresh `target_guard`, and optional authenticated `donor_cut`.
+The host authenticates those bytes, scope and donor cut; digest syntax checks in
+this library confer no authority.
+
+The exact append Slice ordinal binds each original archive block. The proof
+checks its complete props, marks, atoms and child order, allowing only newly
+allocated `relaymarkId` values. Following AttrSteps may repair null/duplicate
+imported IDs using the same maintained allocator. Unique-ID rewrites, old-node
+repairs, other attributes, open Slices, replacements and metadata changes refuse.
+Target document metadata remains unchanged; donor metadata remains review evidence.
+
+The result's `recovery_regions` entries contain original XML `archive_path`,
+UTF16 `archive_offset`, `count`, and a bare destination selector. They account
+for all fresh imported text, disjoint from ordinary typed/copy destinations.
+This first lane has empty `text_items` and `proven_copies`; it never discovers
+source by text equality or asserts donor human ancestry. The backend separately
+maps only independently authenticated donor-human intervals into these regions;
+unproven remainder stays unknown/generated. Normal command/reference semantics
+are unchanged. Commands retain their 131072-unit and 4096-run guards.
+
+`complete_recovery_correspondence` proves this structural allocation mapping,
+while `requires_mutation_correspondence` and `requires_recovery_authorization`
+remain true. Complete original-update replay, immutable accepted receipts, current
+authorization and reverse donor-erasure checks remain necessary for admission.
+The normal witness entry points refuse `reviewed_recovery` without this regional
+proof, rather than classifying all imported allocations as typed human text.
+
+Swift's `buildReviewedRecoveryWitness` consumes the existing same-owner immediate
+observation token only after successful proof, and returns exact bytes for the
+same immutable `NativeContentEdit.witness` carrier. It adds no replica, archive,
+source store, UndoManager, wire version or alternative editor.
+
+
+### Reviewed recovery candidates and human destination mapping
+
+`reviewedRecoverySourceSelection({archive_identity_snapshot,recovery_regions})`
+returns bare imported source candidates only, bounded by the unchanged command
+extent/run limits. The authority owner independently authenticates/classifies
+those candidates against the final archive-visible identities after exact donor
+and pending-journal reconstruction. It must not substitute the complete earlier
+donor-cut human selector: pending deletions can remove those identities.
+
+`mapReviewedRecoverySelection({archive_identity_snapshot,recovery_regions,source_selector})`
+returns `{destination:{runs}}` for only that independently authenticated human
+subset. Exact source item/type identities resolve to original path/UTF16 offsets,
+which intersect the recomputed region's ordered destination runs. Identical text
+at another path is never searched or inherited. Missing/forged identities,
+Unicode splits, overlapping source/destination regions and mismatched extents
+refuse. Empty authenticated human input produces empty destination; remaining
+imported allocations stay unknown until the backend separately proves ancestry.
+These read helpers do not authenticate archives, issue references, or grant human
+or inverse authority. Full original mutation replay and independently recomputed
+region accounting remain mandatory before admission.
+
+The optional maintained manager `retireHistoryStackItems` operation is a private
+trusted transition, not a document command or receipt credential. The scoped
+`retireOwnedHistoryGroups(manager,groups)` adapter requires exact current owner,
+reference and complete ordered membership before invoking actual whole-stack
+removal. The maintained release owner preserves survivor insertion/deletion,
+redone and ancestor keep reachability, leaves needed global redone links intact,
+and ends capture at the explicit erasure boundary without changing document
+bytes. Source-classification closure and whole-group capability retirement are
+distinct: removing a mixed group's undo ability does not itself erase a later,
+independently authenticated human source fact.
+
+
+`retireOwnedHistoryCheckpoint({initial_state_base64 OR checkpoint,receipts,
+current_state_base64,owner_id,groups})` uses the existing receipt replay owner to
+reconstruct every provided command, compare complete retained cut identity, and
+validate exact whole groups before invoking that maintained transition. The
+result `{checkpoint,retired_groups,undo,redo}` captures the surviving actual
+manager; it contains no raw update archive. Invalid original Steps, owner or
+membership refuse. This input is private trusted evidence: the host freshly
+checks document/incarnation/actor/owner/cut/state digest, immutable receipt
+bytes and erasure dependency closure. An owner UUID alone grants no actor or
+account authority. Scoped native `retireOwnedHistoryGroups` validates the same
+full membership before invoking the matching Yrs owner; archive restore retains
+survivor redone/ancestor reachability and new authoring remains possible.

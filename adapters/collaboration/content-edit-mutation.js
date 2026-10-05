@@ -11,7 +11,7 @@ const fromBase64=value=>Uint8Array.from(atob(value),v=>v.charCodeAt(0));
 import {createCanonicalEditorSchema} from '../../src/editor-model.js';
 import {applyContentEdit,createContentEditWrite,buildContentEditWitness} from '../../src/content-edit.js';
 import {stableStringify,cloneCanonicalJSON as clone} from '../../src/canonical-json.js';
-import {bindOwnedHistoryOwner,readOwnedCommandGroup,bindOwnedCommandGroup,bindOwnedCommandHistory,validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
+import {bindOwnedHistoryOwner,readOwnedCommandGroup,bindOwnedCommandGroup,bindOwnedCommandHistory,validateOwnedCommandGroup,validateOwnedHistory,retireOwnedHistoryGroups} from './owned-command-group.js';
 import {captureContentEditFootprint,captureContentEditSnapshot} from './content-edit-observer.js';
 import {canonicalOperationID} from '../../src/owned-command-group.js';
 import {protectOwnedHistoryBranches} from './owned-history-branches.js';
@@ -155,15 +155,38 @@ export {exportOwnedHistoryState,restoreOwnedHistoryState} from './owned-history-
 /** Trusted verified receipt cut -> data-only actual manager checkpoint. The host
  * persists scope, cut, digest and coverage with its existing checkpoint row. */
 export function createOwnedHistoryCheckpoint(input){
- fields(input,['initial_state_base64','checkpoint','receipts','current_state_base64','owner_id'],['receipts','current_state_base64','owner_id']);canonicalOperationID(input.owner_id);
+ fields(input,['initial_state_base64','checkpoint','receipts','current_state_base64','owner_id'],['receipts','current_state_base64','owner_id']);
+ const retained=checkpointOwner(input);
+ try{return captureMaintainedHistoryCheckpoint(retained.doc,retained.manager,input.owner_id);}
+ finally{retained.destroy();}
+}
+/** Independently scoped dependency retirement only. This reconstructs every
+ * supplied original receipt before changing the actual manager, never filters
+ * serialized stacks or changes source facts. The host authenticates the cut,
+ * complete groups and dependency closure before persisting this checkpoint. */
+export function retireOwnedHistoryCheckpoint(input){
+ fields(input,['initial_state_base64','checkpoint','receipts','current_state_base64','owner_id','groups'],['receipts','current_state_base64','owner_id','groups']);
+ const retained=checkpointOwner(input);
+ try{
+  const before=Y.encodeStateAsUpdate(retained.doc),result=retireOwnedHistoryGroups(retained.manager,input.groups),after=Y.encodeStateAsUpdate(retained.doc);
+  if(before.length!==after.length||before.some((byte,index)=>byte!==after[index]))throw TypeError('Retirement changed retained document state');
+  return {checkpoint:captureMaintainedHistoryCheckpoint(retained.doc,retained.manager,input.owner_id),retired_groups:result.groups,undo:result.undo,redo:result.redo};
+ }finally{retained.destroy();}
+}
+function checkpointOwner(input){
+ canonicalOperationID(input.owner_id);
  if(Object.hasOwn(input,'initial_state_base64')===Object.hasOwn(input,'checkpoint'))throw TypeError('Exactly one trusted checkpoint basis is required');
  if(!Array.isArray(input.receipts))throw TypeError('Unavailable bounded accepted history');
  const baseline=input.checkpoint?(input.receipts[0]?.sender_state_base64??input.current_state_base64):input.initial_state_base64;
  const retained=retainedHistoryOwner(baseline,input.receipts,input.owner_id,input.checkpoint??null);
- try{Y.applyUpdate(retained.doc,bytes(input.current_state_base64));const actual=owner(bytes(input.current_state_base64));try{if(!same(captureContentEditFootprint(retained.doc,Y.encodeStateAsUpdate(retained.doc)),captureContentEditFootprint(actual,Y.encodeStateAsUpdate(actual))))throw TypeError('Checkpoint does not reconstruct exact retained cut');}finally{actual.destroy();}
-  return captureMaintainedHistoryCheckpoint(retained.doc,retained.manager,input.owner_id);
- }finally{retained.destroy();}
+ try{
+  Y.applyUpdate(retained.doc,bytes(input.current_state_base64));const actual=owner(bytes(input.current_state_base64));
+  try{if(!same(captureContentEditFootprint(retained.doc,Y.encodeStateAsUpdate(retained.doc)),captureContentEditFootprint(actual,Y.encodeStateAsUpdate(actual))))throw TypeError('Checkpoint does not reconstruct exact retained cut');}
+  finally{actual.destroy();}
+  return retained;
+ }catch(error){retained.destroy();throw error;}
 }
+
 function retainedHistoryOwner(initial_state_base64,receipts,ownerID,checkpoint=null){
  canonicalOperationID(ownerID);
  if(!Array.isArray(receipts)||receipts.length>4096||(!checkpoint&&receipts.length<1))throw TypeError('Unavailable bounded accepted history');

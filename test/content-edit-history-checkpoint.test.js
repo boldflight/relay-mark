@@ -46,3 +46,24 @@ test('typing capture continues across checkpoint and genuine marked group suffix
  assert.throws(()=>Runtime.replayContentEditMutation({...evidence,sender_state_base64:first.sender_state_base64,checkpoint:latest,receipts:[]}));
  cut.destroy();
 });
+
+
+test('authenticated checkpoint retirement preserves survivor undo and new authoring while rejecting altered original receipt',()=>{
+ const seed=new Y.Doc({gc:false});seed.clientID=101;const root=seed.getXmlFragment('default'),paragraph=new Y.XmlElement('paragraph'),text=new Y.XmlText();paragraph.setAttribute('relaymarkId','b00000000000040008000000000000001');root.insert(0,[paragraph]);paragraph.insert(0,[text]);text.insert(0,'A🌍Z');
+ const initial=enc(Y.encodeStateAsUpdate(seed)),ids=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222'],receipts=[];let state=initial;
+ for(const [index,to]of [2,3].entries()){
+  const result=Runtime.produceContentEdit({state_base64:state,writer_client:101,transaction_id:ids[index],owner_id:ownerID,steps:[{stepType:'replace',from:1,to}]});
+  receipts.push({transaction_id:ids[index],operation:{kind:'content_edit',steps:result.content_edit.steps,copies:result.content_edit.copies,group:result.content_edit.group},update_base64:result.update_base64,sender_state_base64:state});state=result.state_base64;
+ }
+ const args={initial_state_base64:initial,receipts,current_state_base64:state,owner_id:ownerID,groups:[receipts[0].operation.group]};
+ assert.equal(typeof Runtime.retireOwnedHistoryCheckpoint,'function');
+ const forged=structuredClone(args);forged.receipts[0].operation.steps[0].to=3;assert.throws(()=>Runtime.retireOwnedHistoryCheckpoint(forged));
+ assert.throws(()=>Runtime.retireOwnedHistoryCheckpoint({...args,groups:[{...args.groups[0],operation_ids:ids}]}));
+ assert.throws(()=>Runtime.retireOwnedHistoryCheckpoint({...args,owner_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'}));
+ const transition=Runtime.retireOwnedHistoryCheckpoint(args);assert.equal(transition.undo,1);assert.equal(transition.redo,0);assert.deepEqual(transition.retired_groups,args.groups);assert.equal(transition.checkpoint.undo_stack.length,1);assert.equal(JSON.stringify(transition).includes('update_base64'),false);
+ const doc=new Y.Doc({gc:false});Y.applyUpdate(doc,dec(state));const actualRoot=doc.getXmlFragment('default'),metadata=doc.getMap('relaymark'),origin={},manager=new Y.UndoManager([actualRoot,metadata],{trackedOrigins:new Set([origin]),captureTimeout:Infinity});
+ Runtime.installMaintainedHistoryCheckpoint(doc,manager,transition.checkpoint,ownerID);const before=Y.encodeStateAsUpdate(doc);assert.deepEqual(before,dec(state));
+ manager.undo();assert.equal(actualRoot.get(0).get(0).toString(),'🌍Z');manager.redo();assert.equal(actualRoot.get(0).get(0).toString(),'Z');manager.undo();assert.equal(actualRoot.get(0).get(0).toString(),'🌍Z');assert.equal(manager.undo(),null,'retired first deletion cannot restore A');
+ manager.stopCapturing();doc.transact(()=>actualRoot.get(0).get(0).insert(3,'Ω'),origin);manager.undo();assert.equal(actualRoot.get(0).get(0).toString(),'🌍Z');
+ manager.destroy();doc.destroy();seed.destroy();
+});

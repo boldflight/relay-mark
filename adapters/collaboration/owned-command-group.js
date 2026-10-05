@@ -43,3 +43,22 @@ export function prepareOwnedHistory(manager,kind){
  for(const item of stack){if(!item?.meta?.get(key))throw TypeError('Unbound actual inverse candidate');ownedGroup(manager,item);}
  return stack.length>0;
 }
+
+/** Trusted local/receipt transition only. This grants no erasure or inverse
+ * authority: callers authenticate dependency closure and checkpoint scope.
+ * Match complete actual group metadata before the maintained release operation. */
+export function retireOwnedHistoryGroups(manager,groups){
+ if(!manager||typeof manager.retireHistoryStackItems!=='function'||!Array.isArray(groups)||groups.length>16384)throw TypeError('Unavailable maintained group retirement');
+ const ownerID=readOwnedHistoryOwner(manager),requested=new Map();
+ for(const value of groups){const group=validateOwnedCommandGroup(value);if(group.owner_id!==ownerID||requested.has(group.reference))throw TypeError('Conflicting retirement owner or group');requested.set(group.reference,group);}
+ const items=[],seen=new Set();
+ for(const item of [...manager.undoStack,...manager.redoStack]){
+  const group=ownedGroup(manager,item),wanted=requested.get(group.reference);
+  if(seen.has(group.reference))throw TypeError('Ambiguous actual retirement group');seen.add(group.reference);
+  if(!wanted)continue;
+  if(group.owner_id!==wanted.owner_id||group.operation_ids.length!==wanted.operation_ids.length||group.operation_ids.some((id,index)=>id!==wanted.operation_ids[index]))throw TypeError('Retirement differs from actual whole group');
+  items.push(item);
+ }
+ if(items.length!==requested.size)throw TypeError('Unavailable actual retirement group');
+ const result=manager.retireHistoryStackItems(items);return {...result,groups:groups.map(freeze)};
+}

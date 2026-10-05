@@ -1,11 +1,12 @@
 /** Causal identity preparation. This is deliberately not final admission: hosts
  * still prove complete non-text/deletion correspondence and accepted history scope. */
 import {snapshotToDocument} from './document-snapshot.js';
+import {Step} from 'prosemirror-transform';
 import {relayMarkToProseMirror} from './document-adapter.js';
 import {stableStringify} from './canonical-json.js';
 import {validateTextAttributes} from './document-inline.js';
 import {createCanonicalEditorSchema} from './editor-model.js';
-import {validateOwnedHistory} from './owned-command-group.js';
+import {validateOwnedHistory,canonicalOperationID} from './owned-command-group.js';
 const schema=createCanonicalEditorSchema(),MAX_UNITS=131072,MAX_SOURCE_UNITS=12_582_912;
 const same=(a,b)=>stableStringify(a)===stableStringify(b);
 function keys(value,allowed,required=allowed){if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!allowed.includes(k))||required.some(k=>!Object.hasOwn(value,k)))throw TypeError('Invalid causal evidence fields');}
@@ -66,10 +67,14 @@ function refuseReusedInsertedText(after,inserted,beforeClocks){
 }
 function freshRuns(after,beforeClocks){return after.runs.flatMap(run=>{const clock=Math.max(run.item.clock,beforeClocks.get(run.item.client)||0),count=run.item.clock+run.count-clock;return count>0?[{...run,item:{client:run.item.client,clock},count,text:run.text.slice(clock-run.item.clock),position:run.position+clock-run.item.clock}]:[]});}
 export function prepareWitness(evidence,interpret){
+ if(evidence.operation?.reviewed_recovery)throw TypeError('Reviewed recovery requires regional correspondence');
+ return prepare(evidence,interpret,null);
+}
+function prepare(evidence,interpret,recoveryDestinations){
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','text_items','footprint']);
  const {footprint,operation}=evidence;if(operation?.history)throw TypeError('Owned history accounting requires maintained accepted-receipt replay');keys(footprint,['state_vector','structs','declared_deletes','deleted_items']);if(!Array.isArray(footprint.structs)||!Array.isArray(footprint.declared_deletes)||!Array.isArray(footprint.deleted_items)||footprint.structs.length+footprint.deleted_items.length>1_000_000)throw TypeError('Invalid complete mutation footprint');
  const beforeClocks=clocks(evidence.before_state_vector),afterClocks=clocks(footprint.state_vector);for(const [client,clock]of beforeClocks)if(clock>(afterClocks.get(client)||0))throw TypeError('Mutation frontier is behind trusted prestate');
- keys(operation,['kind','steps','copies','history','group'],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
+ keys(operation,['kind','steps','copies','history','group',...(recoveryDestinations?['reviewed_recovery']:[])],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
  const sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),before=index(evidence.before_snapshot),after=index(evidence.after_snapshot),expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm))throw TypeError('Actual sender result disagrees with maintained steps');
  refuseReusedInsertedText(senderAfter,expected.inserted_ranges,beforeClocks);
@@ -77,7 +82,8 @@ export function prepareWitness(evidence,interpret){
  const fresh=freshRuns(after,beforeClocks);
  const human=resolve(after,evidence.text_items),destinations=[],proven_copies=[];let copiedUnits=0;
  for(const copy of operation.copies){keys(copy,['source','destination']);const source=resolve(sender,copy.source),destination=resolve(senderAfter,copy.destination);matchedCopy(source,destination,expected.retained_ranges,expected.inserted_ranges);if((copiedUnits+=destination.reduce((n,r)=>n+r.count,0))>MAX_UNITS)throw TypeError('Copied destination limit exceeded');equalContent(destination,resolve(after,copy.destination));destinations.push(...destination);proven_copies.push(copy);}
- disjoint([...human,...destinations]);cover(fresh,[...human,...destinations]);cover([...human,...destinations],fresh);
+ const accounted=[...human,...destinations,...(recoveryDestinations||[])];
+ disjoint(accounted);cover(fresh,accounted);cover(accounted,fresh);
  // Original strings must all be visible and accounted for, including transient
  // allocations that disappear from the final authored result. Never infer this
  // from a state diff, AST equality or currently visible text alone.
@@ -93,6 +99,7 @@ export function prepareWitness(evidence,interpret){
  * identities. Text equality never discovers a source. Clipboard/source authority
  * for inserted Slice content remains an independent host obligation. */
 export function buildWitness(evidence,interpret){
+ if(evidence.operation?.reviewed_recovery)throw TypeError('Reviewed recovery requires regional correspondence');
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint']);
  if(evidence.operation?.history)throw TypeError('Owned history accounting requires maintained accepted-receipt replay');
  keys(evidence.operation,['kind','steps','history','group','copies'],['kind','steps']);
@@ -177,4 +184,132 @@ export function sourceSelectorWindows(snapshot){
 export function validateSourceReadSelector(selected){
  if(JSON.stringify(selected).length>16_777_216)throw TypeError('Source selector transport budget exceeded');
  selection(selected,MAX_SOURCE_UNITS,4096);return true;
+}
+
+/** Complete-block recovery correspondence is allocation evidence only. The host
+ * authenticates the exact archive/review hashes, donor cut and fresh target guard.
+ * No source is discovered by equal values and no human ancestry is granted here.
+ */
+export function prepareReviewedRecoveryWitness(evidence,interpret){
+ const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
+ keys(evidence,[...fields,'archive_identity_snapshot','reviewed_document']);
+ const {operation}=evidence;
+ keys(operation,['kind','steps','copies','group','reviewed_recovery'],['kind','steps','copies','reviewed_recovery']);
+ const review=operation.reviewed_recovery;
+ keys(review,['archive_sha256','reviewed_document_sha256','block_indices','target_guard','donor_cut']);
+ for(const field of ['archive_sha256','reviewed_document_sha256'])if(typeof review[field]!=='string'||!/^[0-9a-f]{64}$/.test(review[field]))throw TypeError('Invalid reviewed archive digest');
+ const indices=review.block_indices;
+ if(!Array.isArray(indices)||!indices.length||indices.length>4096||indices.some((value,i)=>!Number.isSafeInteger(value)||value<0||(i&&value<=indices[i-1])))throw TypeError('Invalid reviewed block indices');
+ const guard=review.target_guard;
+ if(guard&&Object.hasOwn(guard,'body_revision')){keys(guard,['body_revision']);if(typeof guard.body_revision!=='string'||!/^sha256:[0-9a-f]{64}$/.test(guard.body_revision))throw TypeError('Invalid reviewed target guard');}
+ else {keys(guard,['draft_revision']);if(!Number.isSafeInteger(guard.draft_revision)||guard.draft_revision<1)throw TypeError('Invalid reviewed target guard');}
+ if(review.donor_cut!==null){keys(review.donor_cut,['document_id','incarnation','through_update_id']);canonicalOperationID(review.donor_cut.document_id);canonicalOperationID(review.donor_cut.incarnation);if(!Number.isSafeInteger(review.donor_cut.through_update_id)||review.donor_cut.through_update_id<0)throw TypeError('Invalid reviewed donor cut');}
+ if(operation.copies.length)throw TypeError('Complete recovery append cannot claim ordinary copies');
+ const archive=index(evidence.archive_identity_snapshot),sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),after=index(evidence.after_snapshot);
+ const original=schema.nodeFromJSON(archive.pm),before=schema.nodeFromJSON(sender.pm);
+ if(indices.some(i=>i>=original.childCount))throw TypeError('Unavailable reviewed archive block');
+ const reviewed={...archive.document,blocks:indices.map(i=>archive.document.blocks[i])};
+ relayMarkToProseMirror(evidence.reviewed_document);
+ if(!same(reviewed,evidence.reviewed_document))throw TypeError('Reviewed document differs from selected archive blocks');
+ const first=operation.steps?.[0];
+ keys(first,['stepType','from','to','slice']);
+ if(first.stepType!=='replace'||first.from!==before.content.size||first.to!==first.from)throw TypeError('Reviewed recovery requires root-end append');
+ keys(first.slice,['content','openStart','openEnd'],['content']);
+ if((first.slice.openStart??0)!==0||(first.slice.openEnd??0)!==0||!Array.isArray(first.slice.content)||first.slice.content.length!==indices.length)throw TypeError('Reviewed recovery requires complete closed blocks');
+ const stripID=node=>{const result={...node};if(node.attrs){const {relaymarkId,...attrs}=node.attrs;result.attrs=attrs;}if(node.content)result.content=node.content.map(stripID);return result;};
+ const sourceBlocks=indices.map(i=>original.child(i));
+ const targets=first.slice.content.map(node=>schema.nodeFromJSON(node));
+ // The exact Slice ordinal is the source pointer. IDs may be newly allocated by
+ // the canonical writer, while every other field/mark/atom/child remains exact.
+ for(let i=0;i<targets.length;i++)if(!same(stripID(sourceBlocks[i].toJSON()),stripID(targets[i].toJSON())))throw TypeError('Reviewed Slice changed archive content or properties');
+ const totalSize=targets.reduce((n,node)=>n+node.nodeSize,0),lower=first.from,upper=lower+totalSize;
+ let intermediate={...before.toJSON(),content:[...(before.toJSON().content||[]),...first.slice.content]};
+ // Any append repair must be the existing ID allocator repairing a null or
+ // duplicated imported ID. Arbitrary field changes and old-node repairs refuse.
+ for(const step of operation.steps.slice(1)){
+  keys(step,['stepType','pos','attr','value']);
+  if(step.stepType!=='attr'||step.attr!=='relaymarkId'||step.pos<lower||step.pos>=upper)throw TypeError('Illegal reviewed append repair');
+  const doc=schema.nodeFromJSON(intermediate),node=doc.nodeAt(step.pos);
+  if(!node||!Object.hasOwn(node.attrs,'relaymarkId'))throw TypeError('Unavailable reviewed repair node');
+  let matches=0;doc.descendants(n=>{if(n.attrs.relaymarkId===node.attrs.relaymarkId)matches++;});
+  if(node.attrs.relaymarkId!==null&&matches<2)throw TypeError('Reviewed repair changed a unique authored identity');
+  const applied=Step.fromJSON(schema,step).apply(doc);if(applied.failed)throw TypeError('Refused maintained identity repair');intermediate=applied.doc.toJSON();
+ }
+ const expected=interpret(sender.pm,operation);
+ if(!same(expected.document,senderAfter.pm)||!same(intermediate,senderAfter.pm))throw TypeError('Reviewed append result disagrees with maintained steps');
+ const frontier=clocks(evidence.before_state_vector),regions=[],destinations=[];let units=0,totalRuns=0;
+ let destinationStart=lower;
+ const originalStarts=[];let sourceStart=0;original.forEach(node=>{originalStarts.push(sourceStart);sourceStart+=node.nodeSize;});
+ for(let selected=0;selected<indices.length;selected++){
+  const blockIndex=indices[selected],sourceBlockStart=originalStarts[blockIndex];
+  for(const run of archive.runs.filter(run=>run.path[0]===blockIndex)){
+   const destinationPosition=destinationStart+run.position-sourceBlockStart,end=destinationPosition+run.count;
+   const parts=senderAfter.runs.filter(part=>part.position<end&&part.position+part.count>destinationPosition).sort((a,b)=>a.position-b.position);
+   let cursor=destinationPosition;const mapped=[];
+   for(const part of parts){
+    const from=Math.max(cursor,part.position),to=Math.min(end,part.position+part.count);if(from!==cursor||to<=from)throw TypeError('Unavailable reviewed destination interval');
+    const itemClock=part.item.clock+from-part.position;
+    if(itemClock<(frontier.get(part.item.client)||0))throw TypeError('Reviewed append borrowed retained target text');
+    const text=part.text.slice(from-part.position,to-part.position),sourceText=run.text.slice(from-destinationPosition,to-destinationPosition);unicode(text);unicode(sourceText);
+    if(text!==sourceText||!same(part.attributes,run.attributes))throw TypeError('Reviewed regional text or full marks disagree');
+    mapped.push({type:part.type,item:{client:part.item.client,clock:itemClock},count:to-from});cursor=to;
+   }
+   if(cursor!==end||(units+=run.count)>MAX_UNITS||regions.length>=4096)throw TypeError('Incomplete or oversized reviewed recovery regions');
+   if((totalRuns+=mapped.length)>4096)throw TypeError('Reviewed destination run limit exceeded');
+   const destination={runs:mapped},resolved=resolve(after,destination);equalContent(resolve(senderAfter,destination),resolved);
+   destinations.push(...resolved);regions.push({archive_path:run.path,archive_offset:run.offset,count:run.count,destination});
+  }
+  destinationStart+=sourceBlocks[selected].nodeSize;
+ }
+ const prepared=prepare({...Object.fromEntries(fields.map(field=>[field,evidence[field]])),text_items:{runs:[]}},interpret,destinations);
+ return {...prepared,operation,recovery_regions:regions,complete_recovery_correspondence:true,requires_recovery_authorization:true};
+}
+
+
+function reviewedRegions(evidence){
+ keys(evidence,['archive_identity_snapshot','recovery_regions']);
+ const archive=index(evidence.archive_identity_snapshot),regions=evidence.recovery_regions,byPath=new Map();
+ for(const run of archive.runs){const key=stableStringify(run.path),list=byPath.get(key)||[];list.push(run);byPath.set(key,list);}
+ for(const list of byPath.values())list.sort((a,b)=>a.offset-b.offset);
+ if(!Array.isArray(regions)||regions.length>4096)throw TypeError('Invalid reviewed regional selection');
+ const sources=[],destinations=[],validated=[];let units=0,runs=0;
+ for(const region of regions){
+  keys(region,['archive_path','archive_offset','count','destination']);
+  if(!Array.isArray(region.archive_path)||region.archive_path.length>128||region.archive_path.some(value=>!Number.isSafeInteger(value)||value<0)||!Number.isSafeInteger(region.archive_offset)||region.archive_offset<0||!Number.isSafeInteger(region.count)||region.count<1||(units+=region.count)>MAX_UNITS)throw TypeError('Invalid reviewed archive extent');
+  selection(region.destination);if(region.destination.runs.reduce((n,run)=>n+run.count,0)!==region.count||(runs+=region.destination.runs.length)>4096)throw TypeError('Mismatched reviewed destination extent');
+  const start=region.archive_offset,end=start+region.count,parts=[];let cursor=start;
+  for(const run of byPath.get(stableStringify(region.archive_path))||[]){
+   const from=Math.max(start,run.offset),to=Math.min(end,run.offset+run.count);if(to<=from)continue;
+   if(from!==cursor)throw TypeError('Unavailable reviewed archive interval');
+   const text=run.text.slice(from-run.offset,to-run.offset);unicode(text);
+   parts.push({...run,item:{client:run.item.client,clock:run.item.clock+from-run.offset},count:to-from,offset:from,text});cursor=to;
+  }
+  if(cursor!==end)throw TypeError('Unavailable reviewed archive interval');
+  sources.push(...parts);destinations.push(...region.destination.runs);validated.push(region);
+ }
+ disjoint(sources);disjoint(destinations);selection(plain(sources));return {archive,regions:validated,sources};
+}
+/** Bounded candidate IDs only. No donor-human or recovery authority is issued. */
+export function reviewedRecoverySourceSelection(evidence){return plain(reviewedRegions(evidence).sources);}
+/** Caller-authenticated HUMAN archive candidates -> exact recomputed imported
+ * destinations. Regions/offsets are structural pointers, never equal-text search
+ * or same-namespace copy ancestry. This result grants no donor authority. */
+export function mapReviewedRecoverySelection(evidence){
+ keys(evidence,['archive_identity_snapshot','recovery_regions','source_selector']);
+ const {archive,regions}=reviewedRegions({archive_identity_snapshot:evidence.archive_identity_snapshot,recovery_regions:evidence.recovery_regions});
+ const human=resolve(archive,evidence.source_selector),mapped=[];
+ for(const region of regions){
+  for(const source of human){
+   if(!same(source.path,region.archive_path))continue;
+   const from=Math.max(source.offset,region.archive_offset),to=Math.min(source.offset+source.count,region.archive_offset+region.count);if(to<=from)continue;
+   unicode(source.text.slice(from-source.offset,to-source.offset));
+   let offset=0;
+   for(const destination of region.destination.runs){
+    const left=Math.max(from-region.archive_offset,offset),right=Math.min(to-region.archive_offset,offset+destination.count);
+    if(left<right)mapped.push({type:destination.type,item:{client:destination.item.client,clock:destination.item.clock+left-offset},count:right-left});
+    offset+=destination.count;
+   }
+  }
+ }
+ const result={runs:mapped};selection(result);return {destination:result};
 }

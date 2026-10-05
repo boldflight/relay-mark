@@ -4653,7 +4653,7 @@ var require_url5 = __commonJS({
 var import_atob = __toESM(require_atob2(), 1);
 var import_btoa = __toESM(require_btoa2(), 1);
 import * as Y4 from "yjs";
-import { Step as Step2 } from "prosemirror-transform";
+import { Step as Step3 } from "prosemirror-transform";
 import { initProseMirrorDoc, updateYFragment } from "@tiptap/y-tiptap";
 
 // src/editor-model.js
@@ -4676,7 +4676,7 @@ function createCanonicalEditorSchema() {
 }
 
 // src/content-edit.js
-import { Step } from "prosemirror-transform";
+import { Step as Step2 } from "prosemirror-transform";
 
 // src/document-url.js
 var import_url = __toESM(require_url5(), 1);
@@ -6046,6 +6046,7 @@ function snapshotToDocument(snapshot3) {
 }
 
 // src/content-edit-witness.js
+import { Step } from "prosemirror-transform";
 var schema2 = createCanonicalEditorSchema();
 var MAX_UNITS = 131072;
 var MAX_SOURCE_UNITS = 12582912;
@@ -6284,6 +6285,10 @@ function freshRuns(after, beforeClocks) {
   });
 }
 function prepareWitness(evidence, interpret) {
+  if (evidence.operation?.reviewed_recovery) throw TypeError("Reviewed recovery requires regional correspondence");
+  return prepare(evidence, interpret, null);
+}
+function prepare(evidence, interpret, recoveryDestinations) {
   keys2(evidence, ["sender_before_snapshot", "sender_after_snapshot", "before_snapshot", "after_snapshot", "before_state_vector", "operation", "text_items", "footprint"]);
   const { footprint, operation } = evidence;
   if (operation?.history) throw TypeError("Owned history accounting requires maintained accepted-receipt replay");
@@ -6291,7 +6296,7 @@ function prepareWitness(evidence, interpret) {
   if (!Array.isArray(footprint.structs) || !Array.isArray(footprint.declared_deletes) || !Array.isArray(footprint.deleted_items) || footprint.structs.length + footprint.deleted_items.length > 1e6) throw TypeError("Invalid complete mutation footprint");
   const beforeClocks = clocks(evidence.before_state_vector), afterClocks = clocks(footprint.state_vector);
   for (const [client, clock] of beforeClocks) if (clock > (afterClocks.get(client) || 0)) throw TypeError("Mutation frontier is behind trusted prestate");
-  keys2(operation, ["kind", "steps", "copies", "history", "group"], ["kind", "steps", "copies"]);
+  keys2(operation, ["kind", "steps", "copies", "history", "group", ...recoveryDestinations ? ["reviewed_recovery"] : []], ["kind", "steps", "copies"]);
   if (!Array.isArray(operation.copies) || operation.copies.length > 4096) throw TypeError("Invalid causal copies");
   const sender = index(evidence.sender_before_snapshot), senderAfter = index(evidence.sender_after_snapshot), before = index(evidence.before_snapshot), after = index(evidence.after_snapshot), expected = interpret(sender.pm, operation);
   if (!same(expected.document, senderAfter.pm)) throw TypeError("Actual sender result disagrees with maintained steps");
@@ -6308,14 +6313,16 @@ function prepareWitness(evidence, interpret) {
     destinations.push(...destination);
     proven_copies.push(copy);
   }
-  disjoint([...human, ...destinations]);
-  cover(fresh, [...human, ...destinations]);
-  cover([...human, ...destinations], fresh);
+  const accounted = [...human, ...destinations, ...recoveryDestinations || []];
+  disjoint(accounted);
+  cover(fresh, accounted);
+  cover(accounted, fresh);
   allocationCoverage(footprint, beforeClocks, afterClocks, after, fresh, operation);
   const unproven_mutations = { structs: footprint.structs.filter((r) => r.content.kind !== "string"), declared_deletes: footprint.declared_deletes, deleted_items: footprint.deleted_items };
   return { document: expected.document, authored_document: expected.authored_document, retained_ranges: expected.retained_ranges, inserted_ranges: expected.inserted_ranges, proven_copies, fresh_items: plain(fresh), text_items: plain(human), unproven_mutations, requires_mutation_correspondence: true };
 }
 function buildWitness(evidence, interpret) {
+  if (evidence.operation?.reviewed_recovery) throw TypeError("Reviewed recovery requires regional correspondence");
   keys2(evidence, ["sender_before_snapshot", "sender_after_snapshot", "before_snapshot", "after_snapshot", "before_state_vector", "operation", "footprint"]);
   if (evidence.operation?.history) throw TypeError("Owned history accounting requires maintained accepted-receipt replay");
   keys2(evidence.operation, ["kind", "steps", "history", "group", "copies"], ["kind", "steps"]);
@@ -6595,7 +6602,7 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
       if (json2.attr !== "relaymark") throw TypeError("Unknown canonical document attribute");
       assertAuthoredMetadata(json2.value);
     }
-    const step = Step.fromJSON(schema4, json2);
+    const step = Step2.fromJSON(schema4, json2);
     if (stableStringify(step.toJSON()) !== stableStringify(json2)) throw new TypeError("Noncanonical content edit step");
     const result = step.apply(document2);
     if (result.failed) throw new TypeError("Canonical content edit refused: " + result.failed);
@@ -6797,6 +6804,27 @@ function bindOwnedCommandHistory(manager, event) {
   const group = ownedGroup(manager, event.stackItem);
   inverse.meta.set(key, freeze(group));
   return { kind: event.type, ...group, operation_ids: group.operation_ids.slice() };
+}
+function retireOwnedHistoryGroups(manager, groups) {
+  if (!manager || typeof manager.retireHistoryStackItems !== "function" || !Array.isArray(groups) || groups.length > 16384) throw TypeError("Unavailable maintained group retirement");
+  const ownerID = readOwnedHistoryOwner(manager), requested = /* @__PURE__ */ new Map();
+  for (const value of groups) {
+    const group = validateOwnedCommandGroup(value);
+    if (group.owner_id !== ownerID || requested.has(group.reference)) throw TypeError("Conflicting retirement owner or group");
+    requested.set(group.reference, group);
+  }
+  const items = [], seen = /* @__PURE__ */ new Set();
+  for (const item of [...manager.undoStack, ...manager.redoStack]) {
+    const group = ownedGroup(manager, item), wanted = requested.get(group.reference);
+    if (seen.has(group.reference)) throw TypeError("Ambiguous actual retirement group");
+    seen.add(group.reference);
+    if (!wanted) continue;
+    if (group.owner_id !== wanted.owner_id || group.operation_ids.length !== wanted.operation_ids.length || group.operation_ids.some((id2, index2) => id2 !== wanted.operation_ids[index2])) throw TypeError("Retirement differs from actual whole group");
+    items.push(item);
+  }
+  if (items.length !== requested.size) throw TypeError("Unavailable actual retirement group");
+  const result = manager.retireHistoryStackItems(items);
+  return { ...result, groups: groups.map(freeze) };
 }
 
 // adapters/collaboration/owned-history-branches.js
@@ -7248,7 +7276,7 @@ function replayContentEditMutation(evidence) {
     const initialized = initProseMirrorDoc(sender.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), evidence.operation);
     let result = initialized.doc;
     for (const json of evidence.operation.steps) {
-      const applied = Step2.fromJSON(schema5, json).apply(result);
+      const applied = Step3.fromJSON(schema5, json).apply(result);
       if (applied.failed) throw TypeError("Refused maintained command");
       result = applied.doc;
     }
@@ -7300,7 +7328,7 @@ function produceContentEdit(input) {
     const expected = applyContentEdit(initialized.doc.toJSON(), operation);
     let result = initialized.doc;
     for (const json of input.steps) {
-      const applied = Step2.fromJSON(schema5, json).apply(result);
+      const applied = Step3.fromJSON(schema5, json).apply(result);
       if (applied.failed) throw TypeError("Refused maintained command");
       result = applied.doc;
     }
@@ -7590,6 +7618,25 @@ function installMaintainedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
 }
 function createOwnedHistoryCheckpoint(input) {
   fields3(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id"], ["receipts", "current_state_base64", "owner_id"]);
+  const retained = checkpointOwner(input);
+  try {
+    return captureMaintainedHistoryCheckpoint(retained.doc, retained.manager, input.owner_id);
+  } finally {
+    retained.destroy();
+  }
+}
+function retireOwnedHistoryCheckpoint(input) {
+  fields3(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id", "groups"], ["receipts", "current_state_base64", "owner_id", "groups"]);
+  const retained = checkpointOwner(input);
+  try {
+    const before = Y4.encodeStateAsUpdate(retained.doc), result = retireOwnedHistoryGroups(retained.manager, input.groups), after = Y4.encodeStateAsUpdate(retained.doc);
+    if (before.length !== after.length || before.some((byte, index2) => byte !== after[index2])) throw TypeError("Retirement changed retained document state");
+    return { checkpoint: captureMaintainedHistoryCheckpoint(retained.doc, retained.manager, input.owner_id), retired_groups: result.groups, undo: result.undo, redo: result.redo };
+  } finally {
+    retained.destroy();
+  }
+}
+function checkpointOwner(input) {
   canonicalOperationID(input.owner_id);
   if (Object.hasOwn(input, "initial_state_base64") === Object.hasOwn(input, "checkpoint")) throw TypeError("Exactly one trusted checkpoint basis is required");
   if (!Array.isArray(input.receipts)) throw TypeError("Unavailable bounded accepted history");
@@ -7603,9 +7650,10 @@ function createOwnedHistoryCheckpoint(input) {
     } finally {
       actual.destroy();
     }
-    return captureMaintainedHistoryCheckpoint(retained.doc, retained.manager, input.owner_id);
-  } finally {
+    return retained;
+  } catch (error) {
     retained.destroy();
+    throw error;
   }
 }
 function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoint = null) {
@@ -7734,5 +7782,6 @@ export {
   produceContentEdit,
   readContentEditDocument,
   replayContentEditMutation,
-  restoreOwnedHistoryState
+  restoreOwnedHistoryState,
+  retireOwnedHistoryCheckpoint
 };

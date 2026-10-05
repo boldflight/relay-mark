@@ -38,3 +38,24 @@ test('owned inverse preflight refuses unbound candidate below obsolete top befor
  assert.equal(bindOwnedHistoryOwner(manager,ownerID),ownerID);
  const reopened=new Y.UndoManager(text,{trackedOrigins:new Set([{}])});assert.notEqual(readOwnedHistoryOwner(reopened),ownerID);reopened.destroy();manager.destroy();doc.destroy();
  });
+
+
+test('whole owned retirement validates exact namespace and membership before preserving shared-parent survivor undo',async()=>{
+ const {retireOwnedHistoryGroups}=await import('../adapters/collaboration/owned-command-group.js');
+ const doc=new Y.Doc({gc:false}),root=doc.getXmlFragment('default'),paragraph=new Y.XmlElement('paragraph'),text=new Y.XmlText();
+ paragraph.setAttribute('relaymarkId','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');root.insert(0,[paragraph]);paragraph.insert(0,[text]);text.insert(0,'A🌍Z');
+ const origin={},manager=new Y.UndoManager(root,{trackedOrigins:new Set([origin]),captureTimeout:Infinity});bindOwnedHistoryOwner(manager,ownerID);let id=first;
+ const bind=e=>{if(!manager.undoing&&!manager.redoing){e.stackItem.meta.set('selection','retained caret');bindOwnedCommandGroup(manager,e,id)}};
+ manager.on('stack-item-added',bind);manager.on('stack-item-updated',bind);manager.on('stack-item-popped',e=>bindOwnedCommandHistory(manager,e));
+ doc.transact(()=>text.delete(0,1),origin);const old=readOwnedCommandGroup(manager,first);manager.stopCapturing();id=second;doc.transact(()=>text.delete(0,2),origin);manager.undo();manager.redo();manager.undoStack.at(-1).meta.set('selection','retained caret');
+ manager.stopCapturing();id=third;doc.transact(()=>text.delete(0,1),origin);const thirdGroup=readOwnedCommandGroup(manager,third);manager.undo();
+ const before=Y.encodeStateAsUpdate(doc),stacks={undo:manager.undoStack.slice(),redo:manager.redoStack.slice()};
+ assert.throws(()=>retireOwnedHistoryGroups(manager,[old,{...thirdGroup,owner_id:third}]),/Conflicting/);
+ assert.throws(()=>retireOwnedHistoryGroups(manager,[{...old,operation_ids:[first,third]}]),/actual whole group/);
+ assert.deepEqual(Y.encodeStateAsUpdate(doc),before);assert.deepEqual(manager.undoStack,stacks.undo);assert.deepEqual(manager.redoStack,stacks.redo);
+ const result=retireOwnedHistoryGroups(manager,[old,thirdGroup]);assert.equal(result.undo,1);assert.equal(result.redo,1);assert.deepEqual(Y.encodeStateAsUpdate(doc),before);
+ assert.equal(manager.undoStack[0].meta.get('selection'),'retained caret');assert.equal(manager.undoStack[0].meta.get('relaymark:operation_ids').reference,second);
+ manager.undo();assert.equal(text.toString(),'🌍Z');manager.redo();assert.equal(text.toString(),'Z');manager.undo();assert.equal(text.toString(),'🌍Z');assert.equal(manager.undo(),null);
+ id='44444444-4444-4444-8444-444444444444';doc.transact(()=>text.insert(text.length,'Ω'),origin);assert.equal(readOwnedCommandGroup(manager,id).reference,id);manager.undo();assert.equal(text.toString(),'🌍Z');
+ manager.destroy();doc.destroy();
+});

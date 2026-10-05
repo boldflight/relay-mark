@@ -18,6 +18,28 @@ public enum RelayMarkContentEditCodec {
         let object=try JSONSerialization.jsonObject(with:evidence)
         return try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"buildOwnedHistoryWitness",arguments:[object])
     }
+    /// Regional allocation evidence only. Archive hashes, donor ancestry and
+    /// target authorization remain independently authenticated by the host.
+    public static func prepareReviewedRecoveryWitness(_ evidence: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: evidence)
+        return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "prepareReviewedRecoveryWitness", arguments: [object])
+    }
+    /// Bounded imported archive IDs only; no donor authorship authority.
+    public static func reviewedRecoverySourceSelection(_ evidence: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: evidence)
+        return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "reviewedRecoverySourceSelection", arguments: [object])
+    }
+    /// Map already-authenticated human archive IDs through recomputed regions.
+    public static func mapReviewedRecoverySelection(_ evidence: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: evidence)
+        return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "mapReviewedRecoverySelection", arguments: [object])
+    }
+    /// Trusted receipt replay and complete-group retirement. This issues no
+    /// erasure authority and does not change retained source classification.
+    public static func retireOwnedHistoryCheckpoint(_ evidence: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: evidence)
+        return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "retireOwnedHistoryCheckpoint", arguments: [object])
+    }
     public static func buildWitness(_ evidence: Data) throws -> Data {
         let object=try JSONSerialization.jsonObject(with:evidence)
         return try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"buildContentEditWitness",arguments:[object])

@@ -110,4 +110,44 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
         XCTAssertThrowsError(try target.appendRecoveredRichBlocks(from: Data("{}".utf8), indices: [0], expectedSnapshot: changed))
         XCTAssertEqual(try target.snapshot(), changed)
     }
+    func testReviewedImportedRegionsConsumeSameObservationWithoutDeclaringHumanInput() throws {
+        let source = RelayMarkNativeDocument(), target = RelayMarkNativeDocument()
+        _ = try source.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Same **🌍**\n\nSame **🌍**", namespace: "reviewed-regions-donor"))
+        _ = try target.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Current peer prefix", namespace: "reviewed-regions-target"))
+        let before = try target.snapshot(), observation = try target.captureContentEditObservation()
+        let archive = try source.captureIdentitySnapshot(), reviewed = try source.authoredDocument()
+        let change = try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [0, 1], expectedSnapshot: before)
+        let review = try JSONSerialization.data(withJSONObject: [
+            "archive_sha256": String(repeating: "a", count: 64),
+            "reviewed_document_sha256": String(repeating: "b", count: 64),
+            "block_indices": [0, 1], "target_guard": ["body_revision": "sha256:" + String(repeating: "c", count: 64)],
+            "donor_cut": NSNull()
+        ], options: [.sortedKeys])
+        let bytes = try target.buildReviewedRecoveryWitness(observation, steps: change.steps, update: change.update,
+            reviewedRecovery: review, archiveIdentitySnapshot: archive, reviewedDocument: reviewed)
+        let proof = try XCTUnwrap(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+        XCTAssertEqual((proof["text_items"] as? [String: [[String: Any]]])?["runs"]?.count, 0)
+        let regions = try XCTUnwrap(proof["recovery_regions"] as? [[String: Any]])
+        XCTAssertEqual(regions.compactMap { $0["count"] as? Int }.reduce(0, +), 14)
+        XCTAssertEqual(Set(regions.compactMap { ($0["archive_path"] as? [Int])?.first }), [0, 1])
+        XCTAssertEqual(proof["requires_recovery_authorization"] as? Bool, true)
+        XCTAssertNil(proof["complete_mutation_correspondence"])
+        let regional: [String: Any] = ["archive_identity_snapshot": try JSONSerialization.jsonObject(with: archive), "recovery_regions": regions]
+        let sourceBytes = try RelayMarkContentEditCodec.reviewedRecoverySourceSelection(JSONSerialization.data(withJSONObject: regional))
+        let selected = try XCTUnwrap(JSONSerialization.jsonObject(with: sourceBytes) as? [String: Any])
+        let mappedBytes = try RelayMarkContentEditCodec.mapReviewedRecoverySelection(JSONSerialization.data(withJSONObject: regional.merging(["source_selector": selected]) { _, new in new }))
+        let mapped = try XCTUnwrap(JSONSerialization.jsonObject(with: mappedBytes) as? [String: Any])
+        let destinations = try XCTUnwrap(mapped["destination"] as? [String: Any])
+        XCTAssertEqual((destinations["runs"] as? [[String: Any]])?.compactMap { $0["count"] as? Int }.reduce(0, +), 14)
+        let empty = try RelayMarkContentEditCodec.mapReviewedRecoverySelection(JSONSerialization.data(withJSONObject: regional.merging(["source_selector": ["runs": []]]) { _, new in new }))
+        XCTAssertEqual((try JSONSerialization.jsonObject(with: empty) as? [String: [String: [Any]]])?["destination"]?["runs"]?.count, 0)
+        var forgedRuns = try XCTUnwrap(selected["runs"] as? [[String: Any]])
+        forgedRuns[0]["type"] = ["client": 999999, "clock": 0]
+        XCTAssertThrowsError(try RelayMarkContentEditCodec.mapReviewedRecoverySelection(JSONSerialization.data(withJSONObject: regional.merging(["source_selector": ["runs": forgedRuns]]) { _, new in new })))
+        let frozenState = try target.encodeUpdate()
+        XCTAssertThrowsError(try target.buildReviewedRecoveryWitness(observation, steps: change.steps, update: change.update,
+            reviewedRecovery: review, archiveIdentitySnapshot: archive, reviewedDocument: reviewed))
+        XCTAssertEqual(try target.encodeUpdate(), frozenState)
+    }
+
 }

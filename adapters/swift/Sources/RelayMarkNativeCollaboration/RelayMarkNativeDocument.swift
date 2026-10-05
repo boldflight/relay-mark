@@ -806,12 +806,46 @@ public final class RelayMarkNativeDocument {
         public let ownerID: UUID
         public let reference: UUID
         public let operationIDs: [UUID]
+        public init(ownerID: UUID, reference: UUID, operationIDs: [UUID]) {
+            self.ownerID = ownerID; self.reference = reference; self.operationIDs = operationIDs
+        }
     }
     public func ownedCommandGroup(operationID: UUID) throws -> OwnedCommandGroup {
         guard let metadata=undoManager.undoMetadata().last,
               let operations=self.operationReferences(metadata),operations.last==operationID,
               let first=operations.first else {throw Failure.unboundOwnedHistory}
         return OwnedCommandGroup(ownerID:historyOwnerID,reference:first,operationIDs:operations)
+    }
+
+    /// Trusted whole-group transition. Hosts authenticate donor dependencies,
+    /// actor/scope and checkpoint binding independently. It changes no document
+    /// bytes or source fact, and never installs a filtered serialized manager.
+    @discardableResult
+    public func retireOwnedHistoryGroups(_ groups: [OwnedCommandGroup]) throws -> (undo: Int, redo: Int) {
+        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0, groups.count <= 16_384 else { throw Failure.conflictingOwnedCommand }
+        var requested: [UUID: [UUID]] = [:]
+        for group in groups {
+            guard group.ownerID == historyOwnerID, group.operationIDs.first == group.reference,
+                  !group.operationIDs.isEmpty, group.operationIDs.count <= 4096,
+                  Set(group.operationIDs).count == group.operationIDs.count,
+                  requested.updateValue(group.operationIDs, forKey: group.reference) == nil else { throw Failure.conflictingOwnedCommand }
+        }
+        var undo: [Int] = [], redo: [Int] = [], seen = Set<UUID>(), found = Set<UUID>()
+        for (isUndo, stack) in [(true, undoManager.undoMetadata()), (false, undoManager.redoMetadata())] {
+            for (index, metadata) in stack.enumerated() {
+                guard let operations = operationReferences(metadata), let reference = operations.first,
+                      seen.insert(reference).inserted else { throw Failure.unboundOwnedHistory }
+                guard let expected = requested[reference] else { continue }
+                guard operations == expected else { throw Failure.conflictingOwnedCommand }
+                found.insert(reference)
+                if isUndo { undo.append(index) } else { redo.append(index) }
+            }
+        }
+        guard found.count == requested.count else { throw Failure.unboundOwnedHistory }
+        let before = try encodeUpdate()
+        let retired = try undoManager.retireHistoryItems(undoIndices: undo, redoIndices: redo)
+        guard try encodeUpdate() == before else { throw Failure.conflictingOwnedCommand }
+        return retired
     }
 
     public struct OwnedHistoryEffect: Sendable {

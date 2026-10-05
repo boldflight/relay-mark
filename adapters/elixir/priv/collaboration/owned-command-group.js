@@ -105,6 +105,27 @@ function prepareOwnedHistory(manager, kind) {
   }
   return stack.length > 0;
 }
+function retireOwnedHistoryGroups(manager, groups) {
+  if (!manager || typeof manager.retireHistoryStackItems !== "function" || !Array.isArray(groups) || groups.length > 16384) throw TypeError("Unavailable maintained group retirement");
+  const ownerID = readOwnedHistoryOwner(manager), requested = /* @__PURE__ */ new Map();
+  for (const value of groups) {
+    const group = validateOwnedCommandGroup(value);
+    if (group.owner_id !== ownerID || requested.has(group.reference)) throw TypeError("Conflicting retirement owner or group");
+    requested.set(group.reference, group);
+  }
+  const items = [], seen = /* @__PURE__ */ new Set();
+  for (const item of [...manager.undoStack, ...manager.redoStack]) {
+    const group = ownedGroup(manager, item), wanted = requested.get(group.reference);
+    if (seen.has(group.reference)) throw TypeError("Ambiguous actual retirement group");
+    seen.add(group.reference);
+    if (!wanted) continue;
+    if (group.owner_id !== wanted.owner_id || group.operation_ids.length !== wanted.operation_ids.length || group.operation_ids.some((id, index) => id !== wanted.operation_ids[index])) throw TypeError("Retirement differs from actual whole group");
+    items.push(item);
+  }
+  if (items.length !== requested.size) throw TypeError("Unavailable actual retirement group");
+  const result = manager.retireHistoryStackItems(items);
+  return { ...result, groups: groups.map(freeze) };
+}
 export {
   bindOwnedCommandGroup,
   bindOwnedCommandHistory,
@@ -113,6 +134,7 @@ export {
   prepareOwnedHistory,
   readOwnedCommandGroup,
   readOwnedHistoryOwner,
+  retireOwnedHistoryGroups,
   validateOwnedCommandGroup,
   validateOwnedHistory
 };

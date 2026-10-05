@@ -39,6 +39,34 @@ extension RelayMarkNativeDocument {
         observation.consumed=true
         return result
     }
+    /// Immediate complete-block recovery observation. These regions confer no
+    /// donor human ancestry. The same exact witness bytes must be retained with
+    /// the original command; server replay and archive authorization are separate.
+    public func buildReviewedRecoveryWitness(_ observation: ContentEditObservation,
+                                            steps: Data, update: Data,
+                                            reviewedRecovery: Data,
+                                            archiveIdentitySnapshot: Data,
+                                            reviewedDocument: Data) throws -> Data {
+        guard observation.owner === self, !observation.consumed,
+              integrationStatus().isComplete else { throw Failure.unsupportedProseEdit }
+        let before = try JSONSerialization.jsonObject(with: observation.identity)
+        let after = try JSONSerialization.jsonObject(with: captureIdentitySnapshot())
+        let evidence: [String: Any] = [
+            "sender_before_snapshot": before, "before_snapshot": before,
+            "sender_after_snapshot": after, "after_snapshot": after,
+            "before_state_vector": observation.clocks,
+            "operation": ["kind": "content_edit", "copies": [],
+                          "steps": try JSONSerialization.jsonObject(with: steps),
+                          "reviewed_recovery": try JSONSerialization.jsonObject(with: reviewedRecovery)],
+            "footprint": try JSONSerialization.jsonObject(with: captureUpdateFootprint(update)),
+            "archive_identity_snapshot": try JSONSerialization.jsonObject(with: archiveIdentitySnapshot),
+            "reviewed_document": try JSONSerialization.jsonObject(with: reviewedDocument)
+        ]
+        let result = try RelayMarkContentEditCodec.prepareReviewedRecoveryWitness(
+            JSONSerialization.data(withJSONObject: evidence, options: [.sortedKeys]))
+        observation.consumed = true
+        return result
+    }
     /// Reads the actual original command update and delegates causal allocation
     /// accounting to the shared maintained StepMap/grammar owner. Complete
     /// mutation replay, clipboard source authority and receipts remain server gates.
