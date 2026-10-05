@@ -2,6 +2,7 @@ import Foundation
 import XCTest
 import RelayMarkCollaboration
 import RelayMarkProseProjection
+import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
@@ -19,6 +20,77 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
             namespace: "retained-media-commands", expectedSnapshot: retained.snapshot())
         _ = try RelayMarkNativeSnapshotImport.install(document: retained, prepared: prepared)
         return try retained.encodeUpdate()
+    }
+
+    func testImageDimensionsEditInPlacePreservesPeerFieldsAndRejectsStaleOrUnsafeChanges() throws {
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        let source = "Before **🌍**\n\n![Original](https://example.test/image.png \"Caption\")\n\nAfter Ω"
+        let seed = try native.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(source, namespace: "media-properties"))
+        try peer.applyUpdate(seed)
+        let media = try XCTUnwrap(native.richProseProjection().mediaAtoms.first)
+        let identity = try native.captureIdentitySnapshot()
+        let original = try JSONSerialization.jsonObject(with: identity) as! [String: Any]
+        let originalMedia = (original["children"] as! [[String: Any]])[1]
+        let neighborAnchor = try native.anchor(path: [0, 0], index: 3)
+
+        let peerAlt = try RelayMarkNativeWidgetMutation.updateAttributes(document: peer,
+            path: media.path, expectedID: media.id,
+            expected: JSONSerialization.data(withJSONObject: ["alt": "Original"]),
+            changes: JSONSerialization.data(withJSONObject: ["alt": "Peer 🌍"]), expectedMediaSource: media.source)
+        try native.applyUpdate(peerAlt.update)
+        let observation = try native.captureContentEditObservation()
+        let commandID = UUID()
+        var resized: RelayMarkNativeRichEditing.Change?
+        _ = try native.performOwnedCommand(operationID: commandID, separateHistoryItem: true) {
+            let change = try RelayMarkNativeWidgetMutation.updateAttributes(document: native,
+                path: media.path, expectedID: media.id,
+                expected: JSONSerialization.data(withJSONObject: ["width": NSNull(), "height": NSNull()]),
+                changes: JSONSerialization.data(withJSONObject: ["width": 320, "height": 240]), expectedMediaSource: media.source)
+            resized = change; return change.update
+        }
+        let change = try XCTUnwrap(resized)
+        let steps = try JSONSerialization.jsonObject(with: change.steps) as! [[String: Any]]
+        XCTAssertEqual(steps.map { $0["stepType"] as! String }, ["attr", "attr"])
+        XCTAssertEqual(steps.map { $0["attr"] as! String }, ["height", "width"])
+        let witness = try JSONSerialization.jsonObject(with: native.buildContentEditWitness(observation, steps: change.steps, update: change.update)) as! [String: Any]
+        XCTAssertEqual(((witness["text_items"] as! [String: Any])["runs"] as! [Any]).count, 0)
+        XCTAssertEqual((witness["proven_copies"] as! [Any]).count, 0)
+        try peer.applyUpdate(change.update)
+        XCTAssertEqual(try peer.authoredDocument(), try native.authoredDocument())
+        let changed = try XCTUnwrap(native.richProseProjection().mediaAtoms.first)
+        XCTAssertEqual(changed.width, 320); XCTAssertEqual(changed.height, 240)
+        XCTAssertEqual(changed.alt, "Peer 🌍"); XCTAssertEqual(changed.title, "Caption")
+        XCTAssertEqual(changed.id, media.id); XCTAssertEqual(changed.source, media.source)
+        XCTAssertEqual(try native.resolve(anchor: neighborAnchor)?.path, [0, 0])
+        let after = try JSONSerialization.jsonObject(with: native.captureIdentitySnapshot()) as! [String: Any]
+        let afterMedia = (after["children"] as! [[String: Any]])[1]
+        XCTAssertEqual(NSDictionary(dictionary: originalMedia["type"] as! [String: Any]), NSDictionary(dictionary: afterMedia["type"] as! [String: Any]))
+
+        let inverse = try XCTUnwrap(native.undoWithReference())
+        XCTAssertEqual(inverse.reference, commandID)
+        XCTAssertNil(try native.richProseProjection().mediaAtoms.first?.width)
+        XCTAssertEqual(try native.richProseProjection().mediaAtoms.first?.alt, "Peer 🌍")
+        _ = try XCTUnwrap(native.redoWithReference())
+        XCTAssertEqual(try native.richProseProjection().mediaAtoms.first?.width, 320)
+        let checkpoint = try native.encodeUpdate()
+        for source in [nil, "https://example.test/replaced.png"] as [String?] {
+            XCTAssertThrowsError(try RelayMarkNativeWidgetMutation.updateAttributes(document: native,
+                path: media.path, expectedID: media.id,
+                expected: JSONSerialization.data(withJSONObject: ["width": 320]),
+                changes: JSONSerialization.data(withJSONObject: ["width": 640]), expectedMediaSource: source))
+            XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+        }
+        for (before, patch) in [
+            (["width": 100], ["width": 640]),
+            (["width": 320], ["width": -1]),
+            (["src": media.source], ["src": "javascript:alert(1)"])
+        ] as [([String: Any], [String: Any])] {
+            XCTAssertThrowsError(try RelayMarkNativeWidgetMutation.updateAttributes(document: native,
+                path: media.path, expectedID: media.id,
+                expected: JSONSerialization.data(withJSONObject: before),
+                changes: JSONSerialization.data(withJSONObject: patch), expectedMediaSource: media.source))
+            XCTAssertEqual(try native.encodeUpdate(), checkpoint)
+        }
     }
 
     func testImageRemoveInsertAndUndoReplayWithoutChangingNeighborBlocks() throws {
@@ -66,6 +138,39 @@ final class RelayMarkNativeMediaMutationTests: XCTestCase {
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
                        try RelayMarkNativeDocumentProjection.project(document: native))
+    }
+
+    func testVideoIdentityAttributeEditIsCanonicalAndCannotAddPresentationFields() throws {
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        let seed = try update("rich-video-v3-draft")
+        try native.applyUpdate(seed); try peer.applyUpdate(seed)
+        let media = try XCTUnwrap(native.richProseProjection().mediaAtoms.first)
+        let original = try native.encodeUpdate()
+        for patch in [["width": 640], ["source": "mux"], ["status": "ready"], ["videoId": "invalid"]] as [[String: Any]] {
+            let before = Dictionary(uniqueKeysWithValues: patch.keys.map { ($0, $0 == "videoId" ? media.source as Any : NSNull()) })
+            XCTAssertThrowsError(try RelayMarkNativeWidgetMutation.updateAttributes(document: native,
+                path: media.path, expectedID: media.id,
+                expected: JSONSerialization.data(withJSONObject: before),
+                changes: JSONSerialization.data(withJSONObject: patch), expectedMediaSource: media.source))
+            XCTAssertEqual(try native.encodeUpdate(), original)
+        }
+        let observation = try native.captureContentEditObservation()
+        let nextID = "11111111-1111-4111-8111-111111111111"
+        let change = try RelayMarkNativeWidgetMutation.updateAttributes(document: native,
+            path: media.path, expectedID: media.id,
+            expected: JSONSerialization.data(withJSONObject: ["videoId": media.source]),
+            changes: JSONSerialization.data(withJSONObject: ["videoId": nextID]), expectedMediaSource: media.source)
+        let steps = try JSONSerialization.jsonObject(with: change.steps) as! [[String: Any]]
+        XCTAssertEqual(steps.count, 1)
+        XCTAssertEqual(steps.first?["stepType"] as? String, "attr")
+        XCTAssertEqual(steps.first?["attr"] as? String, "videoId")
+        let witness = try JSONSerialization.jsonObject(with: native.buildContentEditWitness(observation, steps: change.steps, update: change.update)) as! [String: Any]
+        XCTAssertEqual(((witness["text_items"] as! [String: Any])["runs"] as! [Any]).count, 0)
+        XCTAssertEqual((witness["proven_copies"] as! [Any]).count, 0)
+        try peer.applyUpdate(change.update)
+        XCTAssertEqual(try peer.authoredDocument(), try native.authoredDocument())
+        XCTAssertEqual(try native.richProseProjection().mediaAtoms.first?.source, nextID)
+        XCTAssertEqual(try native.richProseProjection().mediaAtoms.first?.id, media.id)
     }
 
     func testVideoIdentityAndInvalidMediaAreRejectedBeforeMutation() throws {
