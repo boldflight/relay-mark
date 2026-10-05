@@ -31,21 +31,21 @@ function validateOwnedHistory(value) {
 
 // adapters/collaboration/owned-command-group.js
 var key = "relaymark:operation_ids";
-var owners = /* @__PURE__ */ new WeakMap();
+var ownerKey = Symbol.for("relaymark:history_owner");
 function bindOwnedHistoryOwner(manager, ownerID) {
   canonicalOperationID(ownerID);
   if (!manager || !Array.isArray(manager.undoStack) || !Array.isArray(manager.redoStack)) throw TypeError("Unavailable actual history owner");
-  const existing = owners.get(manager);
+  const existing = manager?.[ownerKey];
   if (existing && existing !== ownerID) throw TypeError("Conflicting maintained history owner");
   for (const item of [...manager.undoStack, ...manager.redoStack]) {
     const group = item.meta?.get(key);
     if (group && validateOwnedCommandGroup(group).owner_id !== ownerID) throw TypeError("Conflicting maintained history owner");
   }
-  owners.set(manager, ownerID);
+  if (!existing) Object.defineProperty(manager, ownerKey, { value: ownerID });
   return ownerID;
 }
 function readOwnedHistoryOwner(manager) {
-  return owners.get(manager) ?? bindOwnedHistoryOwner(manager, uuidv4());
+  return manager?.[ownerKey] ?? bindOwnedHistoryOwner(manager, uuidv4());
 }
 function ownedGroup(manager, item) {
   const group = validateOwnedCommandGroup(item?.meta?.get(key));

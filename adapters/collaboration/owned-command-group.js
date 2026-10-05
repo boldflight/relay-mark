@@ -3,14 +3,14 @@
  * genuinely restore this same manager's archive. */
 import { uuidv4 } from 'lib0/random';
 import {canonicalOperationID,validateOwnedCommandGroup} from '../../src/owned-command-group.js';
-const key='relaymark:operation_ids',owners=new WeakMap();
+const key='relaymark:operation_ids',ownerKey=Symbol.for('relaymark:history_owner');
 export function bindOwnedHistoryOwner(manager,ownerID){
  canonicalOperationID(ownerID);if(!manager||!Array.isArray(manager.undoStack)||!Array.isArray(manager.redoStack))throw TypeError('Unavailable actual history owner');
- const existing=owners.get(manager);if(existing&&existing!==ownerID)throw TypeError('Conflicting maintained history owner');
+ const existing=manager?.[ownerKey];if(existing&&existing!==ownerID)throw TypeError('Conflicting maintained history owner');
  for(const item of [...manager.undoStack,...manager.redoStack]){const group=item.meta?.get(key);if(group&&validateOwnedCommandGroup(group).owner_id!==ownerID)throw TypeError('Conflicting maintained history owner');}
- owners.set(manager,ownerID);return ownerID;
+ if(!existing)Object.defineProperty(manager,ownerKey,{value:ownerID});return ownerID;
 }
-export function readOwnedHistoryOwner(manager){return owners.get(manager)??bindOwnedHistoryOwner(manager,uuidv4());}
+export function readOwnedHistoryOwner(manager){return manager?.[ownerKey]??bindOwnedHistoryOwner(manager,uuidv4());}
 function ownedGroup(manager,item){const group=validateOwnedCommandGroup(item?.meta?.get(key));if(group.owner_id!==readOwnedHistoryOwner(manager))throw TypeError('Conflicting maintained history owner');return group;}
 function freeze(group){return Object.freeze({...group,operation_ids:Object.freeze(group.operation_ids.slice())});}
 export function bindOwnedCommandGroup(manager,event,operationID){
