@@ -301,3 +301,13 @@ question `points`, `min`, `max`, and option `points`. Maintained XML may omit
 these unused attrs; the shared XML projector supplies the same PM defaults.
 Configured numeric values and every JSON value in authored metadata/settings,
 including explicit nulls, remain exact. Original XML/update bytes are unchanged.
+
+Owned inverse allocation uses the original retained item identity order:
+`client` ascending, then `clock` ascending. Both maintained UndoManager owners
+sort the actual redo candidate set before execution and retain that same set for
+recursive parent and redone dependency checks. A required parent is still
+restored recursively before its child. Neither hash-set order nor serialized
+DeleteSet map order may assign fresh item identities to different authored
+fields. Exact candidate footprints remain mandatory: earlier random-order
+native inverse bytes are retained recovery evidence and are not rewritten or
+accepted merely because their final visible content matches.

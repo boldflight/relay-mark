@@ -9,6 +9,8 @@ export const historyStackMethods = "  /** Copy actual maintained stack intervals
 export function patchHistoryHook(source) {
   if (createHash('sha256').update(source).digest('hex') !== upstreamSHA256) throw Error('Pinned Yjs history hook source changed')
   const replacements = [
+    ['      itemsToRedo.forEach(struct => {',
+     '      Array.from(itemsToRedo).sort((a, b) => a.id.client - b.id.client || a.id.clock - b.id.clock).forEach(struct => {'],
     // Same focused modification as committed maintained Yjs canonical-undo:
     // exact actual popped item and materialized deletion candidates.
     ['      for (let i = itemsToDelete.length - 1; i >= 0; i--) {',

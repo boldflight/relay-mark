@@ -1,0 +1,404 @@
+{
+  "initial_state_base64": "ARTVhL3v8ek4AAcBB2RlZmF1bHQDB2hlYWRpbmcoANWEve/x6TgACWhlYWRpbmdJZAF+KADVhL3v8ek4AAVsZXZlbAF9AigA1YS97/HpOAALcmVsYXltYXJrSWQBdyFiYjAyZTQ5NTBiY2M1NDBhNzg3Mzg0N2Y0YTQ5NWMxMGIHANWEve/x6TgABgQA1YS97/HpOAQPU2Vzc2lvbiBzdW1tYXJ5h9WEve/x6TgAAwlwYXJhZ3JhcGgoANWEve/x6TgUC3JlbGF5bWFya0lkAXchYjIwMGJlOTk0YjlmYTQyZmQ4MTY4OGMxZjE1NWYwNGFmBwDVhL3v8ek4FAYEANWEve/x6TgWJ1RoZSBjbGllbnQgd2FudHMgYSBwcmFjdGljYWwgbmV4dCBzdGVwLofVhL3v8ek4FAMHaGVhZGluZygA1YS97/HpOD4FbGV2ZWwBfQIoANWEve/x6Tg+C3JlbGF5bWFya0lkAXchYmUyNmE0MTM3NmM0ODQ2NjI4YWFhMDczZTk2NGU5ODU5KADVhL3v8ek4PgloZWFkaW5nSWQBfgcA1YS97/HpOD4GBADVhL3v8ek4Qg5Gb2xsb3ctdGhyb3VnaIfVhL3v8ek4PgMJcGFyYWdyYXBoKADVhL3v8ek4UQtyZWxheW1hcmtJZAF3IWI0ZTlhZmEyYzYzNzU0NmZjODZjNzFmMTI5NWYwZjRhNgcA1YS97/HpOFEGBADVhL3v8ek4UydDaGVjayB3aGV0aGVyIHRoZSBhcHBsaWNhdGlvbiB3YXMgc2VudC4A",
+  "receipts": [
+    {
+      "transaction_id": "b05d6426-a76d-4248-b51c-4e83d50d2931",
+      "sender_state_base64": "ARTVhL3v8ek4AAcBB2RlZmF1bHQDB2hlYWRpbmcoANWEve/x6TgACWhlYWRpbmdJZAF+KADVhL3v8ek4AAVsZXZlbAF9AigA1YS97/HpOAALcmVsYXltYXJrSWQBdyFiYjAyZTQ5NTBiY2M1NDBhNzg3Mzg0N2Y0YTQ5NWMxMGIHANWEve/x6TgABgQA1YS97/HpOAQPU2Vzc2lvbiBzdW1tYXJ5h9WEve/x6TgAAwlwYXJhZ3JhcGgoANWEve/x6TgUC3JlbGF5bWFya0lkAXchYjIwMGJlOTk0YjlmYTQyZmQ4MTY4OGMxZjE1NWYwNGFmBwDVhL3v8ek4FAYEANWEve/x6TgWJ1RoZSBjbGllbnQgd2FudHMgYSBwcmFjdGljYWwgbmV4dCBzdGVwLofVhL3v8ek4FAMHaGVhZGluZygA1YS97/HpOD4FbGV2ZWwBfQIoANWEve/x6Tg+C3JlbGF5bWFya0lkAXchYmUyNmE0MTM3NmM0ODQ2NjI4YWFhMDczZTk2NGU5ODU5KADVhL3v8ek4PgloZWFkaW5nSWQBfgcA1YS97/HpOD4GBADVhL3v8ek4Qg5Gb2xsb3ctdGhyb3VnaIfVhL3v8ek4PgMJcGFyYWdyYXBoKADVhL3v8ek4UQtyZWxheW1hcmtJZAF3IWI0ZTlhZmEyYzYzNzU0NmZjODZjNzFmMTI5NWYwZjRhNgcA1YS97/HpOFEGBADVhL3v8ek4UydDaGVjayB3aGV0aGVyIHRoZSBhcHBsaWNhdGlvbiB3YXMgc2VudC4A",
+      "update_base64": "AQPfq4i/95bNDQCo1YS97/HpOAEBdyZoLWJiYzA0NDQ2LTQ5OTgtNDIzYS1hOGY2LWU2ZDA3MmJmYzMzY6jVhL3v8ek4QQF3JmgtYWEyMTZkODctYmQ0Ni00M2ZlLWJjMzctMGNlZTllZGE1MzRlhNWEve/x6Th6DCBOYXRpdmUg8J+YgAHVhL3v8ek4AgEBQQE=",
+      "operation": {
+        "copies": [],
+        "group": {
+          "operation_ids": [
+            "b05d6426-a76d-4248-b51c-4e83d50d2931"
+          ],
+          "owner_id": "bb4f59de-df81-43fc-831f-de79c4b1cadf",
+          "reference": "b05d6426-a76d-4248-b51c-4e83d50d2931"
+        },
+        "steps": [
+          {
+            "from": 114,
+            "slice": {
+              "content": [
+                {
+                  "text": " Native 😀",
+                  "type": "text"
+                }
+              ]
+            },
+            "stepType": "replace",
+            "to": 114
+          },
+          {
+            "attr": "headingId",
+            "pos": 0,
+            "stepType": "attr",
+            "value": "h-bbc04446-4998-423a-a8f6-e6d072bfc33c"
+          },
+          {
+            "attr": "headingId",
+            "pos": 58,
+            "stepType": "attr",
+            "value": "h-aa216d87-bd46-43fe-bc37-0cee9eda534e"
+          }
+        ],
+        "kind": "content_edit"
+      }
+    },
+    {
+      "transaction_id": "db47ca70-4499-4bdb-9fcc-476c8af4bf90",
+      "sender_state_base64": "AgPfq4i/95bNDQCo1YS97/HpOAEBdyZoLWJiYzA0NDQ2LTQ5OTgtNDIzYS1hOGY2LWU2ZDA3MmJmYzMzY6jVhL3v8ek4QQF3JmgtYWEyMTZkODctYmQ0Ni00M2ZlLWJjMzctMGNlZTllZGE1MzRlhNWEve/x6Th6DCBOYXRpdmUg8J+YgBTVhL3v8ek4AAcBB2RlZmF1bHQDB2hlYWRpbmcoANWEve/x6TgACWhlYWRpbmdJZAF+KADVhL3v8ek4AAVsZXZlbAF9AigA1YS97/HpOAALcmVsYXltYXJrSWQBdyFiYjAyZTQ5NTBiY2M1NDBhNzg3Mzg0N2Y0YTQ5NWMxMGIHANWEve/x6TgABgQA1YS97/HpOAQPU2Vzc2lvbiBzdW1tYXJ5h9WEve/x6TgAAwlwYXJhZ3JhcGgoANWEve/x6TgUC3JlbGF5bWFya0lkAXchYjIwMGJlOTk0YjlmYTQyZmQ4MTY4OGMxZjE1NWYwNGFmBwDVhL3v8ek4FAYEANWEve/x6TgWJ1RoZSBjbGllbnQgd2FudHMgYSBwcmFjdGljYWwgbmV4dCBzdGVwLofVhL3v8ek4FAMHaGVhZGluZygA1YS97/HpOD4FbGV2ZWwBfQIoANWEve/x6Tg+C3JlbGF5bWFya0lkAXchYmUyNmE0MTM3NmM0ODQ2NjI4YWFhMDczZTk2NGU5ODU5KADVhL3v8ek4PgloZWFkaW5nSWQBfgcA1YS97/HpOD4GBADVhL3v8ek4Qg5Gb2xsb3ctdGhyb3VnaIfVhL3v8ek4PgMJcGFyYWdyYXBoKADVhL3v8ek4UQtyZWxheW1hcmtJZAF3IWI0ZTlhZmEyYzYzNzU0NmZjODZjNzFmMTI5NWYwZjRhNgcA1YS97/HpOFEGBADVhL3v8ek4UydDaGVjayB3aGV0aGVyIHRoZSBhcHBsaWNhdGlvbiB3YXMgc2VudC4B1YS97/HpOAIBAUEB",
+      "update_base64": "AQHfq4i/95bNDQyE36uIv/eWzQ0LDSBPZmZsaW5lIPCfmoAA",
+      "operation": {
+        "copies": [],
+        "group": {
+          "operation_ids": [
+            "b05d6426-a76d-4248-b51c-4e83d50d2931",
+            "db47ca70-4499-4bdb-9fcc-476c8af4bf90"
+          ],
+          "owner_id": "bb4f59de-df81-43fc-831f-de79c4b1cadf",
+          "reference": "b05d6426-a76d-4248-b51c-4e83d50d2931"
+        },
+        "steps": [
+          {
+            "from": 124,
+            "slice": {
+              "content": [
+                {
+                  "text": " Offline 🚀",
+                  "type": "text"
+                }
+              ]
+            },
+            "stepType": "replace",
+            "to": 124
+          }
+        ],
+        "kind": "content_edit"
+      }
+    }
+  ],
+  "sender_state_base64": "AwTfq4i/95bNDQCo1YS97/HpOAEBdyZoLWJiYzA0NDQ2LTQ5OTgtNDIzYS1hOGY2LWU2ZDA3MmJmYzMzY6jVhL3v8ek4QQF3JmgtYWEyMTZkODctYmQ0Ni00M2ZlLWJjMzctMGNlZTllZGE1MzRlhNWEve/x6Th6DCBOYXRpdmUg8J+YgITfq4i/95bNDQsNIE9mZmxpbmUg8J+agAG0uPLOj8ubBQCE36uIv/eWzQ0LCiBQZWVyIPCfjI0U1YS97/HpOAAHAQdkZWZhdWx0AwdoZWFkaW5nKADVhL3v8ek4AAloZWFkaW5nSWQBfigA1YS97/HpOAAFbGV2ZWwBfQIoANWEve/x6TgAC3JlbGF5bWFya0lkAXchYmIwMmU0OTUwYmNjNTQwYTc4NzM4NDdmNGE0OTVjMTBiBwDVhL3v8ek4AAYEANWEve/x6TgED1Nlc3Npb24gc3VtbWFyeYfVhL3v8ek4AAMJcGFyYWdyYXBoKADVhL3v8ek4FAtyZWxheW1hcmtJZAF3IWIyMDBiZTk5NGI5ZmE0MmZkODE2ODhjMWYxNTVmMDRhZgcA1YS97/HpOBQGBADVhL3v8ek4FidUaGUgY2xpZW50IHdhbnRzIGEgcHJhY3RpY2FsIG5leHQgc3RlcC6H1YS97/HpOBQDB2hlYWRpbmcoANWEve/x6Tg+BWxldmVsAX0CKADVhL3v8ek4PgtyZWxheW1hcmtJZAF3IWJlMjZhNDEzNzZjNDg0NjYyOGFhYTA3M2U5NjRlOTg1OSgA1YS97/HpOD4JaGVhZGluZ0lkAX4HANWEve/x6Tg+BgQA1YS97/HpOEIORm9sbG93LXRocm91Z2iH1YS97/HpOD4DCXBhcmFncmFwaCgA1YS97/HpOFELcmVsYXltYXJrSWQBdyFiNGU5YWZhMmM2Mzc1NDZmYzg2YzcxZjEyOTVmMGY0YTYHANWEve/x6ThRBgQA1YS97/HpOFMnQ2hlY2sgd2hldGhlciB0aGUgYXBwbGljYXRpb24gd2FzIHNlbnQuAdWEve/x6TgCAQFBAQ==",
+  "current_state_base64": "AwTfq4i/95bNDQCo1YS97/HpOAEBdyZoLWJiYzA0NDQ2LTQ5OTgtNDIzYS1hOGY2LWU2ZDA3MmJmYzMzY6jVhL3v8ek4QQF3JmgtYWEyMTZkODctYmQ0Ni00M2ZlLWJjMzctMGNlZTllZGE1MzRlhNWEve/x6Th6DCBOYXRpdmUg8J+YgITfq4i/95bNDQsNIE9mZmxpbmUg8J+agAG0uPLOj8ubBQCE36uIv/eWzQ0LCiBQZWVyIPCfjI0U1YS97/HpOAAHAQdkZWZhdWx0AwdoZWFkaW5nKADVhL3v8ek4AAloZWFkaW5nSWQBfigA1YS97/HpOAAFbGV2ZWwBfQIoANWEve/x6TgAC3JlbGF5bWFya0lkAXchYmIwMmU0OTUwYmNjNTQwYTc4NzM4NDdmNGE0OTVjMTBiBwDVhL3v8ek4AAYEANWEve/x6TgED1Nlc3Npb24gc3VtbWFyeYfVhL3v8ek4AAMJcGFyYWdyYXBoKADVhL3v8ek4FAtyZWxheW1hcmtJZAF3IWIyMDBiZTk5NGI5ZmE0MmZkODE2ODhjMWYxNTVmMDRhZgcA1YS97/HpOBQGBADVhL3v8ek4FidUaGUgY2xpZW50IHdhbnRzIGEgcHJhY3RpY2FsIG5leHQgc3RlcC6H1YS97/HpOBQDB2hlYWRpbmcoANWEve/x6Tg+BWxldmVsAX0CKADVhL3v8ek4PgtyZWxheW1hcmtJZAF3IWJlMjZhNDEzNzZjNDg0NjYyOGFhYTA3M2U5NjRlOTg1OSgA1YS97/HpOD4JaGVhZGluZ0lkAX4HANWEve/x6Tg+BgQA1YS97/HpOEIORm9sbG93LXRocm91Z2iH1YS97/HpOD4DCXBhcmFncmFwaCgA1YS97/HpOFELcmVsYXltYXJrSWQBdyFiNGU5YWZhMmM2Mzc1NDZmYzg2YzcxZjEyOTVmMGY0YTYHANWEve/x6ThRBgQA1YS97/HpOFMnQ2hlY2sgd2hldGhlciB0aGUgYXBwbGljYXRpb24gd2FzIHNlbnQuAdWEve/x6TgCAQFBAQ==",
+  "writer_client": 6782113737519247,
+  "operation": {
+    "copies": [],
+    "history": {
+      "kind": "undo",
+      "operation_ids": [
+        "b05d6426-a76d-4248-b51c-4e83d50d2931",
+        "db47ca70-4499-4bdb-9fcc-476c8af4bf90"
+      ],
+      "owner_id": "bb4f59de-df81-43fc-831f-de79c4b1cadf",
+      "reference": "b05d6426-a76d-4248-b51c-4e83d50d2931"
+    },
+    "steps": [
+      {
+        "from": 0,
+        "slice": {
+          "content": [
+            {
+              "attrs": {
+                "headingId": null,
+                "level": 2,
+                "relaymarkId": "bb02e4950bcc540a7873847f4a495c10b"
+              },
+              "content": [
+                {
+                  "text": "Session summary",
+                  "type": "text"
+                }
+              ],
+              "type": "heading"
+            },
+            {
+              "attrs": {
+                "relaymarkId": "b200be994b9fa42fd81688c1f155f04af"
+              },
+              "content": [
+                {
+                  "text": "The client wants a practical next step.",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "attrs": {
+                "headingId": null,
+                "level": 2,
+                "relaymarkId": "be26a41376c4846628aaa073e964e9859"
+              },
+              "content": [
+                {
+                  "text": "Follow-through",
+                  "type": "text"
+                }
+              ],
+              "type": "heading"
+            },
+            {
+              "attrs": {
+                "relaymarkId": "b4e9afa2c637546fc86c71f1295f0f4a6"
+              },
+              "content": [
+                {
+                  "text": "Check whether the application was sent. Peer 🌍",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ]
+        },
+        "stepType": "replace",
+        "to": 144
+      }
+    ],
+    "kind": "content_edit"
+  },
+  "footprint": {
+    "state_vector": [
+      {
+        "client": 249928944140885,
+        "clock": 123
+      },
+      {
+        "client": 2936078195268660,
+        "clock": 8
+      },
+      {
+        "client": 6782113737519247,
+        "clock": 2
+      },
+      {
+        "client": 7657786966152671,
+        "clock": 23
+      }
+    ],
+    "structs": [
+      {
+        "item": {
+          "client": 6782113737519247,
+          "clock": 0
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 62
+          }
+        },
+        "key": "headingId",
+        "origin": {
+          "client": 7657786966152671,
+          "clock": 1
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 6782113737519247,
+          "clock": 1
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 0
+          }
+        },
+        "key": "headingId",
+        "origin": {
+          "client": 7657786966152671,
+          "clock": 0
+        },
+        "right_origin": null,
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        },
+        "deleted": false
+      }
+    ],
+    "declared_deletes": [
+      {
+        "item": {
+          "client": 249928944140885,
+          "clock": 1
+        },
+        "count": 1
+      },
+      {
+        "item": {
+          "client": 249928944140885,
+          "clock": 65
+        },
+        "count": 1
+      },
+      {
+        "item": {
+          "client": 7657786966152671,
+          "clock": 0
+        },
+        "count": 23
+      }
+    ],
+    "deleted_items": [
+      {
+        "item": {
+          "client": 249928944140885,
+          "clock": 1
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 249928944140885,
+          "clock": 1
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 0
+          }
+        },
+        "key": "headingId",
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 249928944140885,
+          "clock": 65
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 249928944140885,
+          "clock": 65
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 62
+          }
+        },
+        "key": "headingId",
+        "content": {
+          "kind": "any",
+          "values": [
+            null
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 7657786966152671,
+          "clock": 0
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 7657786966152671,
+          "clock": 0
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 0
+          }
+        },
+        "key": "headingId",
+        "content": {
+          "kind": "any",
+          "values": [
+            "h-bbc04446-4998-423a-a8f6-e6d072bfc33c"
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 7657786966152671,
+          "clock": 1
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 7657786966152671,
+          "clock": 1
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 62
+          }
+        },
+        "key": "headingId",
+        "content": {
+          "kind": "any",
+          "values": [
+            "h-aa216d87-bd46-43fe-bc37-0cee9eda534e"
+          ]
+        }
+      },
+      {
+        "item": {
+          "client": 7657786966152671,
+          "clock": 2
+        },
+        "count": 10,
+        "stored_item": {
+          "client": 7657786966152671,
+          "clock": 2
+        },
+        "stored_count": 10,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 83
+          }
+        },
+        "key": null,
+        "content": {
+          "kind": "string",
+          "text": " Native 😀"
+        }
+      },
+      {
+        "item": {
+          "client": 7657786966152671,
+          "clock": 12
+        },
+        "count": 11,
+        "stored_item": {
+          "client": 7657786966152671,
+          "clock": 12
+        },
+        "stored_count": 11,
+        "parent": {
+          "type": {
+            "client": 249928944140885,
+            "clock": 83
+          }
+        },
+        "key": null,
+        "content": {
+          "kind": "string",
+          "text": " Offline 🚀"
+        }
+      }
+    ]
+  }
+}
