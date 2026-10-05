@@ -352,7 +352,7 @@ public enum RelayMarkNativeRichEditing {
             try transform.step(step)
         }
         guard pmCompareDeep(transform.doc.json(), expected) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let (update, updated, beforeSnapshot, witnessedSteps) = try commit(transform, source: source, bridge: bridge, document: document)
+        let (update, updated, beforeSnapshot, witnessedSteps) = try commit(transform, source: source, bridge: bridge, document: document, preferredIDs: result["retained_ids"] as? [String: Int] ?? [:])
         let caret = (finalSelection["head"] as? Int).flatMap { caret($0, in: updated) }
         let id = caret.flatMap { value -> String? in
             var node = updated
@@ -501,13 +501,13 @@ public enum RelayMarkNativeRichEditing {
     /// Applies identity rules, validates the prospective document on a
     /// scratch replica, then writes it through y-prosemirror's diff.
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
-                               document: RelayMarkNativeDocument) throws -> (Data, PMNode, Data, Data) {
+                               document: RelayMarkNativeDocument, preferredIDs: [String: Int] = [:]) throws -> (Data, PMNode, Data, Data) {
         var seen = Set<String>(), anchors = Set<String>()
         transform.doc.content.nodesBetween(0, transform.doc.content.size, { node, _, _, _ in
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
             return true
         })
-        let identifiedDocument = identified(transform.doc, seen: &seen, anchors: &anchors)
+        let identifiedDocument = identified(transform.doc, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs)
         var witnessed=transform
         var repairs:[PMStep]=[]
         identifiedDocument.content.nodesBetween(0,identifiedDocument.content.size,{node,pos,_,_ in
@@ -570,7 +570,7 @@ public enum RelayMarkNativeRichEditing {
     /// UniqueID and PaperHeading after a local edit: nodes created by the
     /// transform (null IDs) and later duplicates receive fresh relaymarkIds,
     /// headings keep a unique anchor headingId; retained nodes keep theirs.
-    private static func identified(_ node: PMNode, seen: inout Set<String>, anchors: inout Set<String>) -> PMNode {
+    private static func identified(_ node: PMNode, seen: inout Set<String>, anchors: inout Set<String>, preferredIDs: [String: Int] = [:], position: Int = -1) -> PMNode {
         var attrs = node.attrs, changed = false
         if node.type.name == "heading" {
             let current = attrs["headingId"]
@@ -583,7 +583,7 @@ public enum RelayMarkNativeRichEditing {
             anchors.insert(attrs["headingId"] as? String ?? "")
         }
         if node.type.attrs.contains(where: { $0.name == "relaymarkId" }) {
-            if let id = attrs["relaymarkId"] as? String, seen.insert(id).inserted {
+            if let id = attrs["relaymarkId"] as? String, (preferredIDs[id] == nil || preferredIDs[id] == position), seen.insert(id).inserted {
                 // retained
             } else {
                 let id = RelayMarkNativeRichXML.freshID()
@@ -593,9 +593,13 @@ public enum RelayMarkNativeRichEditing {
             }
         }
         var children = node.content.children, childChanged = false
-        for (index, child) in children.enumerated() where !child.isText {
-            let next = identified(child, seen: &seen, anchors: &anchors)
-            if next !== child { children[index] = next; childChanged = true }
+        var childPosition = position + 1
+        for (index, child) in children.enumerated() {
+            if !child.isText {
+                let next = identified(child, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs, position: childPosition)
+                if next !== child { children[index] = next; childChanged = true }
+            }
+            childPosition += child.nodeSize
         }
         guard changed || childChanged else { return node }
         return PMNode(type: node.type, attrs: attrs, content: childChanged ? PMFragment(children) : node.content,

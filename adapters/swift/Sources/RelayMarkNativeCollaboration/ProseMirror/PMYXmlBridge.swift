@@ -363,12 +363,14 @@ final class PMYXmlBridge {
         switch child {
         case .node(let node):
             let element = try parent.insertElement(named: node.type.name, at: UInt32(index), in: tx)
+            // The maintained binding integrates child types/text first, then
+            // authored attrs. This order determines the exact CRDT item clocks.
+            for (offset, grandchild) in Self.normalize(node).enumerated() {
+                try create(grandchild, in: element, at: offset, tx)
+            }
             for attribute in node.type.attrs {
                 guard let value = node.attrs[attribute.name] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
                 if !(value is NSNull) { try element.setAttribute(attribute.name, value: value, in: tx) }
-            }
-            for (offset, grandchild) in Self.normalize(node).enumerated() {
-                try create(grandchild, in: element, at: offset, tx)
             }
         case .text(let texts):
             let leaf = try parent.insertText(at: UInt32(index), in: tx)

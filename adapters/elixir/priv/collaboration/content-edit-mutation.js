@@ -5663,6 +5663,14 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   let document2 = schema3.nodeFromJSON(admittedDocument);
   document2.check();
   const step_maps = [];
+  const originalIdentities = /* @__PURE__ */ new Map();
+  document2.descendants((node, position) => {
+    const id2 = node.attrs.relaymarkId;
+    if (!id2) return;
+    if (originalIdentities.has(id2)) throw TypeError("Ambiguous retained subtree identity");
+    originalIdentities.set(id2, { node, position });
+  });
+  let copied_subtree_ranges = [];
   let retained_ranges = document2.content.size ? [{ source_from: 0, destination_from: 0, length: document2.content.size }] : [];
   for (const json2 of operation.steps) {
     if (json2.stepType === "docAttr") {
@@ -5678,21 +5686,40 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
     step_maps.push({ ranges: [...map.ranges], inverted: map.inverted });
     const changed = [];
     map.forEach((from, to) => changed.push([from, to]));
-    const next = [];
-    for (const range of retained_ranges) {
-      const start = range.destination_from, end = start + range.length;
-      const boundaries = [start, end, ...changed.flatMap(([from, to]) => [from, to]).filter((p) => p > start && p < end)].sort((a, b) => a - b);
-      for (let i = 1; i < boundaries.length; i++) {
-        const from = boundaries[i - 1], to = boundaries[i];
-        if (from === to || changed.some(([a, b]) => a < b && from >= a && to <= b)) continue;
-        const destination = map.map(from, 1), upper = map.map(to, -1);
-        if (upper - destination !== to - from) throw new TypeError("Unprovable maintained map interval");
-        const source = range.source_from + from - start, last = next.at(-1);
-        if (last && last.source_from + last.length === source && last.destination_from + last.length === destination) last.length += to - from;
-        else next.push({ source_from: source, destination_from: destination, length: to - from });
-        if (next.length > 65536) throw new TypeError("Content edit causal mapping budget exceeded");
+    const mapRanges = (ranges) => {
+      const next2 = [];
+      for (const range of ranges) {
+        const start = range.destination_from, end = start + range.length;
+        const boundaries = [start, end, ...changed.flatMap(([from, to]) => [from, to]).filter((p) => p > start && p < end)].sort((a, b) => a - b);
+        for (let i = 1; i < boundaries.length; i++) {
+          const from = boundaries[i - 1], to = boundaries[i];
+          if (from === to || changed.some(([a, b]) => a < b && from >= a && to <= b)) continue;
+          const destination = map.map(from, 1), upper = map.map(to, -1);
+          if (upper - destination !== to - from) throw new TypeError("Unprovable maintained map interval");
+          const source = range.source_from + from - start, last = next2.at(-1);
+          if (last && last.source_from + last.length === source && last.destination_from + last.length === destination) last.length += to - from;
+          else next2.push({ source_from: source, destination_from: destination, length: to - from });
+          if (next2.length > 65536) throw new TypeError("Content edit causal mapping budget exceeded");
+        }
       }
+      return next2;
+    };
+    copied_subtree_ranges = mapRanges(copied_subtree_ranges);
+    const candidates = [];
+    if (json2.stepType === "replace" && step.slice) {
+      step.slice.content.descendants((node, pos) => {
+        const id2 = node.attrs.relaymarkId, original = id2 && originalIdentities.get(id2);
+        if (!original || !node.eq(original.node)) return;
+        const destination = step.from + pos - step.slice.openStart;
+        if (destination < 0 || !document2.nodeAt(destination)?.eq(node)) return;
+        if (candidates.some((range) => destination >= range.destination_from && destination + node.nodeSize <= range.destination_from + range.length)) return false;
+        candidates.push({ source_from: original.position, destination_from: destination, length: node.nodeSize });
+        return false;
+      });
     }
+    copied_subtree_ranges.push(...candidates);
+    if (copied_subtree_ranges.length > 65536) throw TypeError("Copied subtree mapping budget exceeded");
+    const next = mapRanges(retained_ranges);
     retained_ranges = next;
   }
   document2.check();
@@ -5705,7 +5732,7 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
     cursor = Math.max(cursor, range.destination_from + range.length);
   }
   if (cursor < document2.content.size) inserted_ranges.push({ destination_from: cursor, length: document2.content.size - cursor });
-  return { document: json, authored_document, step_maps, retained_ranges, inserted_ranges };
+  return { document: json, authored_document, step_maps, retained_ranges, inserted_ranges, copied_subtree_ranges };
 }
 function prepareContentEditWrite(before, steps, after) {
   const expected = applyContentEdit(before, { kind: "content_edit", steps });

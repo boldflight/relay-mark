@@ -1,0 +1,2477 @@
+{
+  "before_snapshot_base64" : "AAEBPA==",
+  "current_state_base64" : "ATcBAAcBB2RlZmF1bHQDCXBhcmFncmFwaAcAAQAGBAABAQZCZWZvcmUoAAEAC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMTQwMDA4MDAwMDAwMDAwMDAwMDAwhwEAAwV0YWJsZQcAAQkDCHRhYmxlUm93BwABCgMLdGFibGVIZWFkZXIHAAELAwlwYXJhZ3JhcGgHAAEMBgQAAQ0BQSgAAQwLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDA0NDAwMDgwMDAwMDAwMDAwMDAwMDAoAAELC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMzQwMDA4MDAwMDAwMDAwMDAwMDAwKAABCwdjb2xzcGFuAX0BKAABCwdyb3dzcGFuAX0BKAABCwhjb2x3aWR0aAF1AX24AYcBCwMLdGFibGVIZWFkZXIHAAEUAwlwYXJhZ3JhcGgHAAEVBgQAARYBQigAARULcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDA2NDAwMDgwMDAwMDAwMDAwMDAwMDAoAAEUC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwNTQwMDA4MDAwMDAwMDAwMDAwMDAwKAABFAdjb2xzcGFuAX0CKAABFAdyb3dzcGFuAX0BKAABFAhjb2x3aWR0aAF1An2MAn2gAigAAQoLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDA3NDAwMDgwMDAwMDAwMDAwMDAwMDCHAQoDCHRhYmxlUm93BwABHgMJdGFibGVDZWxsBwABHwMJcGFyYWdyYXBoBwABIAYEAAEhAUMoAAEgC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwOTQwMDA4MDAwMDAwMDAwMDAwMDAwKAABHwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDg0MDAwODAwMDAwMDAwMDAwMDAwMCgAAR8HY29sc3BhbgF9ASgAAR8Hcm93c3BhbgF9ASgAAR8IY29sd2lkdGgBdQF9uAGHAR8DCXRhYmxlQ2VsbAcAASgDCXBhcmFncmFwaAcAASkGBAABKgFEKAABKQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMGI0MDAwODAwMDAwMDAwMDAwMDAwMCgAASgLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDBhNDAwMDgwMDAwMDAwMDAwMDAwMDAoAAEoB2NvbHNwYW4BfQEoAAEoB3Jvd3NwYW4BfQEoAAEoCGNvbHdpZHRoAXUBfYwChwEoAwl0YWJsZUNlbGwHAAExAwlwYXJhZ3JhcGgHAAEyBgQAATMBRSgAATILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDBkNDAwMDgwMDAwMDAwMDAwMDAwMDAoAAExC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwYzQwMDA4MDAwMDAwMDAwMDAwMDAwKAABMQdjb2xzcGFuAX0BKAABMQdyb3dzcGFuAX0BKAABMQhjb2x3aWR0aAF1AX2gAigAAR4LcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDBlNDAwMDgwMDAwMDAwMDAwMDAwMDAoAAEJC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMjQwMDA4MDAwMDAwMDAwMDAwMDAwAA==",
+  "description" : "Actual maintained native mergeCells copies existing cell content, not human input",
+  "evidence" : {
+    "after_snapshot" : {
+      "children" : [
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000140008000000000000000"
+          },
+          "children" : [
+            {
+              "kind" : "text",
+              "runs" : [
+                {
+                  "attributes" : {
+
+                  },
+                  "count" : 6,
+                  "item" : {
+                    "client" : 1,
+                    "clock" : 2
+                  },
+                  "text" : "Before"
+                }
+              ],
+              "type" : {
+                "client" : 1,
+                "clock" : 1
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "paragraph",
+          "type" : {
+            "client" : 1,
+            "clock" : 0
+          }
+        },
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000240008000000000000000"
+          },
+          "children" : [
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000740008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      120
+                    ],
+                    "relaymarkId" : "b00000000000340008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000440008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 14
+                              },
+                              "text" : "A"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 13
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 12
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 11
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 2,
+                    "colwidth" : [
+                      140,
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000540008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000640008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 23
+                              },
+                              "text" : "B"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 22
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 21
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 20
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 10
+              }
+            },
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000e40008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 2,
+                    "colwidth" : [
+                      120,
+                      140
+                    ],
+                    "relaymarkId" : "b00000000000840008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000940008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 34
+                              },
+                              "text" : "C"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 33
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 32
+                      }
+                    },
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000b40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 8940252968823430,
+                                "clock" : 4
+                              },
+                              "text" : "D"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 8940252968823430,
+                            "clock" : 3
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 8940252968823430,
+                        "clock" : 2
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 31
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000c40008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000d40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 52
+                              },
+                              "text" : "E"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 51
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 50
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 49
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 30
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "table",
+          "type" : {
+            "client" : 1,
+            "clock" : 9
+          }
+        }
+      ],
+      "kind" : "fragment",
+      "root" : "default"
+    },
+    "before_snapshot" : {
+      "children" : [
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000140008000000000000000"
+          },
+          "children" : [
+            {
+              "kind" : "text",
+              "runs" : [
+                {
+                  "attributes" : {
+
+                  },
+                  "count" : 6,
+                  "item" : {
+                    "client" : 1,
+                    "clock" : 2
+                  },
+                  "text" : "Before"
+                }
+              ],
+              "type" : {
+                "client" : 1,
+                "clock" : 1
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "paragraph",
+          "type" : {
+            "client" : 1,
+            "clock" : 0
+          }
+        },
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000240008000000000000000"
+          },
+          "children" : [
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000740008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      120
+                    ],
+                    "relaymarkId" : "b00000000000340008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000440008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 14
+                              },
+                              "text" : "A"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 13
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 12
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 11
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 2,
+                    "colwidth" : [
+                      140,
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000540008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000640008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 23
+                              },
+                              "text" : "B"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 22
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 21
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 20
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 10
+              }
+            },
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000e40008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      120
+                    ],
+                    "relaymarkId" : "b00000000000840008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000940008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 34
+                              },
+                              "text" : "C"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 33
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 32
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 31
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      140
+                    ],
+                    "relaymarkId" : "b00000000000a40008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000b40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 43
+                              },
+                              "text" : "D"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 42
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 41
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 40
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000c40008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000d40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 52
+                              },
+                              "text" : "E"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 51
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 50
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 49
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 30
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "table",
+          "type" : {
+            "client" : 1,
+            "clock" : 9
+          }
+        }
+      ],
+      "kind" : "fragment",
+      "root" : "default"
+    },
+    "before_state_vector" : [
+      {
+        "client" : 1,
+        "clock" : 60
+      }
+    ],
+    "footprint" : {
+      "declared_deletes" : [
+        {
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 37
+          }
+        },
+        {
+          "count" : 10,
+          "item" : {
+            "client" : 1,
+            "clock" : 39
+          }
+        }
+      ],
+      "deleted_items" : [
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              1
+            ]
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 37
+          },
+          "key" : "colspan",
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 31
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 37
+          }
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              [
+                120
+              ]
+            ]
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 39
+          },
+          "key" : "colwidth",
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 31
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 39
+          }
+        },
+        {
+          "content" : {
+            "kind" : "type",
+            "name" : "tableCell",
+            "type_kind" : "xml_element"
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 40
+          },
+          "key" : null,
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 30
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 40
+          }
+        },
+        {
+          "content" : {
+            "kind" : "type",
+            "name" : "paragraph",
+            "type_kind" : "xml_element"
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 41
+          },
+          "key" : null,
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 40
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 41
+          }
+        },
+        {
+          "content" : {
+            "kind" : "type",
+            "name" : null,
+            "type_kind" : "xml_text"
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 42
+          },
+          "key" : null,
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 41
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 42
+          }
+        },
+        {
+          "content" : {
+            "kind" : "string",
+            "text" : "D"
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 43
+          },
+          "key" : null,
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 42
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 43
+          }
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              "b00000000000b40008000000000000000"
+            ]
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 44
+          },
+          "key" : "relaymarkId",
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 41
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 44
+          }
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              "b00000000000a40008000000000000000"
+            ]
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 45
+          },
+          "key" : "relaymarkId",
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 40
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 45
+          }
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              1
+            ]
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 46
+          },
+          "key" : "colspan",
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 40
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 46
+          }
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              1
+            ]
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 47
+          },
+          "key" : "rowspan",
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 40
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 47
+          }
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              [
+                140
+              ]
+            ]
+          },
+          "count" : 1,
+          "item" : {
+            "client" : 1,
+            "clock" : 48
+          },
+          "key" : "colwidth",
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 40
+            }
+          },
+          "stored_count" : 1,
+          "stored_item" : {
+            "client" : 1,
+            "clock" : 48
+          }
+        }
+      ],
+      "state_vector" : [
+        {
+          "client" : 1,
+          "clock" : 60
+        },
+        {
+          "client" : 8940252968823430,
+          "clock" : 6
+        }
+      ],
+      "structs" : [
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              2
+            ]
+          },
+          "count" : 1,
+          "deleted" : false,
+          "item" : {
+            "client" : 8940252968823430,
+            "clock" : 0
+          },
+          "key" : "colspan",
+          "origin" : {
+            "client" : 1,
+            "clock" : 37
+          },
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 31
+            }
+          },
+          "right_origin" : null
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              [
+                120,
+                140
+              ]
+            ]
+          },
+          "count" : 1,
+          "deleted" : false,
+          "item" : {
+            "client" : 8940252968823430,
+            "clock" : 1
+          },
+          "key" : "colwidth",
+          "origin" : {
+            "client" : 1,
+            "clock" : 39
+          },
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 31
+            }
+          },
+          "right_origin" : null
+        },
+        {
+          "content" : {
+            "kind" : "type",
+            "name" : "paragraph",
+            "type_kind" : "xml_element"
+          },
+          "count" : 1,
+          "deleted" : false,
+          "item" : {
+            "client" : 8940252968823430,
+            "clock" : 2
+          },
+          "key" : null,
+          "origin" : {
+            "client" : 1,
+            "clock" : 32
+          },
+          "parent" : {
+            "type" : {
+              "client" : 1,
+              "clock" : 31
+            }
+          },
+          "right_origin" : null
+        },
+        {
+          "content" : {
+            "kind" : "type",
+            "name" : null,
+            "type_kind" : "xml_text"
+          },
+          "count" : 1,
+          "deleted" : false,
+          "item" : {
+            "client" : 8940252968823430,
+            "clock" : 3
+          },
+          "key" : null,
+          "origin" : null,
+          "parent" : {
+            "type" : {
+              "client" : 8940252968823430,
+              "clock" : 2
+            }
+          },
+          "right_origin" : null
+        },
+        {
+          "content" : {
+            "kind" : "string",
+            "text" : "D"
+          },
+          "count" : 1,
+          "deleted" : false,
+          "item" : {
+            "client" : 8940252968823430,
+            "clock" : 4
+          },
+          "key" : null,
+          "origin" : null,
+          "parent" : {
+            "type" : {
+              "client" : 8940252968823430,
+              "clock" : 3
+            }
+          },
+          "right_origin" : null
+        },
+        {
+          "content" : {
+            "kind" : "any",
+            "values" : [
+              "b00000000000b40008000000000000000"
+            ]
+          },
+          "count" : 1,
+          "deleted" : false,
+          "item" : {
+            "client" : 8940252968823430,
+            "clock" : 5
+          },
+          "key" : "relaymarkId",
+          "origin" : null,
+          "parent" : {
+            "type" : {
+              "client" : 8940252968823430,
+              "clock" : 2
+            }
+          },
+          "right_origin" : null
+        }
+      ]
+    },
+    "operation" : {
+      "copies" : [
+        {
+          "destination" : {
+            "runs" : [
+              {
+                "count" : 1,
+                "item" : {
+                  "client" : 8940252968823430,
+                  "clock" : 4
+                },
+                "type" : {
+                  "client" : 8940252968823430,
+                  "clock" : 3
+                }
+              }
+            ]
+          },
+          "source" : {
+            "runs" : [
+              {
+                "count" : 1,
+                "item" : {
+                  "client" : 1,
+                  "clock" : 43
+                },
+                "type" : {
+                  "client" : 1,
+                  "clock" : 42
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "group" : {
+        "operation_ids" : [
+          "818af164-a35a-4e74-a1ef-b9b9ac7bb83e"
+        ],
+        "owner_id" : "a94826ed-4693-4092-a3ac-b5934f61f2e6",
+        "reference" : "818af164-a35a-4e74-a1ef-b9b9ac7bb83e"
+      },
+      "kind" : "content_edit",
+      "steps" : [
+        {
+          "from" : 27,
+          "stepType" : "replace",
+          "to" : 32
+        },
+        {
+          "from" : 22,
+          "gapFrom" : 23,
+          "gapTo" : 26,
+          "insert" : 1,
+          "slice" : {
+            "content" : [
+              {
+                "attrs" : {
+                  "align" : null,
+                  "colspan" : 2,
+                  "colwidth" : [
+                    120,
+                    0
+                  ],
+                  "relaymarkId" : "b00000000000840008000000000000000",
+                  "rowspan" : 1
+                },
+                "type" : "tableCell"
+              }
+            ]
+          },
+          "stepType" : "replaceAround",
+          "structure" : true,
+          "to" : 27
+        },
+        {
+          "from" : 26,
+          "slice" : {
+            "content" : [
+              {
+                "attrs" : {
+                  "relaymarkId" : "b00000000000b40008000000000000000"
+                },
+                "content" : [
+                  {
+                    "text" : "D",
+                    "type" : "text"
+                  }
+                ],
+                "type" : "paragraph"
+              }
+            ]
+          },
+          "stepType" : "replace",
+          "to" : 26
+        },
+        {
+          "from" : 22,
+          "gapFrom" : 23,
+          "gapTo" : 29,
+          "insert" : 1,
+          "slice" : {
+            "content" : [
+              {
+                "attrs" : {
+                  "align" : null,
+                  "colspan" : 2,
+                  "colwidth" : [
+                    120,
+                    140
+                  ],
+                  "relaymarkId" : "b00000000000840008000000000000000",
+                  "rowspan" : 1
+                },
+                "type" : "tableCell"
+              }
+            ]
+          },
+          "stepType" : "replaceAround",
+          "structure" : true,
+          "to" : 30
+        }
+      ]
+    },
+    "sender_after_snapshot" : {
+      "children" : [
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000140008000000000000000"
+          },
+          "children" : [
+            {
+              "kind" : "text",
+              "runs" : [
+                {
+                  "attributes" : {
+
+                  },
+                  "count" : 6,
+                  "item" : {
+                    "client" : 1,
+                    "clock" : 2
+                  },
+                  "text" : "Before"
+                }
+              ],
+              "type" : {
+                "client" : 1,
+                "clock" : 1
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "paragraph",
+          "type" : {
+            "client" : 1,
+            "clock" : 0
+          }
+        },
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000240008000000000000000"
+          },
+          "children" : [
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000740008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      120
+                    ],
+                    "relaymarkId" : "b00000000000340008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000440008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 14
+                              },
+                              "text" : "A"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 13
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 12
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 11
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 2,
+                    "colwidth" : [
+                      140,
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000540008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000640008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 23
+                              },
+                              "text" : "B"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 22
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 21
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 20
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 10
+              }
+            },
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000e40008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 2,
+                    "colwidth" : [
+                      120,
+                      140
+                    ],
+                    "relaymarkId" : "b00000000000840008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000940008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 34
+                              },
+                              "text" : "C"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 33
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 32
+                      }
+                    },
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000b40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 8940252968823430,
+                                "clock" : 4
+                              },
+                              "text" : "D"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 8940252968823430,
+                            "clock" : 3
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 8940252968823430,
+                        "clock" : 2
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 31
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000c40008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000d40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 52
+                              },
+                              "text" : "E"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 51
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 50
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 49
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 30
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "table",
+          "type" : {
+            "client" : 1,
+            "clock" : 9
+          }
+        }
+      ],
+      "kind" : "fragment",
+      "root" : "default"
+    },
+    "sender_before_snapshot" : {
+      "children" : [
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000140008000000000000000"
+          },
+          "children" : [
+            {
+              "kind" : "text",
+              "runs" : [
+                {
+                  "attributes" : {
+
+                  },
+                  "count" : 6,
+                  "item" : {
+                    "client" : 1,
+                    "clock" : 2
+                  },
+                  "text" : "Before"
+                }
+              ],
+              "type" : {
+                "client" : 1,
+                "clock" : 1
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "paragraph",
+          "type" : {
+            "client" : 1,
+            "clock" : 0
+          }
+        },
+        {
+          "attributes" : {
+            "relaymarkId" : "b00000000000240008000000000000000"
+          },
+          "children" : [
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000740008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      120
+                    ],
+                    "relaymarkId" : "b00000000000340008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000440008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 14
+                              },
+                              "text" : "A"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 13
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 12
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 11
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 2,
+                    "colwidth" : [
+                      140,
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000540008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000640008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 23
+                              },
+                              "text" : "B"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 22
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 21
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableHeader",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 20
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 10
+              }
+            },
+            {
+              "attributes" : {
+                "relaymarkId" : "b00000000000e40008000000000000000"
+              },
+              "children" : [
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      120
+                    ],
+                    "relaymarkId" : "b00000000000840008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000940008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 34
+                              },
+                              "text" : "C"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 33
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 32
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 31
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      140
+                    ],
+                    "relaymarkId" : "b00000000000a40008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000b40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 43
+                              },
+                              "text" : "D"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 42
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 41
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 40
+                  }
+                },
+                {
+                  "attributes" : {
+                    "colspan" : 1,
+                    "colwidth" : [
+                      160
+                    ],
+                    "relaymarkId" : "b00000000000c40008000000000000000",
+                    "rowspan" : 1
+                  },
+                  "children" : [
+                    {
+                      "attributes" : {
+                        "relaymarkId" : "b00000000000d40008000000000000000"
+                      },
+                      "children" : [
+                        {
+                          "kind" : "text",
+                          "runs" : [
+                            {
+                              "attributes" : {
+
+                              },
+                              "count" : 1,
+                              "item" : {
+                                "client" : 1,
+                                "clock" : 52
+                              },
+                              "text" : "E"
+                            }
+                          ],
+                          "type" : {
+                            "client" : 1,
+                            "clock" : 51
+                          }
+                        }
+                      ],
+                      "kind" : "element",
+                      "name" : "paragraph",
+                      "type" : {
+                        "client" : 1,
+                        "clock" : 50
+                      }
+                    }
+                  ],
+                  "kind" : "element",
+                  "name" : "tableCell",
+                  "type" : {
+                    "client" : 1,
+                    "clock" : 49
+                  }
+                }
+              ],
+              "kind" : "element",
+              "name" : "tableRow",
+              "type" : {
+                "client" : 1,
+                "clock" : 30
+              }
+            }
+          ],
+          "kind" : "element",
+          "name" : "table",
+          "type" : {
+            "client" : 1,
+            "clock" : 9
+          }
+        }
+      ],
+      "kind" : "fragment",
+      "root" : "default"
+    }
+  },
+  "expected_copied_units" : 1,
+  "footprint" : {
+    "declared_deletes" : [
+      {
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 37
+        }
+      },
+      {
+        "count" : 10,
+        "item" : {
+          "client" : 1,
+          "clock" : 39
+        }
+      }
+    ],
+    "deleted_items" : [
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            1
+          ]
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 37
+        },
+        "key" : "colspan",
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 31
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 37
+        }
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            [
+              120
+            ]
+          ]
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 39
+        },
+        "key" : "colwidth",
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 31
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 39
+        }
+      },
+      {
+        "content" : {
+          "kind" : "type",
+          "name" : "tableCell",
+          "type_kind" : "xml_element"
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 40
+        },
+        "key" : null,
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 30
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 40
+        }
+      },
+      {
+        "content" : {
+          "kind" : "type",
+          "name" : "paragraph",
+          "type_kind" : "xml_element"
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 41
+        },
+        "key" : null,
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 40
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 41
+        }
+      },
+      {
+        "content" : {
+          "kind" : "type",
+          "name" : null,
+          "type_kind" : "xml_text"
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 42
+        },
+        "key" : null,
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 41
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 42
+        }
+      },
+      {
+        "content" : {
+          "kind" : "string",
+          "text" : "D"
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 43
+        },
+        "key" : null,
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 42
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 43
+        }
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            "b00000000000b40008000000000000000"
+          ]
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 44
+        },
+        "key" : "relaymarkId",
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 41
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 44
+        }
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            "b00000000000a40008000000000000000"
+          ]
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 45
+        },
+        "key" : "relaymarkId",
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 40
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 45
+        }
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            1
+          ]
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 46
+        },
+        "key" : "colspan",
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 40
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 46
+        }
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            1
+          ]
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 47
+        },
+        "key" : "rowspan",
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 40
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 47
+        }
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            [
+              140
+            ]
+          ]
+        },
+        "count" : 1,
+        "item" : {
+          "client" : 1,
+          "clock" : 48
+        },
+        "key" : "colwidth",
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 40
+          }
+        },
+        "stored_count" : 1,
+        "stored_item" : {
+          "client" : 1,
+          "clock" : 48
+        }
+      }
+    ],
+    "state_vector" : [
+      {
+        "client" : 1,
+        "clock" : 60
+      },
+      {
+        "client" : 8940252968823430,
+        "clock" : 6
+      }
+    ],
+    "structs" : [
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            2
+          ]
+        },
+        "count" : 1,
+        "deleted" : false,
+        "item" : {
+          "client" : 8940252968823430,
+          "clock" : 0
+        },
+        "key" : "colspan",
+        "origin" : {
+          "client" : 1,
+          "clock" : 37
+        },
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 31
+          }
+        },
+        "right_origin" : null
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            [
+              120,
+              140
+            ]
+          ]
+        },
+        "count" : 1,
+        "deleted" : false,
+        "item" : {
+          "client" : 8940252968823430,
+          "clock" : 1
+        },
+        "key" : "colwidth",
+        "origin" : {
+          "client" : 1,
+          "clock" : 39
+        },
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 31
+          }
+        },
+        "right_origin" : null
+      },
+      {
+        "content" : {
+          "kind" : "type",
+          "name" : "paragraph",
+          "type_kind" : "xml_element"
+        },
+        "count" : 1,
+        "deleted" : false,
+        "item" : {
+          "client" : 8940252968823430,
+          "clock" : 2
+        },
+        "key" : null,
+        "origin" : {
+          "client" : 1,
+          "clock" : 32
+        },
+        "parent" : {
+          "type" : {
+            "client" : 1,
+            "clock" : 31
+          }
+        },
+        "right_origin" : null
+      },
+      {
+        "content" : {
+          "kind" : "type",
+          "name" : null,
+          "type_kind" : "xml_text"
+        },
+        "count" : 1,
+        "deleted" : false,
+        "item" : {
+          "client" : 8940252968823430,
+          "clock" : 3
+        },
+        "key" : null,
+        "origin" : null,
+        "parent" : {
+          "type" : {
+            "client" : 8940252968823430,
+            "clock" : 2
+          }
+        },
+        "right_origin" : null
+      },
+      {
+        "content" : {
+          "kind" : "string",
+          "text" : "D"
+        },
+        "count" : 1,
+        "deleted" : false,
+        "item" : {
+          "client" : 8940252968823430,
+          "clock" : 4
+        },
+        "key" : null,
+        "origin" : null,
+        "parent" : {
+          "type" : {
+            "client" : 8940252968823430,
+            "clock" : 3
+          }
+        },
+        "right_origin" : null
+      },
+      {
+        "content" : {
+          "kind" : "any",
+          "values" : [
+            "b00000000000b40008000000000000000"
+          ]
+        },
+        "count" : 1,
+        "deleted" : false,
+        "item" : {
+          "client" : 8940252968823430,
+          "clock" : 5
+        },
+        "key" : "relaymarkId",
+        "origin" : null,
+        "parent" : {
+          "type" : {
+            "client" : 8940252968823430,
+            "clock" : 2
+          }
+        },
+        "right_origin" : null
+      }
+    ]
+  },
+  "operation" : {
+    "copies" : [
+      {
+        "destination" : {
+          "runs" : [
+            {
+              "count" : 1,
+              "item" : {
+                "client" : 8940252968823430,
+                "clock" : 4
+              },
+              "type" : {
+                "client" : 8940252968823430,
+                "clock" : 3
+              }
+            }
+          ]
+        },
+        "source" : {
+          "runs" : [
+            {
+              "count" : 1,
+              "item" : {
+                "client" : 1,
+                "clock" : 43
+              },
+              "type" : {
+                "client" : 1,
+                "clock" : 42
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "group" : {
+      "operation_ids" : [
+        "818af164-a35a-4e74-a1ef-b9b9ac7bb83e"
+      ],
+      "owner_id" : "a94826ed-4693-4092-a3ac-b5934f61f2e6",
+      "reference" : "818af164-a35a-4e74-a1ef-b9b9ac7bb83e"
+    },
+    "kind" : "content_edit",
+    "steps" : [
+      {
+        "from" : 27,
+        "stepType" : "replace",
+        "to" : 32
+      },
+      {
+        "from" : 22,
+        "gapFrom" : 23,
+        "gapTo" : 26,
+        "insert" : 1,
+        "slice" : {
+          "content" : [
+            {
+              "attrs" : {
+                "align" : null,
+                "colspan" : 2,
+                "colwidth" : [
+                  120,
+                  0
+                ],
+                "relaymarkId" : "b00000000000840008000000000000000",
+                "rowspan" : 1
+              },
+              "type" : "tableCell"
+            }
+          ]
+        },
+        "stepType" : "replaceAround",
+        "structure" : true,
+        "to" : 27
+      },
+      {
+        "from" : 26,
+        "slice" : {
+          "content" : [
+            {
+              "attrs" : {
+                "relaymarkId" : "b00000000000b40008000000000000000"
+              },
+              "content" : [
+                {
+                  "text" : "D",
+                  "type" : "text"
+                }
+              ],
+              "type" : "paragraph"
+            }
+          ]
+        },
+        "stepType" : "replace",
+        "to" : 26
+      },
+      {
+        "from" : 22,
+        "gapFrom" : 23,
+        "gapTo" : 29,
+        "insert" : 1,
+        "slice" : {
+          "content" : [
+            {
+              "attrs" : {
+                "align" : null,
+                "colspan" : 2,
+                "colwidth" : [
+                  120,
+                  140
+                ],
+                "relaymarkId" : "b00000000000840008000000000000000",
+                "rowspan" : 1
+              },
+              "type" : "tableCell"
+            }
+          ]
+        },
+        "stepType" : "replaceAround",
+        "structure" : true,
+        "to" : 30
+      }
+    ]
+  },
+  "sender_state_base64" : "ATcBAAcBB2RlZmF1bHQDCXBhcmFncmFwaAcAAQAGBAABAQZCZWZvcmUoAAEAC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMTQwMDA4MDAwMDAwMDAwMDAwMDAwhwEAAwV0YWJsZQcAAQkDCHRhYmxlUm93BwABCgMLdGFibGVIZWFkZXIHAAELAwlwYXJhZ3JhcGgHAAEMBgQAAQ0BQSgAAQwLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDA0NDAwMDgwMDAwMDAwMDAwMDAwMDAoAAELC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMzQwMDA4MDAwMDAwMDAwMDAwMDAwKAABCwdjb2xzcGFuAX0BKAABCwdyb3dzcGFuAX0BKAABCwhjb2x3aWR0aAF1AX24AYcBCwMLdGFibGVIZWFkZXIHAAEUAwlwYXJhZ3JhcGgHAAEVBgQAARYBQigAARULcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDA2NDAwMDgwMDAwMDAwMDAwMDAwMDAoAAEUC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwNTQwMDA4MDAwMDAwMDAwMDAwMDAwKAABFAdjb2xzcGFuAX0CKAABFAdyb3dzcGFuAX0BKAABFAhjb2x3aWR0aAF1An2MAn2gAigAAQoLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDA3NDAwMDgwMDAwMDAwMDAwMDAwMDCHAQoDCHRhYmxlUm93BwABHgMJdGFibGVDZWxsBwABHwMJcGFyYWdyYXBoBwABIAYEAAEhAUMoAAEgC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwOTQwMDA4MDAwMDAwMDAwMDAwMDAwKAABHwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDg0MDAwODAwMDAwMDAwMDAwMDAwMCgAAR8HY29sc3BhbgF9ASgAAR8Hcm93c3BhbgF9ASgAAR8IY29sd2lkdGgBdQF9uAGHAR8DCXRhYmxlQ2VsbAcAASgDCXBhcmFncmFwaAcAASkGBAABKgFEKAABKQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMGI0MDAwODAwMDAwMDAwMDAwMDAwMCgAASgLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDBhNDAwMDgwMDAwMDAwMDAwMDAwMDAoAAEoB2NvbHNwYW4BfQEoAAEoB3Jvd3NwYW4BfQEoAAEoCGNvbHdpZHRoAXUBfYwChwEoAwl0YWJsZUNlbGwHAAExAwlwYXJhZ3JhcGgHAAEyBgQAATMBRSgAATILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDBkNDAwMDgwMDAwMDAwMDAwMDAwMDAoAAExC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwYzQwMDA4MDAwMDAwMDAwMDAwMDAwKAABMQdjb2xzcGFuAX0BKAABMQdyb3dzcGFuAX0BKAABMQhjb2x3aWR0aAF1AX2gAigAAR4LcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDBlNDAwMDgwMDAwMDAwMDAwMDAwMDAoAAEJC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMjQwMDA4MDAwMDAwMDAwMDAwMDAwAA==",
+  "text_items" : {
+    "runs" : [
+
+    ]
+  },
+  "transaction_id" : "818af164-a35a-4e74-a1ef-b9b9ac7bb83e",
+  "update_base64" : "AQaG1aLTzePwDwCoASUBfQKoAScBdQJ9uAF9jAKHASADCXBhcmFncmFwaAcAhtWi083j8A8CBgQAhtWi083j8A8DAUQoAIbVotPN4\/APAgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMGI0MDAwODAwMDAwMDAwMDAwMDAwMAEBAiUBJwo=",
+  "writer_client" : 8940252968823430
+}

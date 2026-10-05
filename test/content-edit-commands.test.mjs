@@ -34,3 +34,12 @@ test('maintained list indentation preserves marked text and refuses first-item s
  assert.equal(result.document.content[0].content[0].content[1].type,'orderedList');
  assert.throws(()=>run('1. First','sink_list_item',{type:'text',anchor:3,head:3}),/refused/);
 });
+
+test('middle Return in a checked linked task retains the original relationship and creates an unchecked unlinked task',()=>{
+ const ast=parseDocument('- [x] Kept task',{namespace:'linked-task-return'}),item=ast.blocks[0].content[0];
+ item.props.entityId='20000000-0000-4000-8000-000000000002';
+ const result=run(ast,'return',{type:'text',anchor:7,head:7}),items=result.document.content[0].content;
+ assert.equal(items[0].attrs.checked,true);assert.equal(items[0].attrs.entityId,item.props.entityId);
+ assert.equal(items[1].attrs.checked,false);assert.equal(items[1].attrs.entityId,null);
+ assert.equal(items[0].content[0].content[0].text,'Kept');assert.equal(items[1].content[0].content[0].text,' task');
+});

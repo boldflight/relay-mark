@@ -56,11 +56,57 @@ export function createContentEditCommand(admittedDocument,request) {
  }else{
   const allowed=new Set(['addRowBefore','addRowAfter','deleteRow','addColumnBefore','addColumnAfter','deleteColumn','mergeCells','splitCell','toggleHeaderRow','toggleHeaderColumn','toggleHeaderCell','deleteTable']);
   if(!allowed.has(request.command))throw TypeError('Unknown canonical editor command');
-  accepted=tableCommands[request.command](state,dispatch);
+  const command=request.command==='toggleHeaderRow'?tableCommands.toggleHeader('row'):request.command==='toggleHeaderColumn'?tableCommands.toggleHeader('column'):tableCommands[request.command];
+  accepted=command(state,dispatch);
  }
  if(!accepted||!transaction||!transaction.docChanged||transaction.steps.length>512)throw TypeError('Canonical editor command refused');
+ if(request.command==='return'&&listItem?.name==='taskItem'&&kind==='split'){
+  const selected=transaction.selection.$from;
+  if(selected.depth>=2&&selected.node(-1).type===listItem){
+   const pos=selected.before(selected.depth-1),original=cursor.before(cursor.depth-1);
+   if(pos!==transaction.mapping.map(original,-1)){
+    // TipTap task attributes have keepOnSplit:false. schema-list only uses
+    // itemAttrs at the end of an item, so apply the same declared defaults to
+    // the actual newly split item with maintained attribute steps in this command.
+    for(const key of ['checked','entityId'])if(selected.node(-1).attrs[key]!==listItem.defaultAttrs[key])transaction.setNodeAttribute(pos,key,listItem.defaultAttrs[key]);
+   }
+  }
+ }
+
+ if(kind==='edit'&&request.command!=='sink_list_item'&&request.command!=='lift_list_item'){
+  const initialFix=tableCommands.fixTables(state.apply(transaction),state);
+  if(initialFix)for(const step of initialFix.steps)transaction.step(step);
+  for(let pass=0;pass<256&&removeCoveredContentEditTableRow(transaction);pass++){if(pass===255)throw TypeError('Oversized covered-row normalization');}
+  const finalFix=tableCommands.fixTables(state.apply(transaction),state);
+  if(finalFix)for(const step of finalFix.steps)transaction.step(step);
+ }
  transaction.doc.check();
- return {kind,steps:transaction.steps.map(step=>step.toJSON()),document:transaction.doc.toJSON(),selection:transaction.selection.toJSON()};
+ const retained_ids={};document.descendants((node,pos)=>{const id=node.attrs.relaymarkId;if(!id)return;const mapped=transaction.mapping.mapResult(pos);if(!mapped.deleted&&transaction.doc.nodeAt(mapped.pos)?.attrs.relaymarkId===id)retained_ids[id]=mapped.pos;});
+ return {kind,retained_ids,steps:transaction.steps.map(step=>step.toJSON()),document:transaction.doc.toJSON(),selection:transaction.selection.toJSON()};
+}
+
+/** Canonical table rows require a physical cell. Maintained table commands
+ * can cover an empty row entirely by earlier rowspans. The same authored
+ * normalization shortens those spans and removes the covered row with actual
+ * PM Steps. No received CRDT update is ever rewritten by this command helper.
+ */
+export function removeCoveredContentEditTableRow(transaction){
+ let changed=false;transaction.doc.descendants((table,tablePos)=>{
+  if(changed)return false;if(table.type.spec.tableRole!=='table')return true;
+  const map=tableCommands.TableMap.get(table);let rowStart=0;
+  for(let row=0;row<table.childCount;row++){
+   const node=table.child(row);
+   if(node.childCount===0&&row>0&&row<map.height){
+    const covering=new Set();for(let col=0;col<map.width;col++)covering.add(map.map[row*map.width+col]);
+    if([...covering].every(pos=>pos<rowStart)){
+     for(const pos of covering){const cell=table.nodeAt(pos);transaction.setNodeMarkup(tablePos+1+pos,null,{...cell.attrs,rowspan:cell.attrs.rowspan-1});}
+     transaction.delete(tablePos+1+rowStart,tablePos+1+rowStart+node.nodeSize);changed=true;return false;
+    }
+   }
+   rowStart+=node.nodeSize;
+  }
+  return true;
+ });return changed;
 }
 
 export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={}) {
@@ -76,6 +122,8 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
  const step_maps=[];
  // Identity preparation uses only actual maintained maps. Equal replacement
  // text is not retained source; structural gap/suffix text maps through unchanged.
+ const originalIdentities=new Map();document.descendants((node,position)=>{const id=node.attrs.relaymarkId;if(!id)return;if(originalIdentities.has(id))throw TypeError('Ambiguous retained subtree identity');originalIdentities.set(id,{node,position});});
+ let copied_subtree_ranges=[];
  let retained_ranges=document.content.size?[{source_from:0,destination_from:0,length:document.content.size}]:[];
  for(const json of operation.steps){
   if(json.stepType==='docAttr'){if(json.attr!=='relaymark')throw TypeError('Unknown canonical document attribute');assertAuthoredMetadata(json.value);}
@@ -87,8 +135,8 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
   document=result.doc;
   const map=step.getMap();step_maps.push({ranges:[...map.ranges],inverted:map.inverted});
   const changed=[];map.forEach((from,to)=>changed.push([from,to]));
-  const next=[];
-  for(const range of retained_ranges){
+  const mapRanges=ranges=>{const next=[];
+  for(const range of ranges){
    const start=range.destination_from,end=start+range.length;
    const boundaries=[start,end,...changed.flatMap(([from,to])=>[from,to]).filter(p=>p>start&&p<end)].sort((a,b)=>a-b);
    for(let i=1;i<boundaries.length;i++){
@@ -101,6 +149,25 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
     if(next.length>65536)throw new TypeError('Content edit causal mapping budget exceeded');
    }
   }
+  return next;};
+  copied_subtree_ranges=mapRanges(copied_subtree_ranges);
+  // A preserved authored identity is a source pointer only for its complete
+  // exact original subtree. The actual Slice and applied destination must both
+  // match. Equal text or partially matching content never establishes ancestry.
+  const candidates=[];
+  if(json.stepType==='replace'&&step.slice){
+   step.slice.content.descendants((node,pos)=>{
+    const id=node.attrs.relaymarkId,original=id&&originalIdentities.get(id);
+    if(!original||!node.eq(original.node))return;
+    const destination=step.from+pos-step.slice.openStart;
+    if(destination<0||!document.nodeAt(destination)?.eq(node))return;
+    if(candidates.some(range=>destination>=range.destination_from&&destination+node.nodeSize<=range.destination_from+range.length))return false;
+    candidates.push({source_from:original.position,destination_from:destination,length:node.nodeSize});return false;
+   });
+  }
+  copied_subtree_ranges.push(...candidates);
+  if(copied_subtree_ranges.length>65536)throw TypeError('Copied subtree mapping budget exceeded');
+  const next=mapRanges(retained_ranges);
   retained_ranges=next;
  }
  document.check();
@@ -111,7 +178,7 @@ export function applyContentEdit(admittedDocument,operation,{maximumSteps=512}={
  const inserted_ranges=[];let cursor=0;
  for(const range of retained_ranges.slice().sort((a,b)=>a.destination_from-b.destination_from)){if(range.destination_from>cursor)inserted_ranges.push({destination_from:cursor,length:range.destination_from-cursor});cursor=Math.max(cursor,range.destination_from+range.length)}
  if(cursor<document.content.size)inserted_ranges.push({destination_from:cursor,length:document.content.size-cursor});
- return {document:json,authored_document,step_maps,retained_ranges,inserted_ranges};
+ return {document:json,authored_document,step_maps,retained_ranges,inserted_ranges,copied_subtree_ranges};
 }
 
 /** Same operation owner for a host-admitted portable AST. Authored envelope metadata

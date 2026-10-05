@@ -101,7 +101,7 @@ export function buildWitness(evidence,interpret){
  refuseReusedInsertedText(after,expected.inserted_ranges,frontier);
  const supplied=evidence.operation.copies??[];if(!Array.isArray(supplied)||supplied.length>4096)throw TypeError('Invalid explicit Slice copies');const copies=[...supplied];let human=[];
  for(const run of after.runs){const start=Math.max(run.item.clock,frontier.get(run.item.client)||0),n=run.item.clock+run.count-start;if(n<=0)continue;let uncovered=[[run.position+start-run.item.clock,run.position+run.count]];
-  for(const mapped of expected.retained_ranges){const from=Math.max(run.position+start-run.item.clock,mapped.destination_from),to=Math.min(run.position+run.count,mapped.destination_from+mapped.length);if(from>=to)continue;
+  for(const mapped of [...expected.retained_ranges,...expected.copied_subtree_ranges]){const from=Math.max(run.position+start-run.item.clock,mapped.destination_from),to=Math.min(run.position+run.count,mapped.destination_from+mapped.length);if(from>=to)continue;
    const sourceFrom=mapped.source_from+from-mapped.destination_from,sourceTo=sourceFrom+to-from;
    for(const original of sender.runs){const a=Math.max(original.position,sourceFrom),b=Math.min(original.position+original.count,sourceTo);if(a>=b)continue;const destination=from+a-sourceFrom,count=b-a;
     copies.push({source:{runs:[{type:original.type,item:{client:original.item.client,clock:original.item.clock+a-original.position},count}]},destination:{runs:[{type:run.type,item:{client:run.item.client,clock:run.item.clock+destination-run.position},count}]}});
