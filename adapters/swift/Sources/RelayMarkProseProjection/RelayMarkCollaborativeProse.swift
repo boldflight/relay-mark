@@ -90,6 +90,9 @@ public struct RelayMarkCollaborativeProse {
         public let checked: Bool
         public let entityID: String?
         public let firstParagraphRange: NSRange
+        /// Exact first-paragraph XML text; inline atom presentation and hard
+        /// breaks contribute no characters, matching domain task commands.
+        public let firstParagraphText: String
         public let path: [Int]
     }
     public let taskItems: [TaskItem]
@@ -235,6 +238,16 @@ public struct RelayMarkCollaborativeProse {
                   let integer = value as? Int else { return false }
             return integer >= minimum && integer <= maximum
         }
+        func xmlText(_ node: [String: Any]) -> String {
+            if node["kind"] as? String == "text" {
+                guard let delta = node["delta"] as? [[String: Any]] else { supported = false; return "" }
+                return delta.map { run in
+                    guard let insert = run["insert"] as? String else { supported = false; return "" }
+                    return insert
+                }.joined()
+            }
+            return (node["children"] as? [[String: Any]] ?? []).map(xmlText).joined()
+        }
         func appendText(_ leaf: [String: Any], path: [Int], codeBlock: Bool) {
             let start = length()
             guard let delta = leaf["delta"] as? [[String: Any]] else { supported = false; return }
@@ -365,7 +378,8 @@ public struct RelayMarkCollaborativeProse {
                     walk(children, path: blockPath, parent: intent, cellContext: cellContext)
                     guard ranges.count > firstRange else { supported = false; continue }
                     taskItems.append(TaskItem(id: id, checked: checked, entityID: entityID,
-                        firstParagraphRange: ranges[firstRange], path: blockPath))
+                        firstParagraphRange: ranges[firstRange], firstParagraphText: xmlText(children[0]),
+                        path: blockPath))
                     offsets.append(ranges[firstRange].location)
                     continue
                 }

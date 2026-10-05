@@ -114,6 +114,22 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: colored, dialect: .rich))
     }
 
+    func testTaskDomainTitleUsesMarkedUnicodeXmlTextWithoutInlineAtomPresentation() throws {
+        let source = "- [ ] **Do 🌍** [[Person: 11111111-1111-4111-8111-111111111111 | Alex]] `code`  \n  Next Ω\n\n  Second paragraph"
+        let native = RelayMarkNativeDocument()
+        try native.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(source,
+            namespace: "task-domain-title"))
+        let prose = try native.richProseProjection()
+        let task = try XCTUnwrap(prose.taskItems.first)
+        XCTAssertEqual(task.firstParagraphText, "Do 🌍  codeNext Ω")
+        XCTAssertEqual(prose.inlineAtoms.map(\.label), ["Alex"])
+        XCTAssertTrue(String(prose.text.characters).contains("\u{FFFC}"))
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(native.encodeUpdate())
+        XCTAssertEqual(try reopened.richProseProjection().taskItems.first?.firstParagraphText,
+                       task.firstParagraphText)
+    }
+
     func testCommunityTaskListFixtureProjectsCheckedAndLinkedNestedItemsInUnifiedProseMap() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "task-list-v3-draft", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
