@@ -82,7 +82,9 @@ export function createContentEditCommand(admittedDocument,request) {
  }
  transaction.doc.check();
  const retained_ids={};document.descendants((node,pos)=>{const id=node.attrs.relaymarkId;if(!id)return;const mapped=transaction.mapping.mapResult(pos);if(!mapped.deleted&&transaction.doc.nodeAt(mapped.pos)?.attrs.relaymarkId===id)retained_ids[id]=mapped.pos;});
- return {kind,retained_ids,steps:transaction.steps.map(step=>step.toJSON()),document:transaction.doc.toJSON(),selection:transaction.selection.toJSON()};
+ return {kind,retained_ids,steps:transaction.steps.map(step=>step.toJSON()),document:transaction.doc.toJSON(),selection:transaction.selection.toJSON(),
+  stored_marks:transaction.storedMarks?.map(mark=>mark.toJSON())??null,
+  stored_text_attributes:transaction.storedMarks?JSON.parse(JSON.stringify(Object.fromEntries(transaction.storedMarks.map(mark=>[mark.type.name,mark.attrs])))):null};
 }
 
 /** Canonical table rows require a physical cell. Maintained table commands

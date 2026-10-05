@@ -43,3 +43,11 @@ test('middle Return in a checked linked task retains the original relationship a
  assert.equal(items[1].attrs.checked,false);assert.equal(items[1].attrs.entityId,null);
  assert.equal(items[0].content[0].content[0].text,'Kept');assert.equal(items[1].content[0].content[0].text,' task');
 });
+
+test('maintained Return exposes actual stored marks for an empty quoted line and inserts LF inside code',()=>{
+ const quote=run('> **Quoted 🌍 text**','return',{type:'text',anchor:16,head:16});
+ assert.deepEqual(quote.stored_marks,[{type:'bold'}]);assert.deepEqual(quote.stored_text_attributes,{bold:{}});
+ const code=run('````swift\nlet 🌍 = "```"\nprint(🌍)\n// tail\n````','return',{type:'text',anchor:34,head:34});
+ assert.equal(code.document.content.length,1);assert.equal(code.document.content[0].type,'codeBlock');assert.equal(code.document.content[0].attrs.language,'swift');
+ assert.equal(code.document.content[0].content[0].text,'let 🌍 = "```"\nprint(🌍)\n// tail\n\n');
+});

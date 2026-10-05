@@ -14,6 +14,7 @@ public enum RelayMarkNativeRichEditing {
     public struct Caret: Equatable, Sendable {
         public let blockPath: [Int]
         public let offset: Int
+        public init(blockPath: [Int], offset: Int) { self.blockPath=blockPath; self.offset=offset }
     }
 
     public struct Change: Sendable {
@@ -27,8 +28,13 @@ public enum RelayMarkNativeRichEditing {
         /// The same transaction changed authored envelope metadata, witnessed by
         /// maintained DocAttrStep. Complete server correspondence remains required.
         public let authoredMetadataChanged: Bool
-        init(update:Data,beforeSnapshot:Data,steps:Data,caret:Caret?,authoredMetadataChanged:Bool=false){
+        /// Exact maintained command typing context. nil is the actual null
+        /// storedMarks state; an empty array/map explicitly clears marks.
+        public let storedMarks: Data?
+        public let storedTextAttributes: Data?
+        init(update:Data,beforeSnapshot:Data,steps:Data,caret:Caret?,authoredMetadataChanged:Bool=false,storedMarks:Data?=nil,storedTextAttributes:Data?=nil){
             self.update=update;self.beforeSnapshot=beforeSnapshot;self.steps=steps;self.caret=caret;self.authoredMetadataChanged=authoredMetadataChanged
+            self.storedMarks=storedMarks;self.storedTextAttributes=storedTextAttributes
         }
     }
 
@@ -345,6 +351,10 @@ public enum RelayMarkNativeRichEditing {
               let finalSelection = result["selection"] as? [String: Any], let kind = result["kind"] as? String else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
+        guard let markState=result["stored_marks"],let attributeState=result["stored_text_attributes"],
+              (markState is NSNull && attributeState is NSNull) || (markState is [[String:Any]] && attributeState is [String:Any]) else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
+        let storedMarks=markState is NSNull ? nil : try JSONSerialization.data(withJSONObject:markState,options:[.sortedKeys])
+        let storedAttributes=attributeState is NSNull ? nil : try JSONSerialization.data(withJSONObject:attributeState,options:[.sortedKeys])
         var transform = PMTransform(source)
         for json in steps {
             let step = try PMStep.fromJSON(json, schema: bridge.schema)
@@ -359,7 +369,7 @@ public enum RelayMarkNativeRichEditing {
             for index in value.blockPath { guard index < node.childCount else { return nil }; node = node.child(index) }
             return node.attrs["relaymarkId"] as? String
         }
-        return (Change(update: update, beforeSnapshot: beforeSnapshot, steps: witnessedSteps, caret: caret), kind, id)
+        return (Change(update: update, beforeSnapshot: beforeSnapshot, steps: witnessedSteps, caret: caret,storedMarks:storedMarks,storedTextAttributes:storedAttributes), kind, id)
     }
 
     static func positionForPath(_ path: [Int], in source: PMNode) throws -> Int {
