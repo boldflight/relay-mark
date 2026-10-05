@@ -57,6 +57,11 @@ public enum RelayMarkSourceCodec {
     public static func resolveTextItems(identitySnapshot: Data, selector: Data) throws -> Data {
         try call("resolveContentEditTextItems",arguments:[json(identitySnapshot),json(selector)])
     }
+    /// Original outgoing/server-delta footprints plus the independently trusted
+    /// atomic server vector. Local observed clocks/tombstones confer no ACK.
+    public static func reconciliationCoverage(localFootprint: Data, serverFootprint: Data, serverStateVector: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "reconciliationCoverage", arguments: [json(localFootprint), json(serverFootprint), Array(serverStateVector)])
+    }
     public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)

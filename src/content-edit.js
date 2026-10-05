@@ -242,3 +242,5 @@ export function createContentEditWrite(before,steps,after){
  visit(after);
  return {requiresWrite:node=>needed.get(node)===true,planText:(sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)=>planContentEditTextWrite(prepared,sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)};
 }
+
+export {reconciliationCoverage} from '../adapters/collaboration/content-edit-observer.js';

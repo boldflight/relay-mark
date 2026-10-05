@@ -138,7 +138,73 @@ function captureContentEditFootprint(doc, bytes, { maximumSteps = 1e6 } = {}) {
   }
   return { state_vector: [...current].sort((a, b) => a[0] - b[0]).map(([client, clock]) => ({ client, clock })), structs, declared_deletes, deleted_items };
 }
+function reconciliationCoverage(localFootprint, serverFootprint, serverStateVector) {
+  const limit = 1e6;
+  function ranges(values) {
+    if (!Array.isArray(values) || values.length > limit) throw TypeError("Invalid reconciliation ranges");
+    const grouped = /* @__PURE__ */ new Map();
+    for (const record of values) {
+      const item = record?.item, count = record?.count;
+      if (!item || Object.keys(item).length !== 2 || !Object.hasOwn(item, "client") || !Object.hasOwn(item, "clock") || !Number.isSafeInteger(item.client) || item.client < 0 || !Number.isSafeInteger(item.clock) || item.clock < 0 || !Number.isSafeInteger(count) || count < 1 || item.clock + count > 2 ** 32) throw TypeError("Invalid reconciliation interval");
+      const list = grouped.get(item.client) || [];
+      list.push([item.clock, item.clock + count]);
+      grouped.set(item.client, list);
+    }
+    for (const [client, list] of grouped) {
+      list.sort((a, b) => a[0] - b[0]);
+      const joined = [];
+      for (const range of list) {
+        const previous = joined.at(-1);
+        if (previous && range[0] <= previous[1]) previous[1] = Math.max(previous[1], range[1]);
+        else joined.push(range);
+      }
+      grouped.set(client, joined);
+    }
+    return grouped;
+  }
+  function footprint(value) {
+    const fields = ["state_vector", "structs", "declared_deletes", "deleted_items"];
+    if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== fields.length || fields.some((key) => !Array.isArray(value[key]) || value[key].length > limit) || value.structs.length + value.declared_deletes.length + value.deleted_items.length > limit) throw TypeError("Invalid reconciliation footprint");
+    return { structs: ranges(value.structs), deletes: ranges(value.declared_deletes) };
+  }
+  if (Array.isArray(serverStateVector)) {
+    if (serverStateVector.length > 8 * 1024 * 1024 || serverStateVector.some((value) => !Number.isInteger(value) || value < 0 || value > 255)) throw TypeError("Invalid authoritative state vector");
+    serverStateVector = new Uint8Array(serverStateVector);
+  }
+  if (!(serverStateVector instanceof Uint8Array) || serverStateVector.length > 8 * 1024 * 1024) throw TypeError("Invalid authoritative state vector");
+  const clocks = Y.decodeStateVector(serverStateVector);
+  if (clocks.size > limit || Y.encodeStateVector(clocks).length !== serverStateVector.length) throw TypeError("Noncanonical authoritative state vector");
+  for (const [client, clock] of clocks) if (!Number.isSafeInteger(client) || client < 0 || !Number.isSafeInteger(clock) || clock < 0 || clock > 2 ** 32) throw TypeError("Invalid authoritative clocks");
+  const local = footprint(localFootprint), server = footprint(serverFootprint);
+  for (const intervals of [server.structs, server.deletes]) for (const [client, list] of intervals) for (const [, end] of list) if (end > (clocks.get(client) || 0)) throw TypeError("Server delta exceeds authoritative frontier");
+  const uncovered_structs = [], uncovered_deletes = [];
+  const append = (out, client, start, end) => {
+    if (start < end) {
+      if (out.length >= limit) throw TypeError("Reconciliation coverage limit");
+      out.push({ item: { client, clock: start }, count: end - start });
+    }
+  };
+  for (const [client, list] of [...local.structs].sort((a, b) => a[0] - b[0])) for (const [start, end] of list) append(uncovered_structs, client, Math.max(start, clocks.get(client) || 0), end);
+  for (const [client, list] of [...local.deletes].sort((a, b) => a[0] - b[0])) {
+    const known = server.deletes.get(client) || [];
+    let index = 0;
+    for (const [start, end] of list) {
+      let cursor = start;
+      while (index < known.length && known[index][1] <= cursor) index++;
+      while (index < known.length && known[index][0] < end) {
+        const [lower, upper] = known[index];
+        append(uncovered_deletes, client, cursor, Math.min(lower, end));
+        cursor = Math.max(cursor, upper);
+        if (cursor >= end) break;
+        index++;
+      }
+      append(uncovered_deletes, client, cursor, end);
+    }
+  }
+  return { covered: uncovered_structs.length === 0 && uncovered_deletes.length === 0, uncovered_structs, uncovered_deletes };
+}
 export {
   captureContentEditFootprint,
-  captureContentEditSnapshot
+  captureContentEditSnapshot,
+  reconciliationCoverage
 };

@@ -498,3 +498,25 @@ restricted to an invented ASCII identifier vocabulary; see the HTML Standard's
 [navigable target names](https://html.spec.whatwg.org/multipage/document-sequences.html#navigable-target-names)
 and [class token semantics](https://html.spec.whatwg.org/multipage/dom.html#classes).
 Safe rendering escapes these strings instead of discarding them.
+
+### Reconciliation observation
+
+`reconciliationCoverage(localFootprint, serverFootprint, serverStateVector)` is a
+bounded read-only helper in the maintained collaboration observation owner. Swift
+exposes the same helper as `RelayMarkSourceCodec.reconciliationCoverage` with
+JSON footprint `Data` and the original upstream state-vector bytes. The host must
+supply the independently authorized atomic server response and its complete
+DeleteSet delta; the helper grants no document permission or acknowledgment.
+
+The result contains `covered`, `uncovered_structs`, and `uncovered_deletes`.
+Outgoing allocation intervals are covered only by the supplied server vector.
+Outgoing deletion intervals are covered only by `declared_deletes` from that
+server delta. Neither footprint's locally observed `state_vector` nor
+`deleted_items` establishes server coverage. Repeated acknowledged DeleteSets
+can therefore yield a nonempty outgoing update with `covered: true`. Unknown
+ranges remain explicit, including partial gaps; malformed, oversized, or
+inconsistent response intervals refuse. Interval comparison never expands
+individual clocks or edits the retained document. The vector uses the maintained
+Yjs decoder, with the same million-entry observation budget and an 8 MiB byte
+bound. Supplying only a vector without complete server deletion coverage cannot
+establish that deletions were accepted.
