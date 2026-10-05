@@ -2065,7 +2065,7 @@ public final class RelayMarkNativeDocument {
                           ["hardBreak", "relayReference", "relayTag"].contains(name),
                           (raw["children"] as? [Any] ?? []).isEmpty else { throw Failure.unsupportedProseEdit }
                     let atom = try next.insertElement(named: name, at: UInt32(index), in: transaction)
-                    for (key, value) in raw["attributes"] as? [String: Any] ?? [:] {
+                    for (key, value) in try PMYXmlBridge.orderedAttributes(nodeName: name, values: raw["attributes"] as? [String: Any] ?? [:]) {
                         try atom.setAttribute(key, value: value, in: transaction)
                     }
                 }
@@ -2504,7 +2504,7 @@ public final class RelayMarkNativeDocument {
                 } else {
                     guard let name = raw["name"] as? String else { throw Failure.unsupportedProseEdit }
                     let node = try parent.insertElement(named: name, at: index, in: transaction)
-                    for (key, value) in raw["attributes"] as? [String: Any] ?? [:] {
+                    for (key, value) in try PMYXmlBridge.orderedAttributes(nodeName: name, values: raw["attributes"] as? [String: Any] ?? [:]) {
                         try node.setAttribute(key, value: value, in: transaction)
                     }
                     for child in raw["children"] as? [[String: Any]] ?? [] {
@@ -2514,9 +2514,15 @@ public final class RelayMarkNativeDocument {
             }
             for (key,value) in metadataUpdates { self.metadata.updateValue(value,forKey:key,transaction:transaction) }
             for (node, attributes) in attributeTargets {
-                for (key, value) in attributes {
-                    if value is NSNull { try node.removeAttribute(key, in: transaction) }
-                    else { try node.setAttribute(key, value: value, in: transaction) }
+                guard let name = node.tag(in: transaction) else { throw Failure.unsupportedProseEdit }
+                // Finite snapshot normalization can explicitly remove obsolete
+                // attributes absent from the live canonical schema. Never add them.
+                for key in attributes.keys.sorted() where attributes[key] is NSNull {
+                    try node.removeAttribute(key, in: transaction)
+                }
+                for (key, value) in try PMYXmlBridge.orderedAttributes(nodeName: name,
+                    values: attributes.filter { !($0.value is NSNull) }) {
+                    try node.setAttribute(key, value: value, in: transaction)
                 }
             }
             for (leaf, start, count) in textTargets where count > 0 {

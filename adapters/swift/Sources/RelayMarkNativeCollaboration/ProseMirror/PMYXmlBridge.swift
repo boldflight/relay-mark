@@ -17,7 +17,8 @@ final class PMYXmlBridge {
     nonisolated(unsafe) private static let cachedSchema: PMSchema? = {
         guard let data = RelayMarkNativeProseMirrorSchema.json.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return try? PMSchema(json: json)
+        return try? PMSchema(json: json, nodeAttributeOrder: RelayMarkNativeProseMirrorSchema.nodeAttributeOrder,
+                            markAttributeOrder: RelayMarkNativeProseMirrorSchema.markAttributeOrder)
     }()
 
     let schema: PMSchema
@@ -55,6 +56,17 @@ final class PMYXmlBridge {
     static func canonical() throws -> PMYXmlBridge {
         guard let schema = cachedSchema else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         return PMYXmlBridge(schema: schema)
+    }
+
+    /// Shared-schema attribute order is observable CRDT allocation order. Swift
+    /// Dictionary order must never decide item clocks in construction or writes.
+    static func orderedAttributes(nodeName: String, values: [String: Any]) throws -> [(String, Any)] {
+        let bridge = try canonical()
+        guard let type = bridge.schema.nodes[nodeName], !type.isText,
+              Set(values.keys).isSubset(of: Set(type.attrs.map(\.name))) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return type.attrs.compactMap { attribute in values[attribute.name].map { (attribute.name, $0) } }
     }
 
     // MARK: Y XML snapshot → ProseMirror
@@ -174,7 +186,9 @@ final class PMYXmlBridge {
         if isElement {
             guard y.tag(in: tx) == p.type.name else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
             let yAttrs = try y.attributes(in: tx)
-            for (key, value) in p.attrs {
+            for attribute in p.type.attrs {
+                let key = attribute.name
+                guard let value = p.attrs[key] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
                 if value is NSNull {
                     if yAttrs[key] != nil { try y.removeAttribute(key, in: tx) }
                 } else if !Self.strictEqual(yAttrs[key], value) {
@@ -349,8 +363,9 @@ final class PMYXmlBridge {
         switch child {
         case .node(let node):
             let element = try parent.insertElement(named: node.type.name, at: UInt32(index), in: tx)
-            for (key, value) in node.attrs where !(value is NSNull) {
-                try element.setAttribute(key, value: value, in: tx)
+            for attribute in node.type.attrs {
+                guard let value = node.attrs[attribute.name] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+                if !(value is NSNull) { try element.setAttribute(attribute.name, value: value, in: tx) }
             }
             for (offset, grandchild) in Self.normalize(node).enumerated() {
                 try create(grandchild, in: element, at: offset, tx)

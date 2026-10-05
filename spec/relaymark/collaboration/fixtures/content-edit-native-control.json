@@ -1,0 +1,642 @@
+{
+  "before_snapshot_base64": "AAHTtvGf4JfqARE=",
+  "current_state_base64": "AQjTtvGf4JfqAQAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgoANO28Z/gl+oBAAtyZWxheW1hcmtJZAF3IWJkNDIwMTNlYjZkOTY0ZjA1ODUzMzRkMDgwNzc5YTUwOAcA07bxn+CX6gEABgQA07bxn+CX6gECBkJlZm9yZYfTtvGf4JfqAQADCXBhcmFncmFwaCgA07bxn+CX6gEJC3JlbGF5bWFya0lkAXchYjZiMmE1MjY5NmJiMTQ3YmE4ODg2YTZhMzM5MjMyNTQ3BwDTtvGf4JfqAQkGBADTtvGf4JfqAQsFQWZ0ZXIA",
+  "description": "Actual native control command; retained original state, owned group, Steps and original full footprint",
+  "evidence": {
+    "after_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "kind": "anchor",
+            "label": "Next",
+            "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+            "target": "next"
+          },
+          "children": [],
+          "kind": "element",
+          "name": "relayButton",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 17
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "before_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "before_state_vector": [
+      {
+        "client": 1029958994254675,
+        "clock": 17
+      }
+    ],
+    "footprint": {
+      "declared_deletes": [],
+      "deleted_items": [],
+      "state_vector": [
+        {
+          "client": 1029958994254675,
+          "clock": 22
+        }
+      ],
+      "structs": [
+        {
+          "content": {
+            "kind": "type",
+            "name": "relayButton",
+            "type_kind": "xml_element"
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 1029958994254675,
+            "clock": 17
+          },
+          "key": null,
+          "origin": {
+            "client": 1029958994254675,
+            "clock": 0
+          },
+          "parent": {
+            "root": "default"
+          },
+          "right_origin": {
+            "client": 1029958994254675,
+            "clock": 9
+          }
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "bddddddddddd44ddd8ddddddddddddddd"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 1029958994254675,
+            "clock": 18
+          },
+          "key": "relaymarkId",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 1029958994254675,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "Next"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 1029958994254675,
+            "clock": 19
+          },
+          "key": "label",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 1029958994254675,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "anchor"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 1029958994254675,
+            "clock": 20
+          },
+          "key": "kind",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 1029958994254675,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "next"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 1029958994254675,
+            "clock": 21
+          },
+          "key": "target",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 1029958994254675,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        }
+      ]
+    },
+    "operation": {
+      "copies": [],
+      "group": {
+        "operation_ids": [
+          "88888888-8888-4888-8888-888888888881"
+        ],
+        "owner_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "reference": "88888888-8888-4888-8888-888888888881"
+      },
+      "kind": "content_edit",
+      "steps": [
+        {
+          "from": 8,
+          "slice": {
+            "content": [
+              {
+                "attrs": {
+                  "kind": "anchor",
+                  "label": "Next",
+                  "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+                  "target": "next"
+                },
+                "type": "relayButton"
+              }
+            ]
+          },
+          "stepType": "replace",
+          "to": 8
+        }
+      ]
+    },
+    "sender_after_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "kind": "anchor",
+            "label": "Next",
+            "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+            "target": "next"
+          },
+          "children": [],
+          "kind": "element",
+          "name": "relayButton",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 17
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "sender_before_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 1029958994254675,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 1029958994254675,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 1029958994254675,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    }
+  },
+  "footprint": {
+    "declared_deletes": [],
+    "deleted_items": [],
+    "state_vector": [
+      {
+        "client": 1029958994254675,
+        "clock": 22
+      }
+    ],
+    "structs": [
+      {
+        "content": {
+          "kind": "type",
+          "name": "relayButton",
+          "type_kind": "xml_element"
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 1029958994254675,
+          "clock": 17
+        },
+        "key": null,
+        "origin": {
+          "client": 1029958994254675,
+          "clock": 0
+        },
+        "parent": {
+          "root": "default"
+        },
+        "right_origin": {
+          "client": 1029958994254675,
+          "clock": 9
+        }
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "bddddddddddd44ddd8ddddddddddddddd"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 1029958994254675,
+          "clock": 18
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 1029958994254675,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "Next"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 1029958994254675,
+          "clock": 19
+        },
+        "key": "label",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 1029958994254675,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "anchor"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 1029958994254675,
+          "clock": 20
+        },
+        "key": "kind",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 1029958994254675,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "next"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 1029958994254675,
+          "clock": 21
+        },
+        "key": "target",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 1029958994254675,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      }
+    ]
+  },
+  "operation": {
+    "copies": [],
+    "group": {
+      "operation_ids": [
+        "88888888-8888-4888-8888-888888888881"
+      ],
+      "owner_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "reference": "88888888-8888-4888-8888-888888888881"
+    },
+    "kind": "content_edit",
+    "steps": [
+      {
+        "from": 8,
+        "slice": {
+          "content": [
+            {
+              "attrs": {
+                "kind": "anchor",
+                "label": "Next",
+                "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+                "target": "next"
+              },
+              "type": "relayButton"
+            }
+          ]
+        },
+        "stepType": "replace",
+        "to": 8
+      }
+    ]
+  },
+  "sender_state_base64": "AQjTtvGf4JfqAQAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgoANO28Z/gl+oBAAtyZWxheW1hcmtJZAF3IWJkNDIwMTNlYjZkOTY0ZjA1ODUzMzRkMDgwNzc5YTUwOAcA07bxn+CX6gEABgQA07bxn+CX6gECBkJlZm9yZYfTtvGf4JfqAQADCXBhcmFncmFwaCgA07bxn+CX6gEJC3JlbGF5bWFya0lkAXchYjZiMmE1MjY5NmJiMTQ3YmE4ODg2YTZhMzM5MjMyNTQ3BwDTtvGf4JfqAQkGBADTtvGf4JfqAQsFQWZ0ZXIA",
+  "text_items": {
+    "runs": []
+  },
+  "transaction_id": "88888888-8888-4888-8888-888888888881",
+  "update_base64": "AQXTtvGf4JfqARHH07bxn+CX6gEA07bxn+CX6gEJAwtyZWxheUJ1dHRvbigA07bxn+CX6gERC3JlbGF5bWFya0lkAXchYmRkZGRkZGRkZGRkNDRkZGQ4ZGRkZGRkZGRkZGRkZGRkKADTtvGf4JfqAREFbGFiZWwBdwROZXh0KADTtvGf4JfqAREEa2luZAF3BmFuY2hvcigA07bxn+CX6gERBnRhcmdldAF3BG5leHQA",
+  "writer_client": 1029958994254675
+}

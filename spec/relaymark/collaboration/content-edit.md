@@ -232,3 +232,12 @@ wholly retains them. This preserves saved adjacent inline-atom anchors when an
 atom splits marked text, without treating identical replacement as retained
 input. Browser and native bindings use that same per-branch condition; the
 browser's maintained anchor reconciliation remains its existing owner.
+
+Native attribute allocation follows the property order in the canonical editor
+schema, including its defaults and null omissions. Swift dictionary order is
+not an authoring input. The generated Swift schema carries that order for the
+maintained binding and document construction. Exact native image, button and
+tag command fixtures retain original state/update bytes, owned command groups,
+SnapshotV1, selectors and complete mutation footprints. Earlier image/button
+updates with different attribute clocks remain immutable refusal fixtures;
+matching AST values does not establish mutation correspondence.

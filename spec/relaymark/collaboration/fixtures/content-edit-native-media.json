@@ -1,0 +1,742 @@
+{
+  "before_snapshot_base64": "AAHb48TrjIGlChE=",
+  "current_state_base64": "AQjb48TrjIGlCgAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgoANvjxOuMgaUKAAtyZWxheW1hcmtJZAF3IWJkNDIwMTNlYjZkOTY0ZjA1ODUzMzRkMDgwNzc5YTUwOAcA2+PE64yBpQoABgQA2+PE64yBpQoCBkJlZm9yZYfb48TrjIGlCgADCXBhcmFncmFwaCgA2+PE64yBpQoJC3JlbGF5bWFya0lkAXchYjZiMmE1MjY5NmJiMTQ3YmE4ODg2YTZhMzM5MjMyNTQ3BwDb48TrjIGlCgkGBADb48TrjIGlCgsFQWZ0ZXIA",
+  "description": "Actual native media command; retained original state, owned group, Steps and original full footprint",
+  "evidence": {
+    "after_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "alt": "Diagram",
+            "height": 180,
+            "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+            "src": "https://example.com/diagram.png",
+            "title": "Rich image",
+            "width": 320
+          },
+          "children": [],
+          "kind": "element",
+          "name": "image",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "before_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "before_state_vector": [
+      {
+        "client": 5792265061609947,
+        "clock": 17
+      }
+    ],
+    "footprint": {
+      "declared_deletes": [],
+      "deleted_items": [],
+      "state_vector": [
+        {
+          "client": 5792265061609947,
+          "clock": 24
+        }
+      ],
+      "structs": [
+        {
+          "content": {
+            "kind": "type",
+            "name": "image",
+            "type_kind": "xml_element"
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 5792265061609947,
+            "clock": 17
+          },
+          "key": null,
+          "origin": {
+            "client": 5792265061609947,
+            "clock": 0
+          },
+          "parent": {
+            "root": "default"
+          },
+          "right_origin": {
+            "client": 5792265061609947,
+            "clock": 9
+          }
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "bddddddddddd44ddd8ddddddddddddddd"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 5792265061609947,
+            "clock": 18
+          },
+          "key": "relaymarkId",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 5792265061609947,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "https://example.com/diagram.png"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 5792265061609947,
+            "clock": 19
+          },
+          "key": "src",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 5792265061609947,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "Diagram"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 5792265061609947,
+            "clock": 20
+          },
+          "key": "alt",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 5792265061609947,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "Rich image"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 5792265061609947,
+            "clock": 21
+          },
+          "key": "title",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 5792265061609947,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              320
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 5792265061609947,
+            "clock": 22
+          },
+          "key": "width",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 5792265061609947,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              180
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 5792265061609947,
+            "clock": 23
+          },
+          "key": "height",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 5792265061609947,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        }
+      ]
+    },
+    "operation": {
+      "copies": [],
+      "group": {
+        "operation_ids": [
+          "88888888-8888-4888-8888-888888888880"
+        ],
+        "owner_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "reference": "88888888-8888-4888-8888-888888888880"
+      },
+      "kind": "content_edit",
+      "steps": [
+        {
+          "from": 8,
+          "slice": {
+            "content": [
+              {
+                "attrs": {
+                  "alt": "Diagram",
+                  "height": 180,
+                  "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+                  "src": "https://example.com/diagram.png",
+                  "title": "Rich image",
+                  "width": 320
+                },
+                "type": "image"
+              }
+            ]
+          },
+          "stepType": "replace",
+          "to": 8
+        }
+      ]
+    },
+    "sender_after_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "alt": "Diagram",
+            "height": 180,
+            "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+            "src": "https://example.com/diagram.png",
+            "title": "Rich image",
+            "width": 320
+          },
+          "children": [],
+          "kind": "element",
+          "name": "image",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "sender_before_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 5792265061609947,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 5792265061609947,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 5792265061609947,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    }
+  },
+  "footprint": {
+    "declared_deletes": [],
+    "deleted_items": [],
+    "state_vector": [
+      {
+        "client": 5792265061609947,
+        "clock": 24
+      }
+    ],
+    "structs": [
+      {
+        "content": {
+          "kind": "type",
+          "name": "image",
+          "type_kind": "xml_element"
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 5792265061609947,
+          "clock": 17
+        },
+        "key": null,
+        "origin": {
+          "client": 5792265061609947,
+          "clock": 0
+        },
+        "parent": {
+          "root": "default"
+        },
+        "right_origin": {
+          "client": 5792265061609947,
+          "clock": 9
+        }
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "bddddddddddd44ddd8ddddddddddddddd"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 5792265061609947,
+          "clock": 18
+        },
+        "key": "relaymarkId",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "https://example.com/diagram.png"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 5792265061609947,
+          "clock": 19
+        },
+        "key": "src",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "Diagram"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 5792265061609947,
+          "clock": 20
+        },
+        "key": "alt",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "Rich image"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 5792265061609947,
+          "clock": 21
+        },
+        "key": "title",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            320
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 5792265061609947,
+          "clock": 22
+        },
+        "key": "width",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            180
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 5792265061609947,
+          "clock": 23
+        },
+        "key": "height",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 5792265061609947,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      }
+    ]
+  },
+  "operation": {
+    "copies": [],
+    "group": {
+      "operation_ids": [
+        "88888888-8888-4888-8888-888888888880"
+      ],
+      "owner_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "reference": "88888888-8888-4888-8888-888888888880"
+    },
+    "kind": "content_edit",
+    "steps": [
+      {
+        "from": 8,
+        "slice": {
+          "content": [
+            {
+              "attrs": {
+                "alt": "Diagram",
+                "height": 180,
+                "relaymarkId": "bddddddddddd44ddd8ddddddddddddddd",
+                "src": "https://example.com/diagram.png",
+                "title": "Rich image",
+                "width": 320
+              },
+              "type": "image"
+            }
+          ]
+        },
+        "stepType": "replace",
+        "to": 8
+      }
+    ]
+  },
+  "sender_state_base64": "AQjb48TrjIGlCgAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgoANvjxOuMgaUKAAtyZWxheW1hcmtJZAF3IWJkNDIwMTNlYjZkOTY0ZjA1ODUzMzRkMDgwNzc5YTUwOAcA2+PE64yBpQoABgQA2+PE64yBpQoCBkJlZm9yZYfb48TrjIGlCgADCXBhcmFncmFwaCgA2+PE64yBpQoJC3JlbGF5bWFya0lkAXchYjZiMmE1MjY5NmJiMTQ3YmE4ODg2YTZhMzM5MjMyNTQ3BwDb48TrjIGlCgkGBADb48TrjIGlCgsFQWZ0ZXIA",
+  "text_items": {
+    "runs": []
+  },
+  "transaction_id": "88888888-8888-4888-8888-888888888880",
+  "update_base64": "AQfb48TrjIGlChHH2+PE64yBpQoA2+PE64yBpQoJAwVpbWFnZSgA2+PE64yBpQoRC3JlbGF5bWFya0lkAXchYmRkZGRkZGRkZGRkNDRkZGQ4ZGRkZGRkZGRkZGRkZGRkKADb48TrjIGlChEDc3JjAXcfaHR0cHM6Ly9leGFtcGxlLmNvbS9kaWFncmFtLnBuZygA2+PE64yBpQoRA2FsdAF3B0RpYWdyYW0oANvjxOuMgaUKEQV0aXRsZQF3ClJpY2ggaW1hZ2UoANvjxOuMgaUKEQV3aWR0aAF9gAUoANvjxOuMgaUKEQZoZWlnaHQBfbQCAA==",
+  "writer_client": 5792265061609947
+}

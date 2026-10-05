@@ -1,0 +1,850 @@
+{
+  "before_snapshot_base64": "AAHC1M3Lh/eNDhE=",
+  "current_state_base64": "AQjC1M3Lh/eNDgAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgoAMLUzcuH940OAAtyZWxheW1hcmtJZAF3IWJkNDIwMTNlYjZkOTY0ZjA1ODUzMzRkMDgwNzc5YTUwOAcAwtTNy4f3jQ4ABgQAwtTNy4f3jQ4CBkJlZm9yZYfC1M3Lh/eNDgADCXBhcmFncmFwaCgAwtTNy4f3jQ4JC3JlbGF5bWFya0lkAXchYjZiMmE1MjY5NmJiMTQ3YmE4ODg2YTZhMzM5MjMyNTQ3BwDC1M3Lh/eNDgkGBADC1M3Lh/eNDgsFQWZ0ZXIA",
+  "description": "Actual native atom command; retained original state, owned group, Steps and original full footprint",
+  "evidence": {
+    "after_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 3,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 3
+                  },
+                  "text": "Bef"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 2
+              }
+            },
+            {
+              "attributes": {
+                "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "name": "followup",
+                "source": "[[Tag: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb | #followup]]"
+              },
+              "children": [],
+              "kind": "element",
+              "name": "relayTag",
+              "type": {
+                "client": 7942564799015490,
+                "clock": 17
+              }
+            },
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 3,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 22
+                  },
+                  "text": "ore"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 21
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "before_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "before_state_vector": [
+      {
+        "client": 7942564799015490,
+        "clock": 17
+      }
+    ],
+    "footprint": {
+      "declared_deletes": [
+        {
+          "count": 3,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 6
+          }
+        }
+      ],
+      "deleted_items": [
+        {
+          "content": {
+            "kind": "string",
+            "text": "ore"
+          },
+          "count": 3,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 6
+          },
+          "key": null,
+          "parent": {
+            "type": {
+              "client": 7942564799015490,
+              "clock": 2
+            }
+          },
+          "stored_count": 3,
+          "stored_item": {
+            "client": 7942564799015490,
+            "clock": 6
+          }
+        }
+      ],
+      "state_vector": [
+        {
+          "client": 7942564799015490,
+          "clock": 25
+        }
+      ],
+      "structs": [
+        {
+          "content": {
+            "kind": "type",
+            "name": "relayTag",
+            "type_kind": "xml_element"
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 17
+          },
+          "key": null,
+          "origin": {
+            "client": 7942564799015490,
+            "clock": 2
+          },
+          "parent": {
+            "type": {
+              "client": 7942564799015490,
+              "clock": 0
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 18
+          },
+          "key": "id",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 7942564799015490,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "followup"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 19
+          },
+          "key": "name",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 7942564799015490,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "[[Tag: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb | #followup]]"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 20
+          },
+          "key": "source",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 7942564799015490,
+              "clock": 17
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "type",
+            "name": null,
+            "type_kind": "xml_text"
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 21
+          },
+          "key": null,
+          "origin": {
+            "client": 7942564799015490,
+            "clock": 17
+          },
+          "parent": {
+            "type": {
+              "client": 7942564799015490,
+              "clock": 0
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "string",
+            "text": "ore"
+          },
+          "count": 3,
+          "deleted": false,
+          "item": {
+            "client": 7942564799015490,
+            "clock": 22
+          },
+          "key": null,
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 7942564799015490,
+              "clock": 21
+            }
+          },
+          "right_origin": null
+        }
+      ]
+    },
+    "operation": {
+      "copies": [
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 3,
+                "item": {
+                  "client": 7942564799015490,
+                  "clock": 22
+                },
+                "type": {
+                  "client": 7942564799015490,
+                  "clock": 21
+                }
+              }
+            ]
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 3,
+                "item": {
+                  "client": 7942564799015490,
+                  "clock": 6
+                },
+                "type": {
+                  "client": 7942564799015490,
+                  "clock": 2
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "group": {
+        "operation_ids": [
+          "88888888-8888-4888-8888-888888888882"
+        ],
+        "owner_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "reference": "88888888-8888-4888-8888-888888888882"
+      },
+      "kind": "content_edit",
+      "steps": [
+        {
+          "from": 4,
+          "slice": {
+            "content": [
+              {
+                "attrs": {
+                  "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                  "name": "followup",
+                  "source": "[[Tag: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb | #followup]]"
+                },
+                "type": "relayTag"
+              }
+            ]
+          },
+          "stepType": "replace",
+          "to": 4
+        }
+      ]
+    },
+    "sender_after_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 3,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 3
+                  },
+                  "text": "Bef"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 2
+              }
+            },
+            {
+              "attributes": {
+                "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "name": "followup",
+                "source": "[[Tag: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb | #followup]]"
+              },
+              "children": [],
+              "kind": "element",
+              "name": "relayTag",
+              "type": {
+                "client": 7942564799015490,
+                "clock": 17
+              }
+            },
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 3,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 22
+                  },
+                  "text": "ore"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 21
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    },
+    "sender_before_snapshot": {
+      "children": [
+        {
+          "attributes": {
+            "relaymarkId": "bd42013eb6d964f0585334d080779a508"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 6,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 3
+                  },
+                  "text": "Before"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 2
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 0
+          }
+        },
+        {
+          "attributes": {
+            "relaymarkId": "b6b2a52696bb147ba8886a6a339232547"
+          },
+          "children": [
+            {
+              "kind": "text",
+              "runs": [
+                {
+                  "attributes": {},
+                  "count": 5,
+                  "item": {
+                    "client": 7942564799015490,
+                    "clock": 12
+                  },
+                  "text": "After"
+                }
+              ],
+              "type": {
+                "client": 7942564799015490,
+                "clock": 11
+              }
+            }
+          ],
+          "kind": "element",
+          "name": "paragraph",
+          "type": {
+            "client": 7942564799015490,
+            "clock": 9
+          }
+        }
+      ],
+      "kind": "fragment",
+      "root": "default"
+    }
+  },
+  "footprint": {
+    "declared_deletes": [
+      {
+        "count": 3,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 6
+        }
+      }
+    ],
+    "deleted_items": [
+      {
+        "content": {
+          "kind": "string",
+          "text": "ore"
+        },
+        "count": 3,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 6
+        },
+        "key": null,
+        "parent": {
+          "type": {
+            "client": 7942564799015490,
+            "clock": 2
+          }
+        },
+        "stored_count": 3,
+        "stored_item": {
+          "client": 7942564799015490,
+          "clock": 6
+        }
+      }
+    ],
+    "state_vector": [
+      {
+        "client": 7942564799015490,
+        "clock": 25
+      }
+    ],
+    "structs": [
+      {
+        "content": {
+          "kind": "type",
+          "name": "relayTag",
+          "type_kind": "xml_element"
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 17
+        },
+        "key": null,
+        "origin": {
+          "client": 7942564799015490,
+          "clock": 2
+        },
+        "parent": {
+          "type": {
+            "client": 7942564799015490,
+            "clock": 0
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 18
+        },
+        "key": "id",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 7942564799015490,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "followup"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 19
+        },
+        "key": "name",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 7942564799015490,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "any",
+          "values": [
+            "[[Tag: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb | #followup]]"
+          ]
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 20
+        },
+        "key": "source",
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 7942564799015490,
+            "clock": 17
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "type",
+          "name": null,
+          "type_kind": "xml_text"
+        },
+        "count": 1,
+        "deleted": false,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 21
+        },
+        "key": null,
+        "origin": {
+          "client": 7942564799015490,
+          "clock": 17
+        },
+        "parent": {
+          "type": {
+            "client": 7942564799015490,
+            "clock": 0
+          }
+        },
+        "right_origin": null
+      },
+      {
+        "content": {
+          "kind": "string",
+          "text": "ore"
+        },
+        "count": 3,
+        "deleted": false,
+        "item": {
+          "client": 7942564799015490,
+          "clock": 22
+        },
+        "key": null,
+        "origin": null,
+        "parent": {
+          "type": {
+            "client": 7942564799015490,
+            "clock": 21
+          }
+        },
+        "right_origin": null
+      }
+    ]
+  },
+  "operation": {
+    "copies": [
+      {
+        "destination": {
+          "runs": [
+            {
+              "count": 3,
+              "item": {
+                "client": 7942564799015490,
+                "clock": 22
+              },
+              "type": {
+                "client": 7942564799015490,
+                "clock": 21
+              }
+            }
+          ]
+        },
+        "source": {
+          "runs": [
+            {
+              "count": 3,
+              "item": {
+                "client": 7942564799015490,
+                "clock": 6
+              },
+              "type": {
+                "client": 7942564799015490,
+                "clock": 2
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "group": {
+      "operation_ids": [
+        "88888888-8888-4888-8888-888888888882"
+      ],
+      "owner_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "reference": "88888888-8888-4888-8888-888888888882"
+    },
+    "kind": "content_edit",
+    "steps": [
+      {
+        "from": 4,
+        "slice": {
+          "content": [
+            {
+              "attrs": {
+                "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+                "name": "followup",
+                "source": "[[Tag: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb | #followup]]"
+              },
+              "type": "relayTag"
+            }
+          ]
+        },
+        "stepType": "replace",
+        "to": 4
+      }
+    ]
+  },
+  "sender_state_base64": "AQjC1M3Lh/eNDgAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgoAMLUzcuH940OAAtyZWxheW1hcmtJZAF3IWJkNDIwMTNlYjZkOTY0ZjA1ODUzMzRkMDgwNzc5YTUwOAcAwtTNy4f3jQ4ABgQAwtTNy4f3jQ4CBkJlZm9yZYfC1M3Lh/eNDgADCXBhcmFncmFwaCgAwtTNy4f3jQ4JC3JlbGF5bWFya0lkAXchYjZiMmE1MjY5NmJiMTQ3YmE4ODg2YTZhMzM5MjMyNTQ3BwDC1M3Lh/eNDgkGBADC1M3Lh/eNDgsFQWZ0ZXIA",
+  "text_items": {
+    "runs": []
+  },
+  "transaction_id": "88888888-8888-4888-8888-888888888882",
+  "update_base64": "AQbC1M3Lh/eNDhGHwtTNy4f3jQ4CAwhyZWxheVRhZygAwtTNy4f3jQ4RAmlkAXckYmJiYmJiYmItYmJiYi00YmJiLThiYmItYmJiYmJiYmJiYmJiKADC1M3Lh/eNDhEEbmFtZQF3CGZvbGxvd3VwKADC1M3Lh/eNDhEGc291cmNlAXc5W1tUYWc6IGJiYmJiYmJiLWJiYmItNGJiYi04YmJiLWJiYmJiYmJiYmJiYiB8ICNmb2xsb3d1cF1dh8LUzcuH940OEQYEAMLUzcuH940OFQNvcmUBwtTNy4f3jQ4BBgM=",
+  "writer_client": 7942564799015490
+}

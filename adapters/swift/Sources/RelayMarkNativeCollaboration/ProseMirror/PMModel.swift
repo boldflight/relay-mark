@@ -37,13 +37,14 @@ final class PMSchema {
 
     /// Builds a schema from the exported TipTap schema: node and mark specs in
     /// schema order, with mark sets and exclusions already resolved.
-    init(json: [String: Any]) throws {
+    init(json: [String: Any], nodeAttributeOrder: [String: [String]]? = nil,
+         markAttributeOrder: [String: [String]]? = nil) throws {
         guard let rawNodes = json["nodes"] as? [[String: Any]], let rawMarks = json["marks"] as? [[String: Any]],
               let top = json["top"] as? String else { throw PMReplaceError(message: "invalid schema") }
         let markOrder = try rawMarks.enumerated().map { rank, raw -> PMMarkType in
             guard let name = raw["name"] as? String else { throw PMReplaceError(message: "invalid mark") }
             return PMMarkType(name: name, rank: rank, inclusive: raw["inclusive"] as? Bool,
-                              attrs: PMAttribute.list(raw["attrs"]))
+                              attrs: PMAttribute.list(raw["attrs"], order: try Self.attributeOrder(markAttributeOrder, name: name, raw: raw["attrs"])))
         }
         let marks = Dictionary(uniqueKeysWithValues: markOrder.map { ($0.name, $0) })
         for (type, raw) in zip(markOrder, rawMarks) {
@@ -51,7 +52,7 @@ final class PMSchema {
         }
         let nodeOrder = try rawNodes.map { raw -> PMNodeType in
             guard let name = raw["name"] as? String else { throw PMReplaceError(message: "invalid node") }
-            return PMNodeType(name: name, spec: raw)
+            return PMNodeType(name: name, spec: raw, attributeOrder: try Self.attributeOrder(nodeAttributeOrder, name: name, raw: raw["attrs"]))
         }
         let nodes = Dictionary(uniqueKeysWithValues: nodeOrder.map { ($0.name, $0) })
         var cache: [String: PMContentMatch] = [:]
@@ -76,6 +77,15 @@ final class PMSchema {
         self.text = text
     }
 
+    private static func attributeOrder(_ orders: [String: [String]]?, name: String, raw: Any?) throws -> [String]? {
+        guard let orders else { return nil }
+        let keys = Set((raw as? [String: Any] ?? [:]).keys)
+        guard let order = orders[name], order.count == keys.count, Set(order) == keys else {
+            throw PMReplaceError(message: "Schema attribute order mismatch")
+        }
+        return order
+    }
+
     func text(_ units: [UInt16], marks: [PMMark] = []) -> PMNode {
         PMNode(type: text, attrs: [:], content: .empty, marks: PMMark.setFrom(marks), text: units)
     }
@@ -86,9 +96,9 @@ struct PMAttribute {
     let hasDefault: Bool
     let defaultValue: Any
 
-    static func list(_ raw: Any?) -> [PMAttribute] {
+    static func list(_ raw: Any?, order: [String]? = nil) -> [PMAttribute] {
         guard let raw = raw as? [String: Any] else { return [] }
-        return raw.keys.sorted().map { name in
+        return (order ?? raw.keys.sorted()).map { name in
             let spec = raw[name] as? [String: Any] ?? [:]
             return PMAttribute(name: name, hasDefault: spec.keys.contains("default"),
                                defaultValue: spec["default"] ?? NSNull())
@@ -107,11 +117,11 @@ final class PMNodeType {
     var inlineContent = false
     var markSet: [PMMarkType]?
 
-    init(name: String, spec: [String: Any]) {
+    init(name: String, spec: [String: Any], attributeOrder: [String]? = nil) {
         self.name = name
         self.spec = spec
         groups = (spec["group"] as? String)?.split(separator: " ").map(String.init) ?? []
-        attrs = PMAttribute.list(spec["attrs"])
+        attrs = PMAttribute.list(spec["attrs"], order: attributeOrder)
         isBlock = !((spec["inline"] as? Bool ?? false) || name == "text")
         isText = name == "text"
     }

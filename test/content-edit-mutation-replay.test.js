@@ -17,3 +17,16 @@ test('catch-up original cannot rewrite already retained text item contents',()=>
  const original=evidence.footprint.structs.find(r=>r.content.kind==='string'&&r.item.clock<10);original.content.text='B'+original.content.text.slice(1);
  assert.throws(()=>Replay.replayContentEditMutation(evidence),/rewrites retained item/);
 });
+
+// These original updates were emitted by the native maintained PM command
+// bridge, not a JS fixture producer or a re-encoded state-equivalence stand-in.
+for (const kind of ['media', 'control', 'atom']) test(`actual native ${kind} command matches every canonical CRDT mutation`, () => {
+ const f=JSON.parse(fs.readFileSync(new URL(`content-edit-native-${kind}.json`,directory)));
+ const evidence=Object.fromEntries(['sender_state_base64','current_state_base64','writer_client','operation','footprint'].map(key=>[key,f[key]]));
+ assert.equal(Replay.replayContentEditMutation(evidence).complete_mutation_correspondence,true);
+});
+for (const kind of ['media', 'control']) test(`retained native ${kind} attribute-allocation fault is refused`, () => {
+ const f=JSON.parse(fs.readFileSync(new URL(`content-edit-native-${kind}-attribute-order-fault.json`,directory)));
+ const evidence=Object.fromEntries(['sender_state_base64','current_state_base64','writer_client','operation','footprint'].map(key=>[key,f[key]]));
+ assert.throws(()=>Replay.replayContentEditMutation(evidence),/differs from executed/);
+});
