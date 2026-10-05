@@ -138,6 +138,21 @@ defmodule RelayMark.DocumentXML do
     end)
   end
 
+  @doc "Finite admitted AST kinds for content-free inventory, from the canonical projection grammar."
+  def inventory_types do
+    marks = Enum.map(@marks, &elem(&1, 1))
+
+    %{
+      nodes:
+        (Map.keys(@names) ++
+           ~w(list relay.paper_control text hard_break relay.entity_ref relay.tag_ref) ++ marks)
+        |> Enum.uniq()
+        |> Enum.sort(),
+      marks: Enum.sort(marks),
+      question_types: Enum.sort(@question_types)
+    }
+  end
+
   @doc "Canonical element names with authored block identity (not inline entity IDs)."
   def identified_node_names, do: Map.keys(@fields) |> Enum.sort()
 
