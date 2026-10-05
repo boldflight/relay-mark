@@ -34,6 +34,13 @@ public enum RelayMarkContentEditCodec {
         let object = try JSONSerialization.jsonObject(with: evidence)
         return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "mapReviewedRecoverySelection", arguments: [object])
     }
+    /// Read-only plan from host-authenticated complete actor/owner cuts and reviewed associations.
+    /// This result is not source or erasure authority; authenticate the complete persisted sidecar.
+    public static func planReviewedRecoveryRetirement(_ evidence: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: evidence)
+        return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planReviewedRecoveryRetirement", arguments: [object])
+    }
+
     /// Trusted receipt replay and complete-group retirement. This issues no
     /// erasure authority and does not change retained source classification.
     public static func retireOwnedHistoryCheckpoint(_ evidence: Data) throws -> Data {

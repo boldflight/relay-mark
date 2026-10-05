@@ -9,9 +9,9 @@ var __commonJS = (cb, mod) => function __require() {
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
-    for (let key2 of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key2) && key2 !== except)
-        __defProp(to, key2, { get: () => from[key2], enumerable: !(desc = __getOwnPropDesc(from, key2)) || desc.enumerable });
+    for (let key3 of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key3) && key3 !== except)
+        __defProp(to, key3, { get: () => from[key3], enumerable: !(desc = __getOwnPropDesc(from, key3)) || desc.enumerable });
   }
   return to;
 };
@@ -452,11 +452,11 @@ var require_define_global_property = __commonJS({
     "use strict";
     var globalThis2 = require_global_this();
     var defineProperty = Object.defineProperty;
-    module.exports = function(key2, value) {
+    module.exports = function(key3, value) {
       try {
-        defineProperty(globalThis2, key2, { value, configurable: true, writable: true });
+        defineProperty(globalThis2, key3, { value, configurable: true, writable: true });
       } catch (error) {
-        globalThis2[key2] = value;
+        globalThis2[key3] = value;
       }
       return value;
     };
@@ -488,8 +488,8 @@ var require_shared = __commonJS({
     "use strict";
     var store = require_shared_store();
     var create = Object.create || Object;
-    module.exports = function(key2, value) {
-      return store[key2] || (store[key2] = value || create(null));
+    module.exports = function(key3, value) {
+      return store[key3] || (store[key3] = value || create(null));
     };
   }
 });
@@ -513,8 +513,8 @@ var require_has_own_property = __commonJS({
     var uncurryThis = require_function_uncurry_this();
     var toObject = require_to_object();
     var hasOwnProperty = uncurryThis({}.hasOwnProperty);
-    module.exports = Object.hasOwn || function hasOwn(it, key2) {
-      return hasOwnProperty(toObject(it), key2);
+    module.exports = Object.hasOwn || function hasOwn(it, key3) {
+      return hasOwnProperty(toObject(it), key3);
     };
   }
 });
@@ -524,11 +524,11 @@ var require_uid = __commonJS({
   "node_modules/core-js-pure/internals/uid.js"(exports, module) {
     "use strict";
     var uncurryThis = require_function_uncurry_this();
-    var id2 = 0;
+    var id3 = 0;
     var postfix = Math.random();
     var toString = uncurryThis(1.1.toString);
-    module.exports = function(key2) {
-      return "Symbol(" + (key2 === void 0 ? "" : key2) + ")_" + toString(++id2 + postfix, 36);
+    module.exports = function(key3) {
+      return "Symbol(" + (key3 === void 0 ? "" : key3) + ")_" + toString(++id3 + postfix, 36);
     };
   }
 });
@@ -590,8 +590,8 @@ var require_to_property_key = __commonJS({
     var toPrimitive = require_to_primitive();
     var isSymbol = require_is_symbol();
     module.exports = function(argument) {
-      var key2 = toPrimitive(argument, "string");
-      return isSymbol(key2) ? key2 : key2 + "";
+      var key3 = toPrimitive(argument, "string");
+      return isSymbol(key3) ? key3 : key3 + "";
     };
   }
 });
@@ -773,10 +773,10 @@ var require_create_non_enumerable_property = __commonJS({
     var DESCRIPTORS = require_descriptors();
     var definePropertyModule = require_object_define_property();
     var createPropertyDescriptor = require_create_property_descriptor();
-    module.exports = DESCRIPTORS ? function(object4, key2, value) {
-      return definePropertyModule.f(object4, key2, createPropertyDescriptor(1, value));
-    } : function(object4, key2, value) {
-      object4[key2] = value;
+    module.exports = DESCRIPTORS ? function(object4, key3, value) {
+      return definePropertyModule.f(object4, key3, createPropertyDescriptor(1, value));
+    } : function(object4, key3, value) {
+      object4[key3] = value;
       return object4;
     };
   }
@@ -824,16 +824,16 @@ var require_export = __commonJS({
       var target = GLOBAL ? path : path[TARGET] || createNonEnumerableProperty(path, TARGET, {})[TARGET];
       var targetPrototype = target.prototype;
       var FORCED, USE_NATIVE, VIRTUAL_PROTOTYPE;
-      var key2, sourceProperty, targetProperty, nativeProperty, resultProperty, descriptor;
-      for (key2 in source) {
-        FORCED = isForced(GLOBAL ? key2 : TARGET + (STATIC ? "." : "#") + key2, options.forced);
-        USE_NATIVE = !FORCED && nativeSource && hasOwn(nativeSource, key2);
-        targetProperty = target[key2];
+      var key3, sourceProperty, targetProperty, nativeProperty, resultProperty, descriptor;
+      for (key3 in source) {
+        FORCED = isForced(GLOBAL ? key3 : TARGET + (STATIC ? "." : "#") + key3, options.forced);
+        USE_NATIVE = !FORCED && nativeSource && hasOwn(nativeSource, key3);
+        targetProperty = target[key3];
         if (USE_NATIVE) if (options.dontCallGetSet) {
-          descriptor = getOwnPropertyDescriptor(nativeSource, key2);
+          descriptor = getOwnPropertyDescriptor(nativeSource, key3);
           nativeProperty = descriptor && descriptor.value;
-        } else nativeProperty = nativeSource[key2];
-        sourceProperty = USE_NATIVE && nativeProperty ? nativeProperty : source[key2];
+        } else nativeProperty = nativeSource[key3];
+        sourceProperty = USE_NATIVE && nativeProperty ? nativeProperty : source[key3];
         if (!FORCED && !PROTO && typeof targetProperty == typeof sourceProperty) continue;
         if (options.bind && USE_NATIVE) resultProperty = bind(sourceProperty, globalThis2);
         else if (options.wrap && USE_NATIVE) resultProperty = wrapConstructor(sourceProperty);
@@ -842,15 +842,15 @@ var require_export = __commonJS({
         if (options.sham || sourceProperty && sourceProperty.sham || targetProperty && targetProperty.sham) {
           createNonEnumerableProperty(resultProperty, "sham", true);
         }
-        createNonEnumerableProperty(target, key2, resultProperty);
+        createNonEnumerableProperty(target, key3, resultProperty);
         if (PROTO) {
           VIRTUAL_PROTOTYPE = TARGET + "Prototype";
           if (!hasOwn(path, VIRTUAL_PROTOTYPE)) {
             createNonEnumerableProperty(path, VIRTUAL_PROTOTYPE, {});
           }
-          createNonEnumerableProperty(path[VIRTUAL_PROTOTYPE], key2, sourceProperty);
-          if (options.real && targetPrototype && (FORCED || !targetPrototype[key2])) {
-            createNonEnumerableProperty(targetPrototype, key2, sourceProperty);
+          createNonEnumerableProperty(path[VIRTUAL_PROTOTYPE], key3, sourceProperty);
+          if (options.real && targetPrototype && (FORCED || !targetPrototype[key3])) {
+            createNonEnumerableProperty(targetPrototype, key3, sourceProperty);
           }
         }
       }
@@ -883,9 +883,9 @@ var require_classof = __commonJS({
     var CORRECT_ARGUMENTS = classofRaw(/* @__PURE__ */ (function() {
       return arguments;
     })()) === "Arguments";
-    var tryGet = function(it, key2) {
+    var tryGet = function(it, key3) {
       try {
-        return it[key2];
+        return it[key3];
       } catch (error) {
       }
     };
@@ -1183,10 +1183,10 @@ var require_object_keys_internal = __commonJS({
       var O = toIndexedObject(object4);
       var i = 0;
       var result = [];
-      var key2;
-      for (key2 in O) !hasOwn(hiddenKeys, key2) && hasOwn(O, key2) && push(result, key2);
-      while (names2.length > i) if (hasOwn(O, key2 = names2[i++])) {
-        ~indexOf(result, key2) || push(result, key2);
+      var key3;
+      for (key3 in O) !hasOwn(hiddenKeys, key3) && hasOwn(O, key3) && push(result, key3);
+      while (names2.length > i) if (hasOwn(O, key3 = names2[i++])) {
+        ~indexOf(result, key3) || push(result, key3);
       }
       return result;
     };
@@ -1237,8 +1237,8 @@ var require_object_define_properties = __commonJS({
       var keys3 = objectKeys(Properties);
       var length = keys3.length;
       var index2 = 0;
-      var key2;
-      while (length > index2) definePropertyModule.f(O, key2 = keys3[index2++], props[key2]);
+      var key3;
+      while (length > index2) definePropertyModule.f(O, key3 = keys3[index2++], props[key3]);
       return O;
     };
   }
@@ -1260,8 +1260,8 @@ var require_shared_key = __commonJS({
     var shared = require_shared();
     var uid = require_uid();
     var keys3 = shared("keys");
-    module.exports = function(key2) {
-      return keys3[key2] || (keys3[key2] = uid(key2));
+    module.exports = function(key3) {
+      return keys3[key3] || (keys3[key3] = uid(key3));
     };
   }
 });
@@ -1337,9 +1337,9 @@ var require_define_built_in = __commonJS({
   "node_modules/core-js-pure/internals/define-built-in.js"(exports, module) {
     "use strict";
     var createNonEnumerableProperty = require_create_non_enumerable_property();
-    module.exports = function(target, key2, value, options) {
-      if (options && options.enumerable) target[key2] = value;
-      else createNonEnumerableProperty(target, key2, value);
+    module.exports = function(target, key3, value, options) {
+      if (options && options.enumerable) target[key3] = value;
+      else createNonEnumerableProperty(target, key3, value);
       return target;
     };
   }
@@ -1617,9 +1617,9 @@ var require_web_dom_exception_constructor = __commonJS({
     var createGetterDescriptor = function(get) {
       return { enumerable: true, configurable: true, get };
     };
-    var getterFor = function(key3) {
+    var getterFor = function(key4) {
       return createGetterDescriptor(function() {
-        return getInternalState(this)[key3];
+        return getInternalState(this)[key4];
       });
     };
     if (DESCRIPTORS) {
@@ -1652,8 +1652,8 @@ var require_web_dom_exception_constructor = __commonJS({
         return codeFor(anObject(this).name);
       }));
     }
-    for (key2 in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key2)) {
-      constant = DOMExceptionConstants[key2];
+    for (key3 in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key3)) {
+      constant = DOMExceptionConstants[key3];
       constantName = constant.s;
       descriptor = createPropertyDescriptor(6, constant.c);
       if (!hasOwn(PolyfilledDOMException, constantName)) {
@@ -1666,7 +1666,7 @@ var require_web_dom_exception_constructor = __commonJS({
     var constant;
     var constantName;
     var descriptor;
-    var key2;
+    var key3;
   }
 });
 
@@ -1676,9 +1676,9 @@ var require_function_uncurry_this_accessor = __commonJS({
     "use strict";
     var uncurryThis = require_function_uncurry_this();
     var aCallable = require_a_callable();
-    module.exports = function(object4, key2, method) {
+    module.exports = function(object4, key3, method) {
       try {
-        return uncurryThis(aCallable(Object.getOwnPropertyDescriptor(object4, key2)[method]));
+        return uncurryThis(aCallable(Object.getOwnPropertyDescriptor(object4, key3)[method]));
       } catch (error) {
       }
     };
@@ -1807,8 +1807,8 @@ var require_web_dom_exception_stack = __commonJS({
       if (!IS_PURE) {
         defineProperty(PolyfilledDOMExceptionPrototype, "constructor", createPropertyDescriptor(1, PolyfilledDOMException));
       }
-      for (key2 in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key2)) {
-        constant = DOMExceptionConstants[key2];
+      for (key3 in DOMExceptionConstants) if (hasOwn(DOMExceptionConstants, key3)) {
+        constant = DOMExceptionConstants[key3];
         constantName = constant.s;
         if (!hasOwn(PolyfilledDOMException, constantName)) {
           defineProperty(PolyfilledDOMException, constantName, createPropertyDescriptor(6, constant.c));
@@ -1817,7 +1817,7 @@ var require_web_dom_exception_stack = __commonJS({
     }
     var constant;
     var constantName;
-    var key2;
+    var key3;
   }
 });
 
@@ -2307,9 +2307,9 @@ var require_url_constructor_detection = __commonJS({
       var params2 = new URLSearchParams("a=1&a=2&b=3");
       var result = "";
       url.pathname = "c%20d";
-      params.forEach(function(value, key2) {
+      params.forEach(function(value, key3) {
         params["delete"]("b");
-        result += key2 + value;
+        result += key3 + value;
       });
       params2["delete"]("a", 2);
       params2["delete"]("b", void 0);
@@ -2486,9 +2486,9 @@ var require_define_built_ins = __commonJS({
     "use strict";
     var defineBuiltIn = require_define_built_in();
     module.exports = function(target, src, options) {
-      for (var key2 in src) {
-        if (options && options.unsafe && target[key2]) target[key2] = src[key2];
-        else defineBuiltIn(target, key2, src[key2], options);
+      for (var key3 in src) {
+        if (options && options.unsafe && target[key3]) target[key3] = src[key3];
+        else defineBuiltIn(target, key3, src[key3], options);
       }
       return target;
     };
@@ -2716,8 +2716,8 @@ var require_web_url_search_params_constructor = __commonJS({
             if ((first = call(entryNext, entryIterator)).done || (second = call(entryNext, entryIterator)).done || !call(entryNext, entryIterator).done) throw new TypeError2("Expected sequence with length 2");
             push(entries, { key: $toString(first.value), value: $toString(second.value) });
           }
-        } else for (var key2 in object4) if (hasOwn(object4, key2)) {
-          push(entries, { key: key2, value: $toString(object4[key2]) });
+        } else for (var key3 in object4) if (hasOwn(object4, key3)) {
+          push(entries, { key: key3, value: $toString(object4[key3]) });
         }
       },
       parseQuery: function(query) {
@@ -2780,13 +2780,13 @@ var require_web_url_search_params_constructor = __commonJS({
         var state = getInternalParamsState(this);
         var length = validateArgumentsLength(arguments.length, 1);
         var entries = state.entries;
-        var key2 = $toString(name);
+        var key3 = $toString(name);
         var $value = length < 2 ? void 0 : arguments[1];
         var value = $value === void 0 ? $value : $toString($value);
         var index2 = 0;
         while (index2 < entries.length) {
           var entry = entries[index2];
-          if (entry.key === key2 && (value === void 0 || entry.value === value)) {
+          if (entry.key === key3 && (value === void 0 || entry.value === value)) {
             splice(entries, index2, 1);
           } else index2++;
         }
@@ -2798,10 +2798,10 @@ var require_web_url_search_params_constructor = __commonJS({
       get: function get(name) {
         var entries = getInternalParamsState(this).entries;
         validateArgumentsLength(arguments.length, 1);
-        var key2 = $toString(name);
+        var key3 = $toString(name);
         var index2 = 0;
         for (; index2 < entries.length; index2++) {
-          if (entries[index2].key === key2) return entries[index2].value;
+          if (entries[index2].key === key3) return entries[index2].value;
         }
         return null;
       },
@@ -2810,11 +2810,11 @@ var require_web_url_search_params_constructor = __commonJS({
       getAll: function getAll(name) {
         var entries = getInternalParamsState(this).entries;
         validateArgumentsLength(arguments.length, 1);
-        var key2 = $toString(name);
+        var key3 = $toString(name);
         var result = [];
         var index2 = 0;
         for (; index2 < entries.length; index2++) {
-          if (entries[index2].key === key2) push(result, entries[index2].value);
+          if (entries[index2].key === key3) push(result, entries[index2].value);
         }
         return result;
       },
@@ -2823,13 +2823,13 @@ var require_web_url_search_params_constructor = __commonJS({
       has: function has(name) {
         var entries = getInternalParamsState(this).entries;
         var length = validateArgumentsLength(arguments.length, 1);
-        var key2 = $toString(name);
+        var key3 = $toString(name);
         var $value = length < 2 ? void 0 : arguments[1];
         var value = $value === void 0 ? $value : $toString($value);
         var index2 = 0;
         while (index2 < entries.length) {
           var entry = entries[index2++];
-          if (entry.key === key2 && (value === void 0 || entry.value === value)) return true;
+          if (entry.key === key3 && (value === void 0 || entry.value === value)) return true;
         }
         return false;
       },
@@ -2840,13 +2840,13 @@ var require_web_url_search_params_constructor = __commonJS({
         validateArgumentsLength(arguments.length, 2);
         var entries = state.entries;
         var found = false;
-        var key2 = $toString(name);
+        var key3 = $toString(name);
         var val = $toString(value);
         var index2 = 0;
         var entry;
         for (; index2 < entries.length; index2++) {
           entry = entries[index2];
-          if (entry.key === key2) {
+          if (entry.key === key3) {
             if (found) splice(entries, index2--, 1);
             else {
               found = true;
@@ -2854,7 +2854,7 @@ var require_web_url_search_params_constructor = __commonJS({
             }
           }
         }
-        if (!found) push(entries, { key: key2, value: val });
+        if (!found) push(entries, { key: key3, value: val });
         if (!DESCRIPTORS) this.size = entries.length;
         state.updateURL();
       },
@@ -3113,10 +3113,10 @@ var require_object_assign = __commonJS({
         var keys3 = getOwnPropertySymbols ? concat(objectKeys(S), getOwnPropertySymbols(S)) : objectKeys(S);
         var length = keys3.length;
         var j = 0;
-        var key2;
+        var key3;
         while (length > j) {
-          key2 = keys3[j++];
-          if (!DESCRIPTORS || call(propertyIsEnumerable, S, key2)) T[key2] = S[key2];
+          key3 = keys3[j++];
+          if (!DESCRIPTORS || call(propertyIsEnumerable, S, key3)) T[key3] = S[key3];
         }
       }
       return T;
@@ -3256,9 +3256,9 @@ var require_create_property = __commonJS({
     var DESCRIPTORS = require_descriptors();
     var definePropertyModule = require_object_define_property();
     var createPropertyDescriptor = require_create_property_descriptor();
-    module.exports = function(object4, key2, value) {
-      if (DESCRIPTORS) definePropertyModule.f(object4, key2, createPropertyDescriptor(0, value));
-      else object4[key2] = value;
+    module.exports = function(object4, key3, value) {
+      if (DESCRIPTORS) definePropertyModule.f(object4, key3, createPropertyDescriptor(0, value));
+      else object4[key3] = value;
     };
   }
 });
@@ -4448,15 +4448,15 @@ var require_web_url_constructor = __commonJS({
         var fragment2 = this.fragment;
         return fragment2 ? "#" + fragment2 : "";
       },
-      setHash: function(hash2) {
-        hash2 = $toString(hash2);
-        if (hash2 === "") {
+      setHash: function(hash3) {
+        hash3 = $toString(hash3);
+        if (hash3 === "") {
           this.fragment = null;
           return;
         }
-        if (charAt(hash2, 0) === "#") hash2 = stringSlice(hash2, 1);
+        if (charAt(hash3, 0) === "#") hash3 = stringSlice(hash3, 1);
         this.fragment = "";
-        this.parse(hash2, FRAGMENT);
+        this.parse(hash3, FRAGMENT);
       },
       update: function() {
         this.query = this.searchParams.serialize() || null;
@@ -4652,7 +4652,7 @@ var require_url5 = __commonJS({
 // adapters/collaboration/content-edit-mutation.js
 var import_atob = __toESM(require_atob2(), 1);
 var import_btoa = __toESM(require_btoa2(), 1);
-import * as Y4 from "yjs";
+import * as Y5 from "yjs";
 import { Step as Step3 } from "prosemirror-transform";
 import { initProseMirrorDoc, updateYFragment } from "@tiptap/y-tiptap";
 
@@ -4718,7 +4718,7 @@ function safeImageSource(value) {
 var linkDefaults = Object.freeze(Object.fromEntries(Object.entries(canonicalEditorSchema.marks.find((mark) => mark.name === "link").attrs).filter(([name]) => name !== "href").map(([name, spec]) => [name, spec.default])));
 function validateLinkAttributes(attributes) {
   if (!attributes || typeof attributes !== "object" || Array.isArray(attributes) || Object.keys(attributes).some((k) => !["href", ...Object.keys(linkDefaults)].includes(k)) || !safeLinkHref(attributes.href)) throw new TypeError("Invalid link href or attributes");
-  for (const key2 of Object.keys(linkDefaults)) if (!Object.hasOwn(attributes, key2)) throw new TypeError("Missing link " + key2);
+  for (const key3 of Object.keys(linkDefaults)) if (!Object.hasOwn(attributes, key3)) throw new TypeError("Missing link " + key3);
   const { target, rel, class: className, title } = attributes;
   const invalidText = (value) => typeof value !== "string" || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/u.test(value);
   if (target !== null && (invalidText(target) || /[\t\r\n]/u.test(target) || target.startsWith("_") && !["_blank", "_self", "_parent", "_top"].includes(target.toLowerCase()))) throw new TypeError("Invalid link target");
@@ -4733,7 +4733,7 @@ function linkAttributes(href2, props = {}) {
 }
 function linkProperties(attributes) {
   validateLinkAttributes(attributes);
-  return Object.fromEntries(Object.entries(linkDefaults).filter(([key2, value]) => attributes[key2] !== value).map(([key2]) => [key2, attributes[key2]]));
+  return Object.fromEntries(Object.entries(linkDefaults).filter(([key3, value]) => attributes[key3] !== value).map(([key3]) => [key3, attributes[key3]]));
 }
 
 // src/directive-registry.js
@@ -4778,19 +4778,19 @@ function directiveNodeForType(type) {
 }
 function authoredDirectiveProps(shape, attrs) {
   if (!attrs || typeof attrs !== "object" || Array.isArray(attrs)) throw new TypeError("Invalid directive attrs");
-  for (const key2 of Object.keys(attrs)) if (key2 !== "relaymarkId" && !Object.hasOwn(shape.attributes, key2)) throw new TypeError("Unsupported authored directive field " + key2);
+  for (const key3 of Object.keys(attrs)) if (key3 !== "relaymarkId" && !Object.hasOwn(shape.attributes, key3)) throw new TypeError("Unsupported authored directive field " + key3);
   const props = {};
-  for (const [key2, spec] of Object.entries(shape.attributes)) {
-    let value = attrs[key2];
+  for (const [key3, spec] of Object.entries(shape.attributes)) {
+    let value = attrs[key3];
     if (value == null) {
       if (Object.hasOwn(spec, "default")) value = spec.default;
-      else if (spec.required) throw new TypeError("Missing authored directive " + key2);
+      else if (spec.required) throw new TypeError("Missing authored directive " + key3);
       else continue;
     }
     const okay = ["string", "enum"].includes(spec.type) ? typeof value === "string" : spec.type === "boolean" ? typeof value === "boolean" : spec.type === "integer" ? Number.isSafeInteger(value) : spec.type === "number" ? typeof value === "number" && Number.isFinite(value) : spec.type === "array" ? Array.isArray(value) : spec.type === "object" ? value && typeof value === "object" && !Array.isArray(value) : false;
-    if (!okay || spec.type === "enum" && !spec.values.includes(value) || spec.items === "string" && value.some((v) => typeof v !== "string")) throw new TypeError("Invalid authored directive " + key2);
+    if (!okay || spec.type === "enum" && !spec.values.includes(value) || spec.items === "string" && value.some((v) => typeof v !== "string")) throw new TypeError("Invalid authored directive " + key3);
     jsonValue(value);
-    props[key2] = value;
+    props[key3] = value;
   }
   return props;
 }
@@ -4818,44 +4818,44 @@ function object(value, label) {
   return value;
 }
 function only(value, allowed, label) {
-  for (const key2 of Object.keys(object(value, label))) {
-    if (!allowed.includes(key2)) throw new TypeError(`Unsupported ${label} field: ${key2}`);
+  for (const key3 of Object.keys(object(value, label))) {
+    if (!allowed.includes(key3)) throw new TypeError(`Unsupported ${label} field: ${key3}`);
   }
 }
-function identity(id2) {
-  if (typeof id2 !== "string" || !uuid.test(id2)) throw new TypeError("Invalid canonical atom UUID");
-  return id2;
+function identity(id3) {
+  if (typeof id3 !== "string" || !uuid.test(id3)) throw new TypeError("Invalid canonical atom UUID");
+  return id3;
 }
-function buildEntityReferenceSource({ entityType: type, entityId: id2, label }) {
+function buildEntityReferenceSource({ entityType: type, entityId: id3, label }) {
   if (typeof type !== "string" || !entityType.test(type) || type === "Tag" || typeof label !== "string" || !label) {
     throw new TypeError("Invalid authored reference label or type");
   }
   const quoted = label !== label.trim() || /[\r\n\[\]"\\`*_<>!]/u.test(label);
   const encoded = quoted ? '"' + label.split("").map((c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0")).join("") + '"' : label;
-  return `[[${type}: ${identity(id2)} | ${encoded}]]`;
+  return `[[${type}: ${identity(id3)} | ${encoded}]]`;
 }
-function referenceSource(type, id2, label) {
-  return buildEntityReferenceSource({ entityType: type, entityId: id2, label });
+function referenceSource(type, id3, label) {
+  return buildEntityReferenceSource({ entityType: type, entityId: id3, label });
 }
-function tagSource(id2, name) {
+function tagSource(id3, name) {
   if (typeof name !== "string" || !tagName.test(name)) throw new TypeError("Invalid authored tag name");
-  return `[[Tag: ${identity(id2)} | #${name}]]`;
+  return `[[Tag: ${identity(id3)} | #${name}]]`;
 }
 function mapAtom(node) {
   only(node, ["type", "attrs"], "atom");
   if (node.type === "relayReference") {
     only(node.attrs, ["entityType", "entityId", "label", "source", "status", "subtitle"], "reference attrs");
-    const { entityType: type, entityId: id2, label, source, status, subtitle } = node.attrs;
-    if (status != null || subtitle != null || source !== referenceSource(type, id2, label)) {
+    const { entityType: type, entityId: id3, label, source, status, subtitle } = node.attrs;
+    if (status != null || subtitle != null || source !== referenceSource(type, id3, label)) {
       throw new TypeError("Unsupported reference hydration or source");
     }
-    return { type: "relay.entity_ref", id: id2, label, props: { entityType: type, source } };
+    return { type: "relay.entity_ref", id: id3, label, props: { entityType: type, source } };
   }
   if (node.type === "relayTag") {
     only(node.attrs, ["id", "name", "color", "source"], "tag attrs");
-    const { id: id2, name, color, source } = node.attrs;
-    if (color != null || source !== tagSource(id2, name)) throw new TypeError("Unsupported tag color or source");
-    return { type: "relay.tag_ref", id: id2, label: `#${name}`, props: { name, source } };
+    const { id: id3, name, color, source } = node.attrs;
+    if (color != null || source !== tagSource(id3, name)) throw new TypeError("Unsupported tag color or source");
+    return { type: "relay.tag_ref", id: id3, label: `#${name}`, props: { name, source } };
   }
   throw new TypeError(`Unsupported inline atom ${String(node.type)}`);
 }
@@ -4902,8 +4902,8 @@ function object2(value, label) {
   return value;
 }
 function keys(value, allowed, label) {
-  for (const key2 of Object.keys(object2(value, label))) {
-    if (!allowed.includes(key2)) throw new TypeError(`Unsupported ${label} field: ${key2}`);
+  for (const key3 of Object.keys(object2(value, label))) {
+    if (!allowed.includes(key3)) throw new TypeError(`Unsupported ${label} field: ${key3}`);
   }
 }
 function href(value) {
@@ -4997,17 +4997,17 @@ function parseEntityReferenceSource(source) {
   const attrs = {};
   let rest = match[1].trim();
   while (rest) {
-    const key2 = rest.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*/u);
-    if (!key2 || !["id", "label", "projection"].includes(key2[1]) || Object.hasOwn(attrs, key2[1])) return null;
-    rest = rest.slice(key2[0].length);
+    const key3 = rest.match(/^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*/u);
+    if (!key3 || !["id", "label", "projection"].includes(key3[1]) || Object.hasOwn(attrs, key3[1])) return null;
+    rest = rest.slice(key3[0].length);
     const value = rest.match(/^"(?:\\.|[^"\\])*"/u);
     if (!value) return null;
     try {
-      attrs[key2[1]] = JSON.parse(value[0]);
+      attrs[key3[1]] = JSON.parse(value[0]);
     } catch {
       return null;
     }
-    if (typeof attrs[key2[1]] !== "string") return null;
+    if (typeof attrs[key3[1]] !== "string") return null;
     rest = rest.slice(value[0].length).trimStart();
     if (!rest) break;
     if (!rest.startsWith(",")) return null;
@@ -5026,7 +5026,7 @@ function parseEntityReferenceSource(source) {
   return { id: attrs.id, entityId: entityId2, label, projection, body, source };
 }
 function assertEntityReferenceProps(props) {
-  if (!props || typeof props !== "object" || Array.isArray(props) || Object.keys(props).some((key2) => !["id", "label", "projection", "source"].includes(key2))) {
+  if (!props || typeof props !== "object" || Array.isArray(props) || Object.keys(props).some((key3) => !["id", "label", "projection", "source"].includes(key3))) {
     throw new TypeError("Unsupported entity reference props");
   }
   const parsed = parseEntityReferenceSource(props.source);
@@ -5050,13 +5050,13 @@ function object3(value) {
 function canonicalPaperControlSource(control, authored) {
   object3(authored);
   const allowed = fields[control];
-  if (!allowed || Object.keys(authored).length !== allowed.length || Object.keys(authored).some((key2) => !allowed.includes(key2)) || allowed.some((key2) => typeof authored[key2] !== "string")) throw new TypeError("Invalid paper control fields");
+  if (!allowed || Object.keys(authored).length !== allowed.length || Object.keys(authored).some((key3) => !allowed.includes(key3)) || allowed.some((key3) => typeof authored[key3] !== "string")) throw new TypeError("Invalid paper control fields");
   if (control === "button" && (!authored.label.trim() || !["anchor", "link", "command"].includes(authored.kind) || !(authored.kind === "anchor" ? anchorName.test(authored.target) : authored.kind === "link" ? safeLink(authored.target) : command.test(authored.target)))) {
     throw new TypeError("Invalid paper button");
   }
   if (control === "anchor" && !anchorName.test(authored.name)) throw new TypeError("Invalid paper anchor");
   if (control === "connection" && !providerName.test(authored.provider)) throw new TypeError("Invalid paper connection");
-  const source = `@${names[control]}(${allowed.map((key2) => `${key2}: ${JSON.stringify(authored[key2])}`).join(", ")})`;
+  const source = `@${names[control]}(${allowed.map((key3) => `${key3}: ${JSON.stringify(authored[key3])}`).join(", ")})`;
   if (source.length > 16384) throw new TypeError("Paper control source exceeds the draft limit");
   return source;
 }
@@ -5072,21 +5072,21 @@ function paperControlNodeName(control) {
   return nodeNames[control];
 }
 function paperControlKind(nodeName) {
-  return Object.keys(nodeNames).find((key2) => nodeNames[key2] === nodeName);
+  return Object.keys(nodeNames).find((key3) => nodeNames[key3] === nodeName);
 }
 
 // src/document-suggestion.js
 var reviews = /* @__PURE__ */ new Set(["draft", "ready"]);
 var kinds = /* @__PURE__ */ new Set(["note", "action", "match", "journey", "source", "share"]);
 function assertAgentSuggestion(review, kind, confidence, evidence, content2) {
-  if (!reviews.has(review) || !kinds.has(kind) || !(confidence === null || typeof confidence === "number" && Number.isFinite(confidence) && confidence >= 0 && confidence <= 1) || !Array.isArray(evidence) || evidence.length > 64 || evidence.some((id2) => typeof id2 !== "string" || id2.length === 0 || id2.length > 128 || /[\u0000-\u001f\u007f]/u.test(id2)) || new Set(evidence).size !== evidence.length || typeof content2 !== "string" || content2.length === 0 || content2.length > 32768 || content2 !== content2.trim() || content2.includes("\r") || content2.includes("\0")) {
+  if (!reviews.has(review) || !kinds.has(kind) || !(confidence === null || typeof confidence === "number" && Number.isFinite(confidence) && confidence >= 0 && confidence <= 1) || !Array.isArray(evidence) || evidence.length > 64 || evidence.some((id3) => typeof id3 !== "string" || id3.length === 0 || id3.length > 128 || /[\u0000-\u001f\u007f]/u.test(id3)) || new Set(evidence).size !== evidence.length || typeof content2 !== "string" || content2.length === 0 || content2.length > 32768 || content2 !== content2.trim() || content2.includes("\r") || content2.includes("\0")) {
     throw new TypeError("Invalid authored AgentSuggestion");
   }
   return { review, kind, confidence, evidence, content: content2 };
 }
 function assertAgentSuggestionBlock(block) {
   const props = block?.props;
-  if (!props || typeof props !== "object" || Array.isArray(props) || Object.keys(props).length !== 3 && Object.keys(props).length !== 4 || Object.keys(props).some((key2) => !["review", "kind", "confidence", "evidence"].includes(key2)) || Object.hasOwn(props, "confidence") && props.confidence == null || !Array.isArray(block.content) || block.content.length !== 1 || block.content[0]?.type !== "text" || Object.keys(block.content[0]).some((key2) => !["type", "text"].includes(key2))) {
+  if (!props || typeof props !== "object" || Array.isArray(props) || Object.keys(props).length !== 3 && Object.keys(props).length !== 4 || Object.keys(props).some((key3) => !["review", "kind", "confidence", "evidence"].includes(key3)) || Object.hasOwn(props, "confidence") && props.confidence == null || !Array.isArray(block.content) || block.content.length !== 1 || block.content[0]?.type !== "text" || Object.keys(block.content[0]).some((key3) => !["type", "text"].includes(key3))) {
     throw new TypeError("Invalid authored AgentSuggestion block");
   }
   return assertAgentSuggestion(
@@ -5129,15 +5129,15 @@ function proseMirrorToRelayMark(prosemirror) {
 function relayMarkToProseMirror(document2) {
   assertObject(document2, "document");
   onlyKeys(document2, ["type", "blocks", "frontmatter", "annotations", "resources", "meta"], "document");
-  for (const key2 of ["frontmatter", "meta"]) if (document2[key2] !== void 0) assertObject(document2[key2], key2);
-  for (const key2 of ["annotations", "resources"]) if (document2[key2] !== void 0 && !Array.isArray(document2[key2])) throw new TypeError(`Invalid ${key2}`);
+  for (const key3 of ["frontmatter", "meta"]) if (document2[key3] !== void 0) assertObject(document2[key3], key3);
+  for (const key3 of ["annotations", "resources"]) if (document2[key3] !== void 0 && !Array.isArray(document2[key3])) throw new TypeError(`Invalid ${key3}`);
   if (document2.type !== "relaymark.document") {
     throw new TypeError("Expected a canonical RelayMark AST document");
   }
   assertContentDepth({ content: document2.blocks });
   const seen = /* @__PURE__ */ new Set();
   const blocks = children({ content: document2.blocks }, "document", 1);
-  const metadata = Object.fromEntries(["frontmatter", "annotations", "resources", "meta"].filter((key2) => Object.hasOwn(document2, key2)).map((key2) => [key2, document2[key2]]));
+  const metadata = Object.fromEntries(["frontmatter", "annotations", "resources", "meta"].filter((key3) => Object.hasOwn(document2, key3)).map((key3) => [key3, document2[key3]]));
   assertAuthoredMetadata(metadata);
   return { type: "doc", ...Object.keys(metadata).length ? { attrs: { relaymark: metadata } } : {}, content: blocks.map((block) => unmapBlock(block, seen, 0)) };
 }
@@ -5549,9 +5549,9 @@ function mapEntityReference(node, seen) {
   if (node.content !== void 0 && children(node, "relayEntityReference").length !== 0) {
     throw new TypeError("Entity reference atom cannot have children");
   }
-  const { entityRef, entityId: id2, entityType: entityType2, label, projection, source } = node.attrs;
+  const { entityRef, entityId: id3, entityType: entityType2, label, projection, source } = node.attrs;
   const authored = parseEntityReferenceSource(source);
-  if (!authored || authored.id !== entityRef || authored.entityId !== id2 || entityType2 !== "Entity" || authored.label !== label || authored.projection !== projection) {
+  if (!authored || authored.id !== entityRef || authored.entityId !== id3 || entityType2 !== "Entity" || authored.label !== label || authored.projection !== projection) {
     throw new TypeError("Entity reference source/identity mismatch");
   }
   return {
@@ -5566,10 +5566,10 @@ function unmapEntityReference(block, seen) {
   if (block.content !== void 0 && children(block, "relay.entity_reference").length !== 0) {
     throw new TypeError("Entity reference atom cannot have children");
   }
-  const { id: id2, entityId: entityId2, label, projection, source } = assertEntityReferenceProps(block.props);
+  const { id: id3, entityId: entityId2, label, projection, source } = assertEntityReferenceProps(block.props);
   return { type: "relayEntityReference", attrs: {
     relaymarkId: block.id,
-    entityRef: id2,
+    entityRef: id3,
     entityId: entityId2,
     entityType: "Entity",
     label,
@@ -5769,10 +5769,10 @@ function checkCellProps(props) {
     throw new TypeError("Cell align must be null, left, center, or right");
   }
 }
-function checkId(id2, seen) {
-  if (typeof id2 !== "string" || !blockId.test(id2)) throw new TypeError("Missing or invalid relaymarkId");
-  if (seen.has(id2)) throw new TypeError(`Duplicate relaymarkId: ${id2}`);
-  seen.add(id2);
+function checkId(id3, seen) {
+  if (typeof id3 !== "string" || !blockId.test(id3)) throw new TypeError("Missing or invalid relaymarkId");
+  if (seen.has(id3)) throw new TypeError(`Duplicate relaymarkId: ${id3}`);
+  seen.add(id3);
 }
 function children(node, label, minimum = 0) {
   if (!Array.isArray(node.content) || node.content.length < minimum) {
@@ -5826,13 +5826,13 @@ function assertObject(value, label) {
   }
 }
 function onlyKeys(object4, allowed, label) {
-  for (const key2 of Object.keys(object4)) {
-    if (!allowed.includes(key2)) throw new TypeError(`Unsupported ${label} field: ${key2}`);
+  for (const key3 of Object.keys(object4)) {
+    if (!allowed.includes(key3)) throw new TypeError(`Unsupported ${label} field: ${key3}`);
   }
 }
 function checkDimensions(props) {
-  for (const key2 of ["width", "height"]) {
-    const value = props[key2];
+  for (const key3 of ["width", "height"]) {
+    const value = props[key3];
     if (value != null && (!Number.isSafeInteger(value) || value <= 0)) throw new TypeError("Image dimensions must be positive safe integers");
   }
 }
@@ -5844,8 +5844,8 @@ function validateQuestionProps(props, option = false) {
   onlyKeys(props, option ? optionFields : questionFields, "form authored props");
   if (typeof props.id !== "string" || !props.id.trim() || /[\r\n\u0000]/u.test(props.id)) throw new TypeError("Invalid form identity");
   if (option ? typeof props.correct !== "boolean" : !questionTypes.has(props.type) || typeof props.required !== "boolean") throw new TypeError("Invalid form type or boolean");
-  for (const key2 of option ? ["points"] : ["points", "min", "max"]) {
-    if (props[key2] != null && (typeof props[key2] !== "number" || !Number.isFinite(props[key2]))) throw new TypeError("Invalid form numeric setting");
+  for (const key3 of option ? ["points"] : ["points", "min", "max"]) {
+    if (props[key3] != null && (typeof props[key3] !== "number" || !Number.isFinite(props[key3]))) throw new TypeError("Invalid form numeric setting");
   }
   assertObject(props.settings, "form authored settings");
   validateJSONValue(props.settings);
@@ -5867,7 +5867,7 @@ function validateJSONValue(value, depth = 0) {
 function formProps(attrs, option) {
   const defaults = option ? { correct: false, points: null, settings: {} } : { required: false, points: null, min: null, max: null, settings: {} };
   const result = { ...defaults };
-  for (const key2 of option ? optionFields : questionFields) if (attrs[key2] !== void 0) result[key2] = attrs[key2];
+  for (const key3 of option ? optionFields : questionFields) if (attrs[key3] !== void 0) result[key3] = attrs[key3];
   validateQuestionProps(result, option);
   return result;
 }
@@ -5904,13 +5904,13 @@ function unmapQuestion(block, seen) {
 var dataViewFields = ["source", "projection", "columns", "filter", "sort", "group", "limit", "title"];
 function dataViewProps(attrs) {
   const props = {};
-  for (const key2 of dataViewFields) if (attrs[key2] != null) props[key2] = attrs[key2];
+  for (const key3 of dataViewFields) if (attrs[key3] != null) props[key3] = attrs[key3];
   if (typeof props.source !== "string" || !/^[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)+$/u.test(props.source) || !["list", "table", "feed", "calendar", "kanban", "chart"].includes(props.projection)) throw new TypeError("Invalid data view source/projection");
-  for (const key2 of ["columns", "sort"]) if (props[key2] !== void 0 && (!Array.isArray(props[key2]) || props[key2].some((v) => typeof v !== "string"))) throw new TypeError("Invalid data view keys");
+  for (const key3 of ["columns", "sort"]) if (props[key3] !== void 0 && (!Array.isArray(props[key3]) || props[key3].some((v) => typeof v !== "string"))) throw new TypeError("Invalid data view keys");
   if (props.filter !== void 0) {
     assertObject(props.filter, "data view filter");
     const scalar = (v) => v === null || typeof v === "string" || typeof v === "boolean" || typeof v === "number" && Number.isFinite(v);
-    for (const [key2, value] of Object.entries(props.filter)) if (!/^[a-z][a-z0-9_]*$/u.test(key2) || !(scalar(value) || Array.isArray(value) && value.every(scalar))) throw new TypeError("Invalid declarative data view filter");
+    for (const [key3, value] of Object.entries(props.filter)) if (!/^[a-z][a-z0-9_]*$/u.test(key3) || !(scalar(value) || Array.isArray(value) && value.every(scalar))) throw new TypeError("Invalid declarative data view filter");
   }
   if (props.group !== void 0 && (typeof props.group !== "string" || !/^[a-z][a-z0-9_]*$/u.test(props.group))) throw new TypeError("Invalid data view group");
   if (props.limit !== void 0 && (!Number.isSafeInteger(props.limit) || props.limit < 1 || props.limit > 1e3)) throw new TypeError("Invalid data view limit");
@@ -5931,8 +5931,8 @@ function unmapDataView(block, seen) {
 function assertAuthoredMetadata(value) {
   assertObject(value, "authored metadata");
   onlyKeys(value, ["frontmatter", "annotations", "resources", "meta"], "authored metadata");
-  for (const key2 of ["frontmatter", "meta"]) if (Object.hasOwn(value, key2)) assertObject(value[key2], key2);
-  for (const key2 of ["annotations", "resources"]) if (Object.hasOwn(value, key2) && !Array.isArray(value[key2])) throw TypeError(`Invalid ${key2}`);
+  for (const key3 of ["frontmatter", "meta"]) if (Object.hasOwn(value, key3)) assertObject(value[key3], key3);
+  for (const key3 of ["annotations", "resources"]) if (Object.hasOwn(value, key3) && !Array.isArray(value[key3])) throw TypeError(`Invalid ${key3}`);
   let budget2 = 1e6;
   const visit = (value2, depth) => {
     if (--budget2 < 0 || depth > 128) throw TypeError("Authored metadata resource limit");
@@ -5962,20 +5962,20 @@ function binaryKeyOrder(left, right) {
     if (first !== second) return first < second ? -1 : 1;
   }
 }
-function validKey(key2) {
-  for (const character of key2) {
+function validKey(key3) {
+  for (const character of key3) {
     const point = character.codePointAt(0);
     if (point >= 55296 && point <= 57343) throw TypeError("Invalid canonical Unicode key");
   }
-  return key2;
+  return key3;
 }
 function stableStringify(value) {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(",")}]`;
   }
   if (value && typeof value === "object") {
-    const entries = Object.entries(value).filter(([, item]) => item !== void 0).map(([key2, item]) => [validKey(key2), item]).sort(([a], [b]) => binaryKeyOrder(a, b));
-    return `{${entries.map(([key2, item]) => `${JSON.stringify(key2)}:${stableStringify(item)}`).join(",")}}`;
+    const entries = Object.entries(value).filter(([, item]) => item !== void 0).map(([key3, item]) => [validKey(key3), item]).sort(([a], [b]) => binaryKeyOrder(a, b));
+    return `{${entries.map(([key3, item]) => `${JSON.stringify(key3)}:${stableStringify(item)}`).join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -5983,7 +5983,7 @@ function cloneCanonicalJSON(value) {
   if (value === null || typeof value === "string" || typeof value === "boolean") return value;
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (Array.isArray(value)) return value.map(cloneCanonicalJSON);
-  if (value && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) return Object.fromEntries(Object.entries(value).map(([key2, item]) => [key2, cloneCanonicalJSON(item)]));
+  if (value && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null)) return Object.fromEntries(Object.entries(value).map(([key3, item]) => [key3, cloneCanonicalJSON(item)]));
   throw new TypeError("Invalid authored JSON value");
 }
 
@@ -6075,7 +6075,7 @@ function identity2(value) {
   if (!Number.isSafeInteger(value.client) || value.client < 0 || !Number.isSafeInteger(value.clock) || value.clock < 0 || value.clock >= 2 ** 32) throw TypeError("Invalid causal item identity");
   return value;
 }
-var idKey = (id2) => id2.client + ":" + id2.clock;
+var idKey = (id3) => id3.client + ":" + id3.clock;
 function unicode(text) {
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i);
@@ -6113,7 +6113,7 @@ function clocks(values) {
   return result;
 }
 function index(snapshot3) {
-  const runs = [], nodes = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Map();
+  const runs = [], nodes = /* @__PURE__ */ new Map(), positions = [], seen = /* @__PURE__ */ new Map();
   let budget2 = 1e6;
   const step = () => {
     if (--budget2 < 0) throw TypeError("Causal snapshot budget exceeded");
@@ -6141,6 +6141,7 @@ function index(snapshot3) {
         runs.push({ ...run, type: node.type, path, offset: size2, position: position + size2 });
         size2 += run.count;
       }
+      positions.push({ node, position, size: size2, path });
       return { portable: { kind: "text", delta: node.runs.map((run) => ({ insert: run.text, attributes: run.attributes })) }, size: size2 };
     }
     if (node.kind === "fragment") {
@@ -6166,12 +6167,13 @@ function index(snapshot3) {
       if (size) throw TypeError("Causal atom contains children");
       size = 1;
     } else size += 2;
+    positions.push({ node, position, size, path });
     return { portable: { kind: "element", name: node.name, attributes: node.attributes, children: children2 }, size };
   }
   const projected = visit(snapshot3, 0, 0), document2 = snapshotToDocument(projected.portable), pm = schema2.nodeFromJSON(relayMarkToProseMirror(document2));
   pm.check();
   if (pm.content.size !== projected.size) throw TypeError("Causal snapshot size disagrees with maintained schema");
-  return { runs, nodes, document: document2, pm: JSON.parse(JSON.stringify(pm.toJSON())) };
+  return { runs, nodes, positions, document: document2, pm: JSON.parse(JSON.stringify(pm.toJSON())) };
 }
 function resolve(index2, selected, read = false) {
   selection(selected, read ? MAX_SOURCE_UNITS : MAX_UNITS, 4096);
@@ -6379,6 +6381,9 @@ function buildWitness(evidence, interpret) {
   const operation = { ...evidence.operation, copies }, text_items = { runs: human }, prepared = prepareWitness({ ...evidence, operation, text_items }, interpret);
   return { ...prepared, operation, text_items };
 }
+function contentEditIdentityLayout(snapshot3) {
+  return index(snapshot3);
+}
 
 // src/content-edit-write.js
 function contentEditTextGroups(document2) {
@@ -6422,15 +6427,15 @@ function planContentEditTextWrite(prepared, sourceParent, sourceGroup, targetPar
   const kept = [];
   let lower = 0, upper = prepared.retained_ranges.length;
   while (lower < upper) {
-    const middle = lower + upper >>> 1, range = prepared.retained_ranges[middle];
-    if (range.source_from + range.length <= source.position) lower = middle + 1;
+    const middle = lower + upper >>> 1, range2 = prepared.retained_ranges[middle];
+    if (range2.source_from + range2.length <= source.position) lower = middle + 1;
     else upper = middle;
   }
   for (let i = lower; i < prepared.retained_ranges.length && prepared.retained_ranges[i].source_from < source.position + source.text.length; i++) {
-    const range = prepared.retained_ranges[i];
-    const from2 = Math.max(range.source_from, source.position, range.source_from + target.position - range.destination_from);
-    const to2 = Math.min(range.source_from + range.length, source.position + source.text.length, range.source_from + target.position + target.text.length - range.destination_from);
-    if (from2 < to2) kept.push({ source: from2 - source.position, target: range.destination_from + from2 - range.source_from - target.position, count: to2 - from2 });
+    const range2 = prepared.retained_ranges[i];
+    const from2 = Math.max(range2.source_from, source.position, range2.source_from + target.position - range2.destination_from);
+    const to2 = Math.min(range2.source_from + range2.length, source.position + source.text.length, range2.source_from + target.position + target.text.length - range2.destination_from);
+    if (from2 < to2) kept.push({ source: from2 - source.position, target: range2.destination_from + from2 - range2.source_from - target.position, count: to2 - from2 });
   }
   kept.sort((a, b) => a.target - b.target);
   const delta = [];
@@ -6444,14 +6449,14 @@ function planContentEditTextWrite(prepared, sourceParent, sourceGroup, targetPar
     if (nextSource > from) delta.push({ delete: nextSource - from });
     if (nextTarget > to) delta.push({ insert: target.text.slice(to, nextTarget) });
   }
-  for (const range of kept) {
-    gaps(range.source, range.target);
-    boundary(source.text, range.source + range.count);
-    boundary(target.text, range.target + range.count);
-    if (source.text.slice(range.source, range.source + range.count) !== target.text.slice(range.target, range.target + range.count)) throw TypeError("Causal writer retained contents disagree");
-    delta.push({ retain: range.count });
-    from = range.source + range.count;
-    to = range.target + range.count;
+  for (const range2 of kept) {
+    gaps(range2.source, range2.target);
+    boundary(source.text, range2.source + range2.count);
+    boundary(target.text, range2.target + range2.count);
+    if (source.text.slice(range2.source, range2.source + range2.count) !== target.text.slice(range2.target, range2.target + range2.count)) throw TypeError("Causal writer retained contents disagree");
+    delta.push({ retain: range2.count });
+    from = range2.source + range2.count;
+    to = range2.target + range2.count;
   }
   gaps(source.text.length, target.text.length);
   return delta;
@@ -6569,12 +6574,12 @@ function captureContentEditFootprint(doc, bytes2, { maximumSteps = 1e6 } = {}) {
     return { item: id(item.id), count: item.length, parent: parent(stored), key: stored.parentSub ?? null, origin: optionalID(item.origin), right_origin: optionalID(item.rightOrigin), content: content(item, step), deleted: stored.deleted };
   }).sort((a, b) => a.item.client - b.item.client || a.item.clock - b.item.clock);
   const declared_deletes = [], deleted_items = [];
-  for (const [client, ranges] of [...decoded.ds.clients].sort((a, b) => a[0] - b[0])) for (const range of ranges) {
+  for (const [client, ranges] of [...decoded.ds.clients].sort((a, b) => a[0] - b[0])) for (const range2 of ranges) {
     step();
-    const end = range.clock + range.len;
-    if (!Number.isSafeInteger(end) || range.len < 1 || end > 2 ** 32) throw Error("Invalid declared delete");
-    declared_deletes.push({ item: { client, clock: range.clock }, count: range.len });
-    for (let clock = range.clock; clock < end; ) {
+    const end = range2.clock + range2.len;
+    if (!Number.isSafeInteger(end) || range2.len < 1 || end > 2 ** 32) throw Error("Invalid declared delete");
+    declared_deletes.push({ item: { client, clock: range2.clock }, count: range2.len });
+    for (let clock = range2.clock; clock < end; ) {
       step();
       const stored = Y.getItem(doc.store, Y.createID(client, clock));
       if (!(stored instanceof Y.Item) || !stored.deleted) throw Error("Unavailable declared deletion");
@@ -6606,10 +6611,10 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   const step_maps = [];
   const originalIdentities = /* @__PURE__ */ new Map();
   document2.descendants((node, position) => {
-    const id2 = node.attrs.relaymarkId;
-    if (!id2) return;
-    if (originalIdentities.has(id2)) throw TypeError("Ambiguous retained subtree identity");
-    originalIdentities.set(id2, { node, position });
+    const id3 = node.attrs.relaymarkId;
+    if (!id3) return;
+    if (originalIdentities.has(id3)) throw TypeError("Ambiguous retained subtree identity");
+    originalIdentities.set(id3, { node, position });
   });
   let copied_subtree_ranges = [];
   let retained_ranges = document2.content.size ? [{ source_from: 0, destination_from: 0, length: document2.content.size }] : [];
@@ -6629,15 +6634,15 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
     map.forEach((from, to) => changed.push([from, to]));
     const mapRanges = (ranges) => {
       const next2 = [];
-      for (const range of ranges) {
-        const start = range.destination_from, end = start + range.length;
+      for (const range2 of ranges) {
+        const start = range2.destination_from, end = start + range2.length;
         const boundaries = [start, end, ...changed.flatMap(([from, to]) => [from, to]).filter((p) => p > start && p < end)].sort((a, b) => a - b);
         for (let i = 1; i < boundaries.length; i++) {
           const from = boundaries[i - 1], to = boundaries[i];
           if (from === to || changed.some(([a, b]) => a < b && from >= a && to <= b)) continue;
           const destination = map.map(from, 1), upper = map.map(to, -1);
           if (upper - destination !== to - from) throw new TypeError("Unprovable maintained map interval");
-          const source = range.source_from + from - start, last = next2.at(-1);
+          const source = range2.source_from + from - start, last = next2.at(-1);
           if (last && last.source_from + last.length === source && last.destination_from + last.length === destination) last.length += to - from;
           else next2.push({ source_from: source, destination_from: destination, length: to - from });
           if (next2.length > 65536) throw new TypeError("Content edit causal mapping budget exceeded");
@@ -6649,11 +6654,11 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
     const candidates = [];
     if (json2.stepType === "replace" && step.slice) {
       step.slice.content.descendants((node, pos) => {
-        const id2 = node.attrs.relaymarkId, original = id2 && originalIdentities.get(id2);
+        const id3 = node.attrs.relaymarkId, original = id3 && originalIdentities.get(id3);
         if (!original || !node.eq(original.node)) return;
         const destination = step.from + pos - step.slice.openStart;
         if (destination < 0 || !document2.nodeAt(destination)?.eq(node)) return;
-        if (candidates.some((range) => destination >= range.destination_from && destination + node.nodeSize <= range.destination_from + range.length)) return false;
+        if (candidates.some((range2) => destination >= range2.destination_from && destination + node.nodeSize <= range2.destination_from + range2.length)) return false;
         candidates.push({ source_from: original.position, destination_from: destination, length: node.nodeSize });
         return false;
       });
@@ -6668,9 +6673,9 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   const authored_document = proseMirrorToRelayMark(json);
   const inserted_ranges = [];
   let cursor2 = 0;
-  for (const range of retained_ranges.slice().sort((a, b) => a.destination_from - b.destination_from)) {
-    if (range.destination_from > cursor2) inserted_ranges.push({ destination_from: cursor2, length: range.destination_from - cursor2 });
-    cursor2 = Math.max(cursor2, range.destination_from + range.length);
+  for (const range2 of retained_ranges.slice().sort((a, b) => a.destination_from - b.destination_from)) {
+    if (range2.destination_from > cursor2) inserted_ranges.push({ destination_from: cursor2, length: range2.destination_from - cursor2 });
+    cursor2 = Math.max(cursor2, range2.destination_from + range2.length);
   }
   if (cursor2 < document2.content.size) inserted_ranges.push({ destination_from: cursor2, length: document2.content.size - cursor2 });
   return { document: json, authored_document, step_maps, retained_ranges, inserted_ranges, copied_subtree_ranges };
@@ -6692,12 +6697,12 @@ function prepareContentEditWrite(before, steps, after) {
       else {
         let lower = 0, upper = prepared.retained_ranges.length;
         while (lower < upper) {
-          const middle = lower + upper >>> 1, range2 = prepared.retained_ranges[middle];
-          if (range2.source_from + range2.length <= source.position) lower = middle + 1;
+          const middle = lower + upper >>> 1, range3 = prepared.retained_ranges[middle];
+          if (range3.source_from + range3.length <= source.position) lower = middle + 1;
           else upper = middle;
         }
-        const range = prepared.retained_ranges[lower];
-        retained = !!range && range.source_from <= source.position && range.source_from + range.length >= source.position + source.text.length && range.destination_from + source.position - range.source_from === target.position;
+        const range2 = prepared.retained_ranges[lower];
+        retained = !!range2 && range2.source_from <= source.position && range2.source_from + range2.length >= source.position + source.text.length && range2.destination_from + source.position - range2.source_from === target.position;
       }
     }
     if (!retained) causal_targets.push(target.parent);
@@ -6835,7 +6840,7 @@ function retireOwnedHistoryGroups(manager, groups) {
     if (seen.has(group.reference)) throw TypeError("Ambiguous actual retirement group");
     seen.add(group.reference);
     if (!wanted) continue;
-    if (group.owner_id !== wanted.owner_id || group.operation_ids.length !== wanted.operation_ids.length || group.operation_ids.some((id2, index2) => id2 !== wanted.operation_ids[index2])) throw TypeError("Retirement differs from actual whole group");
+    if (group.owner_id !== wanted.owner_id || group.operation_ids.length !== wanted.operation_ids.length || group.operation_ids.some((id3, index2) => id3 !== wanted.operation_ids[index2])) throw TypeError("Retirement differs from actual whole group");
     items.push(item);
   }
   if (items.length !== requested.size) throw TypeError("Unavailable actual retirement group");
@@ -6843,66 +6848,8 @@ function retireOwnedHistoryGroups(manager, groups) {
   return { ...result, groups: groups.map(freeze) };
 }
 
-// adapters/collaboration/owned-history-branches.js
+// adapters/collaboration/reviewed-recovery-retirement.js
 import * as Y2 from "yjs";
-var installed = /* @__PURE__ */ new WeakMap();
-function protectOwnedHistoryBranches(manager) {
-  if (installed.has(manager)) return installed.get(manager);
-  if (manager?.supportsUndoDeleteContext !== true) throw TypeError("Maintained UndoManager deletion context is unavailable");
-  const previous = manager.deleteFilter, contexts = /* @__PURE__ */ new WeakMap();
-  manager.deleteFilter = (item, context) => {
-    let protectedItems = contexts.get(context);
-    if (!protectedItems) {
-      protectedItems = protectedSkeleton(context.itemsToDelete);
-      contexts.set(context, protectedItems);
-    }
-    return !protectedItems.has(item) && previous(item, context);
-  };
-  const release = () => {
-    manager.deleteFilter = previous;
-    installed.delete(manager);
-  };
-  installed.set(manager, release);
-  return release;
-}
-function protectedSkeleton(items) {
-  const owned = new Set(items), protectedItems = /* @__PURE__ */ new Set();
-  const xml = (item) => item.content instanceof Y2.ContentType && (item.content.type instanceof Y2.XmlElement || item.content.type instanceof Y2.XmlText);
-  const roots = items.filter((item) => xml(item) && !hasOwnedAncestor(item));
-  function hasOwnedAncestor(item) {
-    let parent2 = item.parent;
-    while (parent2?._item) {
-      if (owned.has(parent2._item) && xml(parent2._item)) return true;
-      parent2 = parent2._item.parent;
-    }
-    return false;
-  }
-  for (const root of roots) {
-    const skeleton = /* @__PURE__ */ new Set([root]), pending = [root.content.type];
-    let survivor = false;
-    while (pending.length) {
-      const branch = pending.pop();
-      for (const item of branch._map.values()) {
-        if (item.deleted) continue;
-        skeleton.add(item);
-        if (!owned.has(item)) survivor = true;
-      }
-      for (let item = branch._start; item; item = item.right) {
-        if (item.deleted) continue;
-        if (!owned.has(item)) survivor = true;
-        if (xml(item)) {
-          skeleton.add(item);
-          pending.push(item.content.type);
-        }
-      }
-    }
-    if (survivor) for (const item of skeleton) protectedItems.add(item);
-  }
-  return protectedItems;
-}
-
-// adapters/collaboration/owned-history-persistence.js
-import * as Y3 from "yjs";
 
 // node_modules/lib0/hash/sha256.js
 var rotr = (w, shift) => w >>> shift | w << 32 - shift;
@@ -7075,8 +7022,413 @@ var Hasher = class {
 };
 var digest = (data) => new Hasher().digest(data);
 
+// adapters/collaboration/reviewed-recovery-retirement.js
+var MAX = 1e6;
+var key2 = (id3) => id3.client + ":" + id3.clock;
+var same2 = (a, b) => stableStringify(a) === stableStringify(b);
+var id2 = (value) => ({ client: value.client, clock: value.clock });
+function fields2(value, allowed, required = allowed) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !allowed.includes(k)) || required.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid recovery dependency evidence");
+}
+function range(value) {
+  fields2(value, ["item", "count"]);
+  fields2(value.item, ["client", "clock"]);
+  if (!Number.isSafeInteger(value.item.client) || value.item.client < 0 || !Number.isSafeInteger(value.item.clock) || value.item.clock < 0 || !Number.isSafeInteger(value.count) || value.count < 1 || value.item.clock + value.count > 2 ** 32) throw TypeError("Invalid imported dependency interval");
+  return value;
+}
+function itemAt(doc, identity3) {
+  const item = Y2.getItem(doc.store, Y2.createID(identity3.client, identity3.clock));
+  if (!(item instanceof Y2.Item) || item.content instanceof Y2.ContentDeleted) throw TypeError("Unavailable retained dependency item");
+  return item;
+}
+function storedRanges(doc, selected) {
+  const result = [];
+  for (const selectedRange of selected) {
+    range(selectedRange);
+    let clock = selectedRange.item.clock, end = clock + selectedRange.count;
+    while (clock < end) {
+      const item = itemAt(doc, { client: selectedRange.item.client, clock }), next = Math.min(end, item.id.clock + item.length);
+      if (next <= clock) throw TypeError("Unavailable dependency extent");
+      result.push({ item: { client: selectedRange.item.client, clock }, count: next - clock, stored: item });
+      if (result.length > MAX) throw TypeError("Dependency item resource limit");
+      clock = next;
+    }
+  }
+  return result;
+}
+function edge(source, destination, count, kind) {
+  return { source: id2(source), destination: id2(destination), count, kind };
+}
+function copyPairs(copies) {
+  const edges = [];
+  for (const copy of copies) {
+    let a = 0, b = 0, ao = 0, bo = 0;
+    while (a < copy.source.runs.length && b < copy.destination.runs.length) {
+      const source = copy.source.runs[a], destination = copy.destination.runs[b], n = Math.min(source.count - ao, destination.count - bo);
+      edges.push(edge({ client: source.item.client, clock: source.item.clock + ao }, { client: destination.item.client, clock: destination.item.clock + bo }, n, "copied_text"));
+      ao += n;
+      bo += n;
+      if (ao === source.count) {
+        a++;
+        ao = 0;
+      }
+      if (bo === destination.count) {
+        b++;
+        bo = 0;
+      }
+    }
+    if (a !== copy.source.runs.length || b !== copy.destination.runs.length) throw TypeError("Incomplete dependency copy");
+  }
+  return edges;
+}
+function copyAllocations(sourceDoc, afterDoc, expected, fresh) {
+  const before = contentEditIdentityLayout(captureContentEditSnapshot(sourceDoc.getXmlFragment("default"))), after = contentEditIdentityLayout(captureContentEditSnapshot(afterDoc.getXmlFragment("default"))), edges = [];
+  const allocated = new Map(fresh.map((record) => [key2(record.item), record]));
+  const freshItem = (item) => allocated.has(key2(item.id));
+  for (const mapped of expected.copied_subtree_ranges) {
+    for (const original of before.positions) {
+      if (original.position < mapped.source_from || original.position + original.size > mapped.source_from + mapped.length) continue;
+      const position = mapped.destination_from + original.position - mapped.source_from;
+      const candidates = after.positions.filter((target2) => target2.position === position && target2.size === original.size && target2.node.kind === original.node.kind && (original.node.kind === "text" || target2.node.name === original.node.name));
+      if (candidates.length > 1) throw TypeError("Ambiguous copied branch allocation");
+      if (!candidates.length) continue;
+      const target = candidates[0], sourceType = itemAt(sourceDoc, original.node.type), targetType = itemAt(afterDoc, target.node.type);
+      if (!freshItem(targetType)) continue;
+      if (!(sourceType.content instanceof Y2.ContentType) || !(targetType.content instanceof Y2.ContentType)) throw TypeError("Unavailable copied type allocation");
+      edges.push(edge(sourceType.id, targetType.id, 1, "copied_type"));
+      const source = sourceType.content.type, destination = targetType.content.type;
+      if (original.node.kind === "element") for (const [field, sourceItem] of source._map) {
+        if (sourceItem.deleted || field === "relaymarkId") continue;
+        const targetItem = destination._map.get(field);
+        if (!targetItem || targetItem.deleted || !freshItem(targetItem) || !same2(sourceItem.content.getContent(), targetItem.content.getContent())) throw TypeError("Incomplete copied field allocation");
+        edges.push(edge(sourceItem.id, targetItem.id, 1, "copied_field"));
+      }
+      if (original.node.kind === "text") {
+        const formats = (branch) => {
+          const result = [];
+          let offset = 0;
+          for (let item = branch._start; item; item = item.right) {
+            if (item.deleted) continue;
+            if (item.content instanceof Y2.ContentFormat) result.push({ item, offset });
+            else if (item.content instanceof Y2.ContentString) offset += item.length;
+            else throw TypeError("Unavailable copied inline dependency");
+          }
+          return result;
+        };
+        const sourceFormats = formats(source), targetFormats = formats(destination);
+        for (const targetFormat of targetFormats) {
+          if (!freshItem(targetFormat.item)) continue;
+          const matches = sourceFormats.filter((part2) => part2.offset === targetFormat.offset && part2.item.content.key === targetFormat.item.content.key && same2(part2.item.content.value, targetFormat.item.content.value));
+          if (matches.length > 1) throw TypeError("Ambiguous copied format allocation");
+          if (matches.length === 1) edges.push(edge(matches[0].item.id, targetFormat.item.id, 1, "copied_format"));
+        }
+      }
+    }
+  }
+  return edges;
+}
+function merged(ranges) {
+  const result = [];
+  for (const r of ranges.slice().sort((a, b) => a.item.client - b.item.client || a.item.clock - b.item.clock)) {
+    const last = result.at(-1);
+    if (last && last.item.client === r.item.client && r.item.clock <= last.item.clock + last.count) last.count = Math.max(last.item.clock + last.count, r.item.clock + r.count) - last.item.clock;
+    else result.push({ item: id2(r.item), count: r.count });
+  }
+  return result;
+}
+function intersects(ranges, item, count) {
+  return ranges.some((range2) => range2.item.client === item.client && range2.item.clock < item.clock + count && item.clock < range2.item.clock + range2.count);
+}
+function closure(seeds, edges) {
+  let ranges = merged(seeds), changed = true, budget2 = MAX;
+  while (changed) {
+    if (--budget2 < 0) throw TypeError("Dependency closure resource limit");
+    const additions = [];
+    for (const e of edges) for (const r of ranges) {
+      if (r.item.client !== e.source.client) continue;
+      const from = Math.max(r.item.clock, e.source.clock), to = Math.min(r.item.clock + r.count, e.source.clock + e.count);
+      if (from < to) additions.push({ item: { client: e.destination.client, clock: e.destination.clock + from - e.source.clock }, count: to - from });
+    }
+    const next = merged([...ranges, ...additions]);
+    changed = !same2(ranges, next);
+    ranges = next;
+    if (ranges.length > MAX) throw TypeError("Dependency closure resource limit");
+  }
+  return ranges;
+}
+function stackRanges(set) {
+  return [...set.clients].flatMap(([client, ranges]) => ranges.map((r) => ({ item: { client, clock: r.clock }, count: r.len })));
+}
+var hash = (bytes2) => Array.from(digest(bytes2), (value) => value.toString(16).padStart(2, "0")).join("");
+function encodedBytes(value) {
+  let bytes2 = 0;
+  for (const character of JSON.stringify(value)) {
+    const point = character.codePointAt(0);
+    bytes2 += point <= 127 ? 1 : point <= 2047 ? 2 : point <= 65535 ? 3 : 4;
+    if (bytes2 > 32 * 1024 * 1024) throw TypeError("Dependency checkpoint byte resource limit");
+  }
+  return bytes2;
+}
+function scope(value) {
+  if (typeof value.actor_id !== "string" || !value.actor_id || value.actor_id.length > 128) throw TypeError("Invalid actor dependency namespace");
+  canonicalOperationID(value.owner_id);
+  return value.actor_id + "/" + value.owner_id;
+}
+function association(receipt, roster) {
+  fields2(receipt, ["transaction_id", "transaction_sha256", "update_sha256", "issued_reference_sha256", "actor_id", "owner_id"]);
+  canonicalOperationID(receipt.transaction_id);
+  if (!roster.has(scope(receipt))) throw TypeError("Foreign dependency association manager");
+  for (const field of ["transaction_sha256", "update_sha256", "issued_reference_sha256"]) if (typeof receipt[field] !== "string" || !/^[0-9a-f]{64}$/.test(receipt[field])) throw TypeError("Invalid dependency receipt digest");
+  return cloneCanonicalJSON(receipt);
+}
+function cut(value) {
+  fields2(value, ["through_update_id", "state_sha256"]);
+  if (!Number.isSafeInteger(value.through_update_id) || value.through_update_id < 0 || typeof value.state_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(value.state_sha256)) throw TypeError("Invalid dependency checkpoint cut");
+}
+function textRanges(doc, selection3) {
+  fields2(selection3, ["runs"]);
+  if (!Array.isArray(selection3.runs)) throw TypeError("Invalid dependency source intervals");
+  for (const run of selection3.runs) {
+    fields2(run, ["type", "item", "count"]);
+    fields2(run.type, ["client", "clock"]);
+    range({ item: run.type, count: 1 });
+    for (const part2 of storedRanges(doc, [{ item: run.item, count: run.count }])) if (!(part2.stored.content instanceof Y2.ContentString) || !(part2.stored.parent instanceof Y2.XmlText) || !part2.stored.parent._item || !same2(id2(part2.stored.parent._item.id), run.type)) throw TypeError("Wrong dependency source item/type");
+  }
+  return selection3.runs.map(({ item, count }) => ({ item, count }));
+}
+function subset(wanted, available) {
+  for (const r of wanted) {
+    let clock = r.item.clock, end = clock + r.count;
+    for (const other of available.filter((p) => p.item.client === r.item.client).sort((a, b) => a.item.clock - b.item.clock)) {
+      if (other.item.clock > clock) break;
+      if (other.item.clock + other.count > clock) clock = Math.min(end, other.item.clock + other.count);
+    }
+    if (clock !== end) throw TypeError("Unaccounted dependency checkpoint interval");
+  }
+}
+function planRecoveryRetirement(input, owner2) {
+  fields2(input, ["binding", "current_state_base64", "current_cut", "expected_manager_scopes", "manager_contexts", "imports", "dependency_checkpoint", "checkpoint_state_base64"], ["binding", "current_state_base64", "current_cut", "expected_manager_scopes", "manager_contexts", "imports"]);
+  fields2(input.binding, ["document_id", "incarnation"]);
+  canonicalOperationID(input.binding.document_id);
+  canonicalOperationID(input.binding.incarnation);
+  cut(input.current_cut);
+  encodedBytes(input);
+  if (!Array.isArray(input.expected_manager_scopes) || !Array.isArray(input.manager_contexts) || !Array.isArray(input.imports)) throw TypeError("Unavailable complete dependency roster");
+  const roster = /* @__PURE__ */ new Set();
+  for (const value of input.expected_manager_scopes) {
+    fields2(value, ["actor_id", "owner_id"]);
+    const identity3 = scope(value);
+    if (roster.has(identity3)) throw TypeError("Duplicate dependency manager scope");
+    roster.add(identity3);
+  }
+  const contexts = /* @__PURE__ */ new Set();
+  for (const value of input.manager_contexts) {
+    fields2(value, ["actor_id", "owner_id", "initial_state_base64", "checkpoint", "receipts"], ["actor_id", "owner_id", "receipts"]);
+    const identity3 = scope(value);
+    if (contexts.has(identity3) || !roster.has(identity3)) throw TypeError("Incomplete dependency manager scope");
+    contexts.add(identity3);
+  }
+  if (!same2([...contexts].sort(), [...roster].sort()) || !contexts.size || contexts.size > 4096) throw TypeError("Incomplete dependency manager roster");
+  if (Object.hasOwn(input, "dependency_checkpoint") !== Object.hasOwn(input, "checkpoint_state_base64")) throw TypeError("Unavailable dependency checkpoint state");
+  if (!input.dependency_checkpoint && input.manager_contexts.some((context) => context.checkpoint)) throw TypeError("Checkpoint recovery dependencies require authenticated pre-cut summary");
+  const currentBytes = owner2.bytes(input.current_state_base64);
+  if (hash(currentBytes) !== input.current_cut.state_sha256) throw TypeError("Dependency current state digest mismatch");
+  const current = owner2.owner(currentBytes), retained = [], edges = [], sourceEdges = [], associations = /* @__PURE__ */ new Map();
+  let material = 0;
+  const budget2 = (ranges) => {
+    if (!Array.isArray(ranges) || (material += ranges.length) > MAX) throw TypeError("Aggregate dependency interval resource limit");
+    return ranges;
+  };
+  try {
+    if (input.dependency_checkpoint) {
+      const previous = input.dependency_checkpoint;
+      fields2(previous, ["binding", "through_update_id", "state_sha256", "manager_scopes", "associations"]);
+      cut({ through_update_id: previous.through_update_id, state_sha256: previous.state_sha256 });
+      const state = owner2.bytes(input.checkpoint_state_base64);
+      if (!same2(previous.binding, input.binding) || previous.through_update_id > input.current_cut.through_update_id || hash(state) !== previous.state_sha256 || previous.through_update_id === input.current_cut.through_update_id && previous.state_sha256 !== input.current_cut.state_sha256) throw TypeError("Dependency checkpoint binding/cut/state mismatch");
+      if (!Array.isArray(previous.manager_scopes) || !Array.isArray(previous.associations)) throw TypeError("Unavailable dependency checkpoint roster");
+      const oldRoster = /* @__PURE__ */ new Set();
+      for (const manager of previous.manager_scopes) {
+        fields2(manager, ["actor_id", "owner_id"]);
+        const identity3 = scope(manager);
+        if (oldRoster.has(identity3) || !roster.has(identity3)) throw TypeError("Foreign dependency checkpoint roster");
+        oldRoster.add(identity3);
+      }
+      const checkpointScopes = input.manager_contexts.filter((context) => context.checkpoint).map(scope).sort();
+      if (!same2(checkpointScopes, [...oldRoster].sort())) throw TypeError("Dependency checkpoint manager roster mismatch");
+      const prior = owner2.owner(state);
+      try {
+        const frontier = captureContentEditFootprint(prior, Uint8Array.of(0, 0)).state_vector;
+        for (const context of input.manager_contexts) if (context.checkpoint && !same2(context.checkpoint.state_vector, frontier)) throw TypeError("Dependency manager checkpoint frontier mismatch");
+        for (const summary of previous.associations) {
+          fields2(summary, ["receipt", "imported_items", "capability_items", "source_items"]);
+          const receipt = association(summary.receipt, oldRoster);
+          if (associations.has(receipt.transaction_id)) throw TypeError("Duplicate dependency association");
+          storedRanges(prior, budget2(summary.imported_items));
+          storedRanges(prior, budget2(summary.capability_items));
+          budget2(summary.source_items?.runs);
+          const source = textRanges(prior, summary.source_items);
+          subset(summary.imported_items, merged(summary.capability_items));
+          subset(source, merged(summary.capability_items));
+          associations.set(receipt.transaction_id, { receipt, imported_items: cloneCanonicalJSON(summary.imported_items), capability_items: cloneCanonicalJSON(summary.capability_items), source_items: cloneCanonicalJSON(summary.source_items) });
+        }
+      } finally {
+        prior.destroy();
+      }
+    }
+    for (const added of input.imports) {
+      fields2(added, ["receipt", "imported_items"]);
+      const receipt = association(added.receipt, roster);
+      if (associations.has(receipt.transaction_id)) throw TypeError("Duplicate or relabeled dependency association");
+      const context = input.manager_contexts.find((context2) => context2.actor_id === receipt.actor_id && context2.owner_id === receipt.owner_id), original = context.receipts.find((command2) => command2.transaction_id === receipt.transaction_id);
+      if (!original || hash(owner2.bytes(original.update_base64)) !== receipt.update_sha256) throw TypeError("Unavailable original dependency association receipt");
+      const imports = storedRanges(current, budget2(added.imported_items));
+      if (!imports.length || merged(added.imported_items).reduce((n, r) => n + r.count, 0) !== added.imported_items.reduce((n, r) => n + r.count, 0)) throw TypeError("Empty or overlapping imported dependencies");
+      associations.set(receipt.transaction_id, { receipt, imported_items: cloneCanonicalJSON(added.imported_items), capability_items: cloneCanonicalJSON(added.imported_items), source_items: { runs: imports.filter((part2) => part2.stored.content instanceof Y2.ContentString).map((part2) => ({ type: id2(part2.stored.parent._item.id), item: part2.item, count: part2.count })) } });
+    }
+    if (!associations.size) throw TypeError("Unavailable reviewed dependency associations");
+    for (const context of input.manager_contexts) {
+      const observe = ({ receipt, doc, footprint }) => {
+        const imported = input.imports.find((association2) => association2.receipt.transaction_id === receipt.transaction_id && association2.receipt.actor_id === context.actor_id && association2.receipt.owner_id === context.owner_id);
+        if (imported && !same2(merged(imported.imported_items), merged(footprint.structs.map(({ item, count }) => ({ item, count }))))) throw TypeError("Imported dependencies differ from exact original fresh allocation union");
+        const sender = owner2.owner(owner2.bytes(receipt.sender_state_base64));
+        try {
+          const expected = applyContentEdit(contentEditIdentityLayout(captureContentEditSnapshot(sender.getXmlFragment("default"))).pm, receipt.operation);
+          if (!receipt.operation.history && !receipt.operation.reviewed_recovery) {
+            const senderAfter = owner2.owner(owner2.bytes(receipt.sender_state_base64));
+            try {
+              Y2.applyUpdate(senderAfter, owner2.bytes(receipt.update_base64));
+              const proof = buildContentEditWitness({ sender_before_snapshot: captureContentEditSnapshot(sender.getXmlFragment("default")), sender_after_snapshot: captureContentEditSnapshot(senderAfter.getXmlFragment("default")), before_snapshot: captureContentEditSnapshot(sender.getXmlFragment("default")), after_snapshot: captureContentEditSnapshot(senderAfter.getXmlFragment("default")), before_state_vector: captureContentEditFootprint(sender, Uint8Array.of(0, 0)).state_vector, operation: { ...receipt.operation, copies: [] }, footprint: captureContentEditFootprint(senderAfter, owner2.bytes(receipt.update_base64)) });
+              if (!same2(proof.proven_copies, receipt.operation.copies)) throw TypeError("Unavailable independently derived copy dependency");
+              const text = copyPairs(proof.proven_copies);
+              edges.push(...text);
+              sourceEdges.push(...text);
+              edges.push(...copyAllocations(sender, senderAfter, expected, footprint.structs));
+            } finally {
+              senderAfter.destroy();
+            }
+          }
+          for (const previous of footprint.deleted_items) {
+            if (previous.key === null && previous.content.kind !== "format") continue;
+            for (const fresh of footprint.structs) {
+              if (!same2(previous.parent, fresh.parent) || previous.key !== fresh.key || previous.content.kind !== fresh.content.kind || previous.content.kind === "format" && previous.content.key !== fresh.content.key) continue;
+              edges.push(edge(previous.item, fresh.item, Math.min(previous.count, fresh.count), "field_predecessor"));
+            }
+          }
+          if (edges.length > MAX) throw TypeError("Dependency edge resource limit");
+        } finally {
+          sender.destroy();
+        }
+      };
+      const { actor_id, ...basis } = context;
+      const value = owner2.checkpointOwner({ ...basis, current_state_base64: input.current_state_base64 }, observe);
+      retained.push({ ...value, actor_id, owner_id: context.owner_id });
+      for (const structs of value.doc.store.clients.values()) for (const item of structs) {
+        if (!(item instanceof Y2.Item) || !item.redone) continue;
+        const target = itemAt(value.doc, id2(item.redone));
+        if (target.id.clock + target.length < item.redone.clock + item.length) throw TypeError("Unavailable dependency redone extent");
+        const link = edge(item.id, item.redone, item.length, "redone");
+        edges.push(link);
+        if (item.content instanceof Y2.ContentString) sourceEdges.push(link);
+        if (edges.length > MAX) throw TypeError("Dependency edge resource limit");
+      }
+    }
+    const planned = [], summaries = [];
+    for (const previous of associations.values()) {
+      const capability = closure(previous.capability_items, edges), source = closure(textRanges(current, previous.source_items), sourceEdges), retirements = [];
+      for (const manager of retained) {
+        const groups = [], seen = /* @__PURE__ */ new Set();
+        for (const item of [...manager.manager.undoStack, ...manager.manager.redoStack]) {
+          if (![...stackRanges(item.insertions), ...stackRanges(item.deletions)].some((r) => intersects(capability, r.item, r.count))) continue;
+          const group = item.meta.get("relaymark:operation_ids");
+          if (!group || group.owner_id !== manager.owner_id) throw TypeError("Unavailable actual dependency group");
+          if (seen.has(group.reference)) throw TypeError("Ambiguous actual dependency group");
+          seen.add(group.reference);
+          groups.push(cloneCanonicalJSON(group));
+        }
+        if (groups.length) retirements.push({ actor_id: manager.actor_id, owner_id: manager.owner_id, groups });
+      }
+      const source_dependencies = { runs: storedRanges(current, source).map((part2) => {
+        const parent2 = part2.stored.parent;
+        if (!(parent2 instanceof Y2.XmlText) || !parent2._item) throw TypeError("Unavailable dependency text type");
+        return { type: id2(parent2._item.id), item: part2.item, count: part2.count };
+      }) };
+      budget2(capability);
+      budget2(source_dependencies.runs);
+      planned.push({ receipt: cloneCanonicalJSON(previous.receipt), retirements, source_dependencies });
+      summaries.push({ receipt: cloneCanonicalJSON(previous.receipt), imported_items: previous.imported_items, capability_items: capability, source_items: source_dependencies });
+    }
+    const dependency_checkpoint = { binding: cloneCanonicalJSON(input.binding), ...cloneCanonicalJSON(input.current_cut), manager_scopes: cloneCanonicalJSON(input.expected_manager_scopes), associations: summaries };
+    const result = { binding: cloneCanonicalJSON(input.binding), associations: planned, dependency_checkpoint, dependency_edges: [...new Map(edges.map((e) => [stableStringify(e), e])).values()], complete_dependency_correspondence: true };
+    encodedBytes(result);
+    return result;
+  } finally {
+    for (const value of retained) value.destroy();
+    current.destroy();
+  }
+}
+
+// adapters/collaboration/owned-history-branches.js
+import * as Y3 from "yjs";
+var installed = /* @__PURE__ */ new WeakMap();
+function protectOwnedHistoryBranches(manager) {
+  if (installed.has(manager)) return installed.get(manager);
+  if (manager?.supportsUndoDeleteContext !== true) throw TypeError("Maintained UndoManager deletion context is unavailable");
+  const previous = manager.deleteFilter, contexts = /* @__PURE__ */ new WeakMap();
+  manager.deleteFilter = (item, context) => {
+    let protectedItems = contexts.get(context);
+    if (!protectedItems) {
+      protectedItems = protectedSkeleton(context.itemsToDelete);
+      contexts.set(context, protectedItems);
+    }
+    return !protectedItems.has(item) && previous(item, context);
+  };
+  const release = () => {
+    manager.deleteFilter = previous;
+    installed.delete(manager);
+  };
+  installed.set(manager, release);
+  return release;
+}
+function protectedSkeleton(items) {
+  const owned = new Set(items), protectedItems = /* @__PURE__ */ new Set();
+  const xml = (item) => item.content instanceof Y3.ContentType && (item.content.type instanceof Y3.XmlElement || item.content.type instanceof Y3.XmlText);
+  const roots = items.filter((item) => xml(item) && !hasOwnedAncestor(item));
+  function hasOwnedAncestor(item) {
+    let parent2 = item.parent;
+    while (parent2?._item) {
+      if (owned.has(parent2._item) && xml(parent2._item)) return true;
+      parent2 = parent2._item.parent;
+    }
+    return false;
+  }
+  for (const root of roots) {
+    const skeleton = /* @__PURE__ */ new Set([root]), pending = [root.content.type];
+    let survivor = false;
+    while (pending.length) {
+      const branch = pending.pop();
+      for (const item of branch._map.values()) {
+        if (item.deleted) continue;
+        skeleton.add(item);
+        if (!owned.has(item)) survivor = true;
+      }
+      for (let item = branch._start; item; item = item.right) {
+        if (item.deleted) continue;
+        if (!owned.has(item)) survivor = true;
+        if (xml(item)) {
+          skeleton.add(item);
+          pending.push(item.content.type);
+        }
+      }
+    }
+    if (survivor) for (const item of skeleton) protectedItems.add(item);
+  }
+  return protectedItems;
+}
+
 // adapters/collaboration/owned-history-persistence.js
-var hash = (bytes2) => Array.from(digest(bytes2), (v) => v.toString(16).padStart(2, "0")).join("");
+import * as Y4 from "yjs";
+var hash2 = (bytes2) => Array.from(digest(bytes2), (v) => v.toString(16).padStart(2, "0")).join("");
 var encode = (bytes2) => {
   let text = "";
   for (let i = 0; i < bytes2.length; i += 4096) text += String.fromCharCode(...bytes2.subarray(i, i + 4096));
@@ -7088,21 +7440,21 @@ var decode = (text) => {
   if (encode(bytes2) !== text) throw TypeError("Noncanonical owned snapshot");
   return bytes2;
 };
-function scope(options) {
+function scope2(options) {
   if (!options || typeof options.document_id !== "string" || !options.document_id.length || options.document_id.length > 512 || typeof options.incarnation !== "string" || !options.incarnation.length || options.incarnation.length > 512) throw TypeError("Invalid local history scope");
   return { document_id: options.document_id, incarnation: options.incarnation };
 }
-function fields2(value, keys3) {
+function fields3(value, keys3) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !keys3.includes(k)) || keys3.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid local history archive");
 }
 function relative(value, doc) {
-  const json = Y3.relativePositionToJSON(value);
-  if (Object.keys(json).some((key2) => !["type", "tname", "item", "assoc"].includes(key2))) throw TypeError("Invalid cursor identity");
-  for (const key2 of ["type", "item"]) if (json[key2]) {
-    const id2 = json[key2];
-    if (!Number.isSafeInteger(id2.client) || id2.client < 0 || !Number.isInteger(id2.clock) || id2.clock < 0) throw TypeError("Invalid cursor identity");
-    const item = Y3.getItem(doc.store, Y3.createID(id2.client, id2.clock));
-    if (!(item instanceof Y3.Item) || id2.clock >= item.id.clock + item.length) throw TypeError("Unavailable cursor identity");
+  const json = Y4.relativePositionToJSON(value);
+  if (Object.keys(json).some((key3) => !["type", "tname", "item", "assoc"].includes(key3))) throw TypeError("Invalid cursor identity");
+  for (const key3 of ["type", "item"]) if (json[key3]) {
+    const id3 = json[key3];
+    if (!Number.isSafeInteger(id3.client) || id3.client < 0 || !Number.isInteger(id3.clock) || id3.clock < 0) throw TypeError("Invalid cursor identity");
+    const item = Y4.getItem(doc.store, Y4.createID(id3.client, id3.clock));
+    if (!(item instanceof Y4.Item) || id3.clock >= item.id.clock + item.length) throw TypeError("Unavailable cursor identity");
   }
   if (json.tname !== void 0 && !doc.share.has(json.tname)) throw TypeError("Unavailable cursor root");
   if (!Number.isInteger(json.assoc)) throw TypeError("Invalid cursor association");
@@ -7116,13 +7468,13 @@ function selection2(value, doc) {
 }
 function cursor(value, doc) {
   if (value === null) return null;
-  for (const pos of [value.anchor, value.head]) if (!pos || Object.keys(pos).some((key2) => !["type", "tname", "item", "assoc"].includes(key2))) throw TypeError("Invalid cursor identity");
-  const decoded = { ...value, anchor: Y3.createRelativePositionFromJSON(value.anchor), head: Y3.createRelativePositionFromJSON(value.head) };
+  for (const pos of [value.anchor, value.head]) if (!pos || Object.keys(pos).some((key3) => !["type", "tname", "item", "assoc"].includes(key3))) throw TypeError("Invalid cursor identity");
+  const decoded = { ...value, anchor: Y4.createRelativePositionFromJSON(value.anchor), head: Y4.createRelativePositionFromJSON(value.head) };
   selection2(decoded, doc);
   return decoded;
 }
 function exportOwnedHistoryState(doc, manager, options) {
-  const qualified = scope(options), ownerID = readOwnedHistoryOwner(manager);
+  const qualified = scope2(options), ownerID = readOwnedHistoryOwner(manager);
   if (manager.doc !== doc || doc.gc || doc.store.pendingStructs || doc.store.pendingDs || typeof manager.exportHistoryStacks !== "function") throw TypeError("Unavailable settled local history owner");
   const stacks = manager.exportHistoryStacks(), selections = { undo: [], redo: [] };
   for (const name of ["undo", "redo"]) for (const item of stacks[name]) {
@@ -7131,22 +7483,22 @@ function exportOwnedHistoryState(doc, manager, options) {
     if (known) item.meta.delete(options.selectionKey);
   }
   const checkpoint = captureMaintainedHistoryCheckpoint(doc, manager, ownerID, stacks);
-  const result = { scope: qualified, state_sha256: hash(Y3.encodeStateAsUpdate(doc)), snapshot_base64: encode(Y3.encodeSnapshot(Y3.snapshot(doc))), checkpoint, selections };
+  const result = { scope: qualified, state_sha256: hash2(Y4.encodeStateAsUpdate(doc)), snapshot_base64: encode(Y4.encodeSnapshot(Y4.snapshot(doc))), checkpoint, selections };
   if (JSON.stringify(result).length > 32 * 1024 * 1024) throw TypeError("Oversized local history archive");
   return result;
 }
 function restoreOwnedHistoryState(doc, manager, archive, options) {
-  fields2(archive, ["scope", "state_sha256", "snapshot_base64", "checkpoint", "selections"]);
-  fields2(archive.scope, ["document_id", "incarnation"]);
-  fields2(archive.selections, ["undo", "redo"]);
-  if (JSON.stringify(scope(options)) !== JSON.stringify(archive.scope) || JSON.stringify(archive).length > 32 * 1024 * 1024 || manager.doc !== doc || doc.gc || manager.undoStack.length || manager.redoStack.length) throw TypeError("Conflicting local history archive");
+  fields3(archive, ["scope", "state_sha256", "snapshot_base64", "checkpoint", "selections"]);
+  fields3(archive.scope, ["document_id", "incarnation"]);
+  fields3(archive.selections, ["undo", "redo"]);
+  if (JSON.stringify(scope2(options)) !== JSON.stringify(archive.scope) || JSON.stringify(archive).length > 32 * 1024 * 1024 || manager.doc !== doc || doc.gc || manager.undoStack.length || manager.redoStack.length) throw TypeError("Conflicting local history archive");
   const ownerID = readOwnedHistoryOwner(manager);
   if (archive.checkpoint.owner_id !== ownerID) throw TypeError("Conflicting local history owner");
-  const snapshot3 = Y3.decodeSnapshot(decode(archive.snapshot_base64)), cut = Y3.createDocFromSnapshot(doc, snapshot3, new Y3.Doc({ gc: false }));
+  const snapshot3 = Y4.decodeSnapshot(decode(archive.snapshot_base64)), cut2 = Y4.createDocFromSnapshot(doc, snapshot3, new Y4.Doc({ gc: false }));
   try {
-    if (hash(Y3.encodeStateAsUpdate(cut)) !== archive.state_sha256) throw TypeError("Local history retained state mismatch");
+    if (hash2(Y4.encodeStateAsUpdate(cut2)) !== archive.state_sha256) throw TypeError("Local history retained state mismatch");
   } finally {
-    cut.destroy();
+    cut2.destroy();
   }
   const selections = {};
   for (const [name, wire] of [["undo", archive.checkpoint.undo_stack], ["redo", archive.checkpoint.redo_stack]]) {
@@ -7154,9 +7506,9 @@ function restoreOwnedHistoryState(doc, manager, archive, options) {
     selections[name] = archive.selections[name].map((value) => cursor(value, doc));
     if (options.selectionKey === void 0 && selections[name].some((value) => value !== null)) throw TypeError("Cursor binding is required");
   }
-  const scratch = new Y3.Doc({ gc: false });
-  Y3.applyUpdate(scratch, Y3.encodeStateAsUpdate(doc));
-  const check = new Y3.UndoManager([scratch.getXmlFragment("default"), scratch.getMap("relaymark")]);
+  const scratch = new Y4.Doc({ gc: false });
+  Y4.applyUpdate(scratch, Y4.encodeStateAsUpdate(doc));
+  const check = new Y4.UndoManager([scratch.getXmlFragment("default"), scratch.getMap("relaymark")]);
   bindOwnedHistoryOwner(check, ownerID);
   try {
     installMaintainedHistoryCheckpoint(scratch, check, archive.checkpoint, ownerID);
@@ -7177,8 +7529,8 @@ var toBase64 = (bytes2) => (0, import_btoa.default)(Array.from(bytes2, (v) => St
 var fromBase64 = (value) => Uint8Array.from((0, import_atob.default)(value), (v) => v.charCodeAt(0));
 var schema5 = createCanonicalEditorSchema();
 var MAX_BYTES = 8 * 1024 * 1024;
-var same2 = (a, b) => stableStringify(a) === stableStringify(b);
-function fields3(value, allowed, required = allowed) {
+var same3 = (a, b) => stableStringify(a) === stableStringify(b);
+function fields4(value, allowed, required = allowed) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !allowed.includes(k)) || required.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid mutation replay evidence");
 }
 function bytes(value) {
@@ -7188,8 +7540,8 @@ function bytes(value) {
   return result;
 }
 function owner(state) {
-  const doc = new Y4.Doc({ gc: false, guid: "relaymark:ephemeral-command-proof" });
-  Y4.applyUpdate(doc, state);
+  const doc = new Y5.Doc({ gc: false, guid: "relaymark:ephemeral-command-proof" });
+  Y5.applyUpdate(doc, state);
   if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled retained replay state");
   for (const name of doc.share.keys()) if (!["default", "relaymark"].includes(name)) throw TypeError("Unknown retained replay root");
   if (!doc.share.has("default")) throw TypeError("Missing retained editor root");
@@ -7224,7 +7576,7 @@ function retainedPrefix(record, count, known) {
     const n = Math.min(end, saved.item.clock + saved.count) - clock, a = part(record, clock, n), b = part(saved, clock, n);
     delete a.deleted;
     delete b.deleted;
-    if (!same2(a, b)) throw TypeError("Original update rewrites retained item identity");
+    if (!same3(a, b)) throw TypeError("Original update rewrites retained item identity");
     clock += n;
     if (clock === end) return;
   }
@@ -7239,10 +7591,10 @@ function intervals(ranges) {
   }
   return result;
 }
-function subtract(range, deleted) {
-  let pieces = [range];
+function subtract(range2, deleted) {
+  let pieces = [range2];
   for (const old of deleted) {
-    if (old.item.client !== range.item.client) continue;
+    if (old.item.client !== range2.item.client) continue;
     pieces = pieces.flatMap((p) => {
       const a = p.item.clock, b = a + p.count, c = old.item.clock, d = c + old.count;
       if (c >= b || d <= a) return [p];
@@ -7255,7 +7607,7 @@ function mergeRecords(records, withOrigins) {
   const out = [];
   for (const r of records.sort((a, b) => a.item.client - b.item.client || a.item.clock - b.item.clock)) {
     const p = out.at(-1);
-    if (p && p.item.client === r.item.client && p.item.clock + p.count === r.item.clock && same2(p.parent, r.parent) && p.key === r.key && p.deleted === r.deleted && p.content.kind === r.content.kind && ["string", "any", "json"].includes(r.content.kind) && (!withOrigins || same2(p.right_origin, r.right_origin) && same2(r.origin, { client: p.item.client, clock: r.item.clock - 1 }))) {
+    if (p && p.item.client === r.item.client && p.item.clock + p.count === r.item.clock && same3(p.parent, r.parent) && p.key === r.key && p.deleted === r.deleted && p.content.kind === r.content.kind && ["string", "any", "json"].includes(r.content.kind) && (!withOrigins || same3(p.right_origin, r.right_origin) && same3(r.origin, { client: p.item.client, clock: r.item.clock - 1 }))) {
       p.count += r.count;
       if (p.content.kind === "string") p.content.text += r.content.text;
       else p.content.values.push(...r.content.values);
@@ -7264,7 +7616,7 @@ function mergeRecords(records, withOrigins) {
   return out;
 }
 function normalized(footprint, before, known, deleted) {
-  fields3(footprint, ["state_vector", "structs", "declared_deletes", "deleted_items"]);
+  fields4(footprint, ["state_vector", "structs", "declared_deletes", "deleted_items"]);
   if (!Array.isArray(footprint.structs) || !Array.isArray(footprint.deleted_items) || !Array.isArray(footprint.declared_deletes) || footprint.structs.length + footprint.deleted_items.length + footprint.declared_deletes.length > 1e6) throw TypeError("Invalid original mutation footprint");
   const structs = [];
   for (const r of footprint.structs) {
@@ -7283,10 +7635,10 @@ function normalized(footprint, before, known, deleted) {
 }
 function replayContentEditMutation(evidence) {
   if (evidence.operation?.history) return replayOwnedHistory(evidence);
-  fields3(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint"]);
+  fields4(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint"]);
   const senderBytes = bytes(evidence.sender_state_base64), currentBytes = bytes(evidence.current_state_base64), sender = owner(senderBytes), current = owner(currentBytes);
   try {
-    const before = Y4.decodeStateVector(Y4.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
+    const before = Y5.decodeStateVector(Y5.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
     for (const r of evidence.footprint.structs ?? []) if (r.item.clock + r.count > (before.get(r.item.client) || 0)) clients.add(r.item.client);
     if (clients.size > 1 || (clients.size === 0 ? evidence.writer_client !== null : !clients.has(evidence.writer_client) || !Number.isSafeInteger(evidence.writer_client) || evidence.writer_client < 0)) throw TypeError("Replay writer must be independently observed from fresh structs");
     const initialized = initProseMirrorDoc(sender.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), evidence.operation);
@@ -7296,7 +7648,7 @@ function replayContentEditMutation(evidence) {
       if (applied.failed) throw TypeError("Refused maintained command");
       result = applied.doc;
     }
-    if (!same2(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
+    if (!same3(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
     sender.clientID = evidence.writer_client ?? 0;
     const updates = [];
     sender.on("update", (update2) => updates.push(update2));
@@ -7310,11 +7662,11 @@ function replayContentEditMutation(evidence) {
       list.push(record);
       known.set(record.item.client, list);
     }
-    const ds = Y4.createDeleteSetFromStructStore(current.store), deleted = [];
+    const ds = Y5.createDeleteSetFromStructStore(current.store), deleted = [];
     for (const [client, ranges] of ds.clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
-    Y4.applyUpdate(current, update);
+    Y5.applyUpdate(current, update);
     const footprint = captureContentEditFootprint(current, update), actual = normalized(evidence.footprint, before, known, deleted), replayed = normalized(footprint, before, known, deleted);
-    if (!same2(actual, replayed)) throw TypeError("Original mutation differs from executed maintained command");
+    if (!same3(actual, replayed)) throw TypeError("Original mutation differs from executed maintained command");
     return { footprint, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, retained_field_changes: fieldChanges(replayed) };
   } finally {
     sender.destroy();
@@ -7330,7 +7682,7 @@ function readContentEditDocument(state_base64) {
   }
 }
 function produceContentEdit(input) {
-  fields3(input, ["state_base64", "writer_client", "transaction_id", "owner_id", "steps"]);
+  fields4(input, ["state_base64", "writer_client", "transaction_id", "owner_id", "steps"]);
   canonicalOperationID(input.transaction_id);
   canonicalOperationID(input.owner_id);
   if (input.writer_client !== null && (!Number.isSafeInteger(input.writer_client) || input.writer_client < 0)) throw TypeError("Invalid actual command writer");
@@ -7339,7 +7691,7 @@ function produceContentEdit(input) {
   try {
     const root = doc.getXmlFragment("default"), metadata = doc.getMap("relaymark");
     const beforeSnapshot = captureContentEditSnapshot(root), beforeClocks = captureContentEditFootprint(doc, Uint8Array.of(0, 0)).state_vector;
-    const before_snapshot_base64 = toBase64(Y4.encodeSnapshot(Y4.snapshot(doc)));
+    const before_snapshot_base64 = toBase64(Y5.encodeSnapshot(Y5.snapshot(doc)));
     const initialized = initProseMirrorDoc(root, schema5), operation = { kind: "content_edit", steps: input.steps };
     const expected = applyContentEdit(initialized.doc.toJSON(), operation);
     let result = initialized.doc;
@@ -7348,8 +7700,8 @@ function produceContentEdit(input) {
       if (applied.failed) throw TypeError("Refused maintained command");
       result = applied.doc;
     }
-    if (!same2(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
-    manager = new Y4.UndoManager([root, metadata], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+    if (!same3(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
+    manager = new Y5.UndoManager([root, metadata], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
     protectOwnedHistoryBranches(manager);
     bindOwnedHistoryOwner(manager, input.owner_id);
     const bind = (event) => bindOwnedCommandGroup(manager, event, input.transaction_id);
@@ -7371,30 +7723,30 @@ function produceContentEdit(input) {
     const witness = buildContentEditWitness({ sender_before_snapshot: beforeSnapshot, sender_after_snapshot: afterSnapshot, before_snapshot: beforeSnapshot, after_snapshot: afterSnapshot, before_state_vector: beforeClocks, operation: { ...operation, group }, footprint });
     const content_edit = { before_snapshot_base64, steps: input.steps, copies: witness.proven_copies, group };
     const replay = replayContentEditMutation({ sender_state_base64: input.state_base64, current_state_base64: input.state_base64, writer_client: actualWriter, operation: { ...operation, copies: witness.proven_copies, group }, footprint });
-    return { update_base64: toBase64(update), state_base64: toBase64(Y4.encodeStateAsUpdate(doc)), before_snapshot_base64, authored_document: witness.authored_document, text_items: witness.text_items, content_edit, proof: { ...witness, ...replay, requires_mutation_correspondence: false } };
+    return { update_base64: toBase64(update), state_base64: toBase64(Y5.encodeStateAsUpdate(doc)), before_snapshot_base64, authored_document: witness.authored_document, text_items: witness.text_items, content_edit, proof: { ...witness, ...replay, requires_mutation_correspondence: false } };
   } finally {
     manager?.destroy();
     doc.destroy();
   }
 }
 function observedWriter(footprint, doc) {
-  const clocks2 = Y4.decodeStateVector(Y4.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
+  const clocks2 = Y5.decodeStateVector(Y5.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
   for (const item of footprint.structs) if (item.item.clock + item.count > (clocks2.get(item.item.client) || 0)) clients.add(item.item.client);
   if (clients.size > 1) throw TypeError("Multiple actual command writers");
   return clients.size ? [...clients][0] : null;
 }
 function compareUpdate(current, originalFootprint, update) {
-  const state = Y4.encodeStateAsUpdate(current), before = Y4.decodeStateVector(Y4.encodeStateVector(current)), known = /* @__PURE__ */ new Map();
+  const state = Y5.encodeStateAsUpdate(current), before = Y5.decodeStateVector(Y5.encodeStateVector(current)), known = /* @__PURE__ */ new Map();
   for (const record of captureContentEditFootprint(current, state).structs) {
     const list = known.get(record.item.client) || [];
     list.push(record);
     known.set(record.item.client, list);
   }
   const deleted = [];
-  for (const [client, ranges] of Y4.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
-  Y4.applyUpdate(current, update);
+  for (const [client, ranges] of Y5.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
+  Y5.applyUpdate(current, update);
   const footprint = captureContentEditFootprint(current, update);
-  if (!same2(normalized(originalFootprint, before, known, deleted), normalized(footprint, before, known, deleted))) throw TypeError("Original mutation differs from maintained owned history");
+  if (!same3(normalized(originalFootprint, before, known, deleted), normalized(footprint, before, known, deleted))) throw TypeError("Original mutation differs from maintained owned history");
   return { footprint, retained_field_changes: fieldChanges(normalized(footprint, before, known, deleted)) };
 }
 function fieldChanges(footprint) {
@@ -7406,7 +7758,7 @@ function redoneLinks(doc) {
   let remaining = 1e6;
   for (const structs of doc.store.clients.values()) for (const item of structs) {
     if (--remaining < 0) throw TypeError("Owned history observation budget exhausted");
-    if (item instanceof Y4.Item) result.set(item.id.client + ":" + item.id.clock, item.redone ? item.redone.client + ":" + item.redone.clock : null);
+    if (item instanceof Y5.Item) result.set(item.id.client + ":" + item.id.clock, item.redone ? item.redone.client + ":" + item.redone.clock : null);
   }
   return result;
 }
@@ -7420,9 +7772,9 @@ function restoredCopies(doc, prior, links) {
   visit(snapshot3);
   for (const structs of doc.store.clients.values()) for (const source of structs) {
     if (--remaining < 0) throw TypeError("Restored copy observation budget exhausted");
-    if (!(source instanceof Y4.Item) || !(source.content instanceof Y4.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
-    const destination = Y4.getItem(doc.store, source.redone);
-    if (!(destination instanceof Y4.Item) || destination.id.clock > source.redone.clock || destination.id.clock + destination.length < source.redone.clock + source.length || !(destination.content instanceof Y4.ContentString) || destination.content.str.slice(source.redone.clock - destination.id.clock, source.redone.clock - destination.id.clock + source.length) !== source.content.str || !(source.parent instanceof Y4.XmlText) || !(destination.parent instanceof Y4.XmlText) || !source.parent._item || !destination.parent._item) throw TypeError("Unavailable exact maintained restored copy");
+    if (!(source instanceof Y5.Item) || !(source.content instanceof Y5.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
+    const destination = Y5.getItem(doc.store, source.redone);
+    if (!(destination instanceof Y5.Item) || destination.id.clock > source.redone.clock || destination.id.clock + destination.length < source.redone.clock + source.length || !(destination.content instanceof Y5.ContentString) || destination.content.str.slice(source.redone.clock - destination.id.clock, source.redone.clock - destination.id.clock + source.length) !== source.content.str || !(source.parent instanceof Y5.XmlText) || !(destination.parent instanceof Y5.XmlText) || !source.parent._item || !destination.parent._item) throw TypeError("Unavailable exact maintained restored copy");
     if (destination.deleted || source.redone.clock < (prior.get(destination.id.client) || 0) || !visible.has(destination.parent._item.id.client + ":" + destination.parent._item.id.clock)) throw TypeError("Unreachable maintained restored copy");
     const selected = (item) => ({ runs: [{ type: { client: item.parent._item.id.client, clock: item.parent._item.id.clock }, item: { client: item.id.client, clock: item.id.clock }, count: item.length }] });
     const target = selected(destination);
@@ -7448,31 +7800,31 @@ function ownedTextAccounting(doc, before, copies) {
     const groups = /* @__PURE__ */ new Map();
     for (const run of ranges) {
       if ((total += run.count) > 131072 || ranges.length > 4096) throw TypeError("Owned inverse selection resource limit");
-      const key2 = run.type.client + ":" + run.type.clock + "/" + run.item.client, list = groups.get(key2) || [];
+      const key3 = run.type.client + ":" + run.type.clock + "/" + run.item.client, list = groups.get(key3) || [];
       list.push([run.item.clock, run.item.clock + run.count]);
-      groups.set(key2, list);
+      groups.set(key3, list);
     }
-    return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([key2, list]) => {
+    return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([key3, list]) => {
       list.sort((a, b) => a[0] - b[0]);
-      const merged = [];
+      const merged2 = [];
       for (const [a, b] of list) {
-        const last = merged.at(-1);
+        const last = merged2.at(-1);
         if (last && a < last[1]) throw TypeError("Duplicate restored destination");
         if (last && a === last[1]) last[1] = b;
-        else merged.push([a, b]);
+        else merged2.push([a, b]);
       }
-      return [key2, merged];
+      return [key3, merged2];
     });
   };
-  if (!same2(extent(fresh), extent(copies.flatMap((copy) => copy.destination.runs)))) throw TypeError("Unaccounted maintained inverse text allocation");
+  if (!same3(extent(fresh), extent(copies.flatMap((copy) => copy.destination.runs)))) throw TypeError("Unaccounted maintained inverse text allocation");
   return { fresh_items: { runs: fresh }, text_items: { runs: [] }, proven_copies: copies };
 }
 var ownedObservations = /* @__PURE__ */ new WeakMap();
 function captureOwnedHistoryObservation(doc) {
-  if (!(doc instanceof Y4.Doc) || doc.gc !== false || doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unavailable retained owned history observer");
+  if (!(doc instanceof Y5.Doc) || doc.gc !== false || doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unavailable retained owned history observer");
   captureContentEditSnapshot(doc.getXmlFragment("default"));
   const token = Object.freeze({});
-  ownedObservations.set(token, { doc, before: Y4.decodeStateVector(Y4.encodeStateVector(doc)), links: redoneLinks(doc) });
+  ownedObservations.set(token, { doc, before: Y5.decodeStateVector(Y5.encodeStateVector(doc)), links: redoneLinks(doc) });
   return token;
 }
 function finishOwnedHistoryObservation(doc, observation) {
@@ -7484,12 +7836,12 @@ function finishOwnedHistoryObservation(doc, observation) {
 }
 var historyKey = "relaymark:operation_ids";
 function historyID(value) {
-  fields3(value, ["client", "clock"]);
+  fields4(value, ["client", "clock"]);
   if (!Number.isSafeInteger(value.client) || value.client < 0 || !Number.isInteger(value.clock) || value.clock < 0 || value.clock > 4294967295) throw TypeError("Invalid retained history identity");
   return value;
 }
 function historyRange(value) {
-  fields3(value, ["item", "count"]);
+  fields4(value, ["item", "count"]);
   historyID(value.item);
   if (!Number.isInteger(value.count) || value.count < 1 || value.item.clock + value.count > 4294967296) throw TypeError("Invalid retained history extent");
   return value;
@@ -7499,19 +7851,19 @@ function historyIntervals(set) {
 }
 function historySet(value) {
   if (!Array.isArray(value) || value.length > 1e6) throw TypeError("Invalid retained stack set");
-  const set = Y4.createDeleteSet();
+  const set = Y5.createDeleteSet();
   let previous = -1, total = 0;
   for (const row of value) {
-    fields3(row, ["client", "ranges"]);
+    fields4(row, ["client", "ranges"]);
     if (!Number.isSafeInteger(row.client) || row.client <= previous || !Array.isArray(row.ranges) || !row.ranges.length) throw TypeError("Noncanonical retained stack set");
     previous = row.client;
     let end = -1;
     const ranges = [];
-    for (const range of row.ranges) {
-      fields3(range, ["clock", "len"]);
-      if (!Number.isInteger(range.clock) || range.clock <= end || !Number.isInteger(range.len) || range.len < 1 || range.clock + range.len > 4294967296 || ++total > 1e6) throw TypeError("Invalid retained stack extent");
-      end = range.clock + range.len;
-      ranges.push({ ...range });
+    for (const range2 of row.ranges) {
+      fields4(range2, ["clock", "len"]);
+      if (!Number.isInteger(range2.clock) || range2.clock <= end || !Number.isInteger(range2.len) || range2.len < 1 || range2.clock + range2.len > 4294967296 || ++total > 1e6) throw TypeError("Invalid retained stack extent");
+      end = range2.clock + range2.len;
+      ranges.push({ ...range2 });
     }
     set.clients.set(row.client, ranges);
   }
@@ -7528,40 +7880,40 @@ function stackWire(stack, ownerID) {
 function stackItems(value, ownerID, stackLimit = 4096) {
   if (!Array.isArray(value) || value.length > stackLimit) throw TypeError("Oversized retained stack");
   return value.map((item) => {
-    fields3(item, ["insertions", "deletions", "group"]);
+    fields4(item, ["insertions", "deletions", "group"]);
     const group = validateOwnedCommandGroup(item.group);
     if (group.owner_id !== ownerID) throw TypeError("Conflicting owned checkpoint");
     return { insertions: historySet(item.insertions), deletions: historySet(item.deletions), meta: /* @__PURE__ */ new Map([[historyKey, cloneCanonicalJSON(group)]]) };
   });
 }
-function checkpointItem(transaction, id2, count) {
-  historyRange({ item: id2, count });
-  const item = Y4.getItemCleanStart(transaction, Y4.createID(id2.client, id2.clock));
-  Y4.getItemCleanEnd(transaction, transaction.doc.store, Y4.createID(id2.client, id2.clock + count - 1));
-  if (!(item instanceof Y4.Item) || item.content instanceof Y4.ContentDeleted) throw TypeError("Unavailable retained checkpoint item");
+function checkpointItem(transaction, id3, count) {
+  historyRange({ item: id3, count });
+  const item = Y5.getItemCleanStart(transaction, Y5.createID(id3.client, id3.clock));
+  Y5.getItemCleanEnd(transaction, transaction.doc.store, Y5.createID(id3.client, id3.clock + count - 1));
+  if (!(item instanceof Y5.Item) || item.content instanceof Y5.ContentDeleted) throw TypeError("Unavailable retained checkpoint item");
   return item;
 }
 function sameRestoredContent(source, target) {
   if (source.content.constructor !== target.content.constructor) return false;
-  if (source.content instanceof Y4.ContentFormat) return source.content.key === target.content.key && same2(source.content.value ?? null, target.content.value ?? null);
-  if (source.content instanceof Y4.ContentType) {
+  if (source.content instanceof Y5.ContentFormat) return source.content.key === target.content.key && same3(source.content.value ?? null, target.content.value ?? null);
+  if (source.content instanceof Y5.ContentType) {
     const a = source.content.type, b = target.content.type;
-    return a.constructor === b.constructor && (!(a instanceof Y4.XmlElement) || a.nodeName === b.nodeName);
+    return a.constructor === b.constructor && (!(a instanceof Y5.XmlElement) || a.nodeName === b.nodeName);
   }
-  return same2(source.content.getContent(), target.content.getContent());
+  return same3(source.content.getContent(), target.content.getContent());
 }
 function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID, stackLimit = 4096) {
-  fields3(checkpoint, ["owner_id", "state_vector", "undo_stack", "redo_stack", "redone", "retained"]);
+  fields4(checkpoint, ["owner_id", "state_vector", "undo_stack", "redo_stack", "redone", "retained"]);
   if (checkpoint.owner_id !== ownerID || JSON.stringify(checkpoint).length > 32 * 1024 * 1024) throw TypeError("Conflicting or oversized owned checkpoint");
   if (!Array.isArray(checkpoint.state_vector) || !Array.isArray(checkpoint.redone) || !Array.isArray(checkpoint.retained) || checkpoint.redone.length + checkpoint.retained.length > 1e6) throw TypeError("Invalid bounded owned checkpoint");
   const clocks2 = /* @__PURE__ */ new Map();
   for (const entry of checkpoint.state_vector) {
-    fields3(entry, ["client", "clock"]);
+    fields4(entry, ["client", "clock"]);
     if (!Number.isSafeInteger(entry.client) || entry.client < 0 || !Number.isInteger(entry.clock) || entry.clock < 0 || entry.clock > 4294967296 || clocks2.has(entry.client)) throw TypeError("Invalid checkpoint frontier");
     clocks2.set(entry.client, entry.clock);
   }
   const undo = stackItems(checkpoint.undo_stack, ownerID, stackLimit), redo = stackItems(checkpoint.redo_stack, ownerID, stackLimit), seen = /* @__PURE__ */ new Set();
-  Y4.transact(doc, (transaction) => {
+  Y5.transact(doc, (transaction) => {
     for (const row of checkpoint.retained) {
       historyRange(row);
       if (row.item.clock + row.count > (clocks2.get(row.item.client) || 0)) throw TypeError("Retained item outside checkpoint frontier");
@@ -7570,7 +7922,7 @@ function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID, stackL
         const item = checkpointItem(transaction, { client: row.item.client, clock: row.item.clock + offset }, row.count - offset);
         offset += item.length;
         let parent2 = item, depth = 0;
-        while (parent2 instanceof Y4.Item) {
+        while (parent2 instanceof Y5.Item) {
           if (++depth > 128) throw TypeError("Retained checkpoint parent limit");
           parent2.keep = true;
           parent2 = parent2.parent?._item;
@@ -7578,7 +7930,7 @@ function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID, stackL
       }
     }
     for (const row of checkpoint.redone) {
-      fields3(row, ["item", "count", "target"]);
+      fields4(row, ["item", "count", "target"]);
       historyRange({ item: row.item, count: row.count });
       historyID(row.target);
       if (row.item.clock + row.count > (clocks2.get(row.item.client) || 0) || row.target.clock + row.count > (clocks2.get(row.target.client) || 0) || seen.has(row.item.client + ":" + row.item.clock)) throw TypeError("Invalid checkpoint redone edge");
@@ -7590,24 +7942,24 @@ function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID, stackL
         source = checkpointItem(transaction, { client: row.item.client, clock: row.item.clock + offset }, count);
         target = checkpointItem(transaction, { client: row.target.client, clock: row.target.clock + offset }, count);
         if (source === target || !sameRestoredContent(source, target)) throw TypeError("Mismatched checkpoint redone content");
-        source.redone = Y4.createID(target.id.client, target.id.clock);
+        source.redone = Y5.createID(target.id.client, target.id.clock);
         offset += count;
       }
     }
-    for (const item of [...undo, ...redo]) Y4.iterateDeletedStructs(transaction, item.deletions, (struct) => {
-      if (!(struct instanceof Y4.Item) || !struct.keep || struct.content instanceof Y4.ContentDeleted) throw TypeError("Unretained owned stack deletion");
+    for (const item of [...undo, ...redo]) Y5.iterateDeletedStructs(transaction, item.deletions, (struct) => {
+      if (!(struct instanceof Y5.Item) || !struct.keep || struct.content instanceof Y5.ContentDeleted) throw TypeError("Unretained owned stack deletion");
     });
   }, "relaymark:checkpoint-restore");
   for (const structs of doc.store.clients.values()) for (const item of structs) {
-    if (!(item instanceof Y4.Item) || !item.redone) continue;
+    if (!(item instanceof Y5.Item) || !item.redone) continue;
     const chain = /* @__PURE__ */ new Set();
     let current = item;
     while (current.redone) {
-      const key2 = current.id.client + ":" + current.id.clock;
-      if (chain.has(key2) || chain.size > 1e6) throw TypeError("Cyclic checkpoint redone edge");
-      chain.add(key2);
-      current = Y4.getItem(doc.store, current.redone);
-      if (!(current instanceof Y4.Item)) throw TypeError("Unavailable checkpoint redone target");
+      const key3 = current.id.client + ":" + current.id.clock;
+      if (chain.has(key3) || chain.size > 1e6) throw TypeError("Cyclic checkpoint redone edge");
+      chain.add(key3);
+      current = Y5.getItem(doc.store, current.redone);
+      if (!(current instanceof Y5.Item)) throw TypeError("Unavailable checkpoint redone target");
     }
   }
   if (typeof manager.restoreHistoryStacks !== "function") throw TypeError("Maintained stack initialization hook unavailable");
@@ -7620,10 +7972,10 @@ function captureMaintainedHistoryCheckpoint(doc, manager, ownerID, stacksOverrid
   let budget2 = 1e6;
   for (const structs of doc.store.clients.values()) for (const item of structs) {
     if (--budget2 < 0) throw TypeError("Checkpoint retained-item budget exhausted");
-    if (!(item instanceof Y4.Item)) continue;
-    const range = { item: { client: item.id.client, clock: item.id.clock }, count: item.length };
-    if (item.redone) redone.push({ ...range, target: { client: item.redone.client, clock: item.redone.clock } });
-    if (item.keep) kept.push(range);
+    if (!(item instanceof Y5.Item)) continue;
+    const range2 = { item: { client: item.id.client, clock: item.id.clock }, count: item.length };
+    if (item.redone) redone.push({ ...range2, target: { client: item.redone.client, clock: item.redone.clock } });
+    if (item.keep) kept.push(range2);
   }
   const result = { owner_id: ownerID, state_vector: captureContentEditFootprint(doc, Uint8Array.of(0, 0)).state_vector, undo_stack: stackWire(stacks.undo, ownerID), redo_stack: stackWire(stacks.redo, ownerID), redone, retained: kept };
   if (JSON.stringify(result).length > 32 * 1024 * 1024) throw TypeError("Oversized owned checkpoint");
@@ -7633,7 +7985,7 @@ function installMaintainedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
   return installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID, 16384);
 }
 function createOwnedHistoryCheckpoint(input) {
-  fields3(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id"], ["receipts", "current_state_base64", "owner_id"]);
+  fields4(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id"], ["receipts", "current_state_base64", "owner_id"]);
   const retained = checkpointOwner(input);
   try {
     return captureMaintainedHistoryCheckpoint(retained.doc, retained.manager, input.owner_id);
@@ -7642,27 +7994,27 @@ function createOwnedHistoryCheckpoint(input) {
   }
 }
 function retireOwnedHistoryCheckpoint(input) {
-  fields3(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id", "groups"], ["receipts", "current_state_base64", "owner_id", "groups"]);
+  fields4(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id", "groups"], ["receipts", "current_state_base64", "owner_id", "groups"]);
   const retained = checkpointOwner(input);
   try {
-    const before = Y4.encodeStateAsUpdate(retained.doc), result = retireOwnedHistoryGroups(retained.manager, input.groups), after = Y4.encodeStateAsUpdate(retained.doc);
+    const before = Y5.encodeStateAsUpdate(retained.doc), result = retireOwnedHistoryGroups(retained.manager, input.groups), after = Y5.encodeStateAsUpdate(retained.doc);
     if (before.length !== after.length || before.some((byte, index2) => byte !== after[index2])) throw TypeError("Retirement changed retained document state");
     return { checkpoint: captureMaintainedHistoryCheckpoint(retained.doc, retained.manager, input.owner_id), retired_groups: result.groups, undo: result.undo, redo: result.redo };
   } finally {
     retained.destroy();
   }
 }
-function checkpointOwner(input) {
+function checkpointOwner(input, observer = null) {
   canonicalOperationID(input.owner_id);
   if (Object.hasOwn(input, "initial_state_base64") === Object.hasOwn(input, "checkpoint")) throw TypeError("Exactly one trusted checkpoint basis is required");
   if (!Array.isArray(input.receipts)) throw TypeError("Unavailable bounded accepted history");
   const baseline = input.checkpoint ? input.receipts[0]?.sender_state_base64 ?? input.current_state_base64 : input.initial_state_base64;
-  const retained = retainedHistoryOwner(baseline, input.receipts, input.owner_id, input.checkpoint ?? null);
+  const retained = retainedHistoryOwner(baseline, input.receipts, input.owner_id, input.checkpoint ?? null, observer);
   try {
-    Y4.applyUpdate(retained.doc, bytes(input.current_state_base64));
+    Y5.applyUpdate(retained.doc, bytes(input.current_state_base64));
     const actual = owner(bytes(input.current_state_base64));
     try {
-      if (!same2(captureContentEditFootprint(retained.doc, Y4.encodeStateAsUpdate(retained.doc)), captureContentEditFootprint(actual, Y4.encodeStateAsUpdate(actual)))) throw TypeError("Checkpoint does not reconstruct exact retained cut");
+      if (!same3(captureContentEditFootprint(retained.doc, Y5.encodeStateAsUpdate(retained.doc)), captureContentEditFootprint(actual, Y5.encodeStateAsUpdate(actual)))) throw TypeError("Checkpoint does not reconstruct exact retained cut");
     } finally {
       actual.destroy();
     }
@@ -7672,10 +8024,10 @@ function checkpointOwner(input) {
     throw error;
   }
 }
-function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoint = null) {
+function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoint = null, observer = null) {
   canonicalOperationID(ownerID);
   if (!Array.isArray(receipts) || receipts.length > 4096 || !checkpoint && receipts.length < 1) throw TypeError("Unavailable bounded accepted history");
-  const doc = owner(bytes(initial_state_base64)), origin = {}, manager = new Y4.UndoManager([doc.getXmlFragment("default"), doc.getMap("relaymark")], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+  const doc = owner(bytes(initial_state_base64)), origin = {}, manager = new Y5.UndoManager([doc.getXmlFragment("default"), doc.getMap("relaymark")], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
   protectOwnedHistoryBranches(manager);
   bindOwnedHistoryOwner(manager, ownerID);
   let activeID = null, popped = null, lastRestored = [];
@@ -7691,8 +8043,8 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
   const inverse = (operation, writer) => {
     validateOwnedHistory(operation.history);
     const stack = operation.history.kind === "undo" ? manager.undoStack : manager.redoStack, group = stack.at(-1)?.meta.get("relaymark:operation_ids");
-    if (operation.history.owner_id !== ownerID || !group || !same2(group, { owner_id: operation.history.owner_id, reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
-    const prior = Y4.decodeStateVector(Y4.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
+    if (operation.history.owner_id !== ownerID || !group || !same3(group, { owner_id: operation.history.owner_id, reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
+    const prior = Y5.decodeStateVector(Y5.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
     doc.clientID = writer ?? 0;
     popped = null;
     doc.on("update", capture);
@@ -7702,7 +8054,7 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
     } finally {
       doc.off("update", capture);
     }
-    if (!popped || updates.length !== 1 || !same2(initProseMirrorDoc(doc.getXmlFragment("default"), schema5).doc.toJSON(), expected.document)) throw TypeError("Actual maintained inverse disagrees with supplied steps");
+    if (!popped || updates.length !== 1 || !same3(initProseMirrorDoc(doc.getXmlFragment("default"), schema5).doc.toJSON(), expected.document)) throw TypeError("Actual maintained inverse disagrees with supplied steps");
     lastRestored = restoredCopies(doc, prior, links);
     return updates[0];
   };
@@ -7711,7 +8063,7 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
     let total = bytes(initial_state_base64).length;
     const seen = /* @__PURE__ */ new Set();
     for (const receipt of receipts) {
-      fields3(receipt, ["transaction_id", "operation", "update_base64", "sender_state_base64"]);
+      fields4(receipt, ["transaction_id", "operation", "update_base64", "sender_state_base64"]);
       if (seen.has(receipt.transaction_id)) throw TypeError("Duplicate accepted command receipt");
       seen.add(receipt.transaction_id);
       const sender = bytes(receipt.sender_state_base64), update = bytes(receipt.update_base64);
@@ -7719,11 +8071,11 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
       if (receiptOwner !== ownerID) throw TypeError("Mixed maintained history owner receipts");
       total += sender.length + update.length;
       if (total > 32 * 1024 * 1024) throw TypeError("Oversized accepted history replay");
-      Y4.applyUpdate(doc, sender);
+      Y5.applyUpdate(doc, sender);
       if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled accepted sender frontier");
-      const beforeBytes = Y4.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
+      const beforeBytes = Y5.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
       try {
-        Y4.applyUpdate(candidate, update);
+        Y5.applyUpdate(candidate, update);
         const footprint = captureContentEditFootprint(candidate, update), writer = observedWriter(footprint, doc);
         if (receipt.operation.history) {
           const actual = inverse(receipt.operation, writer), locked = owner(beforeBytes);
@@ -7739,12 +8091,28 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
           if (group.reference === receipt.transaction_id) manager.stopCapturing();
           activeID = receipt.transaction_id;
           try {
-            Y4.applyUpdate(doc, update, origin);
+            Y5.applyUpdate(doc, update, origin);
           } finally {
             activeID = null;
           }
           const actualGroup = readOwnedCommandGroup(manager, receipt.transaction_id);
-          if (!same2(actualGroup, group)) throw TypeError("Accepted prefix differs from maintained group");
+          if (!same3(actualGroup, group)) throw TypeError("Accepted prefix differs from maintained group");
+        }
+        if (observer) {
+          const before = owner(beforeBytes);
+          try {
+            const known = /* @__PURE__ */ new Map();
+            for (const record of captureContentEditFootprint(before, beforeBytes).structs) {
+              const list = known.get(record.item.client) || [];
+              list.push(record);
+              known.set(record.item.client, list);
+            }
+            const deleted = [];
+            for (const [client, ranges] of Y5.createDeleteSetFromStructStore(before.store).clients) for (const range2 of ranges) deleted.push({ item: { client, clock: range2.clock }, count: range2.len });
+            observer({ receipt, doc, candidate, footprint: normalized(footprint, Y5.decodeStateVector(Y5.encodeStateVector(before)), known, deleted) });
+          } finally {
+            before.destroy();
+          }
         }
       } finally {
         candidate.destroy();
@@ -7762,24 +8130,24 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
 }
 function replayOwnedHistory(evidence) {
   const common = ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint", "receipts"];
-  fields3(evidence, [...common, "initial_state_base64", "checkpoint"], common);
+  fields4(evidence, [...common, "initial_state_base64", "checkpoint"], common);
   validateOwnedHistory(evidence.operation.history);
   if (Object.hasOwn(evidence, "initial_state_base64") === Object.hasOwn(evidence, "checkpoint")) throw TypeError("Exactly one trusted owned-history basis is required");
   const baseline = evidence.checkpoint ? evidence.receipts[0]?.sender_state_base64 ?? evidence.sender_state_base64 : evidence.initial_state_base64;
   const retained = retainedHistoryOwner(baseline, evidence.receipts, evidence.operation.history.owner_id, evidence.checkpoint ?? null);
   const { doc, inverse } = retained;
   try {
-    Y4.applyUpdate(doc, bytes(evidence.sender_state_base64));
-    const candidateFrontier = Y4.decodeStateVector(Y4.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
+    Y5.applyUpdate(doc, bytes(evidence.sender_state_base64));
+    const candidateFrontier = Y5.decodeStateVector(Y5.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
     try {
-      if (!same2([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y4.decodeStateVector(Y4.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same2(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same2(intervals(captureContentEditFootprint(doc, Y4.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y4.encodeStateAsUpdate(sender)).declared_deletes)) || !same2(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
+      if (!same3([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y5.decodeStateVector(Y5.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same3(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same3(intervals(captureContentEditFootprint(doc, Y5.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y5.encodeStateAsUpdate(sender)).declared_deletes)) || !same3(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
     } finally {
       sender.destroy();
     }
     const current = owner(bytes(evidence.current_state_base64));
     try {
       if (observedWriter(evidence.footprint, current) !== evidence.writer_client) throw TypeError("History writer is not independently observed");
-      const frontier = Y4.decodeStateVector(Y4.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, retained.restored());
+      const frontier = Y5.decodeStateVector(Y5.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, retained.restored());
       return { ...proof, ...accounting, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: retained.restored() };
     } finally {
       current.destroy();
@@ -7788,6 +8156,9 @@ function replayOwnedHistory(evidence) {
     retained.destroy();
   }
 }
+function planReviewedRecoveryRetirement(input) {
+  return planRecoveryRetirement(input, { checkpointOwner, bytes, owner, schema: schema5 });
+}
 export {
   captureMaintainedHistoryCheckpoint,
   captureOwnedHistoryObservation,
@@ -7795,6 +8166,7 @@ export {
   exportOwnedHistoryState,
   finishOwnedHistoryObservation,
   installMaintainedHistoryCheckpoint,
+  planReviewedRecoveryRetirement,
   produceContentEdit,
   readContentEditDocument,
   replayContentEditMutation,

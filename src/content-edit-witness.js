@@ -15,12 +15,12 @@ const idKey=id=>id.client+':'+id.clock;
 function unicode(text){for(let i=0;i<text.length;i++){const c=text.charCodeAt(i);if(c>=0xd800&&c<=0xdbff){const next=text.charCodeAt(++i);if(!(next>=0xdc00&&next<=0xdfff))throw TypeError('Causal range splits Unicode');}else if(c>=0xdc00&&c<=0xdfff)throw TypeError('Causal range splits Unicode');}}
 function selection(value,maxUnits=MAX_UNITS,maxRuns=4096){keys(value,['runs']);if(!Array.isArray(value.runs)||value.runs.length>maxRuns)throw TypeError('Invalid causal selection');let count=0;const intervals=new Map();for(const run of value.runs){keys(run,['type','item','count']);identity(run.type);identity(run.item);if(!Number.isSafeInteger(run.count)||run.count<1||(count+=run.count)>maxUnits||run.item.clock+run.count>2**32)throw TypeError('Invalid causal run extent');const seen=intervals.get(run.item.client)||[];if(seen.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping causal selector');seen.push([run.item.clock,run.item.clock+run.count]);intervals.set(run.item.client,seen);}return value;}
 function clocks(values){if(!Array.isArray(values))throw TypeError('Missing trusted state vector');const result=new Map();for(const entry of values){keys(entry,['client','clock']);if(!Number.isSafeInteger(entry.client)||entry.client<0||!Number.isSafeInteger(entry.clock)||entry.clock<0||entry.clock>2**32||result.has(entry.client))throw TypeError('Invalid trusted state vector');result.set(entry.client,entry.clock);}return result;}
-function index(snapshot){const runs=[],nodes=new Map(),seen=new Map();let budget=1_000_000;
+function index(snapshot){const runs=[],nodes=new Map(),positions=[],seen=new Map();let budget=1_000_000;
  const step=()=>{if(--budget<0)throw TypeError('Causal snapshot budget exceeded');};
  function visit(node,position,depth,path=[]){step();if(depth>128)throw TypeError('Causal snapshot depth exceeded');
   if(node.kind==='text'){keys(node,['kind','type','runs']);identity(node.type);if(!Array.isArray(node.runs)||nodes.has(idKey(node.type)))throw TypeError('Invalid causal text branch');nodes.set(idKey(node.type),node);let size=0;
    for(const run of node.runs){step();keys(run,['item','count','text','attributes']);identity(run.item);if(typeof run.text!=='string'||!run.text||run.text.length!==run.count||run.item.clock+run.count>2**32)throw TypeError('Invalid causal string run');unicode(run.text);validateTextAttributes(run.attributes);const known=seen.get(run.item.client)||[];if(known.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping visible causal items');known.push([run.item.clock,run.item.clock+run.count]);seen.set(run.item.client,known);runs.push({...run,type:node.type,path,offset:size,position:position+size});size+=run.count;}
-   return {portable:{kind:'text',delta:node.runs.map(run=>({insert:run.text,attributes:run.attributes}))},size};
+   positions.push({node,position,size,path});return {portable:{kind:'text',delta:node.runs.map(run=>({insert:run.text,attributes:run.attributes}))},size};
   }
   if(node.kind==='fragment'){keys(node,['kind','root','children','metadata'],['kind','root','children']);if(node.root!=='default'||!Array.isArray(node.children))throw TypeError('Invalid causal root');}
   else {keys(node,['kind','type','name','attributes','children']);identity(node.type);if(node.kind!=='element'||!schema.nodes[node.name]||nodes.has(idKey(node.type)))throw TypeError('Invalid causal element');nodes.set(idKey(node.type),node);}
@@ -28,10 +28,10 @@ function index(snapshot){const runs=[],nodes=new Map(),seen=new Map();let budget
   for(const [childIndex,child] of node.children.entries()){const result=visit(child,position+(root?0:1)+size,depth+1,[...path,childIndex]);children.push(result.portable);size+=result.size;}
   if(root)return {portable:{kind:'fragment',children,...(Object.hasOwn(node,'metadata')?{metadata:node.metadata}:{})},size};
   if(schema.nodes[node.name].isLeaf){if(size)throw TypeError('Causal atom contains children');size=1;}else size+=2;
-  return {portable:{kind:'element',name:node.name,attributes:node.attributes,children},size};
+  positions.push({node,position,size,path});return {portable:{kind:'element',name:node.name,attributes:node.attributes,children},size};
  }
  const projected=visit(snapshot,0,0),document=snapshotToDocument(projected.portable),pm=schema.nodeFromJSON(relayMarkToProseMirror(document));pm.check();if(pm.content.size!==projected.size)throw TypeError('Causal snapshot size disagrees with maintained schema');
- return {runs,nodes,document,pm:JSON.parse(JSON.stringify(pm.toJSON()))};
+ return {runs,nodes,positions,document,pm:JSON.parse(JSON.stringify(pm.toJSON()))};
 }
 function resolve(index,selected,read=false){selection(selected,read?MAX_SOURCE_UNITS:MAX_UNITS,4096);const out=[];for(const requested of selected.runs){let clock=requested.item.clock,end=clock+requested.count;const candidates=index.runs.filter(run=>run.item.client===requested.item.client&&same(run.type,requested.type)&&run.item.clock<end&&run.item.clock+run.count>clock).sort((a,b)=>a.item.clock-b.item.clock);
  for(const run of candidates){if(run.item.clock>clock)break;const from=Math.max(clock,run.item.clock),to=Math.min(end,run.item.clock+run.count);if(from<to){const text=run.text.slice(from-run.item.clock,to-run.item.clock);unicode(text);out.push({type:run.type,item:{client:run.item.client,clock:from},count:to-from,text,attributes:run.attributes,path:run.path,offset:run.offset+from-run.item.clock,position:run.position+from-run.item.clock});clock=to;}}
@@ -325,3 +325,7 @@ export function mapReviewedRecoverySelection(evidence){
  }
  const result={runs:mapped};selection(result);return {destination:result};
 }
+
+/** Internal maintained replay layout. This reuses the witness's exact schema
+ * projection; positions are not a caller-authenticated source credential. */
+export function contentEditIdentityLayout(snapshot){return index(snapshot);}

@@ -14,6 +14,7 @@ import {stableStringify,cloneCanonicalJSON as clone} from '../../src/canonical-j
 import {bindOwnedHistoryOwner,readOwnedCommandGroup,bindOwnedCommandGroup,bindOwnedCommandHistory,validateOwnedCommandGroup,validateOwnedHistory,retireOwnedHistoryGroups} from './owned-command-group.js';
 import {captureContentEditFootprint,captureContentEditSnapshot} from './content-edit-observer.js';
 import {canonicalOperationID} from '../../src/owned-command-group.js';
+import {planRecoveryRetirement} from './reviewed-recovery-retirement.js';
 import {protectOwnedHistoryBranches} from './owned-history-branches.js';
 const schema=createCanonicalEditorSchema(),MAX_BYTES=8*1024*1024;
 const same=(a,b)=>stableStringify(a)===stableStringify(b);
@@ -173,12 +174,12 @@ export function retireOwnedHistoryCheckpoint(input){
   return {checkpoint:captureMaintainedHistoryCheckpoint(retained.doc,retained.manager,input.owner_id),retired_groups:result.groups,undo:result.undo,redo:result.redo};
  }finally{retained.destroy();}
 }
-function checkpointOwner(input){
+function checkpointOwner(input,observer=null){
  canonicalOperationID(input.owner_id);
  if(Object.hasOwn(input,'initial_state_base64')===Object.hasOwn(input,'checkpoint'))throw TypeError('Exactly one trusted checkpoint basis is required');
  if(!Array.isArray(input.receipts))throw TypeError('Unavailable bounded accepted history');
  const baseline=input.checkpoint?(input.receipts[0]?.sender_state_base64??input.current_state_base64):input.initial_state_base64;
- const retained=retainedHistoryOwner(baseline,input.receipts,input.owner_id,input.checkpoint??null);
+ const retained=retainedHistoryOwner(baseline,input.receipts,input.owner_id,input.checkpoint??null,observer);
  try{
   Y.applyUpdate(retained.doc,bytes(input.current_state_base64));const actual=owner(bytes(input.current_state_base64));
   try{if(!same(captureContentEditFootprint(retained.doc,Y.encodeStateAsUpdate(retained.doc)),captureContentEditFootprint(actual,Y.encodeStateAsUpdate(actual))))throw TypeError('Checkpoint does not reconstruct exact retained cut');}
@@ -187,7 +188,7 @@ function checkpointOwner(input){
  }catch(error){retained.destroy();throw error;}
 }
 
-function retainedHistoryOwner(initial_state_base64,receipts,ownerID,checkpoint=null){
+function retainedHistoryOwner(initial_state_base64,receipts,ownerID,checkpoint=null,observer=null){
  canonicalOperationID(ownerID);
  if(!Array.isArray(receipts)||receipts.length>4096||(!checkpoint&&receipts.length<1))throw TypeError('Unavailable bounded accepted history');
  const doc=owner(bytes(initial_state_base64)),origin={},manager=new Y.UndoManager([doc.getXmlFragment('default'),doc.getMap('relaymark')],{trackedOrigins:new Set([origin]),captureTimeout:Infinity});protectOwnedHistoryBranches(manager);bindOwnedHistoryOwner(manager,ownerID);let activeID=null,popped=null,lastRestored=[];
@@ -201,6 +202,11 @@ function retainedHistoryOwner(initial_state_base64,receipts,ownerID,checkpoint=n
   for(const receipt of receipts){fields(receipt,['transaction_id','operation','update_base64','sender_state_base64']);if(seen.has(receipt.transaction_id))throw TypeError('Duplicate accepted command receipt');seen.add(receipt.transaction_id);const sender=bytes(receipt.sender_state_base64),update=bytes(receipt.update_base64);const receiptOwner=receipt.operation.history?validateOwnedHistory(receipt.operation.history).owner_id:validateOwnedCommandGroup(receipt.operation.group).owner_id;if(receiptOwner!==ownerID)throw TypeError('Mixed maintained history owner receipts');total+=sender.length+update.length;if(total>32*1024*1024)throw TypeError('Oversized accepted history replay');Y.applyUpdate(doc,sender);if(doc.store.pendingStructs||doc.store.pendingDs)throw TypeError('Unsettled accepted sender frontier');const beforeBytes=Y.encodeStateAsUpdate(doc),candidate=owner(beforeBytes);try{Y.applyUpdate(candidate,update);const footprint=captureContentEditFootprint(candidate,update),writer=observedWriter(footprint,doc);
    if(receipt.operation.history){const actual=inverse(receipt.operation,writer),locked=owner(beforeBytes);try{compareUpdate(locked,footprint,actual)}finally{locked.destroy()}}
    else{const group=validateOwnedCommandGroup(receipt.operation.group);if(group.operation_ids.at(-1)!==receipt.transaction_id)throw TypeError('Accepted group does not end in command receipt');replayContentEditMutation({sender_state_base64:receipt.sender_state_base64,current_state_base64:toBase64(beforeBytes),writer_client:writer,operation:receipt.operation,footprint});if(group.reference===receipt.transaction_id)manager.stopCapturing();activeID=receipt.transaction_id;try{Y.applyUpdate(doc,update,origin)}finally{activeID=null}const actualGroup=readOwnedCommandGroup(manager,receipt.transaction_id);if(!same(actualGroup,group))throw TypeError('Accepted prefix differs from maintained group');}
+   if(observer){const before=owner(beforeBytes);try{
+    const known=new Map();for(const record of captureContentEditFootprint(before,beforeBytes).structs){const list=known.get(record.item.client)||[];list.push(record);known.set(record.item.client,list);}
+    const deleted=[];for(const [client,ranges]of Y.createDeleteSetFromStructStore(before.store).clients)for(const range of ranges)deleted.push({item:{client,clock:range.clock},count:range.len});
+    observer({receipt,doc,candidate,footprint:normalized(footprint,Y.decodeStateVector(Y.encodeStateVector(before)),known,deleted)});
+   }finally{before.destroy()}}
   }finally{candidate.destroy()}}
   return {doc,manager,inverse,restored:()=>lastRestored,destroy:()=>{manager.destroy();doc.destroy();}};
  }catch(error){manager.destroy();doc.destroy();throw error;}
@@ -216,4 +222,10 @@ function replayOwnedHistory(evidence){
   Y.applyUpdate(doc,bytes(evidence.sender_state_base64));const candidateFrontier=Y.decodeStateVector(Y.encodeStateVector(doc)),sender=owner(bytes(evidence.sender_state_base64));try{if(!same([...candidateFrontier].sort((a,b)=>a[0]-b[0]),[...Y.decodeStateVector(Y.encodeStateVector(sender))].sort((a,b)=>a[0]-b[0]))||!same(captureContentEditSnapshot(doc.getXmlFragment('default')),captureContentEditSnapshot(sender.getXmlFragment('default')))||!same(intervals(captureContentEditFootprint(doc,Y.encodeStateAsUpdate(doc)).declared_deletes),intervals(captureContentEditFootprint(sender,Y.encodeStateAsUpdate(sender)).declared_deletes))||!same(doc.share.has('relaymark')?doc.getMap('relaymark').toJSON():{},sender.share.has('relaymark')?sender.getMap('relaymark').toJSON():{}))throw TypeError('Accepted history does not reconstruct exact sender frontier');}finally{sender.destroy()}
   const current=owner(bytes(evidence.current_state_base64));try{if(observedWriter(evidence.footprint,current)!==evidence.writer_client)throw TypeError('History writer is not independently observed');const frontier=Y.decodeStateVector(Y.encodeStateVector(current)),update=inverse(evidence.operation,evidence.writer_client),proof=compareUpdate(current,evidence.footprint,update),accounting=ownedTextAccounting(current,frontier,retained.restored());return{...proof,...accounting,expected_update_base64:toBase64(update),complete_mutation_correspondence:true,owned_history_correspondence:true,restored_copies:retained.restored()};}finally{current.destroy()}
  }finally{retained.destroy();}
+}
+
+/** Read-only dependency plan over freshly authenticated complete manager cuts.
+ * Actor/owner roster and imported allocation authority stay with the host. */
+export function planReviewedRecoveryRetirement(input){
+ return planRecoveryRetirement(input,{checkpointOwner,bytes,owner,schema});
 }

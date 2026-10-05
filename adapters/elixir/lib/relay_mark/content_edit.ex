@@ -86,6 +86,12 @@ defmodule RelayMark.ContentEdit do
 
   def produce_document_patch(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Read-only dependency planning across an authenticated complete actor/owner cut. The host authenticates original reviewed associations and the whole checkpoint sidecar; the plan grants no source or erasure authority."
+  def plan_reviewed_recovery_retirement(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "planReviewedRecoveryRetirement", [input])
+
+  def plan_reviewed_recovery_retirement(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Retire authenticated complete owned groups through the actual reconstructed manager and capture its surviving checkpoint. Source classification and erasure authority remain with the host."
   def retire_owned_history(runtime, input) when is_map(input),
     do: execute_arguments(runtime, "retireOwnedHistoryCheckpoint", [input])

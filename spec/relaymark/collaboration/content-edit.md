@@ -404,3 +404,71 @@ bytes and erasure dependency closure. An owner UUID alone grants no actor or
 account authority. Scoped native `retireOwnedHistoryGroups` validates the same
 full membership before invoking the matching Yrs owner; archive restore retains
 survivor redone/ancestor reachability and new authoring remains possible.
+
+### Qualified recovery dependency cuts
+
+`planReviewedRecoveryRetirement(input)` is a private read-only operation over
+freshly authenticated original receipts and the same retained manager owner.
+Elixir exposes `ContentEdit.plan_reviewed_recovery_retirement(runtime,input)`;
+Swift exposes `RelayMarkContentEditCodec.planReviewedRecoveryRetirement(Data)`.
+The host must authenticate every reviewed association's exact original command
+JSON, update, issued outer reference digest and document/incarnation/actor/owner.
+An association digest or actor string supplied to this operation is not a
+credential. Import seeds must include **all** original fresh allocations,
+including types, maps, attributes and formats. The operation independently
+compares their union to the observed original command's fresh allocation union.
+The host also recomputes the reviewed regional proof; dependency planning does
+not authenticate archive hashes or grant donor authorship.
+
+Input has `binding:{document_id,incarnation}`, `current_state_base64`,
+`current_cut:{through_update_id,state_sha256}`, `expected_manager_scopes`,
+`manager_contexts`, and `imports`. Each scope is `{actor_id,owner_id}`. Each
+context has that exact pair, `initial_state_base64` **or** `checkpoint`, and the
+existing chronological receipt objects
+`{transaction_id,operation,update_base64,sender_state_base64}`. The independently
+authenticated roster must equal the contexts exactly. It is not derived from
+Yjs client IDs, origins, or caller stack metadata. Each import has
+`receipt:{transaction_id,transaction_sha256,update_sha256,issued_reference_sha256,
+actor_id,owner_id}` and `imported_items:[{item:{client,clock},count}]`.
+
+Cold input additionally supplies `dependency_checkpoint` and the exact paired
+`checkpoint_state_base64`. The summary is
+`{binding,through_update_id,state_sha256,manager_scopes,associations}`. Each
+association contains its original `receipt`, `imported_items`, closed
+`capability_items`, and typed `source_items:{runs}`. Existing managers restore
+from checkpoints at that exact state frontier; newly joined authenticated
+managers may supply an initial basis. Scope, cut, state digest, retained items,
+source type IDs, and aggregate budgets are checked before replay. Missing or
+mismatched pre-cut evidence refuses completeness and requires the host's
+supported recovery path. It does not justify disabling all future history.
+
+The existing qualified checkpoint's **whole sidecar digest and coverage** must
+commit these summary bytes, including every association receipt and interval.
+A state digest alone does not authenticate a dependency summary. The existing
+host stores it inside that sidecar, never in another archive or provenance
+store. Pruning original rows is permitted only after this qualified transition;
+no raw updates are added to the summary. Repeated cuts retain each import's
+closed evidence separately. Erasing import A must select its exact issued
+receipt association and preserve unrelated import B. A naturally mixed manager
+group can require whole-group retirement without joining their source facts.
+
+Capability closure includes effective deletions, exact copied subtree type and
+field allocations, original field/format predecessors and maintained redone
+links. Stable subtree identity and actual Step placement qualify copied field
+correspondence; equal text or attributes alone do not. Parent, origin and
+right-origin anchors alone do **not** propagate capability dependencies.
+Independent adjacent or shared-parent typing survives. Source closure propagates
+only imported text, independently verified copies and maintained text redone
+links, so independent typed facts remain authenticated even when their mixed
+StackItem's undo capability retires.
+
+Output contains per-association `{receipt,retirements,source_dependencies}`, the
+next `dependency_checkpoint`, diagnostic `dependency_edges`, and
+`complete_dependency_correspondence:true`. Retirements name actual whole groups
+under their exact actor/owner pair; they are consumed by the existing maintained
+retirement operation, never by filtering serialized stacks. The planner changes
+no document or persistent manager. Input and output are bounded to 32 MiB, with
+one million aggregate interval records and bounded graph work. Existing receipt,
+command, worker memory and timeout limits remain unchanged; unavailable evidence
+or resource refusal is explicit. Production erasure, authoring continuity and
+host digest persistence require their own integrated acceptance evidence.

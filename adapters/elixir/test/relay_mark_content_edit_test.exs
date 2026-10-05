@@ -246,4 +246,128 @@ defmodule RelayMark.ContentEditTest do
                overflow
              )
   end
+
+  test "shipped planner retains actual command dependencies through cold checkpoint and refuses forged cut" do
+    fixture =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/content-edit-enter-inverse-history.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+    initial = fixture["undo"]["initial_state_base64"]
+    owner = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    transaction = "91919191-9191-4191-8191-919191919191"
+    hash = fn bytes -> :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower) end
+
+    assert {:ok, command} =
+             RelayMark.ContentEdit.produce(runtime, %{
+               "state_base64" => initial,
+               "writer_client" => 707,
+               "owner_id" => owner,
+               "transaction_id" => transaction,
+               "steps" => [
+                 %{
+                   "stepType" => "replace",
+                   "from" => 2,
+                   "to" => 2,
+                   "slice" => %{"content" => [%{"type" => "text", "text" => "New Ω "}]}
+                 }
+               ]
+             })
+
+    receipt = %{
+      "transaction_id" => transaction,
+      "sender_state_base64" => initial,
+      "update_base64" => command["update_base64"],
+      "operation" =>
+        Map.put(
+          Map.take(command["content_edit"], ["steps", "copies", "group"]),
+          "kind",
+          "content_edit"
+        )
+    }
+
+    scope = %{"actor_id" => "synthetic-actor", "owner_id" => owner}
+    basis = Map.merge(scope, %{"initial_state_base64" => initial, "receipts" => [receipt]})
+    # Synthetic qualifiers test the packaged semantic seam, never donor authority.
+    association =
+      Map.merge(scope, %{
+        "transaction_id" => transaction,
+        "transaction_sha256" => hash.(Jason.encode!(receipt)),
+        "update_sha256" => hash.(Base.decode64!(command["update_base64"])),
+        "issued_reference_sha256" => hash.("synthetic-issued-reference")
+      })
+
+    input = %{
+      "binding" => %{
+        "document_id" => "22222222-2222-4222-8222-222222222222",
+        "incarnation" => "33333333-3333-4333-8333-333333333333"
+      },
+      "current_state_base64" => command["state_base64"],
+      "current_cut" => %{
+        "through_update_id" => 1,
+        "state_sha256" => hash.(Base.decode64!(command["state_base64"]))
+      },
+      "expected_manager_scopes" => [scope],
+      "manager_contexts" => [basis],
+      "imports" => [
+        %{
+          "receipt" => association,
+          "imported_items" =>
+            Enum.map(command["proof"]["footprint"]["structs"], &Map.take(&1, ["item", "count"]))
+        }
+      ]
+    }
+
+    assert {:ok, planned} =
+             RelayMark.ContentEdit.plan_reviewed_recovery_retirement(runtime, input)
+
+    assert planned["complete_dependency_correspondence"]
+    assert hd(planned["associations"])["source_dependencies"] == command["text_items"]
+
+    assert hd(hd(planned["associations"])["retirements"])["groups"] == [
+             command["content_edit"]["group"]
+           ]
+
+    assert {:ok, checkpoint} =
+             RelayMark.ContentEdit.checkpoint_owned_history(
+               runtime,
+               Map.put(
+                 Map.delete(basis, "actor_id"),
+                 "current_state_base64",
+                 command["state_base64"]
+               )
+             )
+
+    cold =
+      Map.merge(input, %{
+        "imports" => [],
+        "dependency_checkpoint" => planned["dependency_checkpoint"],
+        "checkpoint_state_base64" => command["state_base64"],
+        "manager_contexts" => [Map.merge(scope, %{"checkpoint" => checkpoint, "receipts" => []})]
+      })
+
+    assert {:ok, restored} =
+             RelayMark.ContentEdit.plan_reviewed_recovery_retirement(runtime, cold)
+
+    assert restored["associations"] == planned["associations"]
+
+    forged =
+      put_in(input, ["imports", Access.at(0), "imported_items"], [
+        %{"item" => %{"client" => 101, "clock" => 0}, "count" => 1}
+      ])
+
+    assert {:error, :invalid_content_edit} =
+             RelayMark.ContentEdit.plan_reviewed_recovery_retirement(runtime, forged)
+
+    assert {:error, :invalid_content_edit} =
+             RelayMark.ContentEdit.plan_reviewed_recovery_retirement(
+               runtime,
+               Map.delete(cold, "dependency_checkpoint")
+             )
+  end
 end
