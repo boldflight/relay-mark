@@ -21,15 +21,10 @@ final class RelayMarkNativeRichListTests: XCTestCase {
             try peer.applyUpdate(seed)
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), expected)
             XCTAssertTrue(try native.richProseProjection().isEditable)
-            let anchor = try native.anchor(path: path, index: 0), snapshot = try native.snapshot()
-            let update: Data
-            if offset == 0 {
-                update = try native.prependEmptyRichListItem(before: anchor, expectedSnapshot: snapshot).update
-            } else if offset == "Third depth".utf16.count {
-                update = try native.appendEmptyRichListItem(after: anchor, expectedSnapshot: snapshot).update
-            } else {
-                update = try native.splitRichListItem(at: anchor, utf16Offset: offset, expectedSnapshot: snapshot).update
-            }
+            let snapshot = try native.snapshot()
+            let change = try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: offset, expectedSnapshot: snapshot)
+            let update = change.change.update
             try peer.applyUpdate(update)
             let after = try RelayMarkNativeDocumentProjection.project(document: native)
             XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))

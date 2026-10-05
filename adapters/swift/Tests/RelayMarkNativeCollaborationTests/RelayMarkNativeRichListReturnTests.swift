@@ -19,33 +19,40 @@ final class RelayMarkNativeRichListReturnTests: XCTestCase {
             try peer.applyUpdate(seed)
             let before = try RelayMarkNativeDocumentProjection.project(document: native)
             let snapshot = try native.snapshot()
-            let anchor = try native.anchor(path: path, index: 0)
             let originalState = try native.encodeUpdate()
-            XCTAssertThrowsError(try native.appendEmptyRichListItem(
-                after: Data([255]), expectedSnapshot: snapshot))
-            XCTAssertThrowsError(try native.appendEmptyRichListItem(
-                after: anchor, expectedSnapshot: Data()))
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: [999], utf16Offset: 0, expectedSnapshot: snapshot))
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: 0, expectedSnapshot: Data()))
             XCTAssertEqual(try native.encodeUpdate(), originalState)
 
-            let change = try native.appendEmptyRichListItem(after: anchor, expectedSnapshot: snapshot)
-            try peer.applyUpdate(change.update)
+            let projection = try native.richProseProjection()
+            let row = try XCTUnwrap(projection.blockPaths.firstIndex(of: path))
+            let offset = projection.blockRanges[row].length
+            let result = try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: offset, expectedSnapshot: snapshot)
+            let nextPath = name == "flat_ordered" ? [0, 1] : [0, 0, 1, 1]
+            var node = try XCTUnwrap(JSONSerialization.jsonObject(with: native.snapshot()) as? [String: Any])
+            for index in nextPath { node = try XCTUnwrap((node["children"] as? [[String: Any]])?[index]) }
+            let itemID = try XCTUnwrap((node["attributes"] as? [String: Any])?["relaymarkId"] as? String)
+            try peer.applyUpdate(result.change.update)
             let after = try RelayMarkNativeDocumentProjection.project(document: native)
             var raw = try XCTUnwrap(fixture["expected_ast"] as? [String: Any])
             var blocks = try XCTUnwrap(raw["blocks"] as? [[String: Any]])
             if name == "flat_ordered" {
                 var items = try XCTUnwrap(blocks[0]["content"] as? [[String: Any]])
-                items[1]["id"] = change.itemID
+                items[1]["id"] = itemID
                 var paragraphs = try XCTUnwrap(items[1]["content"] as? [[String: Any]])
-                paragraphs[0]["id"] = change.paragraphID
+                paragraphs[0]["id"] = result.blockID
                 items[1]["content"] = paragraphs
                 blocks[0]["content"] = items
             } else {
                 var outer = try XCTUnwrap(blocks[0]["content"] as? [[String: Any]])
                 var nested = try XCTUnwrap(outer[0]["content"] as? [[String: Any]])
                 var items = try XCTUnwrap(nested[1]["content"] as? [[String: Any]])
-                items[1]["id"] = change.itemID
+                items[1]["id"] = itemID
                 var paragraphs = try XCTUnwrap(items[1]["content"] as? [[String: Any]])
-                paragraphs[0]["id"] = change.paragraphID
+                paragraphs[0]["id"] = result.blockID
                 items[1]["content"] = paragraphs
                 nested[1]["content"] = items
                 outer[0]["content"] = nested
@@ -55,10 +62,8 @@ final class RelayMarkNativeRichListReturnTests: XCTestCase {
             XCTAssertEqual(after, try RelayMarkDocument.decodeJSON(JSONSerialization.data(withJSONObject: raw)))
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), after)
             let afterState = try native.encodeUpdate()
-            XCTAssertThrowsError(try native.appendEmptyRichListItem(after: anchor, expectedSnapshot: snapshot))
-            let emptyPath = name == "flat_ordered" ? [0, 1, 0] : [0, 0, 1, 1, 0]
-            XCTAssertThrowsError(try native.appendEmptyRichListItem(
-                after: native.anchor(path: emptyPath, index: 0), expectedSnapshot: native.snapshot()))
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: offset, expectedSnapshot: snapshot))
             XCTAssertEqual(try native.encodeUpdate(), afterState)
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)

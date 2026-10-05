@@ -27,10 +27,18 @@ final class RelayMarkNativeRichListOperationsTests: XCTestCase {
             withJSONObject: replacing(try XCTUnwrap(fixture["expected_ast"]))))
     }
 
+    private func parentID(_ document: RelayMarkNativeDocument, caret: RelayMarkNativeRichEditing.Caret?) throws -> String {
+        var node = try XCTUnwrap(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any])
+        for index in try XCTUnwrap(caret).blockPath.dropLast() {
+            node = try XCTUnwrap((node["children"] as? [[String: Any]])?[index])
+        }
+        return try XCTUnwrap((node["attributes"] as? [String: Any])?["relaymarkId"] as? String)
+    }
+
     func testBrowserFlatAndNestedInteriorReturnPreservesMarksIDsAndPeerUndo() throws {
-        for (name, path, leafPath) in [
-            ("interior_flat_ordered", [0, 1, 0], [0, 1, 0, 0]),
-            ("interior_nested_ordered", [0, 0, 1, 0, 0], [0, 0, 1, 0, 0, 0])
+        for (name, path) in [
+            ("interior_flat_ordered", [0, 1, 0]),
+            ("interior_nested_ordered", [0, 0, 1, 0, 0])
         ] {
             let source = try fixture(name)
             let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(source["seed"] as? String)))
@@ -39,29 +47,26 @@ final class RelayMarkNativeRichListOperationsTests: XCTestCase {
             try peer.applyUpdate(seed)
             let before = try RelayMarkNativeDocumentProjection.project(document: native)
             let snapshot = try native.snapshot()
-            let paragraph = try native.anchor(path: path, index: 0)
-            let suffixAnchor = try native.anchor(path: leafPath, index: 7)
             let state = try native.encodeUpdate()
-            XCTAssertThrowsError(try native.splitRichListItem(
-                at: paragraph, utf16Offset: 8, expectedSnapshot: snapshot))
-            XCTAssertThrowsError(try native.splitRichListItem(
-                at: paragraph, utf16Offset: 3, expectedSnapshot: Data()))
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: 8, expectedSnapshot: snapshot))
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: 3, expectedSnapshot: Data()))
             XCTAssertEqual(try native.encodeUpdate(), state)
-            let change = try native.splitRichListItem(
-                at: paragraph, utf16Offset: 3, expectedSnapshot: snapshot)
-            try peer.applyUpdate(change.update)
+            let change = try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: 3, expectedSnapshot: snapshot)
+            try peer.applyUpdate(change.change.update)
             let after = try RelayMarkNativeDocumentProjection.project(document: native)
-            XCTAssertEqual(after, try expected(source, itemID: change.itemID,
-                                               paragraphID: change.paragraphID))
+            XCTAssertEqual(after, try expected(source, itemID: try parentID(native, caret: change.change.caret),
+                                               paragraphID: change.blockID))
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), after)
-            XCTAssertEqual(try native.resolve(anchor: suffixAnchor)?.index, 3)
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), before)
         }
     }
 
-    func testBrowserFlatAndNestedEmptyExitReusesParagraphIDAndUndoes() throws {
+    func testBrowserFlatAndNestedEmptyExitReplaysStructureAndUndoes() throws {
         for (name, path) in [
             ("exit_flat_ordered", [0, 1, 0]), ("exit_flat_bullet", [0, 1, 0]),
             ("exit_nested_ordered", [0, 0, 1, 0, 0]),
@@ -74,22 +79,36 @@ final class RelayMarkNativeRichListOperationsTests: XCTestCase {
             try peer.applyUpdate(seed)
             let before = try RelayMarkNativeDocumentProjection.project(document: native)
             let snapshot = try native.snapshot()
-            let anchor = try native.anchor(path: path, index: 0)
             let state = try native.encodeUpdate()
-            XCTAssertThrowsError(try native.exitEmptyRichListItem(
-                at: anchor, expectedSnapshot: Data()))
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: 0, expectedSnapshot: Data()))
             XCTAssertEqual(try native.encodeUpdate(), state)
-            let change = try native.exitEmptyRichListItem(
-                at: anchor, expectedSnapshot: snapshot)
-            try peer.applyUpdate(change.update)
+            let change = try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: 0, expectedSnapshot: snapshot)
+            try peer.applyUpdate(change.change.update)
             let after = try RelayMarkNativeDocumentProjection.project(document: native)
-            let expected = try expected(source, itemID: change.newItemID ??
+            var expectedSource = source
+            if path.count == 5 {
+                // Maintained splitListItem creates a new default paragraph for
+                // nested empty exit; bind only that freshly allocated ID.
+                let oldID = before.blocks[0].childBlocks[0].childBlocks[1].childBlocks[0].childBlocks[0].id
+                func replaceNewParagraph(_ value: Any) -> Any {
+                    if var object = value as? [String: Any] {
+                        if object["id"] as? String == oldID { object["id"] = change.blockID }
+                        return object.mapValues(replaceNewParagraph)
+                    }
+                    if let array = value as? [Any] { return array.map(replaceNewParagraph) }
+                    return value
+                }
+                expectedSource["expected_ast"] = replaceNewParagraph(try XCTUnwrap(source["expected_ast"]))
+            }
+            let expected = try expected(expectedSource, itemID: (path.count == 5 ? try parentID(native, caret: change.change.caret) : nil) ??
                 "b00000000000040008000000000000065", paragraphID:
                 "b00000000000040008000000000000066")
             XCTAssertEqual(after, expected)
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), after)
-            XCTAssertThrowsError(try native.exitEmptyRichListItem(
-                at: anchor, expectedSnapshot: snapshot))
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native,
+                blockPath: path, utf16Offset: 0, expectedSnapshot: snapshot))
             try peer.applyUpdate(try XCTUnwrap(native.undo()))
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)
             XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), before)
@@ -104,35 +123,35 @@ final class RelayMarkNativeRichListOperationsTests: XCTestCase {
         try native.applyUpdate(seed)
         try peer.applyUpdate(seed)
         let before = try RelayMarkNativeDocumentProjection.project(document: native)
-        let split = try native.splitRichListItem(at: native.anchor(path: [0, 0, 0], index: 0),
+        let split = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0, 0, 0],
             utf16Offset: 4, expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(split.update)
+        try peer.applyUpdate(split.change.update)
         let afterSplit = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(afterSplit, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(afterSplit.blocks[0].childBlocks.map(\.plainText), ["Done", " today", "Next"])
         XCTAssertEqual(afterSplit.blocks[0].childBlocks.map { $0.props["checked"] },
                        [.bool(true), .bool(false), .bool(false)])
         XCTAssertEqual(afterSplit.blocks[0].childBlocks[1].props["entityId"], .null)
-        XCTAssertEqual(afterSplit.blocks[0].childBlocks[1].id, split.itemID)
+        XCTAssertEqual(afterSplit.blocks[0].childBlocks[1].id, try parentID(native, caret: split.change.caret))
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), before)
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), before)
 
-        let append = try native.appendEmptyRichListItem(after: native.anchor(path: [0, 1, 0], index: 0),
+        let append = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0, 1, 0], utf16Offset: 4,
             expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(append.update)
+        try peer.applyUpdate(append.change.update)
         let afterAppend = try RelayMarkNativeDocumentProjection.project(document: native)
-        XCTAssertEqual(afterAppend.blocks[0].childBlocks.last?.id, append.itemID)
+        XCTAssertEqual(afterAppend.blocks[0].childBlocks.last?.id, try parentID(native, caret: append.change.caret))
         XCTAssertEqual(afterAppend.blocks[0].childBlocks.last?.props["checked"], .bool(false))
         XCTAssertEqual(afterAppend.blocks[0].childBlocks.last?.props["entityId"], .null)
         XCTAssertEqual(afterAppend, try RelayMarkNativeDocumentProjection.project(document: peer))
-        let exit = try native.exitEmptyRichListItem(at: native.anchor(path: [0, 2, 0], index: 0),
+        let exit = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0, 2, 0], utf16Offset: 0,
             expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(exit.update)
+        try peer.applyUpdate(exit.change.update)
         let afterExit = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(afterExit.blocks.map(\.type), ["task_list", "paragraph"])
         XCTAssertEqual(afterExit.blocks[0], before.blocks[0])
-        XCTAssertEqual(afterExit.blocks[1].id, append.paragraphID)
+        XCTAssertEqual(afterExit.blocks[1].id, append.blockID)
         XCTAssertEqual(afterExit, try RelayMarkNativeDocumentProjection.project(document: peer))
     }
 
@@ -146,9 +165,9 @@ final class RelayMarkNativeRichListOperationsTests: XCTestCase {
         let before = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(before.blocks.map(\.type), ["task_list"])
         let paragraphID = try XCTUnwrap(before.blocks[0].childBlocks[0].childBlocks.first?.id)
-        let exit = try native.exitEmptyRichListItem(at: native.anchor(path: [0, 0, 0], index: 0),
+        let exit = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0, 0, 0], utf16Offset: 0,
             expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(exit.update)
+        try peer.applyUpdate(exit.change.update)
         let after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after.blocks.map(\.type), ["paragraph"])
         XCTAssertEqual(after.blocks[0].id, paragraphID)
@@ -166,9 +185,10 @@ final class RelayMarkNativeRichListOperationsTests: XCTestCase {
         try native.applyUpdate(seed)
         try peer.applyUpdate(seed)
         let before = try RelayMarkNativeDocumentProjection.project(document: native)
-        let change = try native.appendEmptyRichListItem(
-            after: native.anchor(path: [1, 0, 2, 0, 0], index: 0), expectedSnapshot: native.snapshot())
-        try peer.applyUpdate(change.update)
+        let change = try RelayMarkNativeRichReturn.apply(document: native,
+            blockPath: [1, 0, 2, 0, 0], utf16Offset: before.blocks[1].childBlocks[0].childBlocks[2].childBlocks[0].plainText.utf16.count,
+            expectedSnapshot: native.snapshot())
+        try peer.applyUpdate(change.change.update)
         let after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[0], before.blocks[0])
@@ -179,7 +199,7 @@ final class RelayMarkNativeRichListOperationsTests: XCTestCase {
                        before.blocks[1].childBlocks[0].childBlocks[3])
         let nested = after.blocks[1].childBlocks[0].childBlocks[2]
         XCTAssertEqual(nested.childBlocks.count, 2)
-        XCTAssertEqual(nested.childBlocks[1].id, change.itemID)
+        XCTAssertEqual(nested.childBlocks[1].id, try parentID(native, caret: change.change.caret))
         XCTAssertEqual(nested.childBlocks[1].props["checked"], .bool(false))
         XCTAssertEqual(nested.childBlocks[1].props["entityId"], .null)
         try peer.applyUpdate(try XCTUnwrap(native.undo()))

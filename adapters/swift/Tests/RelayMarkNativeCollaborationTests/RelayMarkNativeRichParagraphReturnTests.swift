@@ -23,19 +23,18 @@ final class RelayMarkNativeRichParagraphReturnTests: XCTestCase {
                 try peer.applyUpdate(mark)
             }
             let before = try RelayMarkNativeDocumentProjection.project(document: native)
-            let anchor = try native.anchor(path: [0], index: 0)
             let snapshot = try native.snapshot()
-            XCTAssertThrowsError(try native.returnInRichParagraph(at: anchor,
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0],
                 utf16Offset: 99, expectedSnapshot: snapshot))
-            XCTAssertThrowsError(try native.returnInRichParagraph(at: anchor,
+            XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0],
                 utf16Offset: offset, expectedSnapshot: Data()))
-            let change = try native.returnInRichParagraph(at: anchor,
+            let change = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [0],
                 utf16Offset: offset, expectedSnapshot: snapshot)
-            try peer.applyUpdate(change.update)
+            try peer.applyUpdate(change.change.update)
             let after = try RelayMarkNativeDocumentProjection.project(document: native)
             XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
             XCTAssertEqual(after.blocks[0].id, before.blocks[0].id)
-            XCTAssertEqual(after.blocks[1].id, change.paragraphID)
+            XCTAssertEqual(after.blocks[1].id, change.blockID)
             XCTAssertEqual(after.blocks[0].plainText, String(original.prefix(offset)))
             XCTAssertEqual(after.blocks[1].plainText, String(original.dropFirst(offset)))
             if offset == 6 {

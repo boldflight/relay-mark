@@ -19,31 +19,35 @@ final class RelayMarkNativeRichQuoteReturnTests: XCTestCase {
         let before = try RelayMarkNativeDocumentProjection.project(document: native)
         let quote = before.blocks[2]
         let lastParagraphID = quote.childBlocks[1].id
-        let paragraph = try native.anchor(path: [2, 1], index: 0)
         let snapshot = try native.snapshot()
-        let first = try native.returnInRichQuote(at: paragraph, utf16Offset: 12,
+        let first = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 1], utf16Offset: 12,
                                                         expectedSnapshot: snapshot)
-        XCTAssertEqual(first.kind, .append)
-        try peer.applyUpdate(first.update)
+        XCTAssertEqual(first.kind, .split)
+        try peer.applyUpdate(first.change.update)
         var after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[2].id, quote.id)
         XCTAssertEqual(after.blocks[2].childBlocks.map(\.id),
-                       quote.childBlocks.map(\.id) + [first.paragraphID])
+                       quote.childBlocks.map(\.id) + [first.blockID])
         XCTAssertEqual(after.blocks[2].childBlocks.last?.plainText, "")
 
-        let empty = try native.anchor(path: [2, 2], index: 0)
-        let second = try native.returnInRichQuote(at: empty, utf16Offset: 0,
-                                                         expectedSnapshot: native.snapshot())
+        var secondResult: RelayMarkNativeRichReturn.Result?
+        _ = try native.performOwnedCommand(operationID: UUID(), separateHistoryItem: true) {
+            let result = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 2], utf16Offset: 0,
+                expectedSnapshot: native.snapshot())
+            secondResult = result
+            return result.change.update
+        }
+        let second = try XCTUnwrap(secondResult)
         XCTAssertEqual(second.kind, .exit)
-        XCTAssertEqual(second.paragraphID, first.paragraphID)
-        try peer.applyUpdate(second.update)
+        XCTAssertEqual(second.blockID, first.blockID)
+        try peer.applyUpdate(second.change.update)
         after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[2].childBlocks.map(\.id), [quote.childBlocks[0].id, lastParagraphID])
-        XCTAssertEqual(after.blocks[3].id, first.paragraphID)
+        XCTAssertEqual(after.blocks[3].id, first.blockID)
         XCTAssertEqual(after.blocks[3].type, "paragraph")
-        XCTAssertThrowsError(try native.returnInRichQuote(at: empty, utf16Offset: 0,
+        XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 2], utf16Offset: 0,
                                                                   expectedSnapshot: snapshot))
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
@@ -59,21 +63,20 @@ final class RelayMarkNativeRichQuoteReturnTests: XCTestCase {
         let bold = try native.formatText(at: 0, length: 11, attributes: ["bold": [:]], path: [2, 0, 0])
         try peer.applyUpdate(bold)
         let before = try RelayMarkNativeDocumentProjection.project(document: native)
-        let paragraph = try native.anchor(path: [2, 0], index: 0)
         let checkpoint = try native.encodeUpdate()
-        XCTAssertThrowsError(try native.returnInRichQuote(at: paragraph, utf16Offset: 99,
+        XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 0], utf16Offset: 99,
                                                                   expectedSnapshot: native.snapshot()))
-        XCTAssertThrowsError(try native.returnInRichQuote(at: paragraph, utf16Offset: 5,
+        XCTAssertThrowsError(try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 0], utf16Offset: 5,
                                                                   expectedSnapshot: Data()))
         XCTAssertEqual(try native.encodeUpdate(), checkpoint)
-        let change = try native.returnInRichQuote(at: paragraph, utf16Offset: 5,
+        let change = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 0], utf16Offset: 5,
                                                          expectedSnapshot: native.snapshot())
         XCTAssertEqual(change.kind, .split)
-        try peer.applyUpdate(change.update)
+        try peer.applyUpdate(change.change.update)
         let after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[2].childBlocks.map(\.id),
-                       [before.blocks[2].childBlocks[0].id, change.paragraphID, before.blocks[2].childBlocks[1].id])
+                       [before.blocks[2].childBlocks[0].id, change.blockID, before.blocks[2].childBlocks[1].id])
         XCTAssertEqual(after.blocks[2].childBlocks.map(\.plainText), ["First", " quote", "Second quote"])
         if case .inline(let prefix)? = after.blocks[2].childBlocks[0].content.first,
            case .inline(let suffix)? = after.blocks[2].childBlocks[1].content.first {
