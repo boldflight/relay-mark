@@ -369,6 +369,47 @@ public enum RelayMarkNativeRichEditing {
         return try change(transform, source: source, bridge: bridge, document: document)
     }
 
+    static func setBlockStyle(document: RelayMarkNativeDocument, tree: [String: Any], id: String,
+                               style: RelayMarkNativeBlockStyle) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let target = try identifiedNode(id, in: source)
+        var transform = PMTransform(source)
+        var attributes: [String: Any] = ["relaymarkId": id]
+        let type: String
+        if case .heading(let level) = style {
+            guard (1...6).contains(level) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+            type = "heading"; attributes["level"] = level
+            attributes["headingId"] = target.node.attrs["headingId"] as? String ?? "h-" + UUID().uuidString.lowercased()
+        } else { type = "paragraph" }
+        guard let nodeType = bridge.schema.nodes[type] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let marked = try nodeType.create(attributes, target.node.content, marks: target.node.marks)
+        if !marked.eq(target.node) { try transform.setNodeMarkup(target.position, type: nodeType, attrs: attributes) }
+        switch style {
+        case .paragraph, .heading: break
+        case .quote, .bulletList, .orderedList, .taskList:
+            let wrapperType: String
+            var wrapperAttrs: [String: Any] = ["relaymarkId": RelayMarkNativeRichXML.freshID()]
+            let content: PMFragment, depth: Int
+            if style == .quote { wrapperType = "blockquote"; content = .empty; depth = 1 }
+            else {
+                let task = style == .taskList
+                wrapperType = task ? "taskList" : style == .orderedList ? "orderedList" : "bulletList"
+                if style == .orderedList { wrapperAttrs["start"] = 1; wrapperAttrs["type"] = NSNull() }
+                var itemAttrs: [String: Any] = ["relaymarkId": RelayMarkNativeRichXML.freshID()]
+                if task { itemAttrs["checked"] = false }
+                guard let itemType = bridge.schema.nodes[task ? "taskItem" : "listItem"] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+                content = PMFragment.from(try itemType.create(itemAttrs)); depth = 2
+            }
+            guard let wrapper = bridge.schema.nodes[wrapperType] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+            let node = try wrapper.create(wrapperAttrs, content)
+            let from = target.position, to = from + target.node.nodeSize
+            try transform.step(.replaceAround(from: from, to: to, gapFrom: from, gapTo: to,
+                slice: PMSlice(PMFragment.from(node), openStart: 0, openEnd: 0), insert: depth, structure: true))
+        }
+        guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        return try change(transform, source: source, bridge: bridge, document: document)
+    }
+
     /// An explicit root-child replacement command, using the full shared rich
     /// fragment and one maintained ReplaceStep rather than a document diff.
     static func replaceRootChildren(document: RelayMarkNativeDocument, tree: [String: Any],

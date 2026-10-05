@@ -1352,56 +1352,31 @@ public final class RelayMarkNativeDocument {
         return update
     }
 
-    /// Insert the browser's default `Title` child into one untitled, flat v3
-    /// callout. The snapshot is the exact displayed checkpoint: it includes
-    /// the callout, every child, and their text/marks. A changed document is
-    /// rejected before any live transaction. The returned ID belongs to the
-    /// newly inserted title and is stable across peer replay and undo/redo.
+    /// Insert one identified title into the existing canonical callout. The
+    /// exact checkpoint and whole candidate grammar are validated before writing.
     public func addCalloutTitle(anchor: Data, expectedID: String,
-                                expectedSnapshot: Data) throws -> (update: Data, titleID: String) {
+                                expectedSnapshot: Data) throws -> (change: RelayMarkNativeRichEditing.Change, titleID: String) {
         guard integrationStatus().isComplete,
               try snapshot() == expectedSnapshot,
-              try richProseProjection().isEditable else {
-            throw Failure.unsupportedProseEdit
-        }
+              try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let (callout, path) = try anchoredElement(anchor)
-        guard path.count == 1, callout.tag() == "callout",
+        guard callout.tag() == "callout",
               try callout.attributes()["relaymarkId"] as? String == expectedID,
-              callout.length() > 0,
-              callout.children().allSatisfy({ $0.tag() == "paragraph" }) else {
+              !callout.children().contains(where: { $0.tag() == "calloutTitle" }) else {
             throw Failure.invalidAnchor
         }
-
-        let titleID = "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "")
-        let scratch = RelayMarkNativeDocument()
-        try scratch.applyUpdate(encodeUpdate())
-        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.insertCalloutTitle(anchor: anchor, expectedID: expectedID, titleID: titleID)
-        guard try scratch.richProseProjection().isEditable else {
-            throw Failure.unsupportedProseEdit
+        let titleID = RelayMarkNativeRichXML.freshID()
+        let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as! [String: Any]
+        let title: [String: Any] = ["kind": "element", "name": "calloutTitle",
+            "attributes": ["relaymarkId": titleID], "children": [["kind": "text", "delta": [["insert": "Title"]]]]]
+        var candidate = tree
+        try RelayMarkNativeRichXML.mutate(path: path[...], in: &candidate) { parent in
+            var children = try RelayMarkNativeRichXML.children(parent)
+            children.insert(title, at: 0); parent["children"] = children
         }
-        let update = try insertCalloutTitle(anchor: anchor, expectedID: expectedID, titleID: titleID)
-        return (update, titleID)
-    }
-
-    private func insertCalloutTitle(anchor: Data, expectedID: String,
-                                    titleID: String) throws -> Data {
-        let (callout, path) = try anchoredElement(anchor)
-        guard path.count == 1, callout.tag() == "callout",
-              try callout.attributes()["relaymarkId"] as? String == expectedID,
-              callout.length() > 0,
-              callout.children().allSatisfy({ $0.tag() == "paragraph" }) else {
-            throw Failure.invalidAnchor
-        }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            let title = try callout.insertElement(named: "calloutTitle", at: 0, in: transaction)
-            try title.setAttribute("relaymarkId", value: titleID, in: transaction)
-            let leaf = try title.insertText(at: 0, in: transaction)
-            try leaf.insert("Title", at: 0, in: transaction)
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
+        let change = try RelayMarkNativeRichEditing.insertWidget(document: self, tree: tree,
+            candidate: candidate, parentID: expectedID, index: 0)
+        return (change, titleID)
     }
 
     /// Change only the appearance of one existing, editable canonical callout.
@@ -1410,7 +1385,7 @@ public final class RelayMarkNativeDocument {
     /// changed/deleted callout is rejected rather than retargeting its path.
     public func setCalloutAppearance(anchor: Data, expectedID: String,
                                      expectedTone: String, expectedEmphasis: String,
-                                     tone: String, emphasis: String) throws -> Data {
+                                     tone: String, emphasis: String) throws -> RelayMarkNativeRichEditing.Change {
         let tones: Set<String> = ["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"]
         let emphases: Set<String> = ["soft", "strong"]
         guard tones.contains(tone), emphases.contains(emphasis),
@@ -1419,51 +1394,44 @@ public final class RelayMarkNativeDocument {
               try richProseProjection().isEditable else {
             throw Failure.unsupportedProseEdit
         }
-        let (callout, path) = try anchoredElement(anchor)
-        guard path.count == 1, callout.tag() == "callout" else { throw Failure.invalidAnchor }
+        let (callout, _) = try anchoredElement(anchor)
+        guard callout.tag() == "callout" else { throw Failure.invalidAnchor }
         let attributes = try callout.attributes()
         guard attributes["relaymarkId"] as? String == expectedID,
               attributes["tone"] as? String == expectedTone,
               attributes["emphasis"] as? String == expectedEmphasis else {
             throw Failure.invalidAnchor
         }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            if tone != expectedTone { try callout.setAttribute("tone", value: tone, in: transaction) }
-            if emphasis != expectedEmphasis { try callout.setAttribute("emphasis", value: emphasis, in: transaction) }
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
+        var changes: [String: Any] = [:]
+        if tone != expectedTone { changes["tone"] = tone }
+        if emphasis != expectedEmphasis { changes["emphasis"] = emphasis }
+        return try authoredAttributeChange(callout, attributes: changes)
+    }
+
+    private func authoredAttributeChange(_ node: YXmlNode, attributes: [String: Any]) throws -> RelayMarkNativeRichEditing.Change {
+        guard let id = try node.attributes()["relaymarkId"] as? String else { throw Failure.invalidAnchor }
+        let tree = try JSONSerialization.jsonObject(with: snapshot()) as! [String: Any]
+        return try RelayMarkNativeRichEditing.updateWidget(document: self, tree: tree, id: id, attributes: attributes)
     }
 
     ///  attribute commands retain the existing XML containers and text.
     /// Relative anchors fence the selected identity even when a peer shifts paths.
-    public func setRichHeadingLevel(anchor: Data, expectedHeadingID: String?, level: Int) throws -> Data {
+    public func setRichHeadingLevel(anchor: Data, expectedHeadingID: String?, level: Int) throws -> RelayMarkNativeRichEditing.Change {
         guard (1...6).contains(level), integrationStatus().isComplete,
               try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let (heading, _) = try anchoredElement(anchor)
         guard heading.tag() == "heading",
               try heading.attributes()["headingId"] as? String == expectedHeadingID else { throw Failure.invalidAnchor }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            try heading.setAttribute("level", value: level, in: transaction)
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
+        return try authoredAttributeChange(heading, attributes: ["level": level])
     }
 
-    public func setRichOrderedListStart(anchor: Data, expectedStart: Int, start: Int) throws -> Data {
+    public func setRichOrderedListStart(anchor: Data, expectedStart: Int, start: Int) throws -> RelayMarkNativeRichEditing.Change {
         guard (1...1_000_000).contains(start), integrationStatus().isComplete,
               try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let (list, _) = try anchoredElement(anchor)
         guard list.tag() == "orderedList",
               (try list.attributes()["start"] as? Int ?? 1) == expectedStart else { throw Failure.invalidAnchor }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            try list.setAttribute("start", value: start, in: transaction)
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
+        return try authoredAttributeChange(list, attributes: ["start": start])
     }
 
     /// Change only an existing top-level heading's level. Its XML identity,
@@ -1807,41 +1775,23 @@ public final class RelayMarkNativeDocument {
     /// text are not discarded by creating the list.
     public func insertEmptyRichTaskList(after paragraphAnchor: Data,
                                                expectedSnapshot: Data) throws
-        -> (update: Data, listID: String, itemID: String, paragraphID: String) {
+        -> (change: RelayMarkNativeRichEditing.Change, listID: String, itemID: String, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
               try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let (_, path, _) = try richTopLevelParagraphTarget(paragraphAnchor)
         guard root.length() < 4_096 else { throw Failure.unsupportedProseEdit }
-        func newID() -> String { "b" + UUID().uuidString.lowercased().replacingOccurrences(of: "-", with: "") }
-        let listID = newID(), itemID = newID(), paragraphID = newID()
-        let scratch = RelayMarkNativeDocument()
-        try scratch.applyUpdate(encodeUpdate())
-        guard try scratch.snapshot() == expectedSnapshot else { throw Failure.invalidAnchor }
-        _ = try scratch.performRichTaskListInsertion(after: paragraphAnchor, path: path,
-            listID: listID, itemID: itemID, paragraphID: paragraphID)
-        guard try scratch.richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
-        let update = try performRichTaskListInsertion(after: paragraphAnchor, path: path,
-            listID: listID, itemID: itemID, paragraphID: paragraphID)
-        return (update, listID, itemID, paragraphID)
-    }
-
-    private func performRichTaskListInsertion(after anchor: Data, path: [Int],
-                                                    listID: String, itemID: String,
-                                                    paragraphID: String) throws -> Data {
-        let (_, resolvedPath, _) = try richTopLevelParagraphTarget(anchor)
-        guard resolvedPath == path else { throw Failure.invalidAnchor }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            let list = try self.root.insertElement(named: "taskList", at: UInt32(path[0] + 1), in: transaction)
-            try list.setAttribute("relaymarkId", value: listID, in: transaction)
-            let item = try list.insertElement(named: "taskItem", at: 0, in: transaction)
-            try item.setAttribute("relaymarkId", value: itemID, in: transaction)
-            try item.setAttribute("checked", value: false, in: transaction)
-            let paragraph = try item.insertElement(named: "paragraph", at: 0, in: transaction)
-            try paragraph.setAttribute("relaymarkId", value: paragraphID, in: transaction)
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
+        let listID = RelayMarkNativeRichXML.freshID(), itemID = RelayMarkNativeRichXML.freshID(),
+            paragraphID = RelayMarkNativeRichXML.freshID()
+        let paragraph: [String: Any] = ["kind": "element", "name": "paragraph",
+            "attributes": ["relaymarkId": paragraphID], "children": []]
+        let item: [String: Any] = ["kind": "element", "name": "taskItem",
+            "attributes": ["relaymarkId": itemID, "checked": false], "children": [paragraph]]
+        let list: [String: Any] = ["kind": "element", "name": "taskList",
+            "attributes": ["relaymarkId": listID], "children": [item]]
+        let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as! [String: Any]
+        let change = try RelayMarkNativeRichEditing.replaceRootChildren(document: self, tree: tree,
+            index: path[0] + 1, count: 0, replacements: [list])
+        return (change, listID, itemID, paragraphID)
     }
 
     /// Return in a top-level canonical paragraph creates one identified XML sibling.
@@ -2148,7 +2098,7 @@ public final class RelayMarkNativeDocument {
     /// that may have shifted after a remote insertion.
     public func setRichTaskItemChecked(path: [Int], expectedID: String,
                                              expectedEntityID: String?, expectedChecked: Bool,
-                                             checked: Bool) throws -> Data {
+                                             checked: Bool) throws -> RelayMarkNativeRichEditing.Change {
         guard integrationStatus().isComplete, path.count >= 2, checked != expectedChecked,
               Self.validTaskID(["relaymarkId": expectedID]) else {
             throw Failure.unsupportedProseEdit
@@ -2176,12 +2126,7 @@ public final class RelayMarkNativeDocument {
             current = number.boolValue
         } else { current = false }
         guard current == expectedChecked else { throw Failure.invalidAnchor }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            try node.setAttribute("checked", value: checked, in: transaction)
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
+        return try authoredAttributeChange(node, attributes: ["checked": checked])
     }
 
     /// Edit a one-paragraph, one-text-leaf item without replacing the task

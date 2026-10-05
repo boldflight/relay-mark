@@ -339,7 +339,7 @@ public struct RelayMarkCollaborativeProse {
                     let entityID = attributes["entityId"] as? String
                     let validChecked = attributes["checked"] == nil ||
                         checkedValue.map { CFGetTypeID($0) == CFBooleanGetTypeID() } == true
-                    let validEntity = attributes["entityId"] == nil ||
+                    let validEntity = attributes["entityId"] == nil || (dialect == .rich && attributes["entityId"] is NSNull) ||
                         entityID.map { UUID(uuidString: $0)?.uuidString.lowercased() == $0 } == true
                     guard dialect == .rich,
                           let id = attributes["relaymarkId"] as? String,

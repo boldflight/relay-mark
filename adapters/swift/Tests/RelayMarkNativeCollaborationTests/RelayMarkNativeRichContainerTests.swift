@@ -25,7 +25,7 @@ final class RelayMarkNativeRichContainerTests: XCTestCase {
         let before = try native.snapshot()
         let update = try native.setRichTaskItemChecked(path: task.path, expectedID: task.id,
             expectedEntityID: task.entityID, expectedChecked: task.checked, checked: !task.checked)
-        try peer.applyUpdate(update)
+        try peer.applyUpdate(update.update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
         try peer.applyUpdate(try XCTUnwrap(native.undo()))
         XCTAssertEqual(try native.snapshot(), before)

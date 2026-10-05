@@ -198,7 +198,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         let nested = try XCTUnwrap(before.taskItems.first(where: { $0.path == [1, 0, 2, 0] }))
         let update = try native.setRichTaskItemChecked(path: nested.path, expectedID: nested.id,
             expectedEntityID: nested.entityID, expectedChecked: false, checked: true)
-        try peer.applyUpdate(update)
+        try peer.applyUpdate(update.update)
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native),
                        try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(try native.richProseProjection().taskItems.map(\.checked), [true, true, false])
@@ -563,6 +563,8 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         try native.applyUpdate(update)
         try native.applyUpdate(update)
         XCTAssertTrue(native.integrationStatus().isComplete)
+        let prepared = try RelayMarkNativeSnapshotImport.prepare(document: native, namespace: "video-durable-identity", expectedSnapshot: native.snapshot())
+        _ = try RelayMarkNativeSnapshotImport.install(document: native, prepared: prepared)
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: native), expected)
         XCTAssertEqual(expected.blocks.map(\.type), ["paragraph", "relay.video_embed", "paragraph"])
         let prose = try native.richProseProjection()
@@ -692,7 +694,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         let change = try native.setCalloutAppearance(
             anchor: calloutAnchor, expectedID: id,
             expectedTone: "warning", expectedEmphasis: "strong", tone: "info", emphasis: "soft")
-        try peer.applyUpdate(change)
+        try peer.applyUpdate(change.update)
         let after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after.blocks[1].props["tone"], .string("info"))
         XCTAssertEqual(after.blocks[1].props["emphasis"], .string("soft"))
@@ -729,7 +731,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
 
         let change = try native.addCalloutTitle(anchor: anchor, expectedID: calloutID,
                                                 expectedSnapshot: checkpoint)
-        try peer.applyUpdate(change.update)
+        try peer.applyUpdate(change.change.update)
         let after = try RelayMarkNativeDocumentProjection.project(document: native)
         var expected = try XCTUnwrap(fixture["expected_ast_after_add_title"] as? [String: Any])
         var blocks = try XCTUnwrap(expected["blocks"] as? [[String: Any]])
@@ -766,10 +768,14 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
 
         let nested = RelayMarkNativeDocument()
         try nested.applyUpdate(try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["nested_body_update"] as? String))))
-        let nestedState = try nested.encodeUpdate()
-        XCTAssertThrowsError(try nested.addCalloutTitle(anchor: try nested.anchor(path: [1], index: 0),
-                                                        expectedID: calloutID, expectedSnapshot: nested.snapshot()))
-        XCTAssertEqual(try nested.encodeUpdate(), nestedState)
+        let nestedBefore = try RelayMarkNativeDocumentProjection.project(document: nested)
+        let nestedChange = try nested.addCalloutTitle(anchor: try nested.anchor(path: [1], index: 0),
+                                                        expectedID: calloutID, expectedSnapshot: nested.snapshot())
+        let nestedAfter = try RelayMarkNativeDocumentProjection.project(document: nested)
+        XCTAssertEqual(nestedAfter.blocks[1].childBlocks[0].id, nestedChange.titleID)
+        XCTAssertEqual(Array(nestedAfter.blocks[1].childBlocks.dropFirst()), nestedBefore.blocks[1].childBlocks)
+        _ = try XCTUnwrap(nested.undo())
+        XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: nested), nestedBefore)
     }
 
     func testBrowserEmptyCalloutTitleAcceptsFirstTextAndKeepsIdentity() throws {

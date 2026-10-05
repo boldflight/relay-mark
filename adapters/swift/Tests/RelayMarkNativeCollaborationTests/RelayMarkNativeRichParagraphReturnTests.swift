@@ -63,7 +63,7 @@ final class RelayMarkNativeRichParagraphReturnTests: XCTestCase {
 
         let change = try native.insertEmptyRichTaskList(after: anchor,
             expectedSnapshot: snapshot)
-        try peer.applyUpdate(change.update)
+        try peer.applyUpdate(change.change.update)
         let after = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(after, try RelayMarkNativeDocumentProjection.project(document: peer))
         XCTAssertEqual(after.blocks[0], before.blocks[0])
@@ -75,9 +75,9 @@ final class RelayMarkNativeRichParagraphReturnTests: XCTestCase {
         XCTAssertFalse(tasks[0].checked)
         XCTAssertNil(tasks[0].entityID)
         if let path = ProcessInfo.processInfo.environment["RELAY_TASK__FIXTURE_OUTPUT"] {
-            let fixture = ["schema": "relaymark-prosemirror-v3", "root": "default",
+            let fixture = ["schema": "relaymark-prosemirror", "root": "default",
                            "seed": source.base64EncodedString(),
-                           "native_update": change.update.base64EncodedString(),
+                           "native_update": change.change.update.base64EncodedString(),
                            "list_id": change.listID, "item_id": change.itemID,
                            "paragraph_id": change.paragraphID]
             let encoded = try JSONSerialization.data(withJSONObject: fixture,
