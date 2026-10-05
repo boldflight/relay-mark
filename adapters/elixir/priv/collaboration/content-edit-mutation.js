@@ -981,7 +981,7 @@ var require_web_atob = __commonJS({
     var WRONG_ARITY = BASIC && $atob.length !== 1;
     var FORCED = !BASIC || NO_SPACES_IGNORE || NO_ENCODING_CHECK || NO_ARG_RECEIVING_CHECK || WRONG_ARITY;
     $({ global: true, bind: true, enumerable: true, forced: FORCED }, {
-      atob: function atob2(data) {
+      atob: function atob3(data) {
         validateArgumentsLength(arguments.length, 1);
         if (BASIC && !NO_SPACES_IGNORE && !NO_ENCODING_CHECK) return call($atob, globalThis2, data);
         var string = replace(toString(data), whitespaces, "");
@@ -1922,7 +1922,7 @@ var require_web_btoa = __commonJS({
     });
     var WRONG_ARITY = BASIC && $btoa.length !== 1;
     $({ global: true, bind: true, enumerable: true, forced: !BASIC || NO_ARG_RECEIVING_CHECK || WRONG_ARG_CONVERSION || WRONG_ARITY }, {
-      btoa: function btoa2(data) {
+      btoa: function btoa3(data) {
         validateArgumentsLength(arguments.length, 1);
         if (BASIC) return call($btoa, globalThis2, toString(data));
         var string = toString(data);
@@ -2402,7 +2402,7 @@ var require_url_percent_coding = __commonJS({
     var replaceLoneSurrogate = function(chunk) {
       return chunk.length === 2 ? chunk : FALLBACK_REPLACER;
     };
-    var decode = function(input) {
+    var decode2 = function(input) {
       var length = input.length;
       var result = "";
       var i = 0;
@@ -2466,7 +2466,7 @@ var require_url_percent_coding = __commonJS({
       }
       return result;
     };
-    var encode = function(input) {
+    var encode2 = function(input) {
       try {
         return $encodeURIComponent(input);
       } catch (error) {
@@ -2474,8 +2474,8 @@ var require_url_percent_coding = __commonJS({
       }
     };
     module.exports = {
-      decode,
-      encode
+      decode: decode2,
+      encode: encode2
     };
   }
 });
@@ -3434,7 +3434,7 @@ var require_string_punycode_to_ascii = __commonJS({
       }
       return floor(k + (baseMinusTMin + 1) * delta / (delta + skew));
     };
-    var encode = function(input) {
+    var encode2 = function(input) {
       var output = [];
       input = ucs2decode(input);
       var inputLength = input.length;
@@ -3501,7 +3501,7 @@ var require_string_punycode_to_ascii = __commonJS({
       var i, label;
       for (i = 0; i < labels.length; i++) {
         label = labels[i];
-        push(encoded, exec(regexNonASCII, label) ? "xn--" + encode(label) : label);
+        push(encoded, exec(regexNonASCII, label) ? "xn--" + encode2(label) : label);
       }
       return join(encoded, ".");
     };
@@ -4448,15 +4448,15 @@ var require_web_url_constructor = __commonJS({
         var fragment2 = this.fragment;
         return fragment2 ? "#" + fragment2 : "";
       },
-      setHash: function(hash) {
-        hash = $toString(hash);
-        if (hash === "") {
+      setHash: function(hash2) {
+        hash2 = $toString(hash2);
+        if (hash2 === "") {
           this.fragment = null;
           return;
         }
-        if (charAt(hash, 0) === "#") hash = stringSlice(hash, 1);
+        if (charAt(hash2, 0) === "#") hash2 = stringSlice(hash2, 1);
         this.fragment = "";
-        this.parse(hash, FRAGMENT);
+        this.parse(hash2, FRAGMENT);
       },
       update: function() {
         this.query = this.searchParams.serialize() || null;
@@ -4652,7 +4652,7 @@ var require_url5 = __commonJS({
 // adapters/collaboration/content-edit-mutation.js
 var import_atob = __toESM(require_atob2(), 1);
 var import_btoa = __toESM(require_btoa2(), 1);
-import * as Y3 from "yjs";
+import * as Y4 from "yjs";
 import { Step as Step2 } from "prosemirror-transform";
 import { initProseMirrorDoc, updateYFragment } from "@tiptap/y-tiptap";
 
@@ -4968,23 +4968,23 @@ function unmapInline(node) {
     return { type: "hardBreak" };
   }
   const marks = [];
-  let cursor = node;
+  let cursor2 = node;
   let previous = -1;
-  while (cursor.type !== "text") {
-    const pmType = pmTypes[cursor.type];
+  while (cursor2.type !== "text") {
+    const pmType = pmTypes[cursor2.type];
     const rank = markTypes.indexOf(pmType);
-    if (rank < 0 || rank <= previous || pmType === "code" && (marks.length || cursor.content?.[0]?.type !== "text")) {
+    if (rank < 0 || rank <= previous || pmType === "code" && (marks.length || cursor2.content?.[0]?.type !== "text")) {
       throw new TypeError("Unsupported or noncanonical inline wrapper");
     }
     previous = rank;
-    keys(cursor, pmType === "link" ? ["type", "href", "props", "content"] : ["type", "content"], "inline wrapper");
-    if (!Array.isArray(cursor.content) || cursor.content.length !== 1) throw new TypeError("Inline wrapper requires one child");
-    marks.push(pmType === "link" ? { type: "link", attrs: linkAttributes(href(cursor.href), cursor.props) } : { type: pmType });
-    cursor = object2(cursor.content[0], "inline child");
+    keys(cursor2, pmType === "link" ? ["type", "href", "props", "content"] : ["type", "content"], "inline wrapper");
+    if (!Array.isArray(cursor2.content) || cursor2.content.length !== 1) throw new TypeError("Inline wrapper requires one child");
+    marks.push(pmType === "link" ? { type: "link", attrs: linkAttributes(href(cursor2.href), cursor2.props) } : { type: pmType });
+    cursor2 = object2(cursor2.content[0], "inline child");
   }
-  keys(cursor, ["type", "text"], "text");
-  if (typeof cursor.text !== "string" || !cursor.text) throw new TypeError("Expected nonempty text");
-  return { type: "text", ...marks.length ? { marks } : {}, text: cursor.text };
+  keys(cursor2, ["type", "text"], "text");
+  if (typeof cursor2.text !== "string" || !cursor2.text) throw new TypeError("Expected nonempty text");
+  return { type: "text", ...marks.length ? { marks } : {}, text: cursor2.text };
 }
 
 // src/document-reference.js
@@ -6002,12 +6002,12 @@ function valid(document2) {
   return document2;
 }
 var metadataKeys = ["frontmatter", "annotations", "resources", "meta"];
-function snapshotToDocument(snapshot2) {
+function snapshotToDocument(snapshot3) {
   const only2 = (value, keys3) => {
     if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !keys3.includes(k))) throw new TypeError("Invalid portable snapshot shape");
   };
-  only2(snapshot2, ["kind", "children", "metadata"]);
-  if (snapshot2.kind !== "fragment" || !Array.isArray(snapshot2.children)) throw new TypeError("Invalid portable fragment");
+  only2(snapshot3, ["kind", "children", "metadata"]);
+  if (snapshot3.kind !== "fragment" || !Array.isArray(snapshot3.children)) throw new TypeError("Invalid portable fragment");
   function nodes(children2, depth = 0) {
     if (depth > 64 || !Array.isArray(children2)) throw new TypeError("Invalid portable children");
     return children2.flatMap((n) => {
@@ -6033,14 +6033,14 @@ function snapshotToDocument(snapshot2) {
       return [{ type: n.name, ...Object.keys(attributes).length ? { attrs: attributes } : {}, ...content2.length ? { content: content2 } : {} }];
     });
   }
-  const pm = { type: "doc", content: nodes(snapshot2.children) };
+  const pm = { type: "doc", content: nodes(snapshot3.children) };
   proseMirrorToRelayMark(pm);
   const normalized2 = schema.nodeFromJSON(pm);
   normalized2.check();
   const document2 = proseMirrorToRelayMark(JSON.parse(JSON.stringify(normalized2.toJSON())));
-  if (Object.hasOwn(snapshot2, "metadata")) {
-    only2(snapshot2.metadata, metadataKeys);
-    Object.assign(document2, cloneCanonicalJSON(snapshot2.metadata));
+  if (Object.hasOwn(snapshot3, "metadata")) {
+    only2(snapshot3.metadata, metadataKeys);
+    Object.assign(document2, cloneCanonicalJSON(snapshot3.metadata));
   }
   return valid(document2);
 }
@@ -6095,7 +6095,7 @@ function clocks(values) {
   }
   return result;
 }
-function index(snapshot2) {
+function index(snapshot3) {
   const runs = [], nodes = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Map();
   let budget2 = 1e6;
   const step = () => {
@@ -6151,7 +6151,7 @@ function index(snapshot2) {
     } else size += 2;
     return { portable: { kind: "element", name: node.name, attributes: node.attributes, children: children2 }, size };
   }
-  const projected = visit(snapshot2, 0, 0), document2 = snapshotToDocument(projected.portable), pm = schema2.nodeFromJSON(relayMarkToProseMirror(document2));
+  const projected = visit(snapshot3, 0, 0), document2 = snapshotToDocument(projected.portable), pm = schema2.nodeFromJSON(relayMarkToProseMirror(document2));
   pm.check();
   if (pm.content.size !== projected.size) throw TypeError("Causal snapshot size disagrees with maintained schema");
   return { runs, nodes, document: document2, pm: JSON.parse(JSON.stringify(pm.toJSON())) };
@@ -6267,11 +6267,11 @@ function allocationCoverage(footprint, beforeClocks, afterClocks, after, fresh, 
   cover(fresh, allocationRuns);
 }
 function refuseReusedInsertedText(after, inserted, beforeClocks) {
-  let cursor = 0;
+  let cursor2 = 0;
   for (const run of after.runs) {
     const start = run.position, end = start + run.count;
-    while (cursor < inserted.length && inserted[cursor].destination_from + inserted[cursor].length <= start) cursor++;
-    for (let i = cursor; i < inserted.length && inserted[i].destination_from < end; i++) {
+    while (cursor2 < inserted.length && inserted[cursor2].destination_from + inserted[cursor2].length <= start) cursor2++;
+    for (let i = cursor2; i < inserted.length && inserted[i].destination_from < end; i++) {
       const from = Math.max(start, inserted[i].destination_from), to = Math.min(end, inserted[i].destination_from + inserted[i].length);
       if (from < to && run.item.clock + from - start < (beforeClocks.get(run.item.client) || 0)) throw TypeError("Semantic inserted text reused retained identity");
     }
@@ -6644,12 +6644,12 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   const json = JSON.parse(JSON.stringify(document2.toJSON()));
   const authored_document = proseMirrorToRelayMark(json);
   const inserted_ranges = [];
-  let cursor = 0;
+  let cursor2 = 0;
   for (const range of retained_ranges.slice().sort((a, b) => a.destination_from - b.destination_from)) {
-    if (range.destination_from > cursor) inserted_ranges.push({ destination_from: cursor, length: range.destination_from - cursor });
-    cursor = Math.max(cursor, range.destination_from + range.length);
+    if (range.destination_from > cursor2) inserted_ranges.push({ destination_from: cursor2, length: range.destination_from - cursor2 });
+    cursor2 = Math.max(cursor2, range.destination_from + range.length);
   }
-  if (cursor < document2.content.size) inserted_ranges.push({ destination_from: cursor, length: document2.content.size - cursor });
+  if (cursor2 < document2.content.size) inserted_ranges.push({ destination_from: cursor2, length: document2.content.size - cursor2 });
   return { document: json, authored_document, step_maps, retained_ranges, inserted_ranges, copied_subtree_ranges };
 }
 function buildContentEditWitness(evidence) {
@@ -6695,6 +6695,38 @@ function createContentEditWrite(before, steps, after) {
   visit(after);
   return { requiresWrite: (node) => needed.get(node) === true, planText: (sourceParent, sourceGroup, targetParent, targetGroup, sourceSpan) => planContentEditTextWrite(prepared, sourceParent, sourceGroup, targetParent, targetGroup, sourceSpan) };
 }
+
+// node_modules/lib0/binary.js
+var BIT8 = 128;
+var BIT18 = 1 << 17;
+var BIT19 = 1 << 18;
+var BIT20 = 1 << 19;
+var BIT21 = 1 << 20;
+var BIT22 = 1 << 21;
+var BIT23 = 1 << 22;
+var BIT24 = 1 << 23;
+var BIT25 = 1 << 24;
+var BIT26 = 1 << 25;
+var BIT27 = 1 << 26;
+var BIT28 = 1 << 27;
+var BIT29 = 1 << 28;
+var BIT30 = 1 << 29;
+var BIT31 = 1 << 30;
+var BIT32 = 1 << 31;
+var BITS17 = BIT18 - 1;
+var BITS18 = BIT19 - 1;
+var BITS19 = BIT20 - 1;
+var BITS20 = BIT21 - 1;
+var BITS21 = BIT22 - 1;
+var BITS22 = BIT23 - 1;
+var BITS23 = BIT24 - 1;
+var BITS24 = BIT25 - 1;
+var BITS25 = BIT26 - 1;
+var BITS26 = BIT27 - 1;
+var BITS27 = BIT28 - 1;
+var BITS28 = BIT29 - 1;
+var BITS29 = BIT30 - 1;
+var BITS30 = BIT31 - 1;
 
 // node_modules/lib0/webcrypto.js
 var subtle = crypto.subtle;
@@ -6825,13 +6857,284 @@ function protectedSkeleton(items) {
   return protectedItems;
 }
 
+// adapters/collaboration/owned-history-persistence.js
+import * as Y3 from "yjs";
+
+// node_modules/lib0/hash/sha256.js
+var rotr = (w, shift) => w >>> shift | w << 32 - shift;
+var sum0to256 = (x) => rotr(x, 2) ^ rotr(x, 13) ^ rotr(x, 22);
+var sum1to256 = (x) => rotr(x, 6) ^ rotr(x, 11) ^ rotr(x, 25);
+var sigma0to256 = (x) => rotr(x, 7) ^ rotr(x, 18) ^ x >>> 3;
+var sigma1to256 = (x) => rotr(x, 17) ^ rotr(x, 19) ^ x >>> 10;
+var K = new Uint32Array([
+  1116352408,
+  1899447441,
+  3049323471,
+  3921009573,
+  961987163,
+  1508970993,
+  2453635748,
+  2870763221,
+  3624381080,
+  310598401,
+  607225278,
+  1426881987,
+  1925078388,
+  2162078206,
+  2614888103,
+  3248222580,
+  3835390401,
+  4022224774,
+  264347078,
+  604807628,
+  770255983,
+  1249150122,
+  1555081692,
+  1996064986,
+  2554220882,
+  2821834349,
+  2952996808,
+  3210313671,
+  3336571891,
+  3584528711,
+  113926993,
+  338241895,
+  666307205,
+  773529912,
+  1294757372,
+  1396182291,
+  1695183700,
+  1986661051,
+  2177026350,
+  2456956037,
+  2730485921,
+  2820302411,
+  3259730800,
+  3345764771,
+  3516065817,
+  3600352804,
+  4094571909,
+  275423344,
+  430227734,
+  506948616,
+  659060556,
+  883997877,
+  958139571,
+  1322822218,
+  1537002063,
+  1747873779,
+  1955562222,
+  2024104815,
+  2227730452,
+  2361852424,
+  2428436474,
+  2756734187,
+  3204031479,
+  3329325298
+]);
+var HINIT = new Uint32Array([
+  1779033703,
+  3144134277,
+  1013904242,
+  2773480762,
+  1359893119,
+  2600822924,
+  528734635,
+  1541459225
+]);
+var Hasher = class {
+  constructor() {
+    const buf = new ArrayBuffer(64 + 64 * 4);
+    this._H = new Uint32Array(buf, 0, 8);
+    this._H.set(HINIT);
+    this._W = new Uint32Array(buf, 64, 64);
+  }
+  _updateHash() {
+    const H = this._H;
+    const W = this._W;
+    for (let t = 16; t < 64; t++) {
+      W[t] = sigma1to256(W[t - 2]) + W[t - 7] + sigma0to256(W[t - 15]) + W[t - 16];
+    }
+    let a = H[0];
+    let b = H[1];
+    let c = H[2];
+    let d = H[3];
+    let e = H[4];
+    let f = H[5];
+    let g = H[6];
+    let h = H[7];
+    for (let tt = 0, T1, T2; tt < 64; tt++) {
+      T1 = h + sum1to256(e) + (e & f ^ ~e & g) + K[tt] + W[tt] >>> 0;
+      T2 = sum0to256(a) + (a & b ^ a & c ^ b & c) >>> 0;
+      h = g;
+      g = f;
+      f = e;
+      e = d + T1 >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = T1 + T2 >>> 0;
+    }
+    H[0] += a;
+    H[1] += b;
+    H[2] += c;
+    H[3] += d;
+    H[4] += e;
+    H[5] += f;
+    H[6] += g;
+    H[7] += h;
+  }
+  /**
+   * Returns a 32-byte hash.
+   *
+   * @param {Uint8Array} data
+   */
+  digest(data) {
+    let i = 0;
+    for (; i + 56 <= data.length; ) {
+      let j2 = 0;
+      for (; j2 < 16 && i + 3 < data.length; j2++) {
+        this._W[j2] = data[i++] << 24 | data[i++] << 16 | data[i++] << 8 | data[i++];
+      }
+      if (i % 64 !== 0) {
+        this._W.fill(0, j2, 16);
+        while (i < data.length) {
+          this._W[j2] |= data[i] << (3 - i % 4) * 8;
+          i++;
+        }
+        this._W[j2] |= BIT8 << (3 - i % 4) * 8;
+      }
+      this._updateHash();
+    }
+    const isPaddedWith1 = i % 64 !== 0;
+    this._W.fill(0, 0, 16);
+    let j = 0;
+    for (; i < data.length; j++) {
+      for (let ci = 3; ci >= 0 && i < data.length; ci--) {
+        this._W[j] |= data[i++] << ci * 8;
+      }
+    }
+    if (!isPaddedWith1) {
+      this._W[j - (i % 4 === 0 ? 0 : 1)] |= BIT8 << (3 - i % 4) * 8;
+    }
+    this._W[14] = data.byteLength / BIT30;
+    this._W[15] = data.byteLength * 8;
+    this._updateHash();
+    const dv = new Uint8Array(32);
+    for (let i2 = 0; i2 < this._H.length; i2++) {
+      for (let ci = 0; ci < 4; ci++) {
+        dv[i2 * 4 + ci] = this._H[i2] >>> (3 - ci) * 8;
+      }
+    }
+    return dv;
+  }
+};
+var digest = (data) => new Hasher().digest(data);
+
+// adapters/collaboration/owned-history-persistence.js
+var hash = (bytes2) => Array.from(digest(bytes2), (v) => v.toString(16).padStart(2, "0")).join("");
+var encode = (bytes2) => {
+  let text = "";
+  for (let i = 0; i < bytes2.length; i += 4096) text += String.fromCharCode(...bytes2.subarray(i, i + 4096));
+  return btoa(text);
+};
+var decode = (text) => {
+  if (typeof text !== "string" || text.length > 32 * 1024 * 1024) throw TypeError("Invalid owned snapshot");
+  const bytes2 = Uint8Array.from(atob(text), (v) => v.charCodeAt(0));
+  if (encode(bytes2) !== text) throw TypeError("Noncanonical owned snapshot");
+  return bytes2;
+};
+function scope(options) {
+  if (!options || typeof options.document_id !== "string" || !options.document_id.length || options.document_id.length > 512 || typeof options.incarnation !== "string" || !options.incarnation.length || options.incarnation.length > 512) throw TypeError("Invalid local history scope");
+  return { document_id: options.document_id, incarnation: options.incarnation };
+}
+function fields2(value, keys3) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !keys3.includes(k)) || keys3.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid local history archive");
+}
+function relative(value, doc) {
+  const json = Y3.relativePositionToJSON(value);
+  if (Object.keys(json).some((key2) => !["type", "tname", "item", "assoc"].includes(key2))) throw TypeError("Invalid cursor identity");
+  for (const key2 of ["type", "item"]) if (json[key2]) {
+    const id2 = json[key2];
+    if (!Number.isSafeInteger(id2.client) || id2.client < 0 || !Number.isInteger(id2.clock) || id2.clock < 0) throw TypeError("Invalid cursor identity");
+    const item = Y3.getItem(doc.store, Y3.createID(id2.client, id2.clock));
+    if (!(item instanceof Y3.Item) || id2.clock >= item.id.clock + item.length) throw TypeError("Unavailable cursor identity");
+  }
+  if (json.tname !== void 0 && !doc.share.has(json.tname)) throw TypeError("Unavailable cursor root");
+  if (!Number.isInteger(json.assoc)) throw TypeError("Invalid cursor association");
+  return json;
+}
+function selection2(value, doc) {
+  if (value === null || value === void 0) return null;
+  const keys3 = ["type", "depth", "anchor", "head", "absAnchor", "absHead"];
+  if (Object.keys(value).some((k) => !keys3.includes(k)) || !["text", "node", "all", "cell", "nodeRange"].includes(value.type) || !["absAnchor", "absHead"].every((k) => Number.isInteger(value[k]) && value[k] >= 0 && value[k] <= 2147483647) || value.depth !== void 0 && (!Number.isInteger(value.depth) || value.depth < 0 || value.depth > 128)) throw TypeError("Invalid maintained cursor metadata");
+  return { type: value.type, anchor: relative(value.anchor, doc), head: relative(value.head, doc), absAnchor: value.absAnchor, absHead: value.absHead, ...value.depth === void 0 ? {} : { depth: value.depth } };
+}
+function cursor(value, doc) {
+  if (value === null) return null;
+  for (const pos of [value.anchor, value.head]) if (!pos || Object.keys(pos).some((key2) => !["type", "tname", "item", "assoc"].includes(key2))) throw TypeError("Invalid cursor identity");
+  const decoded = { ...value, anchor: Y3.createRelativePositionFromJSON(value.anchor), head: Y3.createRelativePositionFromJSON(value.head) };
+  selection2(decoded, doc);
+  return decoded;
+}
+function exportOwnedHistoryState(doc, manager, options) {
+  const qualified = scope(options), ownerID = readOwnedHistoryOwner(manager);
+  if (manager.doc !== doc || doc.gc || doc.store.pendingStructs || doc.store.pendingDs || typeof manager.exportHistoryStacks !== "function") throw TypeError("Unavailable settled local history owner");
+  const stacks = manager.exportHistoryStacks(), selections = { undo: [], redo: [] };
+  for (const name of ["undo", "redo"]) for (const item of stacks[name]) {
+    const known = options.selectionKey !== void 0 && item.meta.has(options.selectionKey);
+    selections[name].push(known ? selection2(item.meta.get(options.selectionKey), doc) : null);
+    if (known) item.meta.delete(options.selectionKey);
+  }
+  const checkpoint = captureMaintainedHistoryCheckpoint(doc, manager, ownerID, stacks);
+  const result = { scope: qualified, state_sha256: hash(Y3.encodeStateAsUpdate(doc)), snapshot_base64: encode(Y3.encodeSnapshot(Y3.snapshot(doc))), checkpoint, selections };
+  if (JSON.stringify(result).length > 32 * 1024 * 1024) throw TypeError("Oversized local history archive");
+  return result;
+}
+function restoreOwnedHistoryState(doc, manager, archive, options) {
+  fields2(archive, ["scope", "state_sha256", "snapshot_base64", "checkpoint", "selections"]);
+  fields2(archive.scope, ["document_id", "incarnation"]);
+  fields2(archive.selections, ["undo", "redo"]);
+  if (JSON.stringify(scope(options)) !== JSON.stringify(archive.scope) || JSON.stringify(archive).length > 32 * 1024 * 1024 || manager.doc !== doc || doc.gc || manager.undoStack.length || manager.redoStack.length) throw TypeError("Conflicting local history archive");
+  const ownerID = readOwnedHistoryOwner(manager);
+  if (archive.checkpoint.owner_id !== ownerID) throw TypeError("Conflicting local history owner");
+  const snapshot3 = Y3.decodeSnapshot(decode(archive.snapshot_base64)), cut = Y3.createDocFromSnapshot(doc, snapshot3);
+  try {
+    if (hash(Y3.encodeStateAsUpdate(cut)) !== archive.state_sha256) throw TypeError("Local history retained state mismatch");
+  } finally {
+    cut.destroy();
+  }
+  const selections = {};
+  for (const [name, wire] of [["undo", archive.checkpoint.undo_stack], ["redo", archive.checkpoint.redo_stack]]) {
+    if (!Array.isArray(archive.selections[name]) || archive.selections[name].length !== wire.length) throw TypeError("Local cursor stack mismatch");
+    selections[name] = archive.selections[name].map((value) => cursor(value, doc));
+    if (options.selectionKey === void 0 && selections[name].some((value) => value !== null)) throw TypeError("Cursor binding is required");
+  }
+  const scratch = new Y3.Doc({ gc: false });
+  Y3.applyUpdate(scratch, Y3.encodeStateAsUpdate(doc));
+  const check = new Y3.UndoManager([scratch.getXmlFragment("default"), scratch.getMap("relaymark")]);
+  bindOwnedHistoryOwner(check, ownerID);
+  try {
+    installMaintainedHistoryCheckpoint(scratch, check, archive.checkpoint, ownerID);
+  } finally {
+    check.destroy();
+    scratch.destroy();
+  }
+  protectOwnedHistoryBranches(manager);
+  installMaintainedHistoryCheckpoint(doc, manager, archive.checkpoint, ownerID);
+  for (const name of ["undo", "redo"]) manager[name + "Stack"].forEach((item, index2) => {
+    if (options.selectionKey !== void 0) item.meta.set(options.selectionKey, selections[name][index2]);
+  });
+  return { owner_id: ownerID, undo_count: manager.undoStack.length, redo_count: manager.redoStack.length };
+}
+
 // adapters/collaboration/content-edit-mutation.js
 var toBase64 = (bytes2) => (0, import_btoa.default)(Array.from(bytes2, (v) => String.fromCharCode(v)).join(""));
 var fromBase64 = (value) => Uint8Array.from((0, import_atob.default)(value), (v) => v.charCodeAt(0));
 var schema5 = createCanonicalEditorSchema();
 var MAX_BYTES = 8 * 1024 * 1024;
 var same2 = (a, b) => stableStringify(a) === stableStringify(b);
-function fields2(value, allowed, required = allowed) {
+function fields3(value, allowed, required = allowed) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !allowed.includes(k)) || required.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid mutation replay evidence");
 }
 function bytes(value) {
@@ -6841,8 +7144,8 @@ function bytes(value) {
   return result;
 }
 function owner(state) {
-  const doc = new Y3.Doc({ gc: false, guid: "relaymark:ephemeral-command-proof" });
-  Y3.applyUpdate(doc, state);
+  const doc = new Y4.Doc({ gc: false, guid: "relaymark:ephemeral-command-proof" });
+  Y4.applyUpdate(doc, state);
   if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled retained replay state");
   for (const name of doc.share.keys()) if (!["default", "relaymark"].includes(name)) throw TypeError("Unknown retained replay root");
   if (!doc.share.has("default")) throw TypeError("Missing retained editor root");
@@ -6917,7 +7220,7 @@ function mergeRecords(records, withOrigins) {
   return out;
 }
 function normalized(footprint, before, known, deleted) {
-  fields2(footprint, ["state_vector", "structs", "declared_deletes", "deleted_items"]);
+  fields3(footprint, ["state_vector", "structs", "declared_deletes", "deleted_items"]);
   if (!Array.isArray(footprint.structs) || !Array.isArray(footprint.deleted_items) || !Array.isArray(footprint.declared_deletes) || footprint.structs.length + footprint.deleted_items.length + footprint.declared_deletes.length > 1e6) throw TypeError("Invalid original mutation footprint");
   const structs = [];
   for (const r of footprint.structs) {
@@ -6936,10 +7239,10 @@ function normalized(footprint, before, known, deleted) {
 }
 function replayContentEditMutation(evidence) {
   if (evidence.operation?.history) return replayOwnedHistory(evidence);
-  fields2(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint"]);
+  fields3(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint"]);
   const senderBytes = bytes(evidence.sender_state_base64), currentBytes = bytes(evidence.current_state_base64), sender = owner(senderBytes), current = owner(currentBytes);
   try {
-    const before = Y3.decodeStateVector(Y3.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
+    const before = Y4.decodeStateVector(Y4.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
     for (const r of evidence.footprint.structs ?? []) if (r.item.clock + r.count > (before.get(r.item.client) || 0)) clients.add(r.item.client);
     if (clients.size > 1 || (clients.size === 0 ? evidence.writer_client !== null : !clients.has(evidence.writer_client) || !Number.isSafeInteger(evidence.writer_client) || evidence.writer_client < 0)) throw TypeError("Replay writer must be independently observed from fresh structs");
     const initialized = initProseMirrorDoc(sender.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), evidence.operation);
@@ -6963,9 +7266,9 @@ function replayContentEditMutation(evidence) {
       list.push(record);
       known.set(record.item.client, list);
     }
-    const ds = Y3.createDeleteSetFromStructStore(current.store), deleted = [];
+    const ds = Y4.createDeleteSetFromStructStore(current.store), deleted = [];
     for (const [client, ranges] of ds.clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
-    Y3.applyUpdate(current, update);
+    Y4.applyUpdate(current, update);
     const footprint = captureContentEditFootprint(current, update), actual = normalized(evidence.footprint, before, known, deleted), replayed = normalized(footprint, before, known, deleted);
     if (!same2(actual, replayed)) throw TypeError("Original mutation differs from executed maintained command");
     return { footprint, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, retained_field_changes: fieldChanges(replayed) };
@@ -6983,7 +7286,7 @@ function readContentEditDocument(state_base64) {
   }
 }
 function produceContentEdit(input) {
-  fields2(input, ["state_base64", "writer_client", "transaction_id", "owner_id", "steps"]);
+  fields3(input, ["state_base64", "writer_client", "transaction_id", "owner_id", "steps"]);
   canonicalOperationID(input.transaction_id);
   canonicalOperationID(input.owner_id);
   if (input.writer_client !== null && (!Number.isSafeInteger(input.writer_client) || input.writer_client < 0)) throw TypeError("Invalid actual command writer");
@@ -6992,7 +7295,7 @@ function produceContentEdit(input) {
   try {
     const root = doc.getXmlFragment("default"), metadata = doc.getMap("relaymark");
     const beforeSnapshot = captureContentEditSnapshot(root), beforeClocks = captureContentEditFootprint(doc, Uint8Array.of(0, 0)).state_vector;
-    const before_snapshot_base64 = toBase64(Y3.encodeSnapshot(Y3.snapshot(doc)));
+    const before_snapshot_base64 = toBase64(Y4.encodeSnapshot(Y4.snapshot(doc)));
     const initialized = initProseMirrorDoc(root, schema5), operation = { kind: "content_edit", steps: input.steps };
     const expected = applyContentEdit(initialized.doc.toJSON(), operation);
     let result = initialized.doc;
@@ -7002,7 +7305,7 @@ function produceContentEdit(input) {
       result = applied.doc;
     }
     if (!same2(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
-    manager = new Y3.UndoManager([root, metadata], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+    manager = new Y4.UndoManager([root, metadata], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
     protectOwnedHistoryBranches(manager);
     bindOwnedHistoryOwner(manager, input.owner_id);
     const bind = (event) => bindOwnedCommandGroup(manager, event, input.transaction_id);
@@ -7024,28 +7327,28 @@ function produceContentEdit(input) {
     const witness = buildContentEditWitness({ sender_before_snapshot: beforeSnapshot, sender_after_snapshot: afterSnapshot, before_snapshot: beforeSnapshot, after_snapshot: afterSnapshot, before_state_vector: beforeClocks, operation: { ...operation, group }, footprint });
     const content_edit = { before_snapshot_base64, steps: input.steps, copies: witness.proven_copies, group };
     const replay = replayContentEditMutation({ sender_state_base64: input.state_base64, current_state_base64: input.state_base64, writer_client: actualWriter, operation: { ...operation, copies: witness.proven_copies, group }, footprint });
-    return { update_base64: toBase64(update), state_base64: toBase64(Y3.encodeStateAsUpdate(doc)), before_snapshot_base64, authored_document: witness.authored_document, text_items: witness.text_items, content_edit, proof: { ...witness, ...replay, requires_mutation_correspondence: false } };
+    return { update_base64: toBase64(update), state_base64: toBase64(Y4.encodeStateAsUpdate(doc)), before_snapshot_base64, authored_document: witness.authored_document, text_items: witness.text_items, content_edit, proof: { ...witness, ...replay, requires_mutation_correspondence: false } };
   } finally {
     manager?.destroy();
     doc.destroy();
   }
 }
 function observedWriter(footprint, doc) {
-  const clocks2 = Y3.decodeStateVector(Y3.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
+  const clocks2 = Y4.decodeStateVector(Y4.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
   for (const item of footprint.structs) if (item.item.clock + item.count > (clocks2.get(item.item.client) || 0)) clients.add(item.item.client);
   if (clients.size > 1) throw TypeError("Multiple actual command writers");
   return clients.size ? [...clients][0] : null;
 }
 function compareUpdate(current, originalFootprint, update) {
-  const state = Y3.encodeStateAsUpdate(current), before = Y3.decodeStateVector(Y3.encodeStateVector(current)), known = /* @__PURE__ */ new Map();
+  const state = Y4.encodeStateAsUpdate(current), before = Y4.decodeStateVector(Y4.encodeStateVector(current)), known = /* @__PURE__ */ new Map();
   for (const record of captureContentEditFootprint(current, state).structs) {
     const list = known.get(record.item.client) || [];
     list.push(record);
     known.set(record.item.client, list);
   }
   const deleted = [];
-  for (const [client, ranges] of Y3.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
-  Y3.applyUpdate(current, update);
+  for (const [client, ranges] of Y4.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
+  Y4.applyUpdate(current, update);
   const footprint = captureContentEditFootprint(current, update);
   if (!same2(normalized(originalFootprint, before, known, deleted), normalized(footprint, before, known, deleted))) throw TypeError("Original mutation differs from maintained owned history");
   return { footprint, retained_field_changes: fieldChanges(normalized(footprint, before, known, deleted)) };
@@ -7059,23 +7362,23 @@ function redoneLinks(doc) {
   let remaining = 1e6;
   for (const structs of doc.store.clients.values()) for (const item of structs) {
     if (--remaining < 0) throw TypeError("Owned history observation budget exhausted");
-    if (item instanceof Y3.Item) result.set(item.id.client + ":" + item.id.clock, item.redone ? item.redone.client + ":" + item.redone.clock : null);
+    if (item instanceof Y4.Item) result.set(item.id.client + ":" + item.id.clock, item.redone ? item.redone.client + ":" + item.redone.clock : null);
   }
   return result;
 }
 function restoredCopies(doc, prior, links) {
-  const copies = [], snapshot2 = captureContentEditSnapshot(doc.getXmlFragment("default")), visible = /* @__PURE__ */ new Set();
+  const copies = [], snapshot3 = captureContentEditSnapshot(doc.getXmlFragment("default")), visible = /* @__PURE__ */ new Set();
   let remaining = 1e6;
   function visit(node) {
     if (node.kind === "text") visible.add(node.type.client + ":" + node.type.clock);
     else for (const child of node.children) visit(child);
   }
-  visit(snapshot2);
+  visit(snapshot3);
   for (const structs of doc.store.clients.values()) for (const source of structs) {
     if (--remaining < 0) throw TypeError("Restored copy observation budget exhausted");
-    if (!(source instanceof Y3.Item) || !(source.content instanceof Y3.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
-    const destination = Y3.getItem(doc.store, source.redone);
-    if (!(destination instanceof Y3.Item) || destination.id.clock > source.redone.clock || destination.id.clock + destination.length < source.redone.clock + source.length || !(destination.content instanceof Y3.ContentString) || destination.content.str.slice(source.redone.clock - destination.id.clock, source.redone.clock - destination.id.clock + source.length) !== source.content.str || !(source.parent instanceof Y3.XmlText) || !(destination.parent instanceof Y3.XmlText) || !source.parent._item || !destination.parent._item) throw TypeError("Unavailable exact maintained restored copy");
+    if (!(source instanceof Y4.Item) || !(source.content instanceof Y4.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
+    const destination = Y4.getItem(doc.store, source.redone);
+    if (!(destination instanceof Y4.Item) || destination.id.clock > source.redone.clock || destination.id.clock + destination.length < source.redone.clock + source.length || !(destination.content instanceof Y4.ContentString) || destination.content.str.slice(source.redone.clock - destination.id.clock, source.redone.clock - destination.id.clock + source.length) !== source.content.str || !(source.parent instanceof Y4.XmlText) || !(destination.parent instanceof Y4.XmlText) || !source.parent._item || !destination.parent._item) throw TypeError("Unavailable exact maintained restored copy");
     if (destination.deleted || source.redone.clock < (prior.get(destination.id.client) || 0) || !visible.has(destination.parent._item.id.client + ":" + destination.parent._item.id.clock)) throw TypeError("Unreachable maintained restored copy");
     const selected = (item) => ({ runs: [{ type: { client: item.parent._item.id.client, clock: item.parent._item.id.clock }, item: { client: item.id.client, clock: item.id.clock }, count: item.length }] });
     const target = selected(destination);
@@ -7086,7 +7389,7 @@ function restoredCopies(doc, prior, links) {
   return copies;
 }
 function ownedTextAccounting(doc, before, copies) {
-  const snapshot2 = captureContentEditSnapshot(doc.getXmlFragment("default")), fresh = [];
+  const snapshot3 = captureContentEditSnapshot(doc.getXmlFragment("default")), fresh = [];
   function visit(node) {
     if (node.kind === "text") {
       for (const run of node.runs) {
@@ -7095,7 +7398,7 @@ function ownedTextAccounting(doc, before, copies) {
       }
     } else for (const child of node.children) visit(child);
   }
-  visit(snapshot2);
+  visit(snapshot3);
   const extent = (ranges) => {
     let total = 0;
     const groups = /* @__PURE__ */ new Map();
@@ -7122,10 +7425,10 @@ function ownedTextAccounting(doc, before, copies) {
 }
 var ownedObservations = /* @__PURE__ */ new WeakMap();
 function captureOwnedHistoryObservation(doc) {
-  if (!(doc instanceof Y3.Doc) || doc.gc !== false || doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unavailable retained owned history observer");
+  if (!(doc instanceof Y4.Doc) || doc.gc !== false || doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unavailable retained owned history observer");
   captureContentEditSnapshot(doc.getXmlFragment("default"));
   const token = Object.freeze({});
-  ownedObservations.set(token, { doc, before: Y3.decodeStateVector(Y3.encodeStateVector(doc)), links: redoneLinks(doc) });
+  ownedObservations.set(token, { doc, before: Y4.decodeStateVector(Y4.encodeStateVector(doc)), links: redoneLinks(doc) });
   return token;
 }
 function finishOwnedHistoryObservation(doc, observation) {
@@ -7137,12 +7440,12 @@ function finishOwnedHistoryObservation(doc, observation) {
 }
 var historyKey = "relaymark:operation_ids";
 function historyID(value) {
-  fields2(value, ["client", "clock"]);
+  fields3(value, ["client", "clock"]);
   if (!Number.isSafeInteger(value.client) || value.client < 0 || !Number.isInteger(value.clock) || value.clock < 0 || value.clock > 4294967295) throw TypeError("Invalid retained history identity");
   return value;
 }
 function historyRange(value) {
-  fields2(value, ["item", "count"]);
+  fields3(value, ["item", "count"]);
   historyID(value.item);
   if (!Number.isInteger(value.count) || value.count < 1 || value.item.clock + value.count > 4294967296) throw TypeError("Invalid retained history extent");
   return value;
@@ -7152,16 +7455,16 @@ function historyIntervals(set) {
 }
 function historySet(value) {
   if (!Array.isArray(value) || value.length > 1e6) throw TypeError("Invalid retained stack set");
-  const set = Y3.createDeleteSet();
+  const set = Y4.createDeleteSet();
   let previous = -1, total = 0;
   for (const row of value) {
-    fields2(row, ["client", "ranges"]);
+    fields3(row, ["client", "ranges"]);
     if (!Number.isSafeInteger(row.client) || row.client <= previous || !Array.isArray(row.ranges) || !row.ranges.length) throw TypeError("Noncanonical retained stack set");
     previous = row.client;
     let end = -1;
     const ranges = [];
     for (const range of row.ranges) {
-      fields2(range, ["clock", "len"]);
+      fields3(range, ["clock", "len"]);
       if (!Number.isInteger(range.clock) || range.clock <= end || !Number.isInteger(range.len) || range.len < 1 || range.clock + range.len > 4294967296 || ++total > 1e6) throw TypeError("Invalid retained stack extent");
       end = range.clock + range.len;
       ranges.push({ ...range });
@@ -7178,10 +7481,10 @@ function stackWire(stack, ownerID) {
     return { insertions: historyIntervals(item.insertions), deletions: historyIntervals(item.deletions), group: cloneCanonicalJSON(group) };
   });
 }
-function stackItems(value, ownerID) {
-  if (!Array.isArray(value) || value.length > 4096) throw TypeError("Oversized retained stack");
+function stackItems(value, ownerID, stackLimit = 4096) {
+  if (!Array.isArray(value) || value.length > stackLimit) throw TypeError("Oversized retained stack");
   return value.map((item) => {
-    fields2(item, ["insertions", "deletions", "group"]);
+    fields3(item, ["insertions", "deletions", "group"]);
     const group = validateOwnedCommandGroup(item.group);
     if (group.owner_id !== ownerID) throw TypeError("Conflicting owned checkpoint");
     return { insertions: historySet(item.insertions), deletions: historySet(item.deletions), meta: /* @__PURE__ */ new Map([[historyKey, cloneCanonicalJSON(group)]]) };
@@ -7189,32 +7492,32 @@ function stackItems(value, ownerID) {
 }
 function checkpointItem(transaction, id2, count) {
   historyRange({ item: id2, count });
-  const item = Y3.getItemCleanStart(transaction, Y3.createID(id2.client, id2.clock));
-  Y3.getItemCleanEnd(transaction, transaction.doc.store, Y3.createID(id2.client, id2.clock + count - 1));
-  if (!(item instanceof Y3.Item) || item.content instanceof Y3.ContentDeleted) throw TypeError("Unavailable retained checkpoint item");
+  const item = Y4.getItemCleanStart(transaction, Y4.createID(id2.client, id2.clock));
+  Y4.getItemCleanEnd(transaction, transaction.doc.store, Y4.createID(id2.client, id2.clock + count - 1));
+  if (!(item instanceof Y4.Item) || item.content instanceof Y4.ContentDeleted) throw TypeError("Unavailable retained checkpoint item");
   return item;
 }
 function sameRestoredContent(source, target) {
   if (source.content.constructor !== target.content.constructor) return false;
-  if (source.content instanceof Y3.ContentFormat) return source.content.key === target.content.key && same2(source.content.value ?? null, target.content.value ?? null);
-  if (source.content instanceof Y3.ContentType) {
+  if (source.content instanceof Y4.ContentFormat) return source.content.key === target.content.key && same2(source.content.value ?? null, target.content.value ?? null);
+  if (source.content instanceof Y4.ContentType) {
     const a = source.content.type, b = target.content.type;
-    return a.constructor === b.constructor && (!(a instanceof Y3.XmlElement) || a.nodeName === b.nodeName);
+    return a.constructor === b.constructor && (!(a instanceof Y4.XmlElement) || a.nodeName === b.nodeName);
   }
   return same2(source.content.getContent(), target.content.getContent());
 }
-function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
-  fields2(checkpoint, ["owner_id", "state_vector", "undo_stack", "redo_stack", "redone", "retained"]);
+function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID, stackLimit = 4096) {
+  fields3(checkpoint, ["owner_id", "state_vector", "undo_stack", "redo_stack", "redone", "retained"]);
   if (checkpoint.owner_id !== ownerID || JSON.stringify(checkpoint).length > 32 * 1024 * 1024) throw TypeError("Conflicting or oversized owned checkpoint");
   if (!Array.isArray(checkpoint.state_vector) || !Array.isArray(checkpoint.redone) || !Array.isArray(checkpoint.retained) || checkpoint.redone.length + checkpoint.retained.length > 1e6) throw TypeError("Invalid bounded owned checkpoint");
   const clocks2 = /* @__PURE__ */ new Map();
   for (const entry of checkpoint.state_vector) {
-    fields2(entry, ["client", "clock"]);
+    fields3(entry, ["client", "clock"]);
     if (!Number.isSafeInteger(entry.client) || entry.client < 0 || !Number.isInteger(entry.clock) || entry.clock < 0 || entry.clock > 4294967296 || clocks2.has(entry.client)) throw TypeError("Invalid checkpoint frontier");
     clocks2.set(entry.client, entry.clock);
   }
-  const undo = stackItems(checkpoint.undo_stack, ownerID), redo = stackItems(checkpoint.redo_stack, ownerID), seen = /* @__PURE__ */ new Set();
-  Y3.transact(doc, (transaction) => {
+  const undo = stackItems(checkpoint.undo_stack, ownerID, stackLimit), redo = stackItems(checkpoint.redo_stack, ownerID, stackLimit), seen = /* @__PURE__ */ new Set();
+  Y4.transact(doc, (transaction) => {
     for (const row of checkpoint.retained) {
       historyRange(row);
       if (row.item.clock + row.count > (clocks2.get(row.item.client) || 0)) throw TypeError("Retained item outside checkpoint frontier");
@@ -7223,7 +7526,7 @@ function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
         const item = checkpointItem(transaction, { client: row.item.client, clock: row.item.clock + offset }, row.count - offset);
         offset += item.length;
         let parent2 = item, depth = 0;
-        while (parent2 instanceof Y3.Item) {
+        while (parent2 instanceof Y4.Item) {
           if (++depth > 128) throw TypeError("Retained checkpoint parent limit");
           parent2.keep = true;
           parent2 = parent2.parent?._item;
@@ -7231,7 +7534,7 @@ function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
       }
     }
     for (const row of checkpoint.redone) {
-      fields2(row, ["item", "count", "target"]);
+      fields3(row, ["item", "count", "target"]);
       historyRange({ item: row.item, count: row.count });
       historyID(row.target);
       if (row.item.clock + row.count > (clocks2.get(row.item.client) || 0) || row.target.clock + row.count > (clocks2.get(row.target.client) || 0) || seen.has(row.item.client + ":" + row.item.clock)) throw TypeError("Invalid checkpoint redone edge");
@@ -7243,57 +7546,64 @@ function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
         source = checkpointItem(transaction, { client: row.item.client, clock: row.item.clock + offset }, count);
         target = checkpointItem(transaction, { client: row.target.client, clock: row.target.clock + offset }, count);
         if (source === target || !sameRestoredContent(source, target)) throw TypeError("Mismatched checkpoint redone content");
-        source.redone = Y3.createID(target.id.client, target.id.clock);
+        source.redone = Y4.createID(target.id.client, target.id.clock);
         offset += count;
       }
     }
-    for (const item of [...undo, ...redo]) Y3.iterateDeletedStructs(transaction, item.deletions, (struct) => {
-      if (!(struct instanceof Y3.Item) || !struct.keep || struct.content instanceof Y3.ContentDeleted) throw TypeError("Unretained owned stack deletion");
+    for (const item of [...undo, ...redo]) Y4.iterateDeletedStructs(transaction, item.deletions, (struct) => {
+      if (!(struct instanceof Y4.Item) || !struct.keep || struct.content instanceof Y4.ContentDeleted) throw TypeError("Unretained owned stack deletion");
     });
   }, "relaymark:checkpoint-restore");
   for (const structs of doc.store.clients.values()) for (const item of structs) {
-    if (!(item instanceof Y3.Item) || !item.redone) continue;
+    if (!(item instanceof Y4.Item) || !item.redone) continue;
     const chain = /* @__PURE__ */ new Set();
     let current = item;
     while (current.redone) {
       const key2 = current.id.client + ":" + current.id.clock;
       if (chain.has(key2) || chain.size > 1e6) throw TypeError("Cyclic checkpoint redone edge");
       chain.add(key2);
-      current = Y3.getItem(doc.store, current.redone);
-      if (!(current instanceof Y3.Item)) throw TypeError("Unavailable checkpoint redone target");
+      current = Y4.getItem(doc.store, current.redone);
+      if (!(current instanceof Y4.Item)) throw TypeError("Unavailable checkpoint redone target");
     }
   }
   if (typeof manager.restoreHistoryStacks !== "function") throw TypeError("Maintained stack initialization hook unavailable");
   manager.restoreHistoryStacks(undo, redo);
 }
+function captureMaintainedHistoryCheckpoint(doc, manager, ownerID, stacksOverride = null) {
+  if (manager.doc !== doc || doc.gc !== false) throw TypeError("Unavailable retained history owner");
+  if (typeof manager.exportHistoryStacks !== "function") throw TypeError("Maintained stack export hook unavailable");
+  const stacks = stacksOverride ?? manager.exportHistoryStacks(), redone = [], kept = [];
+  let budget2 = 1e6;
+  for (const structs of doc.store.clients.values()) for (const item of structs) {
+    if (--budget2 < 0) throw TypeError("Checkpoint retained-item budget exhausted");
+    if (!(item instanceof Y4.Item)) continue;
+    const range = { item: { client: item.id.client, clock: item.id.clock }, count: item.length };
+    if (item.redone) redone.push({ ...range, target: { client: item.redone.client, clock: item.redone.clock } });
+    if (item.keep) kept.push(range);
+  }
+  const result = { owner_id: ownerID, state_vector: captureContentEditFootprint(doc, Uint8Array.of(0, 0)).state_vector, undo_stack: stackWire(stacks.undo, ownerID), redo_stack: stackWire(stacks.redo, ownerID), redone, retained: kept };
+  if (JSON.stringify(result).length > 32 * 1024 * 1024) throw TypeError("Oversized owned checkpoint");
+  return result;
+}
+function installMaintainedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
+  return installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID, 16384);
+}
 function createOwnedHistoryCheckpoint(input) {
-  fields2(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id"], ["receipts", "current_state_base64", "owner_id"]);
+  fields3(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id"], ["receipts", "current_state_base64", "owner_id"]);
   canonicalOperationID(input.owner_id);
   if (Object.hasOwn(input, "initial_state_base64") === Object.hasOwn(input, "checkpoint")) throw TypeError("Exactly one trusted checkpoint basis is required");
   if (!Array.isArray(input.receipts)) throw TypeError("Unavailable bounded accepted history");
   const baseline = input.checkpoint ? input.receipts[0]?.sender_state_base64 ?? input.current_state_base64 : input.initial_state_base64;
   const retained = retainedHistoryOwner(baseline, input.receipts, input.owner_id, input.checkpoint ?? null);
   try {
-    Y3.applyUpdate(retained.doc, bytes(input.current_state_base64));
+    Y4.applyUpdate(retained.doc, bytes(input.current_state_base64));
     const actual = owner(bytes(input.current_state_base64));
     try {
-      if (!same2(captureContentEditFootprint(retained.doc, Y3.encodeStateAsUpdate(retained.doc)), captureContentEditFootprint(actual, Y3.encodeStateAsUpdate(actual)))) throw TypeError("Checkpoint does not reconstruct exact retained cut");
+      if (!same2(captureContentEditFootprint(retained.doc, Y4.encodeStateAsUpdate(retained.doc)), captureContentEditFootprint(actual, Y4.encodeStateAsUpdate(actual)))) throw TypeError("Checkpoint does not reconstruct exact retained cut");
     } finally {
       actual.destroy();
     }
-    if (typeof retained.manager.exportHistoryStacks !== "function") throw TypeError("Maintained stack export hook unavailable");
-    const stacks = retained.manager.exportHistoryStacks(), redone = [], kept = [];
-    let budget2 = 1e6;
-    for (const structs of retained.doc.store.clients.values()) for (const item of structs) {
-      if (--budget2 < 0) throw TypeError("Checkpoint retained-item budget exhausted");
-      if (!(item instanceof Y3.Item)) continue;
-      const range = { item: { client: item.id.client, clock: item.id.clock }, count: item.length };
-      if (item.redone) redone.push({ ...range, target: { client: item.redone.client, clock: item.redone.clock } });
-      if (item.keep) kept.push(range);
-    }
-    const result = { owner_id: input.owner_id, state_vector: captureContentEditFootprint(retained.doc, Uint8Array.of(0, 0)).state_vector, undo_stack: stackWire(stacks.undo, input.owner_id), redo_stack: stackWire(stacks.redo, input.owner_id), redone, retained: kept };
-    if (JSON.stringify(result).length > 32 * 1024 * 1024) throw TypeError("Oversized owned checkpoint");
-    return result;
+    return captureMaintainedHistoryCheckpoint(retained.doc, retained.manager, input.owner_id);
   } finally {
     retained.destroy();
   }
@@ -7301,7 +7611,7 @@ function createOwnedHistoryCheckpoint(input) {
 function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoint = null) {
   canonicalOperationID(ownerID);
   if (!Array.isArray(receipts) || receipts.length > 4096 || !checkpoint && receipts.length < 1) throw TypeError("Unavailable bounded accepted history");
-  const doc = owner(bytes(initial_state_base64)), origin = {}, manager = new Y3.UndoManager([doc.getXmlFragment("default"), doc.getMap("relaymark")], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+  const doc = owner(bytes(initial_state_base64)), origin = {}, manager = new Y4.UndoManager([doc.getXmlFragment("default"), doc.getMap("relaymark")], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
   protectOwnedHistoryBranches(manager);
   bindOwnedHistoryOwner(manager, ownerID);
   let activeID = null, popped = null, lastRestored = [];
@@ -7318,7 +7628,7 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
     validateOwnedHistory(operation.history);
     const stack = operation.history.kind === "undo" ? manager.undoStack : manager.redoStack, group = stack.at(-1)?.meta.get("relaymark:operation_ids");
     if (operation.history.owner_id !== ownerID || !group || !same2(group, { owner_id: operation.history.owner_id, reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
-    const prior = Y3.decodeStateVector(Y3.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
+    const prior = Y4.decodeStateVector(Y4.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
     doc.clientID = writer ?? 0;
     popped = null;
     doc.on("update", capture);
@@ -7337,7 +7647,7 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
     let total = bytes(initial_state_base64).length;
     const seen = /* @__PURE__ */ new Set();
     for (const receipt of receipts) {
-      fields2(receipt, ["transaction_id", "operation", "update_base64", "sender_state_base64"]);
+      fields3(receipt, ["transaction_id", "operation", "update_base64", "sender_state_base64"]);
       if (seen.has(receipt.transaction_id)) throw TypeError("Duplicate accepted command receipt");
       seen.add(receipt.transaction_id);
       const sender = bytes(receipt.sender_state_base64), update = bytes(receipt.update_base64);
@@ -7345,11 +7655,11 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
       if (receiptOwner !== ownerID) throw TypeError("Mixed maintained history owner receipts");
       total += sender.length + update.length;
       if (total > 32 * 1024 * 1024) throw TypeError("Oversized accepted history replay");
-      Y3.applyUpdate(doc, sender);
+      Y4.applyUpdate(doc, sender);
       if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled accepted sender frontier");
-      const beforeBytes = Y3.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
+      const beforeBytes = Y4.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
       try {
-        Y3.applyUpdate(candidate, update);
+        Y4.applyUpdate(candidate, update);
         const footprint = captureContentEditFootprint(candidate, update), writer = observedWriter(footprint, doc);
         if (receipt.operation.history) {
           const actual = inverse(receipt.operation, writer), locked = owner(beforeBytes);
@@ -7365,7 +7675,7 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
           if (group.reference === receipt.transaction_id) manager.stopCapturing();
           activeID = receipt.transaction_id;
           try {
-            Y3.applyUpdate(doc, update, origin);
+            Y4.applyUpdate(doc, update, origin);
           } finally {
             activeID = null;
           }
@@ -7388,24 +7698,24 @@ function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoin
 }
 function replayOwnedHistory(evidence) {
   const common = ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint", "receipts"];
-  fields2(evidence, [...common, "initial_state_base64", "checkpoint"], common);
+  fields3(evidence, [...common, "initial_state_base64", "checkpoint"], common);
   validateOwnedHistory(evidence.operation.history);
   if (Object.hasOwn(evidence, "initial_state_base64") === Object.hasOwn(evidence, "checkpoint")) throw TypeError("Exactly one trusted owned-history basis is required");
   const baseline = evidence.checkpoint ? evidence.receipts[0]?.sender_state_base64 ?? evidence.sender_state_base64 : evidence.initial_state_base64;
   const retained = retainedHistoryOwner(baseline, evidence.receipts, evidence.operation.history.owner_id, evidence.checkpoint ?? null);
   const { doc, inverse } = retained;
   try {
-    Y3.applyUpdate(doc, bytes(evidence.sender_state_base64));
-    const candidateFrontier = Y3.decodeStateVector(Y3.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
+    Y4.applyUpdate(doc, bytes(evidence.sender_state_base64));
+    const candidateFrontier = Y4.decodeStateVector(Y4.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
     try {
-      if (!same2([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y3.decodeStateVector(Y3.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same2(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same2(intervals(captureContentEditFootprint(doc, Y3.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y3.encodeStateAsUpdate(sender)).declared_deletes)) || !same2(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
+      if (!same2([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y4.decodeStateVector(Y4.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same2(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same2(intervals(captureContentEditFootprint(doc, Y4.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y4.encodeStateAsUpdate(sender)).declared_deletes)) || !same2(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
     } finally {
       sender.destroy();
     }
     const current = owner(bytes(evidence.current_state_base64));
     try {
       if (observedWriter(evidence.footprint, current) !== evidence.writer_client) throw TypeError("History writer is not independently observed");
-      const frontier = Y3.decodeStateVector(Y3.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, retained.restored());
+      const frontier = Y4.decodeStateVector(Y4.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, retained.restored());
       return { ...proof, ...accounting, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: retained.restored() };
     } finally {
       current.destroy();
@@ -7415,10 +7725,14 @@ function replayOwnedHistory(evidence) {
   }
 }
 export {
+  captureMaintainedHistoryCheckpoint,
   captureOwnedHistoryObservation,
   createOwnedHistoryCheckpoint,
+  exportOwnedHistoryState,
   finishOwnedHistoryObservation,
+  installMaintainedHistoryCheckpoint,
   produceContentEdit,
   readContentEditDocument,
-  replayContentEditMutation
+  replayContentEditMutation,
+  restoreOwnedHistoryState
 };
