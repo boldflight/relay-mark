@@ -158,6 +158,52 @@ public struct RelayMarkCollaborativeProse {
     private let spans: [Span]
     private let containerOffsets: [[Int]: [Int]]
 
+    /// The same portable mark presentation used by document text leaves.
+    /// Hosts use actual maintained stored attributes for an empty typing caret.
+    public static func attributedText(text: String, attributes: Data) throws -> AttributedString {
+        guard let values=try JSONSerialization.jsonObject(with:attributes) as? [String:Any] else {throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument}
+        try RelayMarkSourceCodec.validateTextAttributes(values)
+        return try projectedText(text:text,attributes:values,dialect:.rich,codeBlock:false)
+    }
+
+    private static func projectedText(text insert:String,attributes:[String:Any],dialect:Dialect,codeBlock:Bool) throws -> AttributedString {
+        let offered = Set(RelayMarkOfferedMark.allCases.map(\.rawValue))
+        let allowed = Set(["bold", "italic", "strike", "code", "link"])
+            .union(dialect == .rich ? offered : [])
+        if !Set(attributes.keys).isSubset(of: allowed) { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+        if codeBlock && !attributes.isEmpty { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+        if attributes["code"] != nil && (attributes.count > 1 || insert.contains("\r") || insert.contains("\n")) { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+        for key in ["bold", "italic", "strike", "code"] where attributes[key] != nil {
+            if !(attributes[key] is [String: Any]) { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+        }
+        var offeredMarks = Set<RelayMarkOfferedMark>()
+        if dialect == .rich {
+            for mark in RelayMarkOfferedMark.allCases where attributes[mark.rawValue] != nil {
+                if (attributes[mark.rawValue] as? [String: Any])?.isEmpty == true {
+                    offeredMarks.insert(mark)
+                } else { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+            }
+        }
+        var part = AttributedString(insert)
+        var intent: InlinePresentationIntent = []
+        if attributes["bold"] != nil { intent.insert(.stronglyEmphasized) }
+        if attributes["italic"] != nil { intent.insert(.emphasized) }
+        if attributes["strike"] != nil { intent.insert(.strikethrough) }
+        if attributes["code"] != nil { intent.insert(.code) }
+        part.inlinePresentationIntent = intent
+        if !offeredMarks.isEmpty { part[RelayMarkOfferedMarksAttribute.self] = offeredMarks }
+        if let mark = attributes["link"] {
+            if let link = mark as? [String: Any], let href = link["href"] as? String,
+                Set(link.keys).isSubset(of: dialect == .rich
+                    ? ["href", "target", "rel", "class", "title"] : ["href", "target", "rel", "class"]),
+                (dialect != .rich || link["title"] == nil || link["title"] is NSNull),
+                !href.contains("\n"), !href.contains("<"), !href.contains(">"), let url = URL(string: href) {
+                part.link = url
+            } else { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+        }
+        return part
+    }
+
     public init(snapshot: Data, dialect: Dialect = .legacy) throws {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
         if dialect == .rich { _ = try RelayMarkSourceCodec.snapshotToDocument(snapshot) }
@@ -196,41 +242,8 @@ public struct RelayMarkCollaborativeProse {
             for run in delta {
                 guard let insert = run["insert"] as? String else { supported = false; continue }
                 let attributes = run["attributes"] as? [String: Any] ?? [:]
-                let offered = Set(RelayMarkOfferedMark.allCases.map(\.rawValue))
-                let allowed = Set(["bold", "italic", "strike", "code", "link"])
-                    .union(dialect == .rich ? offered : [])
-                if !Set(attributes.keys).isSubset(of: allowed) { supported = false }
-                if codeBlock && !attributes.isEmpty { supported = false }
-                if attributes["code"] != nil && (attributes.count > 1 || insert.contains("\r") || insert.contains("\n")) { supported = false }
-                for key in ["bold", "italic", "strike", "code"] where attributes[key] != nil {
-                    if !(attributes[key] is [String: Any]) { supported = false }
-                }
-                var offeredMarks = Set<RelayMarkOfferedMark>()
-                if dialect == .rich {
-                    for mark in RelayMarkOfferedMark.allCases where attributes[mark.rawValue] != nil {
-                        if (attributes[mark.rawValue] as? [String: Any])?.isEmpty == true {
-                            offeredMarks.insert(mark)
-                        } else { supported = false }
-                    }
-                }
-                var part = AttributedString(insert)
-                var intent: InlinePresentationIntent = []
-                if attributes["bold"] != nil { intent.insert(.stronglyEmphasized) }
-                if attributes["italic"] != nil { intent.insert(.emphasized) }
-                if attributes["strike"] != nil { intent.insert(.strikethrough) }
-                if attributes["code"] != nil { intent.insert(.code) }
-                part.inlinePresentationIntent = intent
-                if !offeredMarks.isEmpty { part[RelayMarkOfferedMarksAttribute.self] = offeredMarks }
-                if let mark = attributes["link"] {
-                    if let link = mark as? [String: Any], let href = link["href"] as? String,
-                        Set(link.keys).isSubset(of: dialect == .rich
-                            ? ["href", "target", "rel", "class", "title"] : ["href", "target", "rel", "class"]),
-                        (dialect != .rich || link["title"] == nil || link["title"] is NSNull),
-                        !href.contains("\n"), !href.contains("<"), !href.contains(">"), let url = URL(string: href) {
-                        part.link = url
-                    } else { supported = false }
-                }
-                value.append(part)
+                do {value.append(try Self.projectedText(text:insert,attributes:attributes,dialect:dialect,codeBlock:codeBlock))}
+                catch {supported=false;value.append(AttributedString(insert))}
             }
             mapped.append(Span(range: NSRange(location: start, length: length() - start), path: path,
                 text: true, afterPath: path, afterIndex: length() - start, atom: false))

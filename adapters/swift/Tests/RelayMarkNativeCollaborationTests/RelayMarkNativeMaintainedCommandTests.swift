@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import RelayMarkSwift
+import RelayMarkProseProjection
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
@@ -50,6 +51,8 @@ final class RelayMarkNativeMaintainedCommandTests: XCTestCase {
         let marks=try XCTUnwrap(returned.change.storedMarks),attributes=try JSONSerialization.jsonObject(with:XCTUnwrap(returned.change.storedTextAttributes)) as! [String:Any]
         XCTAssertEqual(String(decoding:marks,as:UTF8.self),"[{\"type\":\"bold\"}]")
         XCTAssertEqual(Set(attributes.keys),["bold"])
+        let typingStyle=try RelayMarkCollaborativeProse.attributedText(text:"Next Ω",attributes:XCTUnwrap(returned.change.storedTextAttributes))
+        XCTAssertTrue(typingStyle.runs.allSatisfy { $0.inlinePresentationIntent?.contains(.stronglyEmphasized)==true })
         try peer.applyUpdate(returned.change.update)
         let caret=try XCTUnwrap(returned.change.caret),projection=try document.richProseProjection(),row=try XCTUnwrap(projection.blockPaths.firstIndex(of:caret.blockPath))
         let observation=try document.captureContentEditObservation()
@@ -99,6 +102,21 @@ final class RelayMarkNativeMaintainedCommandTests: XCTestCase {
         XCTAssertEqual(after.blocks[0].props["language"],before.blocks[0].props["language"])
         XCTAssertEqual(String(try document.richProseProjection().text.characters),String(projection.text.characters)+"\n")
         try peer.applyUpdate(returned.change.update);XCTAssertEqual(try document.snapshot(),try peer.snapshot())
+    }
+
+    func testSharedTypingLinkProjectionPreservesCanonicalHrefAndRefusesExecutableHref() throws {
+        let document=RelayMarkNativeDocument()
+        _=try document.initializeDocument(authoredAST:RelayMarkSourceCodec.parseDocument("[Label](https://example.com/path)",namespace:"typing-link-title"))
+        let projection=try document.richProseProjection()
+        XCTAssertTrue(projection.isEditable)
+        XCTAssertEqual(projection.text.runs.first?.link?.absoluteString,"https://example.com/path")
+        let attributes:[String:Any]=["link":["href":"https://example.com/path","target":"_blank","rel":"noopener noreferrer nofollow","class":NSNull(),"title":NSNull()],"italic":[:]]
+        let styled=try RelayMarkCollaborativeProse.attributedText(text:"Label",attributes:JSONSerialization.data(withJSONObject:attributes))
+        XCTAssertEqual(styled.runs.first?.link?.absoluteString,"https://example.com/path")
+        XCTAssertTrue(styled.runs.allSatisfy{$0.inlinePresentationIntent?.contains(.emphasized)==true})
+        var unsafe=attributes;var link=unsafe["link"] as! [String:Any];link["href"]="javascript:alert(1)";unsafe["link"]=link
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse.attributedText(text:"Unsafe",attributes:JSONSerialization.data(withJSONObject:unsafe)))
+        XCTAssertThrowsError(try RelayMarkCollaborativeProse.attributedText(text:"Unknown",attributes:JSONSerialization.data(withJSONObject:["unknown":[:]])))
     }
 
 }
