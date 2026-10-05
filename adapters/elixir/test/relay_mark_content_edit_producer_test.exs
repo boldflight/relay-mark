@@ -113,6 +113,25 @@ defmodule RelayMark.ContentEditProducerTest do
     assert Enum.sum(for run <- result["text_items"]["runs"], do: run["count"]) == 11
     assert {:ok, ^result} = RelayMark.ContentEdit.produce_document_patch(runtime, input)
 
+    required = put_in(target, ["blocks", Access.at(1), "props", "required"], true)
+
+    assert {:ok, next} =
+             RelayMark.ContentEdit.produce_document_patch(runtime, %{
+               input
+               | "state_base64" => result["state_base64"],
+                 "target_document" => required,
+                 "transaction_id" => "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+             })
+
+    assert next["content_edit"]["steps"] == [
+             %{"stepType" => "attr", "pos" => 6, "attr" => "required", "value" => true}
+           ]
+
+    assert next["text_items"] == %{"runs" => []}
+    assert next["content_edit"]["copies"] == []
+    assert next["authored_document"] == required
+    assert next["proof"]["complete_mutation_correspondence"]
+
     assert {:error, :invalid_content_edit} =
              RelayMark.ContentEdit.produce_document_patch(
                runtime,

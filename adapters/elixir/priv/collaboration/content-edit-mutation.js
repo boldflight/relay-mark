@@ -6565,7 +6565,8 @@ function captureContentEditFootprint(doc, bytes2, { maximumSteps = 1e6 } = {}) {
 }
 
 // src/document-patch.js
-import { Transform, DocAttrStep } from "prosemirror-transform";
+import { Transform, DocAttrStep, AttrStep } from "prosemirror-transform";
+import { Mark } from "prosemirror-model";
 var schema3 = createCanonicalEditorSchema();
 
 // src/content-edit.js
