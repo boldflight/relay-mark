@@ -198,7 +198,7 @@ export function prepareContentEditWitness(evidence){return prepareWitness(eviden
 
 import {buildWitness} from './content-edit-witness.js';
 export function buildContentEditWitness(evidence){return buildWitness(evidence,applyContentEdit);}
-export {replayContentEditMutation} from '../adapters/collaboration/content-edit-mutation.js';
+export {replayContentEditMutation,produceContentEdit} from '../adapters/collaboration/content-edit-mutation.js';
 
 import {buildOwnedHistoryWitness as buildObservedHistory} from './content-edit-witness.js';
 /** Preliminary immediate inverse observation; authoritative owned receipt replay remains required. */

@@ -272,3 +272,12 @@ This selection-only correction allocates no document items or alternate writer.
 Fork 6ffa324bbcc9f61037e5d26b47da123e67afc8f4 is reproduced byte-for-byte
 by the existing exact-3.0.9 binding preparation helper; library publication and
 client artifact rebuild remain separate acceptance.
+
+
+## DOM-free command production
+
+`produceContentEdit(input)` and Elixir `RelayMark.ContentEdit.produce(runtime, input)` execute one actual command through the same maintained ProseMirror schema, `createContentEditWrite` causal plan, `updateYFragment` writer and protected UndoManager. Input is exactly `{state_base64, writer_client, transaction_id, owner_id, steps}`. The host admits the retained state and supplies fresh server command and manager UUIDs; these inputs are not client authority. Steps carry their original canonical IDs, marks, atoms, structure and `DocAttrStep` metadata. Invalid closed content, missing IDs, unsupported steps and no-op transactions fail without producing a receipt.
+
+The result contains the actual `update_base64`, retained `state_base64`, `authored_document`, `text_items`, and current `content_edit` `{before_snapshot_base64, steps, copies, group}`, plus independently replayed mutation proof. The snapshot precedes the actual mutation, copies come from maintained StepMaps and original item/type identities, and the group comes from the actual manager event. Metadata and body mutate in one transaction. A supplied writer can emit a pure deletion with no allocated structs; the independent proof then observes no fresh writer.
+
+This is one fresh maintained manager invocation, with one actual command group. It does not claim continuity with another client's persisted undo history. The host supplies its authorized document/body/source envelope, applies provider/source policy, and independently admits the original returned update through its existing receipt owner. Production is not authorization, human-source classification or persistence. No mounted browser, new editable replica, parallel converter or client-supplied footprint is required.

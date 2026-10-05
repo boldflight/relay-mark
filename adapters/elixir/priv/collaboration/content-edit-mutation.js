@@ -930,8 +930,8 @@ var require_base64_map = __commonJS({
     var base64UrlAlphabet = commonAlphabet + "-_";
     var inverse = function(characters) {
       var result = {};
-      var index = 0;
-      for (; index < 64; index++) result[characters.charAt(index)] = index;
+      var index2 = 0;
+      for (; index2 < 64; index2++) result[characters.charAt(index2)] = index2;
       return result;
     };
     module.exports = {
@@ -1095,8 +1095,8 @@ var require_to_absolute_index = __commonJS({
     var toIntegerOrInfinity = require_to_integer_or_infinity();
     var max = Math.max;
     var min = Math.min;
-    module.exports = function(index, length) {
-      var integer = toIntegerOrInfinity(index);
+    module.exports = function(index2, length) {
+      var integer = toIntegerOrInfinity(index2);
       return integer < 0 ? max(integer + length, 0) : min(integer, length);
     };
   }
@@ -1138,14 +1138,14 @@ var require_array_includes = __commonJS({
         var O = toIndexedObject($this);
         var length = lengthOfArrayLike(O);
         if (length === 0) return !IS_INCLUDES && -1;
-        var index = toAbsoluteIndex(fromIndex, length);
+        var index2 = toAbsoluteIndex(fromIndex, length);
         var value;
-        if (IS_INCLUDES && el !== el) while (length > index) {
-          value = O[index++];
+        if (IS_INCLUDES && el !== el) while (length > index2) {
+          value = O[index2++];
           if (value !== value) return true;
         }
-        else for (; length > index; index++) {
-          if ((IS_INCLUDES || index in O) && O[index] === el) return IS_INCLUDES || index || 0;
+        else for (; length > index2; index2++) {
+          if ((IS_INCLUDES || index2 in O) && O[index2] === el) return IS_INCLUDES || index2 || 0;
         }
         return !IS_INCLUDES && -1;
       };
@@ -1215,7 +1215,7 @@ var require_object_keys = __commonJS({
     "use strict";
     var internalObjectKeys = require_object_keys_internal();
     var enumBugKeys = require_enum_bug_keys();
-    module.exports = Object.keys || function keys2(O) {
+    module.exports = Object.keys || function keys3(O) {
       return internalObjectKeys(O, enumBugKeys);
     };
   }
@@ -1234,11 +1234,11 @@ var require_object_define_properties = __commonJS({
     exports.f = DESCRIPTORS && !V8_PROTOTYPE_DEFINE_BUG ? Object.defineProperties : function defineProperties(O, Properties) {
       anObject(O);
       var props = toIndexedObject(Properties);
-      var keys2 = objectKeys(Properties);
-      var length = keys2.length;
-      var index = 0;
+      var keys3 = objectKeys(Properties);
+      var length = keys3.length;
+      var index2 = 0;
       var key2;
-      while (length > index) definePropertyModule.f(O, key2 = keys2[index++], props[key2]);
+      while (length > index2) definePropertyModule.f(O, key2 = keys3[index2++], props[key2]);
       return O;
     };
   }
@@ -1259,9 +1259,9 @@ var require_shared_key = __commonJS({
     "use strict";
     var shared = require_shared();
     var uid = require_uid();
-    var keys2 = shared("keys");
+    var keys3 = shared("keys");
     module.exports = function(key2) {
-      return keys2[key2] || (keys2[key2] = uid(key2));
+      return keys3[key2] || (keys3[key2] = uid(key2));
     };
   }
 });
@@ -2145,7 +2145,7 @@ var require_iterator_define = __commonJS({
         if (!BUGGY_SAFARI_ITERATORS && KIND && KIND in IterablePrototype) return IterablePrototype[KIND];
         switch (KIND) {
           case KEYS:
-            return function keys2() {
+            return function keys3() {
               return new IteratorConstructor(this, KIND);
             };
           case VALUES:
@@ -2253,18 +2253,18 @@ var require_es_array_iterator = __commonJS({
     }, function() {
       var state = getInternalState(this);
       var target = state.target;
-      var index = state.index++;
-      if (!target || index >= target.length) {
+      var index2 = state.index++;
+      if (!target || index2 >= target.length) {
         state.target = null;
         return createIterResultObject(void 0, true);
       }
       switch (state.kind) {
         case "keys":
-          return createIterResultObject(index, false);
+          return createIterResultObject(index2, false);
         case "values":
-          return createIterResultObject(target[index], false);
+          return createIterResultObject(target[index2], false);
       }
-      return createIterResultObject([index, target[index]], false);
+      return createIterResultObject([index2, target[index2]], false);
     }, "values");
     var values = Iterators.Arguments = Iterators.Array;
     addToUnscopables("keys");
@@ -2675,12 +2675,12 @@ var require_web_url_search_params_constructor = __commonJS({
     }, URL_SEARCH_PARAMS, function next() {
       var state = getInternalIteratorState(this);
       var target = state.target;
-      var index = state.index++;
-      if (!target || index >= target.length) {
+      var index2 = state.index++;
+      if (!target || index2 >= target.length) {
         state.target = null;
         return createIterResultObject(void 0, true);
       }
-      var entry = target[index];
+      var entry = target[index2];
       switch (state.kind) {
         case "keys":
           return createIterResultObject(entry.key, false);
@@ -2724,10 +2724,10 @@ var require_web_url_search_params_constructor = __commonJS({
         if (query) {
           var entries = this.entries;
           var attributes = split(query, "&");
-          var index = 0;
+          var index2 = 0;
           var attribute, entry;
-          while (index < attributes.length) {
-            attribute = attributes[index++];
+          while (index2 < attributes.length) {
+            attribute = attributes[index2++];
             if (attribute.length) {
               entry = split(attribute, "=");
               push(entries, {
@@ -2741,10 +2741,10 @@ var require_web_url_search_params_constructor = __commonJS({
       serialize: function() {
         var entries = this.entries;
         var result = [];
-        var index = 0;
+        var index2 = 0;
         var entry;
-        while (index < entries.length) {
-          entry = entries[index++];
+        while (index2 < entries.length) {
+          entry = entries[index2++];
           push(result, serialize(entry.key) + "=" + serialize(entry.value));
         }
         return join(result, "&");
@@ -2783,12 +2783,12 @@ var require_web_url_search_params_constructor = __commonJS({
         var key2 = $toString(name);
         var $value = length < 2 ? void 0 : arguments[1];
         var value = $value === void 0 ? $value : $toString($value);
-        var index = 0;
-        while (index < entries.length) {
-          var entry = entries[index];
+        var index2 = 0;
+        while (index2 < entries.length) {
+          var entry = entries[index2];
           if (entry.key === key2 && (value === void 0 || entry.value === value)) {
-            splice(entries, index, 1);
-          } else index++;
+            splice(entries, index2, 1);
+          } else index2++;
         }
         if (!DESCRIPTORS) this.size = entries.length;
         state.updateURL();
@@ -2799,9 +2799,9 @@ var require_web_url_search_params_constructor = __commonJS({
         var entries = getInternalParamsState(this).entries;
         validateArgumentsLength(arguments.length, 1);
         var key2 = $toString(name);
-        var index = 0;
-        for (; index < entries.length; index++) {
-          if (entries[index].key === key2) return entries[index].value;
+        var index2 = 0;
+        for (; index2 < entries.length; index2++) {
+          if (entries[index2].key === key2) return entries[index2].value;
         }
         return null;
       },
@@ -2812,9 +2812,9 @@ var require_web_url_search_params_constructor = __commonJS({
         validateArgumentsLength(arguments.length, 1);
         var key2 = $toString(name);
         var result = [];
-        var index = 0;
-        for (; index < entries.length; index++) {
-          if (entries[index].key === key2) push(result, entries[index].value);
+        var index2 = 0;
+        for (; index2 < entries.length; index2++) {
+          if (entries[index2].key === key2) push(result, entries[index2].value);
         }
         return result;
       },
@@ -2826,9 +2826,9 @@ var require_web_url_search_params_constructor = __commonJS({
         var key2 = $toString(name);
         var $value = length < 2 ? void 0 : arguments[1];
         var value = $value === void 0 ? $value : $toString($value);
-        var index = 0;
-        while (index < entries.length) {
-          var entry = entries[index++];
+        var index2 = 0;
+        while (index2 < entries.length) {
+          var entry = entries[index2++];
           if (entry.key === key2 && (value === void 0 || entry.value === value)) return true;
         }
         return false;
@@ -2842,12 +2842,12 @@ var require_web_url_search_params_constructor = __commonJS({
         var found = false;
         var key2 = $toString(name);
         var val = $toString(value);
-        var index = 0;
+        var index2 = 0;
         var entry;
-        for (; index < entries.length; index++) {
-          entry = entries[index];
+        for (; index2 < entries.length; index2++) {
+          entry = entries[index2];
           if (entry.key === key2) {
-            if (found) splice(entries, index--, 1);
+            if (found) splice(entries, index2--, 1);
             else {
               found = true;
               entry.value = val;
@@ -2871,15 +2871,15 @@ var require_web_url_search_params_constructor = __commonJS({
       forEach: function forEach(callback) {
         var entries = getInternalParamsState(this).entries;
         var boundFunction = bind(callback, arguments.length > 1 ? arguments[1] : void 0);
-        var index = 0;
+        var index2 = 0;
         var entry;
-        while (index < entries.length) {
-          entry = entries[index++];
+        while (index2 < entries.length) {
+          entry = entries[index2++];
           boundFunction(entry.value, entry.key, this);
         }
       },
       // `URLSearchParams.prototype.keys` method
-      keys: function keys2() {
+      keys: function keys3() {
         return new URLSearchParamsIterator(this, "keys");
       },
       // `URLSearchParams.prototype.values` method
@@ -3049,10 +3049,10 @@ var require_es_string_iterator = __commonJS({
     }, function next() {
       var state = getInternalState(this);
       var string = state.string;
-      var index = state.index;
+      var index2 = state.index;
       var point;
-      if (index >= string.length) return createIterResultObject(void 0, true);
-      point = charAt(string, index);
+      if (index2 >= string.length) return createIterResultObject(void 0, true);
+      point = charAt(string, index2);
       state.index += point.length;
       return createIterResultObject(point, false);
     });
@@ -3105,17 +3105,17 @@ var require_object_assign = __commonJS({
     }) ? function assign(target, source) {
       var T = toObject(target);
       var argumentsLength = arguments.length;
-      var index = 1;
+      var index2 = 1;
       var getOwnPropertySymbols = getOwnPropertySymbolsModule.f;
       var propertyIsEnumerable = propertyIsEnumerableModule.f;
-      while (argumentsLength > index) {
-        var S = IndexedObject(arguments[index++]);
-        var keys2 = getOwnPropertySymbols ? concat(objectKeys(S), getOwnPropertySymbols(S)) : objectKeys(S);
-        var length = keys2.length;
+      while (argumentsLength > index2) {
+        var S = IndexedObject(arguments[index2++]);
+        var keys3 = getOwnPropertySymbols ? concat(objectKeys(S), getOwnPropertySymbols(S)) : objectKeys(S);
+        var length = keys3.length;
         var j = 0;
         var key2;
         while (length > j) {
-          key2 = keys2[j++];
+          key2 = keys3[j++];
           if (!DESCRIPTORS || call(propertyIsEnumerable, S, key2)) T[key2] = S[key2];
         }
       }
@@ -3340,21 +3340,21 @@ var require_array_from = __commonJS({
       if (mapping) mapfn = bind(mapfn, argumentsLength > 2 ? arguments[2] : void 0);
       var O = toObject(arrayLike);
       var iteratorMethod = getIteratorMethod(O);
-      var index = 0;
+      var index2 = 0;
       var length, result, step, iterator, next, value;
       if (iteratorMethod && !(this === $Array && isArrayIteratorMethod(iteratorMethod))) {
         result = IS_CONSTRUCTOR ? new this() : [];
         iterator = getIterator(O, iteratorMethod);
         next = iterator.next;
-        for (; !(step = call(next, iterator)).done; index++) {
+        for (; !(step = call(next, iterator)).done; index2++) {
           try {
-            doesNotExceedSafeInteger(index);
+            doesNotExceedSafeInteger(index2);
           } catch (error) {
             iteratorClose(iterator, "throw", error);
           }
-          value = mapping ? callWithSafeIterationClosing(iterator, mapfn, [step.value, index], true) : step.value;
+          value = mapping ? callWithSafeIterationClosing(iterator, mapfn, [step.value, index2], true) : step.value;
           try {
-            createProperty(result, index, value);
+            createProperty(result, index2, value);
           } catch (error) {
             iteratorClose(iterator, "throw", error);
           }
@@ -3362,12 +3362,12 @@ var require_array_from = __commonJS({
       } else {
         length = lengthOfArrayLike(O);
         result = IS_CONSTRUCTOR ? new this(length) : $Array(length);
-        for (; length > index; index++) {
-          value = mapping ? mapfn(O[index], index) : O[index];
-          createProperty(result, index, value);
+        for (; length > index2; index2++) {
+          value = mapping ? mapfn(O[index2], index2) : O[index2];
+          createProperty(result, index2, value);
         }
       }
-      setArrayLength(result, index);
+      setArrayLength(result, index2);
       return result;
     };
   }
@@ -3595,13 +3595,13 @@ var require_web_url_constructor = __commonJS({
       if (!exec(NON_ASCII, domain)) return domain === "" ? null : toASCII(domain);
       var codePoints = arrayFrom(domain);
       var result = "";
-      var index, code, mapped;
-      for (index = 0; index < codePoints.length; index++) {
-        code = codeAt(codePoints[index], 0);
+      var index2, code, mapped;
+      for (index2 = 0; index2 < codePoints.length; index2++) {
+        code = codeAt(codePoints[index2], 0);
         if (isDisallowedCodePoint(code)) return null;
         if (isIgnoredCodePoint(code)) continue;
         mapped = mapCodePoint(code);
-        result += mapped === code ? codePoints[index] : fromCharCode(mapped);
+        result += mapped === code ? codePoints[index2] : fromCharCode(mapped);
       }
       return result === "" ? null : toASCII(result);
     };
@@ -3622,15 +3622,15 @@ var require_web_url_constructor = __commonJS({
     };
     var parseIPv4 = function(input) {
       var parts = split(input, ".");
-      var partsLength, numbers, index, part2, radix, number, ipv4;
+      var partsLength, numbers, index2, part2, radix, number, ipv4;
       if (parts.length && parts[parts.length - 1] === "") {
         parts.length--;
       }
       partsLength = parts.length;
       if (partsLength > 4) return null;
       numbers = [];
-      for (index = 0; index < partsLength; index++) {
-        part2 = parts[index];
+      for (index2 = 0; index2 < partsLength; index2++) {
+        part2 = parts[index2];
         if (part2 === "") return null;
         radix = 10;
         if (part2.length > 1 && charAt(part2, 0) === "0") {
@@ -3645,15 +3645,15 @@ var require_web_url_constructor = __commonJS({
         }
         push(numbers, number);
       }
-      for (index = 0; index < partsLength; index++) {
-        number = numbers[index];
-        if (index === partsLength - 1) {
+      for (index2 = 0; index2 < partsLength; index2++) {
+        number = numbers[index2];
+        if (index2 === partsLength - 1) {
           if (number >= pow(256, 5 - partsLength)) return null;
         } else if (number > 255) return null;
       }
       ipv4 = pop(numbers);
-      for (index = 0; index < numbers.length; index++) {
-        ipv4 += numbers[index] * pow(256, 3 - index);
+      for (index2 = 0; index2 < numbers.length; index2++) {
+        ipv4 += numbers[index2] * pow(256, 3 - index2);
       }
       return ipv4;
     };
@@ -3735,9 +3735,9 @@ var require_web_url_constructor = __commonJS({
       var maxLength = 1;
       var currStart = null;
       var currLength = 0;
-      var index = 0;
-      for (; index < 8; index++) {
-        if (ipv6[index] !== 0) {
+      var index2 = 0;
+      for (; index2 < 8; index2++) {
+        if (ipv6[index2] !== 0) {
           if (currLength > maxLength) {
             maxIndex = currStart;
             maxLength = currLength;
@@ -3745,17 +3745,17 @@ var require_web_url_constructor = __commonJS({
           currStart = null;
           currLength = 0;
         } else {
-          if (currStart === null) currStart = index;
+          if (currStart === null) currStart = index2;
           ++currLength;
         }
       }
       return currLength > maxLength ? currStart : maxIndex;
     };
     var serializeHost = function(host) {
-      var result, index, compress, ignore0;
+      var result, index2, compress, ignore0;
       if (typeof host == "number") {
         result = [];
-        for (index = 0; index < 4; index++) {
+        for (index2 = 0; index2 < 4; index2++) {
           unshift(result, host % 256);
           host = floor(host / 256);
         }
@@ -3764,15 +3764,15 @@ var require_web_url_constructor = __commonJS({
       if (typeof host == "object") {
         result = "";
         compress = findLongestZeroSequence(host);
-        for (index = 0; index < 8; index++) {
-          if (ignore0 && host[index] === 0) continue;
+        for (index2 = 0; index2 < 8; index2++) {
+          if (ignore0 && host[index2] === 0) continue;
           if (ignore0) ignore0 = false;
-          if (compress === index) {
-            result += index ? ":" : "::";
+          if (compress === index2) {
+            result += index2 ? ":" : "::";
             ignore0 = true;
           } else {
-            result += numberToString(host[index], 16);
-            if (index < 7) result += ":";
+            result += numberToString(host[index2], 16);
+            if (index2 < 7) result += ":";
           }
         }
         return "[" + result + "]";
@@ -4262,7 +4262,7 @@ var require_web_url_constructor = __commonJS({
       },
       // https://url.spec.whatwg.org/#host-parsing
       parseHost: function(input) {
-        var result, codePoints, index;
+        var result, codePoints, index2;
         if (charAt(input, 0) === "[") {
           if (charAt(input, input.length - 1) !== "]") return INVALID_HOST;
           result = parseIPv6(stringSlice(input, 1, -1));
@@ -4272,8 +4272,8 @@ var require_web_url_constructor = __commonJS({
           if (exec(FORBIDDEN_HOST_CODE_POINT, input)) return INVALID_HOST;
           result = "";
           codePoints = arrayFrom(input);
-          for (index = 0; index < codePoints.length; index++) {
-            result += utf8PercentEncode(codePoints[index], C0ControlPercentEncodeSet);
+          for (index2 = 0; index2 < codePoints.length; index2++) {
+            result += utf8PercentEncode(codePoints[index2], C0ControlPercentEncodeSet);
           }
           this.host = result;
         } else {
@@ -4727,6 +4727,10 @@ function validateLinkAttributes(attributes) {
   if (title !== null && invalidText(title)) throw new TypeError("Invalid link title");
   return attributes;
 }
+function linkAttributes(href2, props = {}) {
+  if (!props || typeof props !== "object" || Array.isArray(props) || Object.keys(props).some((k) => !Object.hasOwn(linkDefaults, k))) throw new TypeError("Unsupported link property");
+  return validateLinkAttributes({ href: href2, ...linkDefaults, ...props });
+}
 function linkProperties(attributes) {
   validateLinkAttributes(attributes);
   return Object.fromEntries(Object.entries(linkDefaults).filter(([key2, value]) => attributes[key2] !== value).map(([key2]) => [key2, attributes[key2]]));
@@ -4768,6 +4772,9 @@ var canonicalDirectiveNodes = Object.freeze(definitions.map(([type, name]) => {
 }));
 function directiveNodeForName(name) {
   return canonicalDirectiveNodes.find((n) => n.name === name);
+}
+function directiveNodeForType(type) {
+  return canonicalDirectiveNodes.find((n) => n.type === type);
 }
 function authoredDirectiveProps(shape, attrs) {
   if (!attrs || typeof attrs !== "object" || Array.isArray(attrs)) throw new TypeError("Invalid directive attrs");
@@ -4852,6 +4859,28 @@ function mapAtom(node) {
   }
   throw new TypeError(`Unsupported inline atom ${String(node.type)}`);
 }
+function unmapAtom(node) {
+  if (node?.type === "relay.entity_ref") {
+    only(node, ["type", "id", "label", "props"], "reference");
+    only(node.props, ["entityType", "source"], "reference props");
+    const { entityType: type, source } = node.props;
+    if (source !== referenceSource(type, node.id, node.label)) throw new TypeError("Reference source mismatch");
+    return { type: "relayReference", attrs: {
+      entityType: type,
+      entityId: node.id,
+      label: node.label,
+      source
+    } };
+  }
+  if (node?.type === "relay.tag_ref") {
+    only(node, ["type", "id", "label", "props"], "tag");
+    only(node.props, ["name", "source"], "tag props");
+    const { name, source } = node.props;
+    if (node.label !== `#${name}` || source !== tagSource(node.id, name)) throw new TypeError("Tag source mismatch");
+    return { type: "relayTag", attrs: { id: node.id, name, source } };
+  }
+  throw new TypeError(`Unsupported inline atom ${String(node?.type)}`);
+}
 
 // src/document-inline.js
 var textMarkNames = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
@@ -4882,6 +4911,17 @@ function href(value) {
     throw new TypeError("Invalid link href");
   }
   return value;
+}
+function validateTextAttributes(attributes) {
+  keys(attributes, markTypes, "typing attributes");
+  const marks = markTypes.filter((type) => Object.hasOwn(attributes, type)).map((type) => {
+    const value = object2(attributes[type], "typing mark");
+    if (type === "link") return { type, attrs: value };
+    if (Object.keys(value).length) throw new TypeError("Unsupported typing mark attrs");
+    return { type };
+  });
+  mapInline({ type: "text", text: "x", marks });
+  return true;
 }
 function mapInline(node) {
   object2(node, "inline");
@@ -4919,6 +4959,32 @@ function mapInline(node) {
     };
   }
   return result;
+}
+function unmapInline(node) {
+  object2(node, "inline");
+  if (node.type === "relay.entity_ref" || node.type === "relay.tag_ref") return unmapAtom(node);
+  if (node.type === "hard_break") {
+    keys(node, ["type"], "hard_break");
+    return { type: "hardBreak" };
+  }
+  const marks = [];
+  let cursor = node;
+  let previous = -1;
+  while (cursor.type !== "text") {
+    const pmType = pmTypes[cursor.type];
+    const rank = markTypes.indexOf(pmType);
+    if (rank < 0 || rank <= previous || pmType === "code" && (marks.length || cursor.content?.[0]?.type !== "text")) {
+      throw new TypeError("Unsupported or noncanonical inline wrapper");
+    }
+    previous = rank;
+    keys(cursor, pmType === "link" ? ["type", "href", "props", "content"] : ["type", "content"], "inline wrapper");
+    if (!Array.isArray(cursor.content) || cursor.content.length !== 1) throw new TypeError("Inline wrapper requires one child");
+    marks.push(pmType === "link" ? { type: "link", attrs: linkAttributes(href(cursor.href), cursor.props) } : { type: pmType });
+    cursor = object2(cursor.content[0], "inline child");
+  }
+  keys(cursor, ["type", "text"], "text");
+  if (typeof cursor.text !== "string" || !cursor.text) throw new TypeError("Expected nonempty text");
+  return { type: "text", ...marks.length ? { marks } : {}, text: cursor.text };
 }
 
 // src/document-reference.js
@@ -4959,6 +5025,16 @@ function parseEntityReferenceSource(source) {
   if (!label || label !== label.trim() || /[\r\n]/u.test(label)) return null;
   return { id: attrs.id, entityId: entityId2, label, projection, body, source };
 }
+function assertEntityReferenceProps(props) {
+  if (!props || typeof props !== "object" || Array.isArray(props) || Object.keys(props).some((key2) => !["id", "label", "projection", "source"].includes(key2))) {
+    throw new TypeError("Unsupported entity reference props");
+  }
+  const parsed = parseEntityReferenceSource(props.source);
+  if (!parsed || parsed.id !== props.id || parsed.label !== props.label || parsed.projection !== props.projection) {
+    throw new TypeError("Entity reference source/identity mismatch");
+  }
+  return parsed;
+}
 
 // src/document-controls.js
 var fields = { button: ["label", "kind", "target"], anchor: ["name"], connection: ["provider"] };
@@ -4984,6 +5060,17 @@ function canonicalPaperControlSource(control, authored) {
   if (source.length > 16384) throw new TypeError("Paper control source exceeds the draft limit");
   return source;
 }
+function assertPaperControlProps(props) {
+  object3(props);
+  const { control, source, ...authored } = props;
+  if (typeof source !== "string" || source !== canonicalPaperControlSource(control, authored)) {
+    throw new TypeError("Paper control source/fields mismatch");
+  }
+  return { control, authored, source };
+}
+function paperControlNodeName(control) {
+  return nodeNames[control];
+}
 function paperControlKind(nodeName) {
   return Object.keys(nodeNames).find((key2) => nodeNames[key2] === nodeName);
 }
@@ -4996,6 +5083,19 @@ function assertAgentSuggestion(review, kind, confidence, evidence, content2) {
     throw new TypeError("Invalid authored AgentSuggestion");
   }
   return { review, kind, confidence, evidence, content: content2 };
+}
+function assertAgentSuggestionBlock(block) {
+  const props = block?.props;
+  if (!props || typeof props !== "object" || Array.isArray(props) || Object.keys(props).length !== 3 && Object.keys(props).length !== 4 || Object.keys(props).some((key2) => !["review", "kind", "confidence", "evidence"].includes(key2)) || Object.hasOwn(props, "confidence") && props.confidence == null || !Array.isArray(block.content) || block.content.length !== 1 || block.content[0]?.type !== "text" || Object.keys(block.content[0]).some((key2) => !["type", "text"].includes(key2))) {
+    throw new TypeError("Invalid authored AgentSuggestion block");
+  }
+  return assertAgentSuggestion(
+    props.review,
+    props.kind,
+    props.confidence ?? null,
+    props.evidence,
+    block.content[0].text
+  );
 }
 
 // src/document-adapter.js
@@ -5025,6 +5125,21 @@ function proseMirrorToRelayMark(prosemirror) {
   const seen = /* @__PURE__ */ new Set();
   const blocks = children(prosemirror, "doc", 1).map((node) => mapBlock(node, seen, 0));
   return { type: "relaymark.document", blocks, ...metadata };
+}
+function relayMarkToProseMirror(document2) {
+  assertObject(document2, "document");
+  onlyKeys(document2, ["type", "blocks", "frontmatter", "annotations", "resources", "meta"], "document");
+  for (const key2 of ["frontmatter", "meta"]) if (document2[key2] !== void 0) assertObject(document2[key2], key2);
+  for (const key2 of ["annotations", "resources"]) if (document2[key2] !== void 0 && !Array.isArray(document2[key2])) throw new TypeError(`Invalid ${key2}`);
+  if (document2.type !== "relaymark.document") {
+    throw new TypeError("Expected a canonical RelayMark AST document");
+  }
+  assertContentDepth({ content: document2.blocks });
+  const seen = /* @__PURE__ */ new Set();
+  const blocks = children({ content: document2.blocks }, "document", 1);
+  const metadata = Object.fromEntries(["frontmatter", "annotations", "resources", "meta"].filter((key2) => Object.hasOwn(document2, key2)).map((key2) => [key2, document2[key2]]));
+  assertAuthoredMetadata(metadata);
+  return { type: "doc", ...Object.keys(metadata).length ? { attrs: { relaymark: metadata } } : {}, content: blocks.map((block) => unmapBlock(block, seen, 0)) };
 }
 function mapBlock(node, seen, calloutDepth) {
   const shape = directiveNodeForName(node?.type);
@@ -5079,6 +5194,53 @@ function mapBlock(node, seen, calloutDepth) {
       throw new TypeError(`Unsupported canonical block: ${String(node?.type)}`);
   }
 }
+function unmapBlock(block, seen, calloutDepth) {
+  const shape = directiveNodeForType(block?.type);
+  if (shape) {
+    checkBlock(block, shape.type, seen, true);
+    const props = authoredDirectiveProps(shape, block.props || {});
+    const body = children(block, shape.type, shape.minimum_children);
+    if (body.some((child) => !shape.allowed_children.includes(child.type))) throw new TypeError("Unsupported authored directive child");
+    return { type: shape.name, attrs: { relaymarkId: block.id, ...props }, content: body.map((child) => unmapBlock(child, seen, calloutDepth)) };
+  }
+  switch (block?.type) {
+    case "paragraph":
+      return unmapParagraph(block, seen);
+    case "relay.form_question":
+      return unmapQuestion(block, seen);
+    case "relay.data_view":
+      return unmapDataView(block, seen);
+    case "heading":
+      return unmapHeading(block, seen);
+    case "quote":
+      return unmapQuote(block, seen, calloutDepth);
+    case "list":
+      return unmapList(block, seen, 0);
+    case "task_list":
+      return unmapTaskList(block, seen, 0);
+    case "code":
+      return unmapCode(block, seen);
+    case "horizontal_rule":
+      return unmapRule(block, seen);
+    case "image":
+      return unmapImage(block, seen);
+    case "relay.video_embed":
+      return unmapVideo(block, seen);
+    case "relay.entity_reference":
+      return unmapEntityReference(block, seen);
+    case "relay.paper_control":
+      return unmapPaperControl(block, seen);
+    case "relay.agent_suggestion":
+      return unmapAgentSuggestion(block, seen);
+    case "relay.callout":
+      return unmapCallout(block, seen, calloutDepth);
+    case "table":
+      validateGrid(block);
+      return unmapTable(block, seen);
+    default:
+      throw new TypeError(`Unsupported canonical block: ${String(block?.type)}`);
+  }
+}
 var calloutTones = /* @__PURE__ */ new Set(["neutral", "primary", "secondary", "accent", "info", "success", "warning", "error"]);
 var calloutEmphases = /* @__PURE__ */ new Set(["soft", "strong"]);
 function checkCalloutProps(tone, emphasis) {
@@ -5099,7 +5261,27 @@ function mapCallout(node, seen, depth) {
     id: node.attrs.relaymarkId,
     type: "relay.callout",
     props: { tone, emphasis },
-    content: items.map((item, index) => index === 0 && item.type === "calloutTitle" ? mapCalloutTitle(item, seen) : mapBlock(item, seen, depth + 1))
+    content: items.map((item, index2) => index2 === 0 && item.type === "calloutTitle" ? mapCalloutTitle(item, seen) : mapBlock(item, seen, depth + 1))
+  };
+}
+function unmapCallout(block, seen, depth) {
+  if (depth >= 8) throw new TypeError("Callout nesting exceeds the draft limit");
+  checkBlock(block, "relay.callout", seen, true);
+  assertObject(block.props, "relay.callout.props");
+  onlyKeys(block.props, ["tone", "emphasis"], "relay.callout.props");
+  const { tone, emphasis } = block.props;
+  checkCalloutProps(tone, emphasis);
+  const items = children(block, "relay.callout", 1);
+  if (items[0]?.type === "relay.callout_title" && items.length < 2) {
+    throw new TypeError("Callout requires a body block");
+  }
+  if (items.slice(1).some((item) => item.type === "relay.callout_title")) {
+    throw new TypeError("Callout title must be first");
+  }
+  return {
+    type: "callout",
+    attrs: { relaymarkId: block.id, tone, emphasis },
+    content: items.map((item, index2) => index2 === 0 && item.type === "relay.callout_title" ? unmapCalloutTitle(item, seen) : unmapBlock(item, seen, depth + 1))
   };
 }
 function mapCalloutTitle(node, seen) {
@@ -5112,6 +5294,12 @@ function mapCalloutTitle(node, seen) {
     content: items.map(mapInline)
   };
 }
+function unmapCalloutTitle(block, seen) {
+  checkBlock(block, "relay.callout_title", seen);
+  const content2 = inlineChildren(block, "relay.callout_title").map(unmapInline);
+  if (content2.some((item) => item.type !== "text")) throw new TypeError("Unsupported callout title inline node");
+  return { type: "calloutTitle", attrs: { relaymarkId: block.id }, content: content2 };
+}
 function mapHeading(node, seen) {
   checkNode(node, "heading", seen, ["level", "headingId"]);
   const { level, headingId: anchor } = node.attrs;
@@ -5123,6 +5311,18 @@ function mapHeading(node, seen) {
     content: inlineChildren(node, "heading").map(mapInline)
   };
 }
+function unmapHeading(block, seen) {
+  checkBlock(block, "heading", seen, true);
+  assertObject(block.props, "heading.props");
+  onlyKeys(block.props, ["level", "headingId"], "heading.props");
+  const { level, headingId: anchor } = block.props;
+  checkHeading(level, anchor);
+  return {
+    type: "heading",
+    attrs: { relaymarkId: block.id, level, headingId: anchor },
+    content: inlineChildren(block, "heading").map(unmapInline)
+  };
+}
 function checkHeading(level, anchor) {
   if (!Number.isInteger(level) || level < 1 || level > 6 || anchor !== null && (typeof anchor !== "string" || !headingId.test(anchor))) {
     throw new TypeError("Invalid heading level or headingId");
@@ -5131,6 +5331,14 @@ function checkHeading(level, anchor) {
 function mapQuote(node, seen, calloutDepth) {
   checkNode(node, "blockquote", seen);
   return { id: node.attrs.relaymarkId, type: "quote", content: children(node, "blockquote", 1).map((child) => mapBlock(child, seen, calloutDepth)) };
+}
+function unmapQuote(block, seen, calloutDepth) {
+  checkBlock(block, "quote", seen);
+  return {
+    type: "blockquote",
+    attrs: { relaymarkId: block.id },
+    content: children(block, "quote", 1).map((child) => unmapBlock(child, seen, calloutDepth))
+  };
 }
 function mapList(node, seen, ordered, depth) {
   if (depth >= maxListDepth) throw new TypeError("Unsupported nested list depth");
@@ -5145,6 +5353,21 @@ function mapList(node, seen, ordered, depth) {
     content: children(node, node.type, 1).map((child) => mapListItem(child, seen, depth))
   };
 }
+function unmapList(block, seen, depth) {
+  if (depth >= maxListDepth) throw new TypeError("Unsupported nested list depth");
+  checkBlock(block, "list", seen, true);
+  assertObject(block.props, "list.props");
+  onlyKeys(block.props, ["kind", "start"], "list.props");
+  const ordered = block.props.kind === "ordered";
+  if (!ordered && block.props.kind !== "bullet") throw new TypeError("Invalid list kind");
+  if (ordered) checkListStart(block.props.start);
+  else if (Object.hasOwn(block.props, "start")) throw new TypeError("Bullet list has a start");
+  return {
+    type: ordered ? "orderedList" : "bulletList",
+    attrs: { relaymarkId: block.id, ...ordered ? { start: block.props.start, type: null } : {} },
+    content: children(block, "list", 1).map((child) => unmapListItem(child, seen, depth))
+  };
+}
 function checkListStart(start) {
   if (!Number.isSafeInteger(start) || start < 1) throw new TypeError("Invalid ordered-list start");
 }
@@ -5156,6 +5379,16 @@ function mapListItem(node, seen, depth) {
     id: node.attrs.relaymarkId,
     type: "list_item",
     content: [mapParagraph(items[0], seen), ...items.slice(1).map((item) => ["bulletList", "orderedList"].includes(item.type) ? mapList(item, seen, item.type === "orderedList", depth + 1) : mapBlock(item, seen, 0))]
+  };
+}
+function unmapListItem(block, seen, depth) {
+  checkBlock(block, "list_item", seen);
+  const items = children(block, "list_item", 1);
+  if (items[0]?.type !== "paragraph") throw new TypeError("List item must start with a paragraph");
+  return {
+    type: "listItem",
+    attrs: { relaymarkId: block.id },
+    content: [unmapParagraph(items[0], seen), ...items.slice(1).map((item) => item.type === "list" ? unmapList(item, seen, depth + 1) : unmapBlock(item, seen, 0))]
   };
 }
 function assertContentDepth(node, depth = 0) {
@@ -5174,6 +5407,11 @@ function taskChildren(items, label) {
     throw new TypeError(`Unsupported ${label} children`);
   }
 }
+function portableTaskChildren(items, label) {
+  if (items[0]?.type !== "paragraph") {
+    throw new TypeError(`Unsupported ${label} children`);
+  }
+}
 function mapTaskList(node, seen, depth) {
   if (depth >= maxTaskDepth) throw new TypeError("Task list nesting exceeds the draft limit");
   checkNode(node, "taskList", seen);
@@ -5183,6 +5421,17 @@ function mapTaskList(node, seen, depth) {
     id: node.attrs.relaymarkId,
     type: "task_list",
     content: items.map((item) => mapTaskItem(item, seen, depth))
+  };
+}
+function unmapTaskList(block, seen, depth) {
+  if (depth >= maxTaskDepth) throw new TypeError("Task list nesting exceeds the draft limit");
+  checkBlock(block, "task_list", seen);
+  const items = children(block, "task_list", 1);
+  if (items.length > maxTaskChildren) throw new TypeError("Task list exceeds the draft child limit");
+  return {
+    type: "taskList",
+    attrs: { relaymarkId: block.id },
+    content: items.map((item) => unmapTaskItem(item, seen, depth))
   };
 }
 function mapTaskItem(node, seen, depth) {
@@ -5201,6 +5450,23 @@ function mapTaskItem(node, seen, depth) {
     content: items.map((item) => item.type === "taskList" ? mapTaskList(item, seen, depth + 1) : mapBlock(item, seen, 0))
   };
 }
+function unmapTaskItem(block, seen, depth) {
+  checkBlock(block, "task_item", seen, true);
+  assertObject(block.props, "task_item.props");
+  onlyKeys(block.props, ["checked", "entityId"], "task_item.props");
+  if (!Object.hasOwn(block.props, "checked") || !Object.hasOwn(block.props, "entityId")) {
+    throw new TypeError("Task item requires checked and entityId props");
+  }
+  checkTaskProps(block.props.checked, block.props.entityId);
+  const items = children(block, "task_item", 1);
+  if (items.length > maxTaskChildren) throw new TypeError("Task item exceeds the draft child limit");
+  portableTaskChildren(items, "task item");
+  return {
+    type: "taskItem",
+    attrs: { relaymarkId: block.id, ...block.props },
+    content: items.map((item) => item.type === "task_list" ? unmapTaskList(item, seen, depth + 1) : unmapBlock(item, seen, 0))
+  };
+}
 function mapCode(node, seen) {
   checkNode(node, "codeBlock", seen, ["language"]);
   checkLanguage(node.attrs.language);
@@ -5209,6 +5475,17 @@ function mapCode(node, seen) {
     type: "code",
     props: { language: node.attrs.language },
     content: inlineChildren(node, "codeBlock").map(mapText)
+  };
+}
+function unmapCode(block, seen) {
+  checkBlock(block, "code", seen, true);
+  assertObject(block.props, "code.props");
+  onlyKeys(block.props, ["language"], "code.props");
+  checkLanguage(block.props.language);
+  return {
+    type: "codeBlock",
+    attrs: { relaymarkId: block.id, language: block.props.language },
+    content: inlineChildren(block, "code").map(unmapText)
   };
 }
 function checkLanguage(language) {
@@ -5223,6 +5500,13 @@ function mapRule(node, seen) {
   }
   return { id: node.attrs.relaymarkId, type: "horizontal_rule", content: [] };
 }
+function unmapRule(block, seen) {
+  checkBlock(block, "horizontal_rule", seen);
+  if (block.content !== void 0 && children(block, "horizontal_rule").length !== 0) {
+    throw new TypeError("Horizontal rule cannot have children");
+  }
+  return { type: "horizontalRule", attrs: { relaymarkId: block.id } };
+}
 function mapImage(node, seen) {
   checkNode(node, "image", seen, ["src", "alt", "title", "width", "height"]);
   if (node.content !== void 0 && children(node, "image").length !== 0) {
@@ -5235,6 +5519,17 @@ function mapImage(node, seen) {
   if (width != null) props.width = width;
   if (height != null) props.height = height;
   return { id: node.attrs.relaymarkId, type: "image", props, content: [] };
+}
+function unmapImage(block, seen) {
+  checkBlock(block, "image", seen, true);
+  assertObject(block.props, "image.props");
+  onlyKeys(block.props, ["src", "alt", "title", "width", "height"], "image.props");
+  if (block.content !== void 0 && children(block, "image").length !== 0) {
+    throw new TypeError("Image cannot have children");
+  }
+  checkImageProps(block.props);
+  checkDimensions(block.props);
+  return { type: "image", attrs: { relaymarkId: block.id, width: null, height: null, ...block.props } };
 }
 function checkImageProps({ src, alt, title }) {
   if (!safeImageSource(src)) throw new TypeError("Image src must be durable local media or HTTPS");
@@ -5266,6 +5561,22 @@ function mapEntityReference(node, seen) {
     content: []
   };
 }
+function unmapEntityReference(block, seen) {
+  checkBlock(block, "relay.entity_reference", seen, true);
+  if (block.content !== void 0 && children(block, "relay.entity_reference").length !== 0) {
+    throw new TypeError("Entity reference atom cannot have children");
+  }
+  const { id: id2, entityId: entityId2, label, projection, source } = assertEntityReferenceProps(block.props);
+  return { type: "relayEntityReference", attrs: {
+    relaymarkId: block.id,
+    entityRef: id2,
+    entityId: entityId2,
+    entityType: "Entity",
+    label,
+    projection,
+    source
+  } };
+}
 var paperControlFields = { button: ["label", "kind", "target"], anchor: ["name"], connection: ["provider"] };
 function mapPaperControl(node, seen) {
   const control = paperControlKind(node.type);
@@ -5281,6 +5592,14 @@ function mapPaperControl(node, seen) {
     props: { control, ...authored, source },
     content: []
   };
+}
+function unmapPaperControl(block, seen) {
+  checkBlock(block, "relay.paper_control", seen, true);
+  if (block.content !== void 0 && children(block, "relay.paper_control").length !== 0) {
+    throw new TypeError("Paper control cannot have children");
+  }
+  const { control, authored } = assertPaperControlProps(block.props);
+  return { type: paperControlNodeName(control), attrs: { relaymarkId: block.id, ...authored } };
 }
 function mapAgentSuggestion(node, seen) {
   checkNode(node, "agentSuggestion", seen, ["review", "kind", "confidence", "evidence", "content"]);
@@ -5301,6 +5620,18 @@ function mapAgentSuggestion(node, seen) {
     content: [{ type: "text", text: content2 }]
   };
 }
+function unmapAgentSuggestion(block, seen) {
+  checkBlock(block, "relay.agent_suggestion", seen, true);
+  const { review, kind, confidence, evidence, content: content2 } = assertAgentSuggestionBlock(block);
+  return { type: "agentSuggestion", attrs: {
+    relaymarkId: block.id,
+    review,
+    kind,
+    confidence,
+    evidence,
+    content: content2
+  } };
+}
 var videoId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 function checkVideoId(value) {
   if (typeof value !== "string" || !videoId.test(value)) {
@@ -5319,6 +5650,19 @@ function mapVideo(node, seen) {
     props: { videoId: node.attrs.videoId },
     content: []
   };
+}
+function unmapVideo(block, seen) {
+  checkBlock(block, "relay.video_embed", seen, true);
+  assertObject(block.props, "relay.video_embed.props");
+  onlyKeys(block.props, ["videoId"], "relay.video_embed.props");
+  if (block.content !== void 0 && children(block, "relay.video_embed").length !== 0) {
+    throw new TypeError("Video cannot have children");
+  }
+  checkVideoId(block.props.videoId);
+  return { type: "videoEmbed", attrs: {
+    relaymarkId: block.id,
+    videoId: block.props.videoId
+  } };
 }
 function mapTable(node, seen) {
   checkNode(node, "table", seen);
@@ -5356,6 +5700,50 @@ function mapText(node) {
   }
   return { type: "text", text: node.text };
 }
+function unmapTable(block, seen) {
+  checkBlock(block, "table", seen);
+  return { type: "table", attrs: { relaymarkId: block.id }, content: children(block, "table", 1).map((row) => unmapRow(row, seen)) };
+}
+function unmapRow(block, seen) {
+  checkBlock(block, "table_row", seen);
+  return { type: "tableRow", attrs: { relaymarkId: block.id }, content: children(block, "table_row", 1).map((cell) => unmapCell(cell, seen)) };
+}
+function unmapCell(block, seen) {
+  checkBlock(block, "table_cell", seen, true);
+  const props = block.props;
+  assertObject(props, "table_cell.props");
+  onlyKeys(props, ["header", "colspan", "rowspan", "colwidth", "align"], "table_cell.props");
+  if (typeof props.header !== "boolean") throw new TypeError("table_cell.header must be boolean");
+  checkCellProps(props);
+  return {
+    type: props.header ? "tableHeader" : "tableCell",
+    attrs: {
+      relaymarkId: block.id,
+      colspan: props.colspan,
+      rowspan: props.rowspan,
+      colwidth: props.colwidth,
+      align: props.align
+    },
+    content: children(block, "table_cell", 1).map((child) => unmapBlock(child, seen, 0))
+  };
+}
+function unmapParagraph(block, seen) {
+  checkBlock(block, "paragraph", seen);
+  return {
+    type: "paragraph",
+    attrs: { relaymarkId: block.id },
+    content: inlineChildren(block, "paragraph").map(unmapInline)
+  };
+}
+function unmapText(node) {
+  assertObject(node, "text");
+  onlyKeys(node, ["type", "text"], "text");
+  requireType(node, "text");
+  if (typeof node.text !== "string" || node.text.length === 0) {
+    throw new TypeError("Text must be a nonempty string");
+  }
+  return { type: "text", text: node.text };
+}
 function checkNode(node, type, seen, additionalAttrs = []) {
   assertObject(node, type);
   onlyKeys(node, ["type", "attrs", "content"], type);
@@ -5363,6 +5751,12 @@ function checkNode(node, type, seen, additionalAttrs = []) {
   assertObject(node.attrs, `${type}.attrs`);
   onlyKeys(node.attrs, ["relaymarkId", ...additionalAttrs], `${type}.attrs`);
   checkId(node.attrs.relaymarkId, seen);
+}
+function checkBlock(block, type, seen, hasProps = false) {
+  assertObject(block, type);
+  onlyKeys(block, hasProps ? ["id", "type", "props", "content"] : ["id", "type", "content"], type);
+  requireType(block, type);
+  checkId(block.id, seen);
 }
 function checkCellProps(props) {
   if (!Number.isSafeInteger(props.colspan) || props.colspan < 1 || !Number.isSafeInteger(props.rowspan) || props.rowspan < 1) {
@@ -5492,6 +5886,21 @@ function mapQuestion(node, seen) {
   });
   return { id: node.attrs.relaymarkId, type: "relay.form_question", props, content: [label, ...options] };
 }
+function unmapQuestion(block, seen) {
+  checkBlock(block, "relay.form_question", seen, true);
+  const props = formProps(block.props, false), parts = children(block, "relay.form_question", 1);
+  const label = unmapParagraph(parts[0], seen);
+  label.type = "questionLabel";
+  const optionIDs = /* @__PURE__ */ new Set();
+  const options = parts.slice(1).map((option) => {
+    checkBlock(option, "relay.form_option", seen, true);
+    const props2 = formProps(option.props, true);
+    if (optionIDs.has(props2.id)) throw new TypeError("Duplicate option identity");
+    optionIDs.add(props2.id);
+    return { type: "questionOption", attrs: { relaymarkId: option.id, ...props2 }, content: inlineChildren(option, "relay.form_option").map(unmapInline) };
+  });
+  return { type: "questionBlock", attrs: { relaymarkId: block.id, ...props }, content: [label, ...options] };
+}
 var dataViewFields = ["source", "projection", "columns", "filter", "sort", "group", "limit", "title"];
 function dataViewProps(attrs) {
   const props = {};
@@ -5512,6 +5921,12 @@ function mapDataView(node, seen) {
   checkNode(node, "relayDataView", seen, dataViewFields);
   if (node.content !== void 0 && children(node, "relayDataView").length) throw new TypeError("Data view cannot carry records/children");
   return { id: node.attrs.relaymarkId, type: "relay.data_view", props: dataViewProps(node.attrs), content: [] };
+}
+function unmapDataView(block, seen) {
+  checkBlock(block, "relay.data_view", seen, true);
+  onlyKeys(block.props, dataViewFields, "relay.data_view.props");
+  if (children(block, "relay.data_view").length) throw new TypeError("Data view cannot carry records/children");
+  return { type: "relayDataView", attrs: { relaymarkId: block.id, ...dataViewProps(block.props) } };
 }
 function assertAuthoredMetadata(value) {
   assertObject(value, "authored metadata");
@@ -5582,9 +5997,364 @@ import * as tableCommands from "prosemirror-tables";
 
 // src/document-snapshot.js
 var schema = createCanonicalEditorSchema();
+function valid(document2) {
+  relayMarkToProseMirror(document2);
+  return document2;
+}
+var metadataKeys = ["frontmatter", "annotations", "resources", "meta"];
+function snapshotToDocument(snapshot2) {
+  const only2 = (value, keys3) => {
+    if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !keys3.includes(k))) throw new TypeError("Invalid portable snapshot shape");
+  };
+  only2(snapshot2, ["kind", "children", "metadata"]);
+  if (snapshot2.kind !== "fragment" || !Array.isArray(snapshot2.children)) throw new TypeError("Invalid portable fragment");
+  function nodes(children2, depth = 0) {
+    if (depth > 64 || !Array.isArray(children2)) throw new TypeError("Invalid portable children");
+    return children2.flatMap((n) => {
+      if (n.kind === "text") {
+        only2(n, ["kind", "delta"]);
+        if (!Array.isArray(n.delta)) throw new TypeError("Invalid text delta");
+        return n.delta.map((run) => {
+          only2(run, ["insert", "attributes"]);
+          if (typeof run.insert !== "string" || !run.insert) throw new TypeError("Invalid text insert");
+          const attributes2 = run.attributes || {};
+          only2(attributes2, ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"]);
+          const marks = Object.entries(attributes2).map(([type, attrs]) => {
+            only2(attrs, type === "link" ? ["href", "target", "rel", "class", "title"] : []);
+            return type === "link" ? { type, attrs: { ...linkDefaults, ...attrs } } : { type };
+          }).sort((a, b) => textMarkNames.indexOf(a.type) - textMarkNames.indexOf(b.type));
+          return { type: "text", text: run.insert, ...marks.length ? { marks } : {} };
+        });
+      }
+      only2(n, ["kind", "name", "attributes", "children"]);
+      if (n.kind !== "element" || typeof n.name !== "string") throw new TypeError("Invalid portable element");
+      only2(n.attributes, Object.keys(n.attributes || {}));
+      const content2 = nodes(n.children, depth + 1), attributes = { ...{ heading: { headingId: null }, orderedList: { start: 1, type: null }, taskItem: { checked: false, entityId: null }, codeBlock: { language: null }, tableCell: { colspan: 1, rowspan: 1, colwidth: null, align: null }, tableHeader: { colspan: 1, rowspan: 1, colwidth: null, align: null }, image: { alt: null, title: null }, callout: { tone: "neutral", emphasis: "soft" }, questionBlock: { required: false, points: null, min: null, max: null, settings: {} }, questionOption: { correct: false, points: null, settings: {} } }[n.name] || {}, ...n.attributes };
+      return [{ type: n.name, ...Object.keys(attributes).length ? { attrs: attributes } : {}, ...content2.length ? { content: content2 } : {} }];
+    });
+  }
+  const pm = { type: "doc", content: nodes(snapshot2.children) };
+  proseMirrorToRelayMark(pm);
+  const normalized2 = schema.nodeFromJSON(pm);
+  normalized2.check();
+  const document2 = proseMirrorToRelayMark(JSON.parse(JSON.stringify(normalized2.toJSON())));
+  if (Object.hasOwn(snapshot2, "metadata")) {
+    only2(snapshot2.metadata, metadataKeys);
+    Object.assign(document2, cloneCanonicalJSON(snapshot2.metadata));
+  }
+  return valid(document2);
+}
 
 // src/content-edit-witness.js
 var schema2 = createCanonicalEditorSchema();
+var MAX_UNITS = 131072;
+var same = (a, b) => stableStringify(a) === stableStringify(b);
+function keys2(value, allowed, required = allowed) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !allowed.includes(k)) || required.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid causal evidence fields");
+}
+function identity2(value) {
+  keys2(value, ["client", "clock"]);
+  if (!Number.isSafeInteger(value.client) || value.client < 0 || !Number.isSafeInteger(value.clock) || value.clock < 0 || value.clock >= 2 ** 32) throw TypeError("Invalid causal item identity");
+  return value;
+}
+var idKey = (id2) => id2.client + ":" + id2.clock;
+function unicode(text) {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (c >= 55296 && c <= 56319) {
+      const next = text.charCodeAt(++i);
+      if (!(next >= 56320 && next <= 57343)) throw TypeError("Causal range splits Unicode");
+    } else if (c >= 56320 && c <= 57343) throw TypeError("Causal range splits Unicode");
+  }
+}
+function selection(value) {
+  keys2(value, ["runs"]);
+  if (!Array.isArray(value.runs) || value.runs.length > 4096) throw TypeError("Invalid causal selection");
+  let count = 0;
+  const intervals2 = /* @__PURE__ */ new Map();
+  for (const run of value.runs) {
+    keys2(run, ["type", "item", "count"]);
+    identity2(run.type);
+    identity2(run.item);
+    if (!Number.isSafeInteger(run.count) || run.count < 1 || (count += run.count) > MAX_UNITS || run.item.clock + run.count > 2 ** 32) throw TypeError("Invalid causal run extent");
+    const seen = intervals2.get(run.item.client) || [];
+    if (seen.some(([a, b]) => a < run.item.clock + run.count && b > run.item.clock)) throw TypeError("Overlapping causal selector");
+    seen.push([run.item.clock, run.item.clock + run.count]);
+    intervals2.set(run.item.client, seen);
+  }
+  return value;
+}
+function clocks(values) {
+  if (!Array.isArray(values)) throw TypeError("Missing trusted state vector");
+  const result = /* @__PURE__ */ new Map();
+  for (const entry of values) {
+    keys2(entry, ["client", "clock"]);
+    if (!Number.isSafeInteger(entry.client) || entry.client < 0 || !Number.isSafeInteger(entry.clock) || entry.clock < 0 || entry.clock > 2 ** 32 || result.has(entry.client)) throw TypeError("Invalid trusted state vector");
+    result.set(entry.client, entry.clock);
+  }
+  return result;
+}
+function index(snapshot2) {
+  const runs = [], nodes = /* @__PURE__ */ new Map(), seen = /* @__PURE__ */ new Map();
+  let budget2 = 1e6;
+  const step = () => {
+    if (--budget2 < 0) throw TypeError("Causal snapshot budget exceeded");
+  };
+  function visit(node, position, depth, path = []) {
+    step();
+    if (depth > 128) throw TypeError("Causal snapshot depth exceeded");
+    if (node.kind === "text") {
+      keys2(node, ["kind", "type", "runs"]);
+      identity2(node.type);
+      if (!Array.isArray(node.runs) || nodes.has(idKey(node.type))) throw TypeError("Invalid causal text branch");
+      nodes.set(idKey(node.type), node);
+      let size2 = 0;
+      for (const run of node.runs) {
+        step();
+        keys2(run, ["item", "count", "text", "attributes"]);
+        identity2(run.item);
+        if (typeof run.text !== "string" || !run.text || run.text.length !== run.count || run.item.clock + run.count > 2 ** 32) throw TypeError("Invalid causal string run");
+        unicode(run.text);
+        validateTextAttributes(run.attributes);
+        const known = seen.get(run.item.client) || [];
+        if (known.some(([a, b]) => a < run.item.clock + run.count && b > run.item.clock)) throw TypeError("Overlapping visible causal items");
+        known.push([run.item.clock, run.item.clock + run.count]);
+        seen.set(run.item.client, known);
+        runs.push({ ...run, type: node.type, path, offset: size2, position: position + size2 });
+        size2 += run.count;
+      }
+      return { portable: { kind: "text", delta: node.runs.map((run) => ({ insert: run.text, attributes: run.attributes })) }, size: size2 };
+    }
+    if (node.kind === "fragment") {
+      keys2(node, ["kind", "root", "children", "metadata"], ["kind", "root", "children"]);
+      if (node.root !== "default" || !Array.isArray(node.children)) throw TypeError("Invalid causal root");
+    } else {
+      keys2(node, ["kind", "type", "name", "attributes", "children"]);
+      identity2(node.type);
+      if (node.kind !== "element" || !schema2.nodes[node.name] || nodes.has(idKey(node.type))) throw TypeError("Invalid causal element");
+      nodes.set(idKey(node.type), node);
+    }
+    if (!Array.isArray(node.children)) throw TypeError("Invalid causal children");
+    const children2 = [];
+    let size = 0;
+    const root = node.kind === "fragment";
+    for (const [childIndex, child] of node.children.entries()) {
+      const result = visit(child, position + (root ? 0 : 1) + size, depth + 1, [...path, childIndex]);
+      children2.push(result.portable);
+      size += result.size;
+    }
+    if (root) return { portable: { kind: "fragment", children: children2, ...Object.hasOwn(node, "metadata") ? { metadata: node.metadata } : {} }, size };
+    if (schema2.nodes[node.name].isLeaf) {
+      if (size) throw TypeError("Causal atom contains children");
+      size = 1;
+    } else size += 2;
+    return { portable: { kind: "element", name: node.name, attributes: node.attributes, children: children2 }, size };
+  }
+  const projected = visit(snapshot2, 0, 0), document2 = snapshotToDocument(projected.portable), pm = schema2.nodeFromJSON(relayMarkToProseMirror(document2));
+  pm.check();
+  if (pm.content.size !== projected.size) throw TypeError("Causal snapshot size disagrees with maintained schema");
+  return { runs, nodes, document: document2, pm: JSON.parse(JSON.stringify(pm.toJSON())) };
+}
+function resolve(index2, selected) {
+  selection(selected);
+  const out = [];
+  for (const requested of selected.runs) {
+    let clock = requested.item.clock, end = clock + requested.count;
+    const candidates = index2.runs.filter((run) => run.item.client === requested.item.client && same(run.type, requested.type) && run.item.clock < end && run.item.clock + run.count > clock).sort((a, b) => a.item.clock - b.item.clock);
+    for (const run of candidates) {
+      if (run.item.clock > clock) break;
+      const from = Math.max(clock, run.item.clock), to = Math.min(end, run.item.clock + run.count);
+      if (from < to) {
+        const text = run.text.slice(from - run.item.clock, to - run.item.clock);
+        unicode(text);
+        out.push({ type: run.type, item: { client: run.item.client, clock: from }, count: to - from, text, attributes: run.attributes, path: run.path, offset: run.offset + from - run.item.clock, position: run.position + from - run.item.clock });
+        clock = to;
+      }
+    }
+    if (clock !== end) throw TypeError("Causal selector has unavailable or wrongly typed items");
+  }
+  return out;
+}
+function plain(runs) {
+  return { runs: runs.map(({ type, item, count }) => ({ type, item, count })) };
+}
+function disjoint(runs) {
+  const seen = /* @__PURE__ */ new Map();
+  for (const run of runs) {
+    const list = seen.get(run.item.client) || [];
+    if (list.some(([a, b]) => a < run.item.clock + run.count && b > run.item.clock)) throw TypeError("Duplicate destination/human allocation");
+    list.push([run.item.clock, run.item.clock + run.count]);
+    seen.set(run.item.client, list);
+  }
+}
+function cover(wanted, available) {
+  for (const run of wanted) {
+    let clock = run.item.clock, end = clock + run.count;
+    for (const part2 of available.filter((v) => v.item.client === run.item.client && same(v.type, run.type)).sort((a, b) => a.item.clock - b.item.clock)) {
+      if (part2.item.clock > clock) break;
+      if (part2.item.clock + part2.count > clock) clock = Math.min(end, part2.item.clock + part2.count);
+    }
+    if (clock !== end) throw TypeError("Omitted or unproven fresh text allocation");
+  }
+}
+function equalContent(source, destination) {
+  let a = 0, b = 0, ao = 0, bo = 0;
+  while (a < source.length && b < destination.length) {
+    const s = source[a], d = destination[b], count = Math.min(s.count - ao, d.count - bo);
+    if (s.text.slice(ao, ao + count) !== d.text.slice(bo, bo + count) || !same(s.attributes, d.attributes)) throw TypeError("Causal contents or full attributes disagree");
+    ao += count;
+    bo += count;
+    if (ao === s.count) {
+      a++;
+      ao = 0;
+    }
+    if (bo === d.count) {
+      b++;
+      bo = 0;
+    }
+  }
+  if (a !== source.length || b !== destination.length) throw TypeError("Causal content length mismatch");
+}
+function copyRange(source, destination, count, retained, inserted) {
+  let offset = 0;
+  while (offset < count) {
+    const sp = source + offset, dp = destination + offset, ends = [...retained.filter((r) => sp >= r.source_from && sp < r.source_from + r.length && dp === r.destination_from + sp - r.source_from).map((r) => r.source_from + r.length - sp), ...inserted.filter((r) => dp >= r.destination_from && dp < r.destination_from + r.length).map((r) => r.destination_from + r.length - dp)];
+    if (!ends.length) return false;
+    offset += Math.min(count - offset, Math.max(...ends));
+  }
+  return true;
+}
+function matchedCopy(source, destination, retained, inserted) {
+  let a = 0, b = 0, ao = 0, bo = 0;
+  while (a < source.length && b < destination.length) {
+    const s = source[a], d = destination[b], count = Math.min(s.count - ao, d.count - bo), sp = s.position + ao, dp = d.position + bo;
+    if (s.text.slice(ao, ao + count) !== d.text.slice(bo, bo + count) || !same(s.attributes, d.attributes) && !copyRange(sp, dp, count, retained, []) || !copyRange(sp, dp, count, retained, inserted)) throw TypeError("Unproven content-edit causal copy");
+    ao += count;
+    bo += count;
+    if (ao === s.count) {
+      a++;
+      ao = 0;
+    }
+    if (bo === d.count) {
+      b++;
+      bo = 0;
+    }
+  }
+  if (a !== source.length || b !== destination.length || !source.length) throw TypeError("Causal copy length mismatch");
+}
+function allocationCoverage(footprint, beforeClocks, afterClocks, after, fresh, operation) {
+  const allocationRuns = [];
+  for (const record of footprint.structs) {
+    keys2(record, ["item", "count", "parent", "key", "origin", "right_origin", "content", "deleted"]);
+    identity2(record.item);
+    if (!Number.isSafeInteger(record.count) || record.count < 1 || record.item.clock + record.count > 2 ** 32 || record.item.clock + record.count > (afterClocks.get(record.item.client) || 0)) throw TypeError("Invalid original struct range");
+    const start = Math.max(record.item.clock, beforeClocks.get(record.item.client) || 0);
+    if (start >= record.item.clock + record.count) continue;
+    if (record.parent?.root === "relaymark") {
+      if (!operation.steps.some((step) => step.stepType === "docAttr" && step.attr === "relaymark")) throw TypeError("Content edit contains metadata allocation");
+      continue;
+    }
+    if (record.content?.kind === "string") {
+      if (record.deleted || typeof record.content.text !== "string" || record.content.text.length !== record.count || !record.parent?.type || record.key !== null) throw TypeError("Hidden or unprovable string mutation");
+      const allocated = { type: identity2(record.parent.type), item: { client: record.item.client, clock: start }, count: record.item.clock + record.count - start };
+      const observed = resolve(after, { runs: [allocated] });
+      if (observed.map((v) => v.text).join("") !== record.content.text.slice(start - record.item.clock)) throw TypeError("Original allocation disagrees with retained content");
+      allocationRuns.push(allocated);
+    }
+  }
+  cover(allocationRuns, fresh);
+  cover(fresh, allocationRuns);
+}
+function refuseReusedInsertedText(after, inserted, beforeClocks) {
+  let cursor = 0;
+  for (const run of after.runs) {
+    const start = run.position, end = start + run.count;
+    while (cursor < inserted.length && inserted[cursor].destination_from + inserted[cursor].length <= start) cursor++;
+    for (let i = cursor; i < inserted.length && inserted[i].destination_from < end; i++) {
+      const from = Math.max(start, inserted[i].destination_from), to = Math.min(end, inserted[i].destination_from + inserted[i].length);
+      if (from < to && run.item.clock + from - start < (beforeClocks.get(run.item.client) || 0)) throw TypeError("Semantic inserted text reused retained identity");
+    }
+  }
+}
+function freshRuns(after, beforeClocks) {
+  return after.runs.flatMap((run) => {
+    const clock = Math.max(run.item.clock, beforeClocks.get(run.item.client) || 0), count = run.item.clock + run.count - clock;
+    return count > 0 ? [{ ...run, item: { client: run.item.client, clock }, count, text: run.text.slice(clock - run.item.clock), position: run.position + clock - run.item.clock }] : [];
+  });
+}
+function prepareWitness(evidence, interpret) {
+  keys2(evidence, ["sender_before_snapshot", "sender_after_snapshot", "before_snapshot", "after_snapshot", "before_state_vector", "operation", "text_items", "footprint"]);
+  const { footprint, operation } = evidence;
+  if (operation?.history) throw TypeError("Owned history accounting requires maintained accepted-receipt replay");
+  keys2(footprint, ["state_vector", "structs", "declared_deletes", "deleted_items"]);
+  if (!Array.isArray(footprint.structs) || !Array.isArray(footprint.declared_deletes) || !Array.isArray(footprint.deleted_items) || footprint.structs.length + footprint.deleted_items.length > 1e6) throw TypeError("Invalid complete mutation footprint");
+  const beforeClocks = clocks(evidence.before_state_vector), afterClocks = clocks(footprint.state_vector);
+  for (const [client, clock] of beforeClocks) if (clock > (afterClocks.get(client) || 0)) throw TypeError("Mutation frontier is behind trusted prestate");
+  keys2(operation, ["kind", "steps", "copies", "history", "group"], ["kind", "steps", "copies"]);
+  if (!Array.isArray(operation.copies) || operation.copies.length > 4096) throw TypeError("Invalid causal copies");
+  const sender = index(evidence.sender_before_snapshot), senderAfter = index(evidence.sender_after_snapshot), before = index(evidence.before_snapshot), after = index(evidence.after_snapshot), expected = interpret(sender.pm, operation);
+  if (!same(expected.document, senderAfter.pm)) throw TypeError("Actual sender result disagrees with maintained steps");
+  refuseReusedInsertedText(senderAfter, expected.inserted_ranges, beforeClocks);
+  const fresh = freshRuns(after, beforeClocks);
+  const human = resolve(after, evidence.text_items), destinations = [], proven_copies = [];
+  let copiedUnits = 0;
+  for (const copy of operation.copies) {
+    keys2(copy, ["source", "destination"]);
+    const source = resolve(sender, copy.source), destination = resolve(senderAfter, copy.destination);
+    matchedCopy(source, destination, expected.retained_ranges, expected.inserted_ranges);
+    if ((copiedUnits += destination.reduce((n, r) => n + r.count, 0)) > MAX_UNITS) throw TypeError("Copied destination limit exceeded");
+    equalContent(destination, resolve(after, copy.destination));
+    destinations.push(...destination);
+    proven_copies.push(copy);
+  }
+  disjoint([...human, ...destinations]);
+  cover(fresh, [...human, ...destinations]);
+  cover([...human, ...destinations], fresh);
+  allocationCoverage(footprint, beforeClocks, afterClocks, after, fresh, operation);
+  const unproven_mutations = { structs: footprint.structs.filter((r) => r.content.kind !== "string"), declared_deletes: footprint.declared_deletes, deleted_items: footprint.deleted_items };
+  return { document: expected.document, authored_document: expected.authored_document, retained_ranges: expected.retained_ranges, inserted_ranges: expected.inserted_ranges, proven_copies, fresh_items: plain(fresh), text_items: plain(human), unproven_mutations, requires_mutation_correspondence: true };
+}
+function buildWitness(evidence, interpret) {
+  keys2(evidence, ["sender_before_snapshot", "sender_after_snapshot", "before_snapshot", "after_snapshot", "before_state_vector", "operation", "footprint"]);
+  if (evidence.operation?.history) throw TypeError("Owned history accounting requires maintained accepted-receipt replay");
+  keys2(evidence.operation, ["kind", "steps", "history", "group", "copies"], ["kind", "steps"]);
+  const sender = index(evidence.sender_before_snapshot), after = index(evidence.sender_after_snapshot), frontier = clocks(evidence.before_state_vector), expected = interpret(sender.pm, { ...evidence.operation, copies: [] });
+  if (!same(after.pm, expected.document)) throw TypeError("Actual sender disagrees with maintained command");
+  refuseReusedInsertedText(after, expected.inserted_ranges, frontier);
+  const supplied = evidence.operation.copies ?? [];
+  if (!Array.isArray(supplied) || supplied.length > 4096) throw TypeError("Invalid explicit Slice copies");
+  const copies = [...supplied];
+  let human = [];
+  for (const run of after.runs) {
+    const start = Math.max(run.item.clock, frontier.get(run.item.client) || 0), n = run.item.clock + run.count - start;
+    if (n <= 0) continue;
+    let uncovered = [[run.position + start - run.item.clock, run.position + run.count]];
+    for (const mapped of [...expected.retained_ranges, ...expected.copied_subtree_ranges]) {
+      const from = Math.max(run.position + start - run.item.clock, mapped.destination_from), to = Math.min(run.position + run.count, mapped.destination_from + mapped.length);
+      if (from >= to) continue;
+      const sourceFrom = mapped.source_from + from - mapped.destination_from, sourceTo = sourceFrom + to - from;
+      for (const original of sender.runs) {
+        const a = Math.max(original.position, sourceFrom), b = Math.min(original.position + original.count, sourceTo);
+        if (a >= b) continue;
+        const destination = from + a - sourceFrom, count = b - a;
+        copies.push({ source: { runs: [{ type: original.type, item: { client: original.item.client, clock: original.item.clock + a - original.position }, count }] }, destination: { runs: [{ type: run.type, item: { client: run.item.client, clock: run.item.clock + destination - run.position }, count }] } });
+        uncovered = uncovered.flatMap(([left, right]) => destination >= right || destination + count <= left ? [[left, right]] : [...left < destination ? [[left, destination]] : [], ...destination + count < right ? [[destination + count, right]] : []]);
+      }
+    }
+    for (const [from, to] of uncovered) human.push({ type: run.type, item: { client: run.item.client, clock: run.item.clock + from - run.position }, count: to - from });
+  }
+  for (const copy of supplied) {
+    keys2(copy, ["source", "destination"]);
+    for (const destination of resolve(after, copy.destination)) human = human.flatMap((run) => {
+      if (!same(run.type, destination.type) || run.item.client !== destination.item.client) return [run];
+      const a = run.item.clock, b = a + run.count, c = destination.item.clock, d = c + destination.count;
+      if (c >= b || d <= a) return [run];
+      return [...a < c ? [{ ...run, count: c - a }] : [], ...d < b ? [{ ...run, item: { client: run.item.client, clock: d }, count: b - d }] : []];
+    });
+  }
+  const operation = { ...evidence.operation, copies }, text_items = { runs: human }, prepared = prepareWitness({ ...evidence, operation, text_items }, interpret);
+  return { ...prepared, operation, text_items };
+}
 
 // src/content-edit-write.js
 function contentEditTextGroups(document2) {
@@ -5876,6 +6646,9 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   if (cursor < document2.content.size) inserted_ranges.push({ destination_from: cursor, length: document2.content.size - cursor });
   return { document: json, authored_document, step_maps, retained_ranges, inserted_ranges, copied_subtree_ranges };
 }
+function buildContentEditWitness(evidence) {
+  return buildWitness(evidence, applyContentEdit);
+}
 function prepareContentEditWrite(before, steps, after) {
   const expected = applyContentEdit(before, { kind: "content_edit", steps });
   if (stableStringify(expected.document) !== stableStringify(after)) throw TypeError("Causal writer result disagrees with actual steps");
@@ -6051,7 +6824,7 @@ var toBase64 = (bytes2) => (0, import_btoa.default)(Array.from(bytes2, (v) => St
 var fromBase64 = (value) => Uint8Array.from((0, import_atob.default)(value), (v) => v.charCodeAt(0));
 var schema4 = createCanonicalEditorSchema();
 var MAX_BYTES = 8 * 1024 * 1024;
-var same = (a, b) => stableStringify(a) === stableStringify(b);
+var same2 = (a, b) => stableStringify(a) === stableStringify(b);
 function fields2(value, allowed, required = allowed) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !allowed.includes(k)) || required.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid mutation replay evidence");
 }
@@ -6098,7 +6871,7 @@ function retainedPrefix(record, count, known) {
     const n = Math.min(end, saved.item.clock + saved.count) - clock, a = part(record, clock, n), b = part(saved, clock, n);
     delete a.deleted;
     delete b.deleted;
-    if (!same(a, b)) throw TypeError("Original update rewrites retained item identity");
+    if (!same2(a, b)) throw TypeError("Original update rewrites retained item identity");
     clock += n;
     if (clock === end) return;
   }
@@ -6129,7 +6902,7 @@ function mergeRecords(records, withOrigins) {
   const out = [];
   for (const r of records.sort((a, b) => a.item.client - b.item.client || a.item.clock - b.item.clock)) {
     const p = out.at(-1);
-    if (p && p.item.client === r.item.client && p.item.clock + p.count === r.item.clock && same(p.parent, r.parent) && p.key === r.key && p.deleted === r.deleted && p.content.kind === r.content.kind && ["string", "any", "json"].includes(r.content.kind) && (!withOrigins || same(p.right_origin, r.right_origin) && same(r.origin, { client: p.item.client, clock: r.item.clock - 1 }))) {
+    if (p && p.item.client === r.item.client && p.item.clock + p.count === r.item.clock && same2(p.parent, r.parent) && p.key === r.key && p.deleted === r.deleted && p.content.kind === r.content.kind && ["string", "any", "json"].includes(r.content.kind) && (!withOrigins || same2(p.right_origin, r.right_origin) && same2(r.origin, { client: p.item.client, clock: r.item.clock - 1 }))) {
       p.count += r.count;
       if (p.content.kind === "string") p.content.text += r.content.text;
       else p.content.values.push(...r.content.values);
@@ -6170,7 +6943,7 @@ function replayContentEditMutation(evidence) {
       if (applied.failed) throw TypeError("Refused maintained command");
       result = applied.doc;
     }
-    if (!same(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
+    if (!same2(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
     sender.clientID = evidence.writer_client ?? 0;
     const updates = [];
     sender.on("update", (update2) => updates.push(update2));
@@ -6188,16 +6961,64 @@ function replayContentEditMutation(evidence) {
     for (const [client, ranges] of ds.clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
     Y3.applyUpdate(current, update);
     const footprint = captureContentEditFootprint(current, update), actual = normalized(evidence.footprint, before, known, deleted), replayed = normalized(footprint, before, known, deleted);
-    if (!same(actual, replayed)) throw TypeError("Original mutation differs from executed maintained command");
+    if (!same2(actual, replayed)) throw TypeError("Original mutation differs from executed maintained command");
     return { footprint, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, retained_field_changes: fieldChanges(replayed) };
   } finally {
     sender.destroy();
     current.destroy();
   }
 }
+function produceContentEdit(input) {
+  fields2(input, ["state_base64", "writer_client", "transaction_id", "owner_id", "steps"]);
+  canonicalOperationID(input.transaction_id);
+  canonicalOperationID(input.owner_id);
+  if (input.writer_client !== null && (!Number.isSafeInteger(input.writer_client) || input.writer_client < 0)) throw TypeError("Invalid actual command writer");
+  const state = bytes(input.state_base64), doc = owner(state), origin = {};
+  let manager;
+  try {
+    const root = doc.getXmlFragment("default"), metadata = doc.getMap("relaymark");
+    const beforeSnapshot = captureContentEditSnapshot(root), beforeClocks = captureContentEditFootprint(doc, Uint8Array.of(0, 0)).state_vector;
+    const before_snapshot_base64 = toBase64(Y3.encodeSnapshot(Y3.snapshot(doc)));
+    const initialized = initProseMirrorDoc(root, schema4), operation = { kind: "content_edit", steps: input.steps };
+    const expected = applyContentEdit(initialized.doc.toJSON(), operation);
+    let result = initialized.doc;
+    for (const json of input.steps) {
+      const applied = Step2.fromJSON(schema4, json).apply(result);
+      if (applied.failed) throw TypeError("Refused maintained command");
+      result = applied.doc;
+    }
+    if (!same2(result.toJSON(), expected.document)) throw TypeError("Maintained command execution disagrees");
+    manager = new Y3.UndoManager([root, metadata], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+    protectOwnedHistoryBranches(manager);
+    bindOwnedHistoryOwner(manager, input.owner_id);
+    const bind = (event) => bindOwnedCommandGroup(manager, event, input.transaction_id);
+    manager.on("stack-item-added", bind);
+    manager.on("stack-item-updated", bind);
+    doc.clientID = input.writer_client ?? 0;
+    const updates = [];
+    doc.on("update", (update2) => updates.push(update2));
+    initialized.meta.contentEditWrite = createContentEditWrite(initialized.doc, input.steps, result);
+    doc.transact(() => updateYFragment(doc, root, result, initialized.meta), origin);
+    if (updates.length !== 1) throw TypeError("Command must produce one maintained mutation transaction");
+    const update = updates[0], footprint = captureContentEditFootprint(doc, update), group = readOwnedCommandGroup(manager, input.transaction_id);
+    const clocks2 = new Map(beforeClocks.map((v) => [v.client, v.clock]));
+    const freshClients = new Set(footprint.structs.filter((item) => item.item.clock + item.count > (clocks2.get(item.item.client) || 0)).map((item) => item.item.client));
+    if (freshClients.size > 1) throw TypeError("Multiple actual command writers");
+    const actualWriter = freshClients.size ? [...freshClients][0] : null;
+    if (actualWriter !== null && actualWriter !== input.writer_client) throw TypeError("Supplied command writer differs from actual fresh allocation");
+    const afterSnapshot = captureContentEditSnapshot(root);
+    const witness = buildContentEditWitness({ sender_before_snapshot: beforeSnapshot, sender_after_snapshot: afterSnapshot, before_snapshot: beforeSnapshot, after_snapshot: afterSnapshot, before_state_vector: beforeClocks, operation: { ...operation, group }, footprint });
+    const content_edit = { before_snapshot_base64, steps: input.steps, copies: witness.proven_copies, group };
+    const replay = replayContentEditMutation({ sender_state_base64: input.state_base64, current_state_base64: input.state_base64, writer_client: actualWriter, operation: { ...operation, copies: witness.proven_copies, group }, footprint });
+    return { update_base64: toBase64(update), state_base64: toBase64(Y3.encodeStateAsUpdate(doc)), before_snapshot_base64, authored_document: witness.authored_document, text_items: witness.text_items, content_edit, proof: { ...witness, ...replay, requires_mutation_correspondence: false } };
+  } finally {
+    manager?.destroy();
+    doc.destroy();
+  }
+}
 function observedWriter(footprint, doc) {
-  const clocks = Y3.decodeStateVector(Y3.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
-  for (const item of footprint.structs) if (item.item.clock + item.count > (clocks.get(item.item.client) || 0)) clients.add(item.item.client);
+  const clocks2 = Y3.decodeStateVector(Y3.encodeStateVector(doc)), clients = /* @__PURE__ */ new Set();
+  for (const item of footprint.structs) if (item.item.clock + item.count > (clocks2.get(item.item.client) || 0)) clients.add(item.item.client);
   if (clients.size > 1) throw TypeError("Multiple actual command writers");
   return clients.size ? [...clients][0] : null;
 }
@@ -6212,7 +7033,7 @@ function compareUpdate(current, originalFootprint, update) {
   for (const [client, ranges] of Y3.createDeleteSetFromStructStore(current.store).clients) for (const r of ranges) deleted.push({ item: { client, clock: r.clock }, count: r.len });
   Y3.applyUpdate(current, update);
   const footprint = captureContentEditFootprint(current, update);
-  if (!same(normalized(originalFootprint, before, known, deleted), normalized(footprint, before, known, deleted))) throw TypeError("Original mutation differs from maintained owned history");
+  if (!same2(normalized(originalFootprint, before, known, deleted), normalized(footprint, before, known, deleted))) throw TypeError("Original mutation differs from maintained owned history");
   return { footprint, retained_field_changes: fieldChanges(normalized(footprint, before, known, deleted)) };
 }
 function fieldChanges(footprint) {
@@ -6229,13 +7050,13 @@ function redoneLinks(doc) {
   return result;
 }
 function restoredCopies(doc, prior, links) {
-  const copies = [], snapshot = captureContentEditSnapshot(doc.getXmlFragment("default")), visible = /* @__PURE__ */ new Set();
+  const copies = [], snapshot2 = captureContentEditSnapshot(doc.getXmlFragment("default")), visible = /* @__PURE__ */ new Set();
   let remaining = 1e6;
   function visit(node) {
     if (node.kind === "text") visible.add(node.type.client + ":" + node.type.clock);
     else for (const child of node.children) visit(child);
   }
-  visit(snapshot);
+  visit(snapshot2);
   for (const structs of doc.store.clients.values()) for (const source of structs) {
     if (--remaining < 0) throw TypeError("Restored copy observation budget exhausted");
     if (!(source instanceof Y3.Item) || !(source.content instanceof Y3.ContentString) || !source.redone || source.id.clock >= (prior.get(source.id.client) || 0) || links.get(source.id.client + ":" + source.id.clock) === source.redone.client + ":" + source.redone.clock) continue;
@@ -6251,7 +7072,7 @@ function restoredCopies(doc, prior, links) {
   return copies;
 }
 function ownedTextAccounting(doc, before, copies) {
-  const snapshot = captureContentEditSnapshot(doc.getXmlFragment("default")), fresh = [];
+  const snapshot2 = captureContentEditSnapshot(doc.getXmlFragment("default")), fresh = [];
   function visit(node) {
     if (node.kind === "text") {
       for (const run of node.runs) {
@@ -6260,7 +7081,7 @@ function ownedTextAccounting(doc, before, copies) {
       }
     } else for (const child of node.children) visit(child);
   }
-  visit(snapshot);
+  visit(snapshot2);
   const extent = (ranges) => {
     let total = 0;
     const groups = /* @__PURE__ */ new Map();
@@ -6282,7 +7103,7 @@ function ownedTextAccounting(doc, before, copies) {
       return [key2, merged];
     });
   };
-  if (!same(extent(fresh), extent(copies.flatMap((copy) => copy.destination.runs)))) throw TypeError("Unaccounted maintained inverse text allocation");
+  if (!same2(extent(fresh), extent(copies.flatMap((copy) => copy.destination.runs)))) throw TypeError("Unaccounted maintained inverse text allocation");
   return { fresh_items: { runs: fresh }, text_items: { runs: [] }, proven_copies: copies };
 }
 var ownedObservations = /* @__PURE__ */ new WeakMap();
@@ -6320,7 +7141,7 @@ function replayOwnedHistory(evidence) {
   const inverse = (operation, writer) => {
     validateOwnedHistory(operation.history);
     const stack = operation.history.kind === "undo" ? manager.undoStack : manager.redoStack, group = stack.at(-1)?.meta.get("relaymark:operation_ids");
-    if (operation.history.owner_id !== evidence.operation.history.owner_id || !group || !same(group, { owner_id: operation.history.owner_id, reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
+    if (operation.history.owner_id !== evidence.operation.history.owner_id || !group || !same2(group, { owner_id: operation.history.owner_id, reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
     const prior = Y3.decodeStateVector(Y3.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
     doc.clientID = writer ?? 0;
     popped = null;
@@ -6331,7 +7152,7 @@ function replayOwnedHistory(evidence) {
     } finally {
       doc.off("update", capture);
     }
-    if (!popped || updates.length !== 1 || !same(initProseMirrorDoc(doc.getXmlFragment("default"), schema4).doc.toJSON(), expected.document)) throw TypeError("Actual maintained inverse disagrees with supplied steps");
+    if (!popped || updates.length !== 1 || !same2(initProseMirrorDoc(doc.getXmlFragment("default"), schema4).doc.toJSON(), expected.document)) throw TypeError("Actual maintained inverse disagrees with supplied steps");
     lastRestored = restoredCopies(doc, prior, links);
     return updates[0];
   };
@@ -6372,7 +7193,7 @@ function replayOwnedHistory(evidence) {
             activeID = null;
           }
           const actualGroup = readOwnedCommandGroup(manager, receipt.transaction_id);
-          if (!same(actualGroup, group)) throw TypeError("Accepted prefix differs from maintained group");
+          if (!same2(actualGroup, group)) throw TypeError("Accepted prefix differs from maintained group");
         }
       } finally {
         candidate.destroy();
@@ -6381,7 +7202,7 @@ function replayOwnedHistory(evidence) {
     Y3.applyUpdate(doc, bytes(evidence.sender_state_base64));
     const candidateFrontier = Y3.decodeStateVector(Y3.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
     try {
-      if (!same([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y3.decodeStateVector(Y3.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same(intervals(captureContentEditFootprint(doc, Y3.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y3.encodeStateAsUpdate(sender)).declared_deletes)) || !same(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
+      if (!same2([...candidateFrontier].sort((a, b) => a[0] - b[0]), [...Y3.decodeStateVector(Y3.encodeStateVector(sender))].sort((a, b) => a[0] - b[0])) || !same2(captureContentEditSnapshot(doc.getXmlFragment("default")), captureContentEditSnapshot(sender.getXmlFragment("default"))) || !same2(intervals(captureContentEditFootprint(doc, Y3.encodeStateAsUpdate(doc)).declared_deletes), intervals(captureContentEditFootprint(sender, Y3.encodeStateAsUpdate(sender)).declared_deletes)) || !same2(doc.share.has("relaymark") ? doc.getMap("relaymark").toJSON() : {}, sender.share.has("relaymark") ? sender.getMap("relaymark").toJSON() : {})) throw TypeError("Accepted history does not reconstruct exact sender frontier");
     } finally {
       sender.destroy();
     }
@@ -6401,5 +7222,6 @@ function replayOwnedHistory(evidence) {
 export {
   captureOwnedHistoryObservation,
   finishOwnedHistoryObservation,
+  produceContentEdit,
   replayContentEditMutation
 };

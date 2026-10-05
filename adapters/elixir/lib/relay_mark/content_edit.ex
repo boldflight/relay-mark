@@ -53,6 +53,12 @@ defmodule RelayMark.ContentEdit do
 
   def replay_mutation(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Produce one actual DOM-free maintained command from host-admitted retained state and trusted server command/manager identities. The host still authorizes and independently admits the original returned update."
+  def produce(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "produceContentEdit", [input])
+
+  def produce(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Stateless classification after the host authenticates current original receipts, scope and complete proof. Inputs and results are not credentials."
   def classify_source_reference(runtime, binding, transaction, proof, human_ancestry),
     do:

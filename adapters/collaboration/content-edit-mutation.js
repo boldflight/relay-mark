@@ -9,10 +9,11 @@ import btoa from 'core-js-pure/actual/btoa.js';
 const toBase64=bytes=>btoa(Array.from(bytes,v=>String.fromCharCode(v)).join(''));
 const fromBase64=value=>Uint8Array.from(atob(value),v=>v.charCodeAt(0));
 import {createCanonicalEditorSchema} from '../../src/editor-model.js';
-import {applyContentEdit,createContentEditWrite} from '../../src/content-edit.js';
+import {applyContentEdit,createContentEditWrite,buildContentEditWitness} from '../../src/content-edit.js';
 import {stableStringify,cloneCanonicalJSON as clone} from '../../src/canonical-json.js';
 import {bindOwnedHistoryOwner,readOwnedCommandGroup,bindOwnedCommandGroup,bindOwnedCommandHistory,validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
 import {captureContentEditFootprint,captureContentEditSnapshot} from './content-edit-observer.js';
+import {canonicalOperationID} from '../../src/owned-command-group.js';
 import {protectOwnedHistoryBranches} from './owned-history-branches.js';
 const schema=createCanonicalEditorSchema(),MAX_BYTES=8*1024*1024;
 const same=(a,b)=>stableStringify(a)===stableStringify(b);
@@ -46,6 +47,46 @@ export function replayContentEditMutation(evidence){
   if(!same(actual,replayed))throw TypeError('Original mutation differs from executed maintained command');
   return {footprint,expected_update_base64:toBase64(update),complete_mutation_correspondence:true,retained_field_changes:fieldChanges(replayed)};
  }finally{sender.destroy();current.destroy();}
+}
+
+/** One DOM-free command through the same maintained PM/Yjs writer. The host
+ * supplies admitted state and fresh command/manager UUIDs; no actor, grant,
+ * draft, source authority or persisted history is manufactured here. */
+export function produceContentEdit(input){
+ fields(input,['state_base64','writer_client','transaction_id','owner_id','steps']);
+ canonicalOperationID(input.transaction_id);canonicalOperationID(input.owner_id);
+ if(input.writer_client!==null&&(!Number.isSafeInteger(input.writer_client)||input.writer_client<0))throw TypeError('Invalid actual command writer');
+ const state=bytes(input.state_base64),doc=owner(state),origin={};let manager;
+ try{
+  const root=doc.getXmlFragment('default'),metadata=doc.getMap('relaymark');
+  const beforeSnapshot=captureContentEditSnapshot(root),beforeClocks=captureContentEditFootprint(doc,Uint8Array.of(0,0)).state_vector;
+  const before_snapshot_base64=toBase64(Y.encodeSnapshot(Y.snapshot(doc)));
+  const initialized=initProseMirrorDoc(root,schema),operation={kind:'content_edit',steps:input.steps};
+  const expected=applyContentEdit(initialized.doc.toJSON(),operation);
+  let result=initialized.doc;
+  for(const json of input.steps){const applied=Step.fromJSON(schema,json).apply(result);if(applied.failed)throw TypeError('Refused maintained command');result=applied.doc;}
+  if(!same(result.toJSON(),expected.document))throw TypeError('Maintained command execution disagrees');
+  manager=new Y.UndoManager([root,metadata],{trackedOrigins:new Set([origin]),captureTimeout:Infinity});
+  protectOwnedHistoryBranches(manager);bindOwnedHistoryOwner(manager,input.owner_id);
+  const bind=event=>bindOwnedCommandGroup(manager,event,input.transaction_id);
+  manager.on('stack-item-added',bind);manager.on('stack-item-updated',bind);
+  doc.clientID=input.writer_client??0;
+  const updates=[];doc.on('update',update=>updates.push(update));
+  initialized.meta.contentEditWrite=createContentEditWrite(initialized.doc,input.steps,result);
+  doc.transact(()=>updateYFragment(doc,root,result,initialized.meta),origin);
+  if(updates.length!==1)throw TypeError('Command must produce one maintained mutation transaction');
+  const update=updates[0],footprint=captureContentEditFootprint(doc,update),group=readOwnedCommandGroup(manager,input.transaction_id);
+  const clocks=new Map(beforeClocks.map(v=>[v.client,v.clock]));
+  const freshClients=new Set(footprint.structs.filter(item=>item.item.clock+item.count>(clocks.get(item.item.client)||0)).map(item=>item.item.client));
+  if(freshClients.size>1)throw TypeError('Multiple actual command writers');
+  const actualWriter=freshClients.size?[...freshClients][0]:null;
+  if(actualWriter!==null&&actualWriter!==input.writer_client)throw TypeError('Supplied command writer differs from actual fresh allocation');
+  const afterSnapshot=captureContentEditSnapshot(root);
+  const witness=buildContentEditWitness({sender_before_snapshot:beforeSnapshot,sender_after_snapshot:afterSnapshot,before_snapshot:beforeSnapshot,after_snapshot:afterSnapshot,before_state_vector:beforeClocks,operation:{...operation,group},footprint});
+  const content_edit={before_snapshot_base64,steps:input.steps,copies:witness.proven_copies,group};
+  const replay=replayContentEditMutation({sender_state_base64:input.state_base64,current_state_base64:input.state_base64,writer_client:actualWriter,operation:{...operation,copies:witness.proven_copies,group},footprint});
+  return{update_base64:toBase64(update),state_base64:toBase64(Y.encodeStateAsUpdate(doc)),before_snapshot_base64,authored_document:witness.authored_document,text_items:witness.text_items,content_edit,proof:{...witness,...replay,requires_mutation_correspondence:false}};
+ }finally{manager?.destroy();doc.destroy();}
 }
 
 function observedWriter(footprint,doc){const clocks=Y.decodeStateVector(Y.encodeStateVector(doc)),clients=new Set();for(const item of footprint.structs)if(item.item.clock+item.count>(clocks.get(item.item.client)||0))clients.add(item.item.client);if(clients.size>1)throw TypeError('Multiple actual command writers');return clients.size?[...clients][0]:null;}
