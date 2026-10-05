@@ -8,7 +8,10 @@ defmodule RelayMark.ContentEdit do
   isolated QuickJS-NG thread. Resource refusal never invokes another interpreter.
   """
 
-  @limits [timeout: 1_000, memory_limit: 67_108_864, max_stack_size: 2_097_152]
+  # The unchanged131072-unit copy+ancestry classifier needs ~384MiB/4.7s
+  # on the measured maintained QuickJS cohort. Hosts bound concurrent workers;
+  # these are hard maxima, with explicit timeout/OOM refusal and no fallback.
+  @limits [timeout: 10_000, memory_limit: 402_653_184, max_stack_size: 2_097_152]
 
   @doc "Start an isolated reusable runtime; the host must stop it when its owner exits."
   def start_runtime(opts \\ []) do
