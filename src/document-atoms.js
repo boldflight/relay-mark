@@ -61,14 +61,14 @@ export function unmapAtom(node) {
     const { entityType: type, source } = node.props;
     if (source !== referenceSource(type, node.id, node.label)) throw new TypeError('Reference source mismatch');
     return { type: 'relayReference', attrs: { entityType: type, entityId: node.id,
-      label: node.label, source, status: null, subtitle: null } };
+      label: node.label, source } };
   }
   if (node?.type === 'relay.tag_ref') {
     only(node, ['type', 'id', 'label', 'props'], 'tag');
     only(node.props, ['name', 'source'], 'tag props');
     const { name, source } = node.props;
     if (node.label !== `#${name}` || source !== tagSource(node.id, name)) throw new TypeError('Tag source mismatch');
-    return { type: 'relayTag', attrs: { id: node.id, name, color: null, source } };
+    return { type: 'relayTag', attrs: { id: node.id, name, source } };
   }
   throw new TypeError(`Unsupported inline atom ${String(node?.type)}`);
 }

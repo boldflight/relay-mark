@@ -97,6 +97,11 @@ export function importDocumentSnapshot(original,{namespace}={}){
    const defaults={playbackId:null,title:null,source:'mux',thumbnailUrl:null,status:'ready',youtubeId:null,uploadPercent:null};
    for(const[key,value]of Object.entries(defaults))if(Object.hasOwn(node.attributes,key)){if(node.attributes[key]!==value)throw new TypeError('Historical video requires retained domain presentation evidence');changes.push({path:[...path],operation:'remove_attribute',name:key,before:value});delete node.attributes[key];}
   }
+  const obsoleteAtomAttrs=node.name==='relayReference'?['status','subtitle']:node.name==='relayTag'?['color']:[];
+  for(const key of obsoleteAtomAttrs)if(Object.hasOwn(node.attributes,key)){
+   if(node.attributes[key]!==null)throw new TypeError('Historical inline atom requires retained presentation evidence');
+   changes.push({path:[...path],operation:'remove_attribute',name:key,before:null});delete node.attributes[key];
+  }
   node.children.forEach((child,i)=>visit(child,[...path,i],depth+1));
  }
  if(snapshot.kind!=='fragment'||!Array.isArray(snapshot.children))throw new TypeError('Historical XML root');

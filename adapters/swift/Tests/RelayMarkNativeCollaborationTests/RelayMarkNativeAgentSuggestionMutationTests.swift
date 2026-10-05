@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import RelayMarkCollaboration
+import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
@@ -14,7 +15,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
     }
 
     private func dismiss(_ document: RelayMarkNativeDocument, index: Int = 1,
-                         review: String = "ready", confidence: Double? = 0.88) throws -> Data {
+                         review: String = "ready", confidence: Double? = 0.88) throws -> RelayMarkNativeRichEditing.Change {
         try RelayMarkNativeAgentSuggestionMutation.dismiss(
             document: document, atRootIndex: index, expectedID: id,
             expectedReview: review, expectedKind: "note",
@@ -24,7 +25,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
 
     private func accept(_ document: RelayMarkNativeDocument,
                         index: Int = 1, content: String = "Check **this** source.",
-                        newID: String = "b00000000000040008000000000000084") throws -> Data {
+                        newID: String = "b00000000000040008000000000000084") throws -> RelayMarkNativeRichEditing.Change {
         try RelayMarkNativeAgentSuggestionMutation.accept(
             document: document, atRootIndex: index, expectedID: id,
             expectedReview: "ready", expectedKind: "note", expectedConfidence: 0.88,
@@ -43,8 +44,8 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         let before = try native.snapshot()
         XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept("Check **this** source."))
         let update = try accept(native)
-        try peer.applyUpdate(update)
-        try browser.applyUpdate(update)
+        try peer.applyUpdate(update.update)
+        try browser.applyUpdate(update.update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()),
                        try RelayMarkNativeDocumentProjection.project(document: native))
@@ -78,15 +79,14 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         for replica in [native, peer] { try replica.applyUpdate(baseline) }
         try browser.applyUpdate(baseline)
         let content = "## Shared **heading**"
-        let changed = try native.mutatePaperControl(at: 1, change: .update(
-            tag: "agentSuggestion", expectedID: id, attributes: ["content": content]))
-        try peer.applyUpdate(changed)
-        try browser.applyUpdate(changed)
+        let changed = try RelayMarkNativeRichEditing.updateWidget(document: native, tree: JSONSerialization.jsonObject(with: native.snapshot()) as! [String: Any], id: id, attributes: ["content": content])
+        try peer.applyUpdate(changed.update)
+        try browser.applyUpdate(changed.update)
         let before = try native.snapshot()
         XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(content))
         let accepted = try accept(native, content: content)
-        try peer.applyUpdate(accepted)
-        try browser.applyUpdate(accepted)
+        try peer.applyUpdate(accepted.update)
+        try browser.applyUpdate(accepted.update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
         let ast = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "heading", "paragraph"])
@@ -95,8 +95,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         let anchor: String?
         if case let .string(value) = ast.blocks[1].props["headingId"] { anchor = value }
         else { anchor = nil }
-        XCTAssertNotNil(anchor?.range(of: #"^h-[0-9a-f]{8}-[0-9a-f-]{27}$"#,
-                                      options: .regularExpression))
+        XCTAssertNotNil(anchor?.range(of: "^h-[0-9a-f]{8}-[0-9a-f-]{27}$", options: .regularExpression))
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(snapshot: browser.snapshot()), ast)
         let browserHeadingURL = try XCTUnwrap(Bundle.module.url(
             forResource: "markdown-blocks-v3-draft", withExtension: "json"))
@@ -116,9 +115,6 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         XCTAssertEqual(Set(acceptedAttributes.keys), Set(browserAttributes.keys))
         XCTAssertEqual(acceptedAttributes["level"] as? Int, browserAttributes["level"] as? Int)
         XCTAssertTrue(acceptedAttributes["headingId"] is String)
-        let nullable = try RelayMarkNativeRichSingleBlock.parse(content)
-        XCTAssertTrue(nullable.attributes(id: "b00000000000040008000000000000084",
-                                          headingID: nil)["headingId"] is NSNull)
         let restored = try XCTUnwrap(native.undo())
         try peer.applyUpdate(restored)
         try browser.applyUpdate(restored)
@@ -143,8 +139,8 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
                      expectedText: String)] = [
             ("> Quoted **text**", "quote", "blockquote", 2, "Quoted text"),
             ("```swift\nlet earth = \"🌍\"\nprint(earth)\n```", "code", "codeBlock", 5,
-             "let earth = \"🌍\"\nprint(earth)"),
-            ("```\nplain code\n```", "code", "codeBlock", 5, "plain code"),
+             "let earth = \"🌍\"\nprint(earth)\n"),
+            ("```\nplain code\n```", "code", "codeBlock", 5, "plain code\n"),
             ("---", "horizontal_rule", "horizontalRule", 6, "")
         ]
         for scenario in cases {
@@ -153,15 +149,14 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
             let baseline = try fixture()
             for replica in [native, peer] { try replica.applyUpdate(baseline) }
             try browser.applyUpdate(baseline)
-            let changed = try native.mutatePaperControl(at: 1, change: .update(
-                tag: "agentSuggestion", expectedID: id, attributes: ["content": scenario.source]))
-            try peer.applyUpdate(changed)
-            try browser.applyUpdate(changed)
+            let changed = try RelayMarkNativeRichEditing.updateWidget(document: native, tree: JSONSerialization.jsonObject(with: native.snapshot()) as! [String: Any], id: id, attributes: ["content": scenario.source])
+            try peer.applyUpdate(changed.update)
+            try browser.applyUpdate(changed.update)
             let before = try native.snapshot()
             XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(scenario.source))
             let update = try accept(native, content: scenario.source)
-            try peer.applyUpdate(update)
-            try browser.applyUpdate(update)
+            try peer.applyUpdate(update.update)
+            try browser.applyUpdate(update.update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
             let ast = try RelayMarkNativeDocumentProjection.project(document: native)
             XCTAssertEqual(ast.blocks[1].type, scenario.type)
@@ -173,8 +168,11 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
             let node = nodes[1], browserNode = reference[scenario.referenceIndex]
             XCTAssertEqual(node["name"] as? String, scenario.xmlName)
             XCTAssertEqual(node["name"] as? String, browserNode["name"] as? String)
-            XCTAssertEqual(Set((node["attributes"] as? [String: Any] ?? [:]).keys),
-                           Set((browserNode["attributes"] as? [String: Any] ?? [:]).keys))
+            XCTAssertEqual(Set((node["attributes"] as? [String: Any] ?? [:]).filter { !($0.value is NSNull) && $0.key != "language" }.keys),
+                           Set((browserNode["attributes"] as? [String: Any] ?? [:]).filter { !($0.value is NSNull) && $0.key != "language" }.keys))
+            if scenario.type == "code" {
+                XCTAssertEqual((node["attributes"] as? [String: Any])?["language"] as? String, scenario.source.hasPrefix("```swift") ? "swift" : nil)
+            }
             if scenario.type == "quote" {
                 let child = try XCTUnwrap((node["children"] as? [[String: Any]])?.first)
                 XCTAssertEqual(child["name"] as? String, "paragraph")
@@ -213,15 +211,14 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
             let baseline = try fixture()
             for replica in [native, peer] { try replica.applyUpdate(baseline) }
             try browser.applyUpdate(baseline)
-            let changed = try native.mutatePaperControl(at: 1, change: .update(
-                tag: "agentSuggestion", expectedID: id, attributes: ["content": scenario.source]))
-            try peer.applyUpdate(changed)
-            try browser.applyUpdate(changed)
+            let changed = try RelayMarkNativeRichEditing.updateWidget(document: native, tree: JSONSerialization.jsonObject(with: native.snapshot()) as! [String: Any], id: id, attributes: ["content": scenario.source])
+            try peer.applyUpdate(changed.update)
+            try browser.applyUpdate(changed.update)
             let before = try native.snapshot()
             XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(scenario.source))
             let update = try accept(native, content: scenario.source)
-            try peer.applyUpdate(update)
-            try browser.applyUpdate(update)
+            try peer.applyUpdate(update.update)
+            try browser.applyUpdate(update.update)
             XCTAssertEqual(try native.snapshot(), try peer.snapshot())
             let ast = try RelayMarkNativeDocumentProjection.project(document: native)
             XCTAssertEqual(ast.blocks[1].type, "list")
@@ -256,6 +253,40 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         }
     }
 
+    func testAcceptedRichFragmentUsesTheFullCanonicalGrammar() throws {
+        let content = """
+        @Callout(tone: "warning") {
+        Read **carefully**
+        }
+
+        | Name | Count |
+        | --- | --- |
+        | Alpha | 2 |
+
+        ![Diagram](https://example.com/diagram.png)
+        """
+        XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(content),
+            "Rich suggestions must not disappear behind the reduced single-block converter")
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try native.applyUpdate(fixture())
+        _ = try RelayMarkNativeRichEditing.updateWidget(document: native,
+            tree: JSONSerialization.jsonObject(with: native.snapshot()) as! [String: Any], id: id,
+            attributes: ["content": content])
+        let before = try native.snapshot()
+        try peer.applyUpdate(native.encodeUpdate())
+        let accepted = try accept(native, content: content)
+        let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: accepted.steps) as? [[String: Any]])
+        XCTAssertEqual(steps.first?["stepType"] as? String, "replace")
+        try peer.applyUpdate(accepted.update)
+        let ast = try RelayMarkNativeDocumentProjection.project(document: native)
+        XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "relay.callout", "table", "image", "paragraph"])
+        XCTAssertEqual(ast.blocks[1].id, "b00000000000040008000000000000084")
+        XCTAssertEqual(try peer.authoredDocument(), try native.authoredDocument())
+        let undo = try XCTUnwrap(native.undo()); try peer.applyUpdate(undo)
+        XCTAssertEqual(try native.snapshot(), before)
+        XCTAssertEqual(try peer.snapshot(), before)
+    }
+
     func testAcceptRejectsUnsupportedOrStaleContentAndDuplicateIDWithoutMutation() throws {
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(fixture())
@@ -263,13 +294,15 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(
             "Read *carefully*, **please**, then use `code` and [source](https://example.com)."))
         for source in ["First\n\nSecond", "![image](https://example.com/a.png)",
-                       "<b>HTML</b>", "- [x] task", "- [ ] task", "0. Zero",
-                       "[unsafe](javascript:alert(1))",
-                       "# Heading {#manual-anchor}", "> First\n>\n> Second",
-                       "```swift extra\nprint(1)\n```", "```\n```",
-                       "- Parent\n  - Nested", "- First\n\n  Second paragraph"] {
-            XCTAssertFalse(RelayMarkNativeAgentSuggestionMutation.canAccept(source), source)
+                       "<b>HTML</b>", "- [x] task", "- Parent\n  - Nested"] {
+            XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept(source), source)
         }
+        XCTAssertTrue(RelayMarkNativeAgentSuggestionMutation.canAccept("[unsafe](javascript:alert(1))")) // Shared importer preserves this as literal text.
+        var metadataAST = try XCTUnwrap(JSONSerialization.jsonObject(with:
+            RelayMarkSourceCodec.parseDocument("Body", namespace: "proposal-envelope")) as? [String: Any])
+        metadataAST["meta"] = ["review": "needed"]
+        let metadata = try RelayMarkSourceCodec.serializeDocument(JSONSerialization.data(withJSONObject: metadataAST))
+        XCTAssertFalse(RelayMarkNativeAgentSuggestionMutation.canAccept(metadata))
         XCTAssertThrowsError(try accept(native, content: "Changed"))
         XCTAssertThrowsError(try accept(native, index: 0))
         XCTAssertThrowsError(try accept(native, newID: "b00000000000040008000000000000000083"))
@@ -286,8 +319,8 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
 
         let before = try native.snapshot()
         let removed = try dismiss(native)
-        try peer.applyUpdate(removed)
-        try browser.applyUpdate(removed)
+        try peer.applyUpdate(removed.update)
+        try browser.applyUpdate(removed.update)
         XCTAssertEqual(try native.snapshot(), try peer.snapshot())
         XCTAssertEqual(try native.richProseProjection().suggestionAtoms, [])
         XCTAssertEqual(String(try native.richProseProjection().text.characters), "Before\nAfter")

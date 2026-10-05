@@ -233,3 +233,15 @@ test('canonical video emits only durable identity and finite import records deri
  const imported=importDocumentSnapshot(old,{namespace:'video-import'});assert.deepEqual(imported.document,ast);assert.deepEqual(imported.snapshot,snapshot);assert.deepEqual(imported.normalizations,[{path:[1],operation:'remove_attribute',name:'source',before:'mux'},{path:[1],operation:'remove_attribute',name:'status',before:'ready'}]);
  const unknown=structuredClone(old);unknown.children[1].attributes.source='youtube';assert.throws(()=>importDocumentSnapshot(unknown,{namespace:'video-import'}));
 });
+
+test('canonical atom construction emits only schema-owned attrs and finite import records obsolete null hydration',()=>{
+ const ast=parseDocument('[[Person: 11111111-1111-4111-8111-111111111111 | Full title]] and [[Tag: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa | #followup]]',{namespace:'canonical-atom-fields'});
+ const snapshot=documentToSnapshot(ast),reference=snapshot.children[0].children[0],tag=snapshot.children[0].children[2];
+ assert.deepEqual(Object.keys(reference.attributes),['entityType','entityId','label','source']);
+ assert.deepEqual(Object.keys(tag.attributes),['id','name','source']);
+ const old=structuredClone(snapshot);Object.assign(old.children[0].children[0].attributes,{status:null,subtitle:null});old.children[0].children[2].attributes.color=null;
+ const migrated=importDocumentSnapshot(old,{namespace:'retained-atoms'});
+ assert.deepEqual(migrated.document,ast);assert.deepEqual(migrated.snapshot,snapshot);
+ assert.deepEqual(migrated.normalizations,[{path:[0,0],operation:'remove_attribute',name:'status',before:null},{path:[0,0],operation:'remove_attribute',name:'subtitle',before:null},{path:[0,2],operation:'remove_attribute',name:'color',before:null}]);
+ old.children[0].children[0].attributes.status='resolved';assert.throws(()=>importDocumentSnapshot(old,{namespace:'retained-atoms'}));
+});

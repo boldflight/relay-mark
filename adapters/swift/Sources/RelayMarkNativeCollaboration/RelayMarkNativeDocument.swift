@@ -971,112 +971,6 @@ public final class RelayMarkNativeDocument {
         try replaceText(at: index, length: length, with: "", path: path)
     }
 
-    enum PaperControlChange {
-        case insert(tag: String, attributes: [String: Any])
-        case update(tag: String, expectedID: String, attributes: [String: String])
-        case remove(tag: String, expectedID: String)
-    }
-
-    /// One root-sibling transaction after the canonical command has validated a
-    /// scratch replica. Updates retain the existing Y.XmlElement identity.
-    func mutatePaperControl(at index: Int, change: PaperControlChange) throws -> Data {
-        guard let childIndex = UInt32(exactly: index) else { throw Failure.invalidTextPath }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            guard childIndex <= self.root.length(in: transaction) else { throw Failure.invalidTextPath }
-            switch change {
-            case let .insert(tag, attributes):
-                let node = try self.root.insertElement(named: tag, at: childIndex, in: transaction)
-                for (key, value) in attributes { try node.setAttribute(key, value: value, in: transaction) }
-            case let .update(tag, expectedID, attributes):
-                guard let node = self.root.child(at: childIndex, in: transaction),
-                      node.kind(in: transaction) == "element", node.tag(in: transaction) == tag,
-                      try node.attributes(in: transaction)["relaymarkId"] as? String == expectedID else {
-                    throw Failure.invalidTextPath
-                }
-                for (key, value) in attributes where key != "relaymarkId" {
-                    try node.setAttribute(key, value: value, in: transaction)
-                }
-            case let .remove(tag, expectedID):
-                guard let node = self.root.child(at: childIndex, in: transaction),
-                      node.kind(in: transaction) == "element", node.tag(in: transaction) == tag,
-                      try node.attributes(in: transaction)["relaymarkId"] as? String == expectedID else {
-                    throw Failure.invalidTextPath
-                }
-                try self.root.removeChildren(start: childIndex, length: 1, in: transaction)
-            }
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
-    }
-
-    /// Replace one authored suggestion with one ordinary Markdown block in one
-    /// local-origin Yrs transaction, so undo restores the complete atom.
-    func acceptAgentSuggestion(at index: Int, expectedID: String,
-                               block: RelayMarkNativeRichSingleBlock.Block,
-                               newBlockID: String, headingID: String?,
-                               quoteParagraphID: String?,
-                               listIDs: [(item: String, paragraph: String)]) throws -> Data {
-        guard let childIndex = UInt32(exactly: index),
-              (!block.runs.isEmpty || !block.listItems.isEmpty || block.kind.tag == "horizontalRule"),
-              listIDs.count == block.listItems.count else {
-            throw Failure.invalidTextPath
-        }
-        if case .quote = block.kind, quoteParagraphID == nil { throw Failure.invalidTextPath }
-        let update = try document.transactSync(origin: localOrigin) { transaction in
-            guard let node = self.root.child(at: childIndex, in: transaction),
-                  node.kind(in: transaction) == "element",
-                  node.tag(in: transaction) == "agentSuggestion",
-                  try node.attributes(in: transaction)["relaymarkId"] as? String == expectedID else {
-                throw Failure.invalidTextPath
-            }
-            try self.root.removeChildren(start: childIndex, length: 1, in: transaction)
-            let replacement = try self.root.insertElement(named: block.kind.tag, at: childIndex,
-                                                          in: transaction)
-            for (key, value) in block.attributes(id: newBlockID, headingID: headingID) {
-                try replacement.setAttribute(key, value: value, in: transaction)
-            }
-            if !block.listItems.isEmpty {
-                for (offset, item) in block.listItems.enumerated() {
-                    let listItem = try replacement.insertElement(named: "listItem",
-                                                                  at: UInt32(offset), in: transaction)
-                    try listItem.setAttribute("relaymarkId", value: listIDs[offset].item, in: transaction)
-                    let paragraph = try listItem.insertElement(named: "paragraph", at: 0,
-                                                               in: transaction)
-                    try paragraph.setAttribute("relaymarkId", value: listIDs[offset].paragraph,
-                                               in: transaction)
-                    let leaf = try paragraph.insertText(at: 0, in: transaction)
-                    var textOffset: UInt32 = 0
-                    for run in item {
-                        try leaf.insert(run.text, attributes: run.attributes, at: textOffset,
-                                        in: transaction)
-                        textOffset += UInt32(run.text.utf16.count)
-                    }
-                }
-                return Data(transaction.transactionEncodeUpdate())
-            }
-            let textParent: YXmlNode
-            if case .quote = block.kind {
-                guard let quoteParagraphID else { throw Failure.invalidTextPath }
-                let paragraph = try replacement.insertElement(named: "paragraph", at: 0,
-                                                              in: transaction)
-                try paragraph.setAttribute("relaymarkId", value: quoteParagraphID, in: transaction)
-                textParent = paragraph
-            } else { textParent = replacement }
-            if !block.runs.isEmpty {
-                let leaf = try textParent.insertText(at: 0, in: transaction)
-                var offset: UInt32 = 0
-                for run in block.runs {
-                    try leaf.insert(run.text, attributes: run.attributes, at: offset, in: transaction)
-                    offset += UInt32(run.text.utf16.count)
-                }
-            }
-            return Data(transaction.transactionEncodeUpdate())
-        }
-        wrapUndo()
-        return update
-    }
-
     /// Deletion and insertion share one transaction and one undo item.
     public func replaceText(at index: Int, length: Int, with text: String, path: [Int]) throws -> Data {
         try replaceText(at: index, length: length, with: text, path: path, insertionRuns: nil)
@@ -2404,11 +2298,6 @@ public final class RelayMarkNativeDocument {
         if node.tag() == "taskList" || node.tag() == "taskItem" { return true }
         guard node.kind() == "element" || node.kind() == "fragment" else { return false }
         return node.children().contains(where: containsTaskNode)
-    }
-
-    /// Called only after the recovery adapter validates the complete prospective XML.
-    func appendRecoveryNodes(_ nodes: [[String: Any]]) throws -> Data {
-        try replaceSnapshotNodes(parentPath: [], start: Int(root.length()), count: 0, nodes: nodes)
     }
 
     /// Writes a transformed ProseMirror document through y-prosemirror's

@@ -164,7 +164,7 @@ defmodule RelayMark.DocumentXML do
             do: import_xml_identity!(node, node_path, namespace, state),
             else: {node, state}
 
-        {node, state} = import_xml_derived_video!(node, node_path, state)
+        {node, state} = import_xml_derived_attributes!(node, node_path, state)
 
         {children, state} =
           import_xml_nodes!(list!(node["children"]), node_path, depth + 1, namespace, state)
@@ -174,7 +174,7 @@ defmodule RelayMark.DocumentXML do
     end)
   end
 
-  defp import_xml_derived_video!(%{"name" => "videoEmbed"} = node, path, state) do
+  defp import_xml_derived_attributes!(%{"name" => "videoEmbed"} = node, path, state) do
     defaults = [
       {"playbackId", nil},
       {"title", nil},
@@ -206,7 +206,32 @@ defmodule RelayMark.DocumentXML do
     {Map.put(node, "attributes", attributes), state}
   end
 
-  defp import_xml_derived_video!(node, _path, state), do: {node, state}
+  defp import_xml_derived_attributes!(%{"name" => name} = node, path, state)
+       when name in ~w(relayReference relayTag) do
+    obsolete = if name == "relayReference", do: ~w(status subtitle), else: ~w(color)
+
+    {attributes, state} =
+      Enum.reduce(obsolete, {attrs(node), state}, fn key, {attributes, state} ->
+        if Map.has_key?(attributes, key) do
+          require!(is_nil(attributes[key]), :historical_inline_presentation_evidence_required)
+
+          change = %{
+            "path" => path,
+            "operation" => "remove_attribute",
+            "name" => key,
+            "before" => nil
+          }
+
+          {Map.delete(attributes, key), Map.update!(state, "changes", &(&1 ++ [change]))}
+        else
+          {attributes, state}
+        end
+      end)
+
+    {Map.put(node, "attributes", attributes), state}
+  end
+
+  defp import_xml_derived_attributes!(node, _path, state), do: {node, state}
 
   defp import_xml_identity!(node, path, namespace, state) do
     attributes = attrs(node)

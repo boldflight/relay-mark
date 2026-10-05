@@ -44,6 +44,60 @@ defmodule RelayMark.DocumentXMLTest do
              RelayMark.import_document_snapshot(nondefault["xml"], namespace: "retained-video")
   end
 
+  test "finite atom normalization removes only recorded null presentation fields" do
+    {:ok, document} =
+      RelayMark.parse_document(
+        "[[Person: 11111111-1111-4111-8111-111111111111 | Full title]] and [[Tag: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa | #followup]]",
+        namespace: "retained-atoms"
+      )
+
+    {:ok, snapshot} = RelayMark.DocumentXML.from_document(document)
+
+    old =
+      snapshot
+      |> put_in(["children", Access.at(0), "children", Access.at(0), "attributes", "status"], nil)
+      |> put_in(
+        ["children", Access.at(0), "children", Access.at(0), "attributes", "subtitle"],
+        nil
+      )
+      |> put_in(["children", Access.at(0), "children", Access.at(2), "attributes", "color"], nil)
+
+    assert {:ok, imported} = RelayMark.import_document_snapshot(old, namespace: "retained-atoms")
+    assert imported["snapshot"] == snapshot
+    assert imported["document"] == document
+
+    assert imported["normalizations"] == [
+             %{
+               "path" => [0, 0],
+               "operation" => "remove_attribute",
+               "name" => "status",
+               "before" => nil
+             },
+             %{
+               "path" => [0, 0],
+               "operation" => "remove_attribute",
+               "name" => "subtitle",
+               "before" => nil
+             },
+             %{
+               "path" => [0, 2],
+               "operation" => "remove_attribute",
+               "name" => "color",
+               "before" => nil
+             }
+           ]
+
+    nondefault =
+      put_in(
+        old,
+        ["children", Access.at(0), "children", Access.at(0), "attributes", "status"],
+        "resolved"
+      )
+
+    assert {:error, _} =
+             RelayMark.import_document_snapshot(nondefault, namespace: "retained-atoms")
+  end
+
   test "independent browser fixture meanings and identities survive generic XML construction" do
     files = Path.wildcard(Path.join(@fixtures, "*.json"))
 

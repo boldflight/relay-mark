@@ -5,7 +5,7 @@ import Foundation
 @MainActor
 public extension RelayMarkNativeDocument {
     func appendRecoveredRichBlocks(from sourceSnapshot: Data, indices: [Int],
-                                         expectedSnapshot: Data) throws -> Data {
+                                         expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
         guard try snapshot() == expectedSnapshot, integrationStatus().isComplete,
               !indices.isEmpty, indices == indices.sorted(), Set(indices).count == indices.count else {
             throw Failure.unsupportedProseEdit
@@ -15,7 +15,7 @@ public extension RelayMarkNativeDocument {
         guard let source = try JSONSerialization.jsonObject(with: sourceSnapshot) as? [String: Any],
               let blocks = source["children"] as? [[String: Any]],
               indices.allSatisfy({ blocks.indices.contains($0) }),
-              var current = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let current = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
               let existing = current["children"] as? [[String: Any]] else {
             throw Failure.unsupportedProseEdit
         }
@@ -29,10 +29,7 @@ public extension RelayMarkNativeDocument {
             return result
         }
         let additions = indices.map { copied(blocks[$0]) }
-        current["children"] = existing + additions
-        let prospective = try JSONSerialization.data(withJSONObject: current, options: [.sortedKeys])
-        // Validate the whole result before a community transaction can mutate it.
-        _ = try RelayMarkNativeDocumentProjection.project(snapshot: prospective)
-        return try appendRecoveryNodes(additions)
+        return try RelayMarkNativeRichEditing.replaceRootChildren(document: self, tree: current,
+            index: existing.count, count: 0, replacements: additions)
     }
 }

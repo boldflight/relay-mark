@@ -241,3 +241,26 @@ tag command fixtures retain original state/update bytes, owned command groups,
 SnapshotV1, selectors and complete mutation footprints. Earlier image/button
 updates with different attribute clocks remain immutable refusal fixtures;
 matching AST values does not establish mutation correspondence.
+
+Native suggestion acceptance uses the same full source importer and an actual
+maintained root-range ReplaceStep with a canonical rich Slice. It may contain
+multiple paragraphs, nested lists, callouts, tables, media and form widgets.
+The proposal's exact review/content checks still guard that range. Document
+envelope metadata is refused for this body-fragment action rather than dropped;
+a full reviewed document replacement expresses metadata through DocAttrStep.
+The reduced one-block Markdown converter and its independent XML writer are
+removed. Native accept/dismiss now return the same immutable Change evidence.
+
+Reviewed native recovery appends selected full rich blocks at the actual PM root
+end with the same maintained ReplaceStep owner. Current item identities and
+metadata remain retained; newly copied block/heading identities are allocated
+once and included in actual command/append-repair Steps. Exact retained proposal
+bytes remain recovery evidence. The append API returns Change, including its
+original update, before SnapshotV1 and executed Steps; it no longer has a raw
+XML append writer. This producer evidence does not establish historical source
+ancestry or authorize Enhanced admission.
+
+Canonical source construction emits only schema-owned reference/tag attrs.
+Null status/subtitle/color from historical presentation are recorded finite
+snapshot removals, with original bytes retained. Non-null authored/presentation
+values require retained evidence and are refused rather than discarded.

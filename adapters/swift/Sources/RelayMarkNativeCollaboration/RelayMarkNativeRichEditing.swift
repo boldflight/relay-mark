@@ -369,6 +369,26 @@ public enum RelayMarkNativeRichEditing {
         return try change(transform, source: source, bridge: bridge, document: document)
     }
 
+    /// An explicit root-child replacement command, using the full shared rich
+    /// fragment and one maintained ReplaceStep rather than a document diff.
+    static func replaceRootChildren(document: RelayMarkNativeDocument, tree: [String: Any],
+                                    index: Int, count: Int, replacements: [[String: Any]]) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        guard var children = tree["children"] as? [[String: Any]], index >= 0, count >= 0,
+              index + count <= children.count else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        children.replaceSubrange(index ..< index + count, with: replacements)
+        var candidate = tree; candidate["children"] = children
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: JSONSerialization.data(withJSONObject: candidate))
+        let prospective = try PMYXmlBridge.canonical().document(fromSnapshot: candidate)
+        let from = source.content.children.prefix(index).reduce(0) { $0 + $1.nodeSize }
+        let to = from + source.content.children[index ..< index + count].reduce(0) { $0 + $1.nodeSize }
+        let replacement = Array(prospective.content.children[index ..< index + replacements.count])
+        var transform = PMTransform(source)
+        try transform.step(.replace(from: from, to: to,
+            slice: PMSlice(PMFragment.fromArray(replacement), openStart: 0, openEnd: 0)))
+        return try change(transform, source: source, bridge: bridge, document: document)
+    }
+
     /// Full authored replacement uses the admitted candidate's schema defaults,
     /// so omitted optional attributes are cleared by actual AttrSteps.
     static func replaceWidgetAttributes(document: RelayMarkNativeDocument, tree: [String: Any],
