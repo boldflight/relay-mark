@@ -70,4 +70,49 @@ defmodule RelayMark.DocumentRendererTest do
     assert html =~ "&quot;tone&quot;:&quot;info&quot;"
     refute html =~ "relaymarkId"
   end
+
+  test "static tables preserve merged widths and explicit alignment without a host minimum" do
+    fixture =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/canonical-table-widths.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    ast = fixture["document"]
+    assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
+    assert {:ok, html} = RelayMark.render_document(ast)
+    for colgroup <- fixture["expected_colgroups"], do: assert(html =~ colgroup)
+
+    assert html =~
+             ~s(<th colspan="2" rowspan="1" colwidth="120,180" data-align="center" style="text-align: center"><p><strong>Title 🌍</strong></p></th>)
+
+    assert html =~
+             ~s(<td colspan="1" rowspan="2" colwidth="0" data-align="left" style="text-align: left">)
+
+    refute html =~ "width: 0px"
+    refute html =~ "min-width"
+
+    for width <- [[-1, 180], [1.5, 180], [120]] do
+      bad =
+        put_in(
+          ast,
+          [
+            "blocks",
+            Access.at(0),
+            "content",
+            Access.at(0),
+            "content",
+            Access.at(0),
+            "props",
+            "colwidth"
+          ],
+          width
+        )
+
+      assert {:error, _} = RelayMark.render_document(bad)
+    end
+  end
 end

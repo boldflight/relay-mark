@@ -13,6 +13,31 @@ final class RelayMarkNativeMixedTableProjectionTests: XCTestCase {
         return (update, raw)
     }
 
+    func testAuthoredMergedAndPartialWidthsSurviveNativeReopenAndStaticRendering() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-table-widths.json"))) as? [String: Any])
+        let ast = try JSONSerialization.data(withJSONObject: fixture["document"]!)
+        let document = RelayMarkNativeDocument()
+        _ = try document.initializeDocument(authoredAST: ast)
+        let reopened = RelayMarkNativeDocument()
+        try reopened.applyUpdate(document.encodeUpdate())
+        let cells = try reopened.richProseProjection().tableCells
+        XCTAssertEqual(cells[0].columnWidths, [120, 180])
+        XCTAssertEqual(cells[0].columnSpan, 2)
+        XCTAssertEqual(cells[1].columnWidths, [0])
+        XCTAssertEqual(cells[1].rowSpan, 2)
+        XCTAssertEqual(cells[4].columnWidths, [0])
+        XCTAssertEqual(cells[5].columnWidths, [90])
+        let actual = try RelayMarkSourceCodec.snapshotToDocument(reopened.snapshot())
+        let html = try RelayMarkSourceCodec.renderDocument(actual)
+        for colgroup in fixture["expected_colgroups"] as! [String] { XCTAssertTrue(html.contains(colgroup)) }
+        XCTAssertTrue(html.contains("colwidth=\"120,180\""))
+        XCTAssertTrue(html.contains("style=\"text-align: center\""))
+        XCTAssertFalse(html.contains("width: 0px"))
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: actual) as? NSDictionary,
+                       try JSONSerialization.jsonObject(with: ast) as? NSDictionary)
+    }
+
     func testMixedYjsReplayAndTypedASTKeepProseOrderIDsEmptyBlocksAndCellGeometry() throws {
         let (update, fixture) = try fixture()
         XCTAssertEqual(fixture["root"] as? String, "default")

@@ -86,6 +86,25 @@ defmodule RelayMark.DocumentRenderer do
         "image" ->
           "<img" <> attributes(Enum.map(~w(src alt title width height), &{&1, a[&1]})) <> ">"
 
+        "table" ->
+          # The maintained table convention expands the first row's cell spans.
+          # Zero/null widths are unspecified; minimum width belongs to the host.
+          cols =
+            n["children"]
+            |> hd()
+            |> Map.fetch!("children")
+            |> Enum.map_join(fn cell ->
+              attrs = cell["attributes"]
+
+              Enum.map_join(0..(attrs["colspan"] - 1), fn index ->
+                width = Enum.at(attrs["colwidth"] || [], index)
+                style = if is_integer(width) and width > 0, do: "width: #{width}px"
+                "<col" <> attributes([{"style", style}]) <> ">"
+              end)
+            end)
+
+          tag("table", [], tag("colgroup", [], cols) <> children)
+
         "callout" ->
           tag(
             "aside",
@@ -196,7 +215,13 @@ defmodule RelayMark.DocumentRenderer do
                 ]
 
               cell when cell in ["tableCell", "tableHeader"] ->
-                [{"colspan", a["colspan"]}, {"rowspan", a["rowspan"]}, {"data-align", a["align"]}]
+                [
+                  {"colspan", a["colspan"]},
+                  {"rowspan", a["rowspan"]},
+                  {"colwidth", if(a["colwidth"], do: Enum.join(a["colwidth"], ","))},
+                  {"data-align", a["align"]},
+                  {"style", if(a["align"], do: "text-align: " <> a["align"])}
+                ]
 
               _ ->
                 []

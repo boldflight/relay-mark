@@ -289,3 +289,15 @@ test('single and multi select source retain rich choices, stable option IDs and 
   assert.deepEqual(parseDocument(serializeDocument(document)),document);
  }
 });
+
+
+test('static table rendering retains merged-cell authored widths and leaves zero widths unspecified',()=>{
+ const fixture=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-table-widths.json',import.meta.url))),ast=fixture.document;
+ assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+ const html=renderDocument(ast);
+ for(const colgroup of fixture.expected_colgroups)assert.ok(html.includes(colgroup));
+ assert.match(html,/<th colspan="2" rowspan="1" colwidth="120,180" data-align="center" style="text-align: center"><p><strong>Title 🌍<\/strong><\/p><\/th>/);
+ assert.match(html,/<td colspan="1" rowspan="2" colwidth="0" data-align="left" style="text-align: left">/);
+ assert.doesNotMatch(html,/width: 0px|min-width/);
+ for(const colwidth of [[-1,180],[1.5,180],[120]]){const bad=structuredClone(ast);bad.blocks[0].content[0].content[0].props.colwidth=colwidth;assert.throws(()=>renderDocument(bad),/colwidth/);}
+});
