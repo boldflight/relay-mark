@@ -472,3 +472,28 @@ one million aggregate interval records and bounded graph work. Existing receipt,
 command, worker memory and timeout limits remain unchanged; unavailable evidence
 or resource refusal is explicit. Production erasure, authoring continuity and
 host digest persistence require their own integrated acceptance evidence.
+
+
+### Accepted reviewed append replay
+
+`prepareRetainedReviewedRecoveryWitness` accepts the same seven trusted
+snapshot/vector/operation/original-footprint fields as normal preparation, plus
+`regional_context: {recovery_regions, human_destinations}` from the existing
+host-authenticated original issued association. The Elixir facade is
+`RelayMark.ContentEdit.prepare_retained_reviewed_recovery_witness/2`.
+
+This target-only read shares the exact root-end closed append and allocator-only
+repair validation with fresh recovery preparation. It verifies original region
+extent bounds, selected-block ordinal placement, contiguous fresh typed
+item/type destinations in both sender-after and locked-after state, complete
+fresh allocation coverage, and a disjoint typed human subset. Original regions
+are preserved. Ordinary typed and copy selectors remain empty, and independent
+complete maintained mutation replay is required before classification.
+
+The host must bind the private context to the original immutable command UUID,
+annotation, update/JSON/receipt digests, target namespace, actor/owner and covered
+receipt history. Target-only replay cannot reauthenticate archive paths or donor
+content and does not claim to. The original issued association authenticates
+those pointers; no archive reread, text-equality provenance search, annotation
+stripping, or producer complete flag substitutes for that authority. Missing or
+mismatched private context refuses; normal preparation remains unchanged.

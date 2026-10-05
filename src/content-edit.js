@@ -247,8 +247,11 @@ export {reconciliationCoverage} from '../adapters/collaboration/content-edit-obs
 
 export {produceDocumentPatch} from './document-patch.js';
 
-import {prepareReviewedRecoveryWitness as prepareRecovery} from './content-edit-witness.js';
+import {prepareReviewedRecoveryWitness as prepareRecovery,prepareRetainedReviewedRecoveryWitness as prepareRetainedRecovery} from './content-edit-witness.js';
 /** Regional allocation correspondence only; donor ancestry and hashes remain host authority. */
 export function prepareReviewedRecoveryWitness(evidence){return prepareRecovery(evidence,applyContentEdit);}
 
 export {reviewedRecoverySourceSelection,mapReviewedRecoverySelection} from "./content-edit-witness.js";
+
+/** Accepted issued regions only; host authentication and full replay remain mandatory. */
+export function prepareRetainedReviewedRecoveryWitness(evidence){return prepareRetainedRecovery(evidence,applyContentEdit);}

@@ -149,6 +149,27 @@ defmodule RelayMark.ReviewedRecoveryTest do
       "human_destinations" => mapped["destination"]
     }
 
+    retained =
+      evidence
+      |> Map.drop(["archive_identity_snapshot", "reviewed_document"])
+      |> Map.put("regional_context", context)
+
+    assert {:ok, replayed} =
+             RelayMark.ContentEdit.prepare_retained_reviewed_recovery_witness(runtime, retained)
+
+    assert replayed["recovery_regions"] == result["recovery_regions"]
+    assert replayed["fresh_items"] == result["fresh_items"]
+    assert replayed["text_items"] == %{"runs" => []}
+    assert replayed["proven_copies"] == []
+    assert replayed["requires_mutation_correspondence"] == true
+    refute Map.has_key?(replayed, "complete_mutation_correspondence")
+
+    assert {:error, :invalid_content_edit} =
+             RelayMark.ContentEdit.prepare_retained_reviewed_recovery_witness(
+               runtime,
+               put_in(retained, ["regional_context", "recovery_regions"], [])
+             )
+
     transaction = %{
       "transaction_id" => "22222222-2222-4222-8222-222222222222",
       "text_items" => result["text_items"],

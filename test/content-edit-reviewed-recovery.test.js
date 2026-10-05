@@ -239,3 +239,57 @@ test('regional partitions reject overlap, forged types, duplicate paths and unch
  const oversized={...fragmented,recovery_regions:[{archive_path:[0],archive_offset:0,count:131073,destination:{runs:[{item:{client:4,clock:2},type:{client:4,clock:1},count:131073}]}}]};
  assert.throws(()=>partition(oversized),{code:'source_identity_limit'});
 });
+
+function retainedEvidence(evidence=actualEvidence()){
+ const original=ContentEdit.prepareReviewedRecoveryWitness(evidence);
+ const result=Object.fromEntries(['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'].map(key=>[key,evidence[key]]));
+ result.regional_context={recovery_regions:original.recovery_regions,human_destinations:{runs:[]}};
+ return result;
+}
+test('accepted native reviewed append replays target-only regional evidence without rereading donor bytes',()=>{
+ const evidence=retainedEvidence(),original=JSON.stringify(evidence),proof=ContentEdit.prepareRetainedReviewedRecoveryWitness(evidence);
+ assert.equal(proof.complete_recovery_correspondence,true);
+ assert.equal(proof.requires_recovery_authorization,true);
+ assert.equal(proof.requires_mutation_correspondence,true);
+ assert.deepEqual(proof.text_items,{runs:[]});assert.deepEqual(proof.proven_copies,[]);
+ assert.equal(extent(proof.fresh_items.runs),18);
+ assert.deepEqual(proof.recovery_regions,evidence.regional_context.recovery_regions);
+ assert.equal(JSON.stringify(evidence),original);
+ assert.equal(ContentEdit.replayContentEditMutation({sender_state_base64:fixture.target_before_base64,current_state_base64:fixture.target_before_base64,writer_client:proof.fresh_items.runs[0].item.client,operation:evidence.operation,footprint:evidence.footprint}).complete_mutation_correspondence,true);
+});
+test('accepted rich append retains original allocator Steps and unseen target peer while human authority stays private',()=>{
+ const {evidence,mutation}=duplicateEvidence({repairIDs:true,markupRepairs:true}),retained=retainedEvidence(evidence);
+ const human=retained.regional_context.recovery_regions[0].destination;
+ retained.regional_context.human_destinations=structuredClone(human);
+ const proof=ContentEdit.prepareRetainedReviewedRecoveryWitness(retained);
+ assert.deepEqual(proof.text_items,{runs:[]});assert.deepEqual(proof.proven_copies,[]);
+ assert.deepEqual(proof.recovery_regions,retained.regional_context.recovery_regions);
+ assert.deepEqual(proof.authored_document.frontmatter,{title:'Current title'});
+ assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
+});
+test('accepted regional replay refuses missing coverage, old/forged typed IDs, overlaps and modified append geometry',()=>{
+ for(const mutate of [
+  e=>{delete e.regional_context;},
+  e=>{e.regional_context.recovery_regions.pop();},
+  e=>{e.regional_context.recovery_regions[0].count++;},
+  e=>{e.regional_context.recovery_regions.push(structuredClone(e.regional_context.recovery_regions[0]));},
+  e=>{e.regional_context.recovery_regions[0].destination.runs[0].type.clock++;},
+  e=>{e.regional_context.recovery_regions[0].archive_path[0]=99;},
+  e=>{e.regional_context.recovery_regions[0].archive_offset=-1;},
+  e=>{const n=e.before_snapshot.children[0].children[0],r=n.runs[0];e.regional_context.human_destinations={runs:[{type:n.type,item:r.item,count:r.count}]};},
+  e=>{const r=e.regional_context.recovery_regions[0].destination.runs[0];e.regional_context.human_destinations={runs:[{...r,type:{...r.type,clock:r.type.clock+1}}]};},
+  e=>{e.operation.steps[0].from--;e.operation.steps[0].to--;},
+  e=>{e.operation.steps.push({stepType:'docAttr',attr:'relaymark',value:{}});},
+  e=>{e.operation.reviewed_recovery.block_indices=[1];},
+  e=>{e.regional_context.complete_recovery_correspondence=true;},
+  e=>{e.regional_context.recovery_regions=Array.from({length:4097},()=>structuredClone(e.regional_context.recovery_regions[0]));},
+  e=>{const r=e.regional_context.recovery_regions[0].destination.runs[0];e.regional_context.human_destinations={runs:[r,structuredClone(r)]};},
+ ]){const e=retainedEvidence();mutate(e);assert.throws(()=>ContentEdit.prepareRetainedReviewedRecoveryWitness(e));}
+});
+test('accepted reviewed replay refuses hidden transient allocations despite complete issued visible regions',()=>{
+ const evidence=retainedEvidence(),doc=new Y.Doc({gc:false});Y.applyUpdate(doc,decode(fixture.target_before_base64));Y.applyUpdate(doc,decode(fixture.update_base64));
+ const updates=[decode(fixture.update_base64)];doc.on('update',u=>updates.push(u));
+ doc.transact(()=>{const text=doc.getXmlFragment('default').get(0).get(0);text.insert(0,'Hidden');text.delete(0,6);});
+ evidence.after_snapshot=captureContentEditSnapshot(doc.getXmlFragment('default'));evidence.footprint=captureContentEditFootprint(doc,Y.mergeUpdates(updates));
+ assert.throws(()=>ContentEdit.prepareRetainedReviewedRecoveryWitness(evidence),/Hidden or unprovable string mutation/);doc.destroy();
+});

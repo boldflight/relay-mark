@@ -24,6 +24,12 @@ public enum RelayMarkContentEditCodec {
         let object = try JSONSerialization.jsonObject(with: evidence)
         return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "prepareReviewedRecoveryWitness", arguments: [object])
     }
+    /// Target-only replay of a host-authenticated original issued association.
+    /// Receipt scope, donor authority and complete mutation proof remain external.
+    public static func prepareRetainedReviewedRecoveryWitness(_ evidence: Data) throws -> Data {
+        let object = try JSONSerialization.jsonObject(with: evidence)
+        return try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "prepareRetainedReviewedRecoveryWitness", arguments: [object])
+    }
     /// Bounded imported archive IDs only; no donor authorship authority.
     public static func reviewedRecoverySourceSelection(_ evidence: Data) throws -> Data {
         let object = try JSONSerialization.jsonObject(with: evidence)

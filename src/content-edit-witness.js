@@ -190,9 +190,7 @@ export function validateSourceReadSelector(selected){
  * authenticates the exact archive/review hashes, donor cut and fresh target guard.
  * No source is discovered by equal values and no human ancestry is granted here.
  */
-export function prepareReviewedRecoveryWitness(evidence,interpret){
- const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
- keys(evidence,[...fields,'archive_identity_snapshot','reviewed_document']);
+function reviewedAppendGeometry(evidence,interpret,validateSlice=()=>{}){
  const {operation}=evidence;
  keys(operation,['kind','steps','copies','group','reviewed_recovery'],['kind','steps','copies','reviewed_recovery']);
  const review=operation.reviewed_recovery;
@@ -205,23 +203,15 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
  else {keys(guard,['draft_revision']);if(!Number.isSafeInteger(guard.draft_revision)||guard.draft_revision<1)throw TypeError('Invalid reviewed target guard');}
  if(review.donor_cut!==null){keys(review.donor_cut,['document_id','incarnation','through_update_id']);canonicalOperationID(review.donor_cut.document_id);canonicalOperationID(review.donor_cut.incarnation);if(!Number.isSafeInteger(review.donor_cut.through_update_id)||review.donor_cut.through_update_id<0)throw TypeError('Invalid reviewed donor cut');}
  if(operation.copies.length)throw TypeError('Complete recovery append cannot claim ordinary copies');
- const archive=index(evidence.archive_identity_snapshot),sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),after=index(evidence.after_snapshot);
- const original=schema.nodeFromJSON(archive.pm),before=schema.nodeFromJSON(sender.pm);
- if(indices.some(i=>i>=original.childCount))throw TypeError('Unavailable reviewed archive block');
- const reviewed={...archive.document,blocks:indices.map(i=>archive.document.blocks[i])};
- relayMarkToProseMirror(evidence.reviewed_document);
- if(!same(reviewed,evidence.reviewed_document))throw TypeError('Reviewed document differs from selected archive blocks');
+ const sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),after=index(evidence.after_snapshot);
+ const before=schema.nodeFromJSON(sender.pm);
  const first=operation.steps?.[0];
  keys(first,['stepType','from','to','slice']);
  if(first.stepType!=='replace'||first.from!==before.content.size||first.to!==first.from)throw TypeError('Reviewed recovery requires root-end append');
  keys(first.slice,['content','openStart','openEnd'],['content']);
  if((first.slice.openStart??0)!==0||(first.slice.openEnd??0)!==0||!Array.isArray(first.slice.content)||first.slice.content.length!==indices.length)throw TypeError('Reviewed recovery requires complete closed blocks');
- const stripID=node=>{const result={...node};if(node.attrs){const {relaymarkId,...attrs}=node.attrs;result.attrs=attrs;}if(node.content)result.content=node.content.map(stripID);return result;};
- const sourceBlocks=indices.map(i=>original.child(i));
  const targets=first.slice.content.map(node=>schema.nodeFromJSON(node));
- // The exact Slice ordinal is the source pointer. IDs may be newly allocated by
- // the canonical writer, while every other field/mark/atom/child remains exact.
- for(let i=0;i<targets.length;i++)if(!same(stripID(sourceBlocks[i].toJSON()),stripID(targets[i].toJSON())))throw TypeError('Reviewed Slice changed archive content or properties');
+ validateSlice(targets,indices);
  const totalSize=targets.reduce((n,node)=>n+node.nodeSize,0),lower=first.from,upper=lower+totalSize;
  let intermediate={...before.toJSON(),content:[...(before.toJSON().content||[]),...first.slice.content]};
  // Any append repair must be the existing ID allocator repairing a null or
@@ -249,6 +239,24 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
  }
  const expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm)||!same(intermediate,senderAfter.pm))throw TypeError('Reviewed append result disagrees with maintained steps');
+ return {operation,review,indices,sender,senderAfter,after,before,targets,lower,upper};
+}
+
+export function prepareReviewedRecoveryWitness(evidence,interpret){
+ const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
+ keys(evidence,[...fields,'archive_identity_snapshot','reviewed_document']);
+ const archive=index(evidence.archive_identity_snapshot),original=schema.nodeFromJSON(archive.pm);let sourceBlocks;
+ const {operation,indices,senderAfter,after,lower}=reviewedAppendGeometry(evidence,interpret,(targets,indices)=>{
+ if(indices.some(i=>i>=original.childCount))throw TypeError('Unavailable reviewed archive block');
+ const reviewed={...archive.document,blocks:indices.map(i=>archive.document.blocks[i])};
+ relayMarkToProseMirror(evidence.reviewed_document);
+ if(!same(reviewed,evidence.reviewed_document))throw TypeError('Reviewed document differs from selected archive blocks');
+ const stripID=node=>{const result={...node};if(node.attrs){const {relaymarkId,...attrs}=node.attrs;result.attrs=attrs;}if(node.content)result.content=node.content.map(stripID);return result;};
+ sourceBlocks=indices.map(i=>original.child(i));
+ // The exact Slice ordinal is the source pointer. IDs may be newly allocated by
+ // the canonical writer, while every other field/mark/atom/child remains exact.
+ for(let i=0;i<targets.length;i++)if(!same(stripID(sourceBlocks[i].toJSON()),stripID(targets[i].toJSON())))throw TypeError('Reviewed Slice changed archive content or properties');
+ });
  const frontier=clocks(evidence.before_state_vector),regions=[],destinations=[];let units=0,totalRuns=0;
  let destinationStart=lower;
  const originalStarts=[];let sourceStart=0;original.forEach(node=>{originalStarts.push(sourceStart);sourceStart+=node.nodeSize;});
@@ -276,6 +284,45 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
  const prepared=prepare({...Object.fromEntries(fields.map(field=>[field,evidence[field]])),text_items:{runs:[]}},interpret,destinations);
  return {...prepared,operation,recovery_regions:regions,complete_recovery_correspondence:true,requires_recovery_authorization:true};
 }
+
+/** Target-only replay of an already issued reviewed association. The host must
+ * authenticate its exact original annotation, regions, command/update hashes,
+ * namespace and actor/owner. Paths and donor content are not rediscovered here.
+ * Full maintained mutation replay remains an independent mandatory proof. */
+export function prepareRetainedReviewedRecoveryWitness(evidence,interpret){
+ const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
+ keys(evidence,[...fields,'regional_context']);
+ const context=evidence.regional_context;keys(context,['recovery_regions','human_destinations']);
+ const {operation,indices,senderAfter,after,targets,lower}=reviewedAppendGeometry(evidence,interpret);
+ const regions=context.recovery_regions,frontier=clocks(evidence.before_state_vector),destinations=[],sources=new Map();
+ if(!Array.isArray(regions)||regions.length>4096)throw TypeError('Invalid retained recovery regions');
+ const blocks=new Map();let position=lower,units=0,totalRuns=0;
+ for(let i=0;i<indices.length;i++){blocks.set(indices[i],[position,position+targets[i].nodeSize]);position+=targets[i].nodeSize;}
+ for(const region of regions){
+  keys(region,['archive_path','archive_offset','count','destination']);
+  const path=region.archive_path,offset=region.archive_offset,count=region.count;
+  if(!Array.isArray(path)||!path.length||path.length>128||path.some(n=>!Number.isSafeInteger(n)||n<0)||!blocks.has(path[0])||!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(count)||count<1||!Number.isSafeInteger(offset+count)||(units+=count)>MAX_UNITS)throw TypeError('Invalid retained archive extent');
+  selection(region.destination);if(region.destination.runs.reduce((n,r)=>n+r.count,0)!==count||(totalRuns+=region.destination.runs.length)>4096)throw TypeError('Mismatched retained recovery extent');
+  const observed=resolve(senderAfter,region.destination),locked=resolve(after,region.destination),[start,end]=blocks.get(path[0]);
+  let cursor=observed[0]?.position;
+  for(const part of observed){
+   if(part.position!==cursor||part.position<start||part.position+part.count>end||part.item.clock<(frontier.get(part.item.client)||0))throw TypeError('Retained recovery destination is outside its fresh appended block');
+   cursor+=part.count;
+  }
+  equalContent(observed,locked);
+  const key=stableStringify(path),prior=sources.get(key)||[],base=observed[0].position-offset;
+  if(prior.some(p=>p.offset<offset+count&&p.offset+p.count>offset)||prior.some(p=>p.base!==base))throw TypeError('Overlapping or displaced retained archive regions');
+  prior.push({offset,count,base});sources.set(key,prior);destinations.push(...locked);
+ }
+ disjoint(destinations);
+ const human=resolve(after,context.human_destinations);cover(human,destinations);
+ // Original source-region authentication is external. Independently recheck
+ // every current typed destination and the entire imported allocation union.
+ const senderFresh=freshRuns(senderAfter,frontier);cover(senderFresh,destinations);cover(destinations,senderFresh);
+ const prepared=prepare({...Object.fromEntries(fields.map(field=>[field,evidence[field]])),text_items:{runs:[]}},interpret,destinations);
+ return {...prepared,operation,recovery_regions:regions,complete_recovery_correspondence:true,requires_recovery_authorization:true};
+}
+
 
 
 function reviewedRegions(evidence){

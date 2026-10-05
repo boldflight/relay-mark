@@ -56,6 +56,12 @@ defmodule RelayMark.ContentEdit do
 
   def prepare_reviewed_recovery_witness(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Recheck target-only regional allocations for an already authenticated original issued association. The host owns receipt/scope/archive authority and must independently prove complete mutation correspondence."
+  def prepare_retained_reviewed_recovery_witness(runtime, evidence) when is_map(evidence),
+    do: execute_arguments(runtime, "prepareRetainedReviewedRecoveryWitness", [evidence])
+
+  def prepare_retained_reviewed_recovery_witness(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Resolve only reviewed imported archive candidates; this issues no human or donor authority."
   def reviewed_recovery_source_selection(runtime, evidence) when is_map(evidence),
     do: execute_arguments(runtime, "reviewedRecoverySourceSelection", [evidence])

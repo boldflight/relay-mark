@@ -115,6 +115,8 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
         _ = try source.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Same **🌍**\n\nSame **🌍**", namespace: "reviewed-regions-donor"))
         _ = try target.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Current peer prefix", namespace: "reviewed-regions-target"))
         let before = try target.snapshot(), beforeState = try target.encodeUpdate(), observation = try target.captureContentEditObservation()
+        let beforeIdentity = try JSONSerialization.jsonObject(with: target.captureIdentitySnapshot())
+        let beforeFootprint = try XCTUnwrap(JSONSerialization.jsonObject(with: target.captureUpdateFootprint(Data([0, 0]))) as? [String: Any])
         let archive = try source.captureIdentitySnapshot(), reviewed = try source.authoredDocument()
         let change = try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [0, 1], expectedSnapshot: before)
         let review = try JSONSerialization.data(withJSONObject: [
@@ -144,6 +146,22 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
         // The same actual append is independently replayed by the shipped
         // maintained binding before the stateless classifier sees any source fact.
         let operation = try XCTUnwrap(proof["operation"] as? [String: Any])
+        let afterIdentity = try JSONSerialization.jsonObject(with: target.captureIdentitySnapshot())
+        var retainedInput: [String: Any] = [
+            "sender_before_snapshot": beforeIdentity, "sender_after_snapshot": afterIdentity,
+            "before_snapshot": beforeIdentity, "after_snapshot": afterIdentity,
+            "before_state_vector": try XCTUnwrap(beforeFootprint["state_vector"]),
+            "operation": operation, "footprint": try JSONSerialization.jsonObject(with: target.captureUpdateFootprint(change.update)),
+            "regional_context": ["recovery_regions": regions, "human_destinations": ["runs": []]]
+        ]
+        let retained = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkContentEditCodec.prepareRetainedReviewedRecoveryWitness(JSONSerialization.data(withJSONObject: retainedInput))) as? [String: Any])
+        XCTAssertEqual((retained["text_items"] as? [String: [Any]])?["runs"]?.count, 0)
+        XCTAssertEqual(retained["requires_mutation_correspondence"] as? Bool, true)
+        XCTAssertEqual(retained["complete_recovery_correspondence"] as? Bool, true)
+        XCTAssertNil(retained["complete_mutation_correspondence"])
+        XCTAssertEqual(try JSONSerialization.data(withJSONObject: retained["recovery_regions"]!, options: [.sortedKeys]), try JSONSerialization.data(withJSONObject: regions, options: [.sortedKeys]))
+        retainedInput["regional_context"] = ["recovery_regions": [], "human_destinations": ["runs": []]]
+        XCTAssertThrowsError(try RelayMarkContentEditCodec.prepareRetainedReviewedRecoveryWitness(JSONSerialization.data(withJSONObject: retainedInput)))
         let fresh = try XCTUnwrap(proof["fresh_items"] as? [String: [[String: Any]]])
         let writer = try XCTUnwrap((fresh["runs"]?.first?["item"] as? [String: Any])?["client"])
         let replayInput: [String: Any] = ["sender_state_base64": beforeState.base64EncodedString(), "current_state_base64": beforeState.base64EncodedString(), "writer_client": writer, "operation": operation, "footprint": try JSONSerialization.jsonObject(with: target.captureUpdateFootprint(change.update))]
