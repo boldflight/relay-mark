@@ -150,4 +150,43 @@ struct RelayMarkLocalTransactionTests {
         }
     }
 
+    @Test func reviewedArchiveBytesCannotDisappearDuringJournalRoundTrip() throws {
+        let id = UUID()
+        let original = RelayMarkLocalTransaction(id: id, update: Data([4, 9]), changes: [],
+            nativeContentEdit: .init(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8),
+                ownedGroup: try .init(ownerID: id, reference: id, operationIDs: [id]), witness: Data("{}".utf8)))
+        let review = Data(" {\"originalArchive\":\"literal original 🌍\",\"originalAssociation\":null}\n".utf8)
+        var object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+        var evidence = try #require(object["nativeContentEdit"] as? [String: Any])
+        evidence["reviewedRecovery"] = review.base64EncodedString(); object["nativeContentEdit"] = evidence
+        let restored = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONSerialization.data(withJSONObject: object))
+        let encoded = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(restored)) as? [String: Any])
+        let saved = try #require(encoded["nativeContentEdit"] as? [String: Any])
+        #expect(saved["reviewedRecovery"] as? String == review.base64EncodedString())
+        #expect(restored.id == id); #expect(restored.update == original.update)
+        #expect(restored.nativeContentEdit?.witness == original.nativeContentEdit?.witness)
+        evidence["reviewedRecovery"] = Data().base64EncodedString(); object["nativeContentEdit"] = evidence
+        #expect(throws: (any Error).self) {
+            try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONSerialization.data(withJSONObject: object))
+        }
+    }
+
+    @Test func reviewedEvidenceBudgetRefusesBeforeJournalConstruction() throws {
+        typealias Evidence = RelayMarkLocalTransaction.NativeContentEdit
+        let review = Data("{\"originalArchive\":\"exact bytes\"}\n".utf8)
+        let captured = try Evidence(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8), reviewedRecovery: review)
+        #expect(captured.reviewedRecovery == review)
+        #expect(captured.witness == nil)
+        #expect(try JSONDecoder().decode(Evidence.self, from: JSONEncoder().encode(captured)) == captured)
+        #expect(throws: (any Error).self) {
+            try Evidence(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8), reviewedRecovery: Data())
+        }
+        let oversized = Data(repeating: 0x20, count: 24_000_001)
+        #expect(throws: (any Error).self) {
+            try Evidence(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8), reviewedRecovery: oversized)
+        }
+        let nilEvidence = try Evidence(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8), reviewedRecovery: nil)
+        #expect(nilEvidence.reviewedRecovery == nil)
+    }
+
 }

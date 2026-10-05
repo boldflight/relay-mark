@@ -38,6 +38,11 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
         /// unproven; a local witness still requires complete server mutation and
         /// authenticated source/history proof. Persistence never re-encodes it.
         public let witness: Data?
+        /// Exact bounded local reviewed-import evidence envelope, including any
+        /// original archive/frame bytes. This does not grant donor authority or
+        /// establish human ancestry; hosts retain and authorize originals.
+        public let reviewedRecovery: Data?
+        public static let maximumReviewedRecoveryBytes = 24_000_000
         /// Exact actual maintained StackItem membership captured before persistence.
         /// Nil retains unproven ordinary command evidence; no membership is inferred.
         public let ownedGroup: OwnedGroup?
@@ -45,13 +50,27 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
         /// Normal group and inverse history are mutually exclusive.
         public let ownedHistory: OwnedHistory?
         public init(beforeSnapshot: Data, steps: Data, ownedGroup: OwnedGroup? = nil, witness: Data? = nil) {
-            self.beforeSnapshot = beforeSnapshot; self.steps = steps; self.ownedGroup = ownedGroup; self.ownedHistory = nil; self.witness = witness
+            self.beforeSnapshot = beforeSnapshot; self.steps = steps; self.ownedGroup = ownedGroup; self.ownedHistory = nil; self.witness = witness; self.reviewedRecovery = nil
         }
         public init(beforeSnapshot: Data, steps: Data, ownedHistory: OwnedHistory, witness: Data? = nil) {
             self.beforeSnapshot = beforeSnapshot; self.steps = steps
-            self.ownedGroup = nil; self.ownedHistory = ownedHistory; self.witness = witness
+            self.ownedGroup = nil; self.ownedHistory = ownedHistory; self.witness = witness; self.reviewedRecovery = nil
         }
-        enum CodingKeys: String, CodingKey { case beforeSnapshot, steps, ownedGroup, ownedHistory, witness }
+        /// Additive throwing overload leaves ordinary command initializers intact.
+        /// The bound covers the complete encoded evidence envelope, not each field.
+        public init(beforeSnapshot: Data, steps: Data, ownedGroup: OwnedGroup? = nil,
+                    witness: Data? = nil, reviewedRecovery: Data?) throws {
+            try Self.validateReviewedRecovery(reviewedRecovery)
+            self.beforeSnapshot = beforeSnapshot; self.steps = steps
+            self.ownedGroup = ownedGroup; self.ownedHistory = nil
+            self.witness = witness; self.reviewedRecovery = reviewedRecovery
+        }
+        private static func validateReviewedRecovery(_ evidence: Data?) throws {
+            if let evidence, evidence.isEmpty || evidence.count > maximumReviewedRecoveryBytes {
+                throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid reviewed recovery evidence bounds"))
+            }
+        }
+        enum CodingKeys: String, CodingKey { case beforeSnapshot, steps, ownedGroup, ownedHistory, witness, reviewedRecovery }
         public init(from decoder: Decoder) throws {
             let container=try decoder.container(keyedBy:CodingKeys.self)
             let group=try container.decodeIfPresent(OwnedGroup.self,forKey:.ownedGroup)
@@ -63,6 +82,9 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
             self.steps=try container.decode(Data.self,forKey:.steps)
             self.ownedGroup=group;self.ownedHistory=history
             self.witness=try container.decodeIfPresent(Data.self,forKey:.witness)
+            let review = try container.decodeIfPresent(Data.self, forKey: .reviewedRecovery)
+            try Self.validateReviewedRecovery(review)
+            self.reviewedRecovery = review
         }
         public struct OwnedHistory: Codable, Equatable, Sendable {
             public enum Kind: String, Codable, Sendable { case undo, redo }
