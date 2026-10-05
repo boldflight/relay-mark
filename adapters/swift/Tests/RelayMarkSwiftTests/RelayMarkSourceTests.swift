@@ -31,6 +31,24 @@ struct RelayMarkSourceTests {
     #expect(migrated["requires_reconstruction"] as? Bool == false)
   }
 
+  @Test func historicalBodylessDataViewUsesSharedWidgetGrammar() throws {
+    let line = "@DataView(source: \"pulse.streak\", projection: \"calendar\", filter: {basis: \"work\"}, limit: 30, title: \"Retained Ω\")"
+    let suffix = "\n\n```text\n" + line + "\n```\n"
+    let imported = try RelayMarkSourceCodec.parseDocument(line + suffix, namespace: "historical-data-view")
+    let braced = try RelayMarkSourceCodec.parseDocument(line + " {\n}" + suffix, namespace: "historical-data-view")
+    #expect(try JSONSerialization.jsonObject(with: imported) as? NSDictionary == JSONSerialization.jsonObject(with: braced) as? NSDictionary)
+    let object = try JSONSerialization.jsonObject(with: imported) as! [String: Any]
+    let blocks = object["blocks"] as! [[String: Any]]
+    #expect(blocks.map { $0["type"] as! String } == ["relay.data_view", "code"])
+    let props = blocks[0]["props"] as! [String: Any]
+    #expect(props["source"] as? String == "pulse.streak")
+    #expect(props["title"] as? String == "Retained Ω")
+    #expect(props["filter"] as? NSDictionary == ["basis": "work"] as NSDictionary)
+    let snapshot = try RelayMarkSourceCodec.documentToSnapshot(imported)
+    #expect(try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.snapshotToDocument(snapshot)) as? NSDictionary == object as NSDictionary)
+    #expect(throws: (any Error).self) { try RelayMarkSourceCodec.parseDocument("@DataView(source: \"https://example.test\", projection: \"sql\")", namespace: "invalid-data-view") }
+  }
+
   @Test func largeReadWindowsKeepUnicodeAndVisibleIdentityValidation() throws {
     let text=String(repeating:"h",count:16383)+"🌍"+String(repeating:"j",count:132004-16385)
     let type:[String:Any] = ["client":101,"clock":1]

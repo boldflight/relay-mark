@@ -226,6 +226,9 @@ defmodule RelayMark.DocumentSource do
           Regex.match?(~r/^@[A-Z][A-Za-z0-9]*(?:\(.*\))?\s*\{\s*$/, trimmed) ->
             {flush(segments, plain), [], {trimmed, [], 1}, nil}
 
+          Regex.match?(~r/^@DataView\(.*\)\s*$/, trimmed) ->
+            {flush(segments, plain) ++ [{:directive, trimmed <> " {", ""}], [], nil, nil}
+
           Regex.match?(~r/^@(Button|Anchor|Connection)\(/, trimmed) ->
             {flush(segments, plain) ++ [{:control, trimmed}], [], nil, nil}
 

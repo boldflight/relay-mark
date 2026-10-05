@@ -301,3 +301,18 @@ test('static table rendering retains merged-cell authored widths and leaves zero
  assert.doesNotMatch(html,/width: 0px|min-width/);
  for(const colwidth of [[-1,180],[1.5,180],[120]]){const bad=structuredClone(ast);bad.blocks[0].content[0].content[0].props.colwidth=colwidth;assert.throws(()=>renderDocument(bad),/colwidth/);}
 });
+
+
+test('historical one-line DataView imports exact bound props; code stays literal and malformed declarations refuse',()=>{
+ const line='@DataView(source: "pulse.streak", projection: "calendar", filter: {basis: "work"}, limit: 30, title: "Retained Ω")';
+ const suffix='\n\n```text\n'+line+'\n```\n\n    '+line+'\n';
+ const ast=parseDocument(line+suffix,{namespace:'historic-data-view'});
+ assert.deepEqual(ast.blocks.map(node=>node.type),['relay.data_view','code','code']);
+ assert.deepEqual(ast.blocks[0].props,{source:'pulse.streak',projection:'calendar',filter:{basis:'work'},limit:30,title:'Retained Ω'});
+ assert.deepEqual(ast.blocks[1].content,[{type:'text',text:line+'\n'}]);
+ assert.deepEqual(ast.blocks[2].content,[{type:'text',text:line+'\n'}]);
+ assert.deepEqual(ast,parseDocument(line+' {\n}'+suffix,{namespace:'historic-data-view'}));
+ assert.deepEqual(snapshotToDocument(documentToSnapshot(ast)),ast);
+ assert.deepEqual(parseDocument(serializeDocument(ast)),ast);
+ for(const bad of ['@DataView(source: "pulse.streak")','@DataView(source: "https://example.test", projection: "calendar")','@DataView(source: "pulse.streak", projection: "sql")','@DataView(source: "pulse.streak", source: "pulse.work", projection: "calendar")','@DataView(source: "pulse.streak", projection: "calendar", filter: {basis: {query: "sql"}})','@DataView(source: "pulse.streak", projection: "calendar", limit: 0)'])assert.throws(()=>parseDocument(bad));
+});

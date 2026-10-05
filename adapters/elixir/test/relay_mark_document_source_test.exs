@@ -1,6 +1,44 @@
 defmodule RelayMark.DocumentSourceTest do
   use ExUnit.Case, async: true
 
+  test "historical one-line DataView preserves exact props and code while malformed declarations refuse" do
+    line =
+      ~s|@DataView(source: "pulse.streak", projection: "calendar", filter: {basis: "work"}, limit: 30, title: "Retained Ω")|
+
+    suffix = "\n\n```text\n" <> line <> "\n```\n\n    " <> line <> "\n"
+    assert {:ok, ast} = RelayMark.parse_document(line <> suffix, namespace: "historic-data-view")
+    assert Enum.map(ast["blocks"], & &1["type"]) == ["relay.data_view", "code", "code"]
+
+    assert hd(ast["blocks"])["props"] == %{
+             "source" => "pulse.streak",
+             "projection" => "calendar",
+             "filter" => %{"basis" => "work"},
+             "limit" => 30,
+             "title" => "Retained Ω"
+           }
+
+    for code <- tl(ast["blocks"]),
+        do: assert(code["content"] == [%{"type" => "text", "text" => line <> "\n"}])
+
+    assert {:ok, ^ast} =
+             RelayMark.parse_document(line <> " {\n}" <> suffix, namespace: "historic-data-view")
+
+    assert {:ok, snapshot} = RelayMark.DocumentXML.from_document(ast)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(snapshot)
+    assert {:ok, exact} = RelayMark.serialize_document(ast)
+    assert {:ok, ^ast} = RelayMark.parse_document(exact)
+
+    for invalid <- [
+          ~s|@DataView(source: "pulse.streak")|,
+          ~s|@DataView(source: "https://example.test", projection: "calendar")|,
+          ~s|@DataView(source: "pulse.streak", projection: "sql")|,
+          ~s|@DataView(source: "pulse.streak", source: "pulse.work", projection: "calendar")|,
+          ~s|@DataView(source: "pulse.streak", projection: "calendar", filter: {basis: {query: "sql"}})|,
+          ~s|@DataView(source: "pulse.streak", projection: "calendar", limit: 0)|
+        ],
+        do: assert({:error, _} = RelayMark.parse_document(invalid))
+  end
+
   test "malformed frozen historical child collections refuse without crashing the migration scan" do
     for document <- [
           %{"type" => "unsupported"},

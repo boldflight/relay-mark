@@ -147,6 +147,8 @@ function sourceBlocks(source,ns,prefix){
   if(/^<!--\s*relay:question\s+.*?\s*-->$/.test(t)){flush();directive={historical:true,header:t,body:[]};continue;}
   if(/^<!--\s*\/relay:question\s*-->$/.test(t))throw new TypeError('Unexpected historical question closing');
   if(header){flush();directive={name:header[1],attrs:parseAttributes(header[2]||''),header:t,body:[],depth:1};continue;}
+  const bodylessDataView=t.match(/^@DataView\((.*)\)\s*$/);
+  if(bodylessDataView){flush();segments.push({kind:'directive',name:'DataView',attrs:parseAttributes(bodylessDataView[1]),header:t,source:''});continue;}
   const control=parsePaperControlSource(t);if(control){flush();segments.push({kind:'control',control});continue;}
   if(t==='}')throw new TypeError('Unexpected directive closing');plain.push(bareLinkedTaskLine(line));
  }
