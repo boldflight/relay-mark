@@ -6,13 +6,13 @@ import {stableStringify} from './canonical-json.js';
 import {validateTextAttributes} from './document-inline.js';
 import {createCanonicalEditorSchema} from './editor-model.js';
 import {validateOwnedHistory} from './owned-command-group.js';
-const schema=createCanonicalEditorSchema(),MAX_UNITS=131072;
+const schema=createCanonicalEditorSchema(),MAX_UNITS=131072,MAX_SOURCE_UNITS=12_582_912;
 const same=(a,b)=>stableStringify(a)===stableStringify(b);
 function keys(value,allowed,required=allowed){if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!allowed.includes(k))||required.some(k=>!Object.hasOwn(value,k)))throw TypeError('Invalid causal evidence fields');}
 function identity(value){keys(value,['client','clock']);if(!Number.isSafeInteger(value.client)||value.client<0||!Number.isSafeInteger(value.clock)||value.clock<0||value.clock>=2**32)throw TypeError('Invalid causal item identity');return value;}
 const idKey=id=>id.client+':'+id.clock;
 function unicode(text){for(let i=0;i<text.length;i++){const c=text.charCodeAt(i);if(c>=0xd800&&c<=0xdbff){const next=text.charCodeAt(++i);if(!(next>=0xdc00&&next<=0xdfff))throw TypeError('Causal range splits Unicode');}else if(c>=0xdc00&&c<=0xdfff)throw TypeError('Causal range splits Unicode');}}
-function selection(value){keys(value,['runs']);if(!Array.isArray(value.runs)||value.runs.length>4096)throw TypeError('Invalid causal selection');let count=0;const intervals=new Map();for(const run of value.runs){keys(run,['type','item','count']);identity(run.type);identity(run.item);if(!Number.isSafeInteger(run.count)||run.count<1||(count+=run.count)>MAX_UNITS||run.item.clock+run.count>2**32)throw TypeError('Invalid causal run extent');const seen=intervals.get(run.item.client)||[];if(seen.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping causal selector');seen.push([run.item.clock,run.item.clock+run.count]);intervals.set(run.item.client,seen);}return value;}
+function selection(value,maxUnits=MAX_UNITS,maxRuns=4096){keys(value,['runs']);if(!Array.isArray(value.runs)||value.runs.length>maxRuns)throw TypeError('Invalid causal selection');let count=0;const intervals=new Map();for(const run of value.runs){keys(run,['type','item','count']);identity(run.type);identity(run.item);if(!Number.isSafeInteger(run.count)||run.count<1||(count+=run.count)>maxUnits||run.item.clock+run.count>2**32)throw TypeError('Invalid causal run extent');const seen=intervals.get(run.item.client)||[];if(seen.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping causal selector');seen.push([run.item.clock,run.item.clock+run.count]);intervals.set(run.item.client,seen);}return value;}
 function clocks(values){if(!Array.isArray(values))throw TypeError('Missing trusted state vector');const result=new Map();for(const entry of values){keys(entry,['client','clock']);if(!Number.isSafeInteger(entry.client)||entry.client<0||!Number.isSafeInteger(entry.clock)||entry.clock<0||entry.clock>2**32||result.has(entry.client))throw TypeError('Invalid trusted state vector');result.set(entry.client,entry.clock);}return result;}
 function index(snapshot){const runs=[],nodes=new Map(),seen=new Map();let budget=1_000_000;
  const step=()=>{if(--budget<0)throw TypeError('Causal snapshot budget exceeded');};
@@ -32,7 +32,7 @@ function index(snapshot){const runs=[],nodes=new Map(),seen=new Map();let budget
  const projected=visit(snapshot,0,0),document=snapshotToDocument(projected.portable),pm=schema.nodeFromJSON(relayMarkToProseMirror(document));pm.check();if(pm.content.size!==projected.size)throw TypeError('Causal snapshot size disagrees with maintained schema');
  return {runs,nodes,document,pm:JSON.parse(JSON.stringify(pm.toJSON()))};
 }
-function resolve(index,selected){selection(selected);const out=[];for(const requested of selected.runs){let clock=requested.item.clock,end=clock+requested.count;const candidates=index.runs.filter(run=>run.item.client===requested.item.client&&same(run.type,requested.type)&&run.item.clock<end&&run.item.clock+run.count>clock).sort((a,b)=>a.item.clock-b.item.clock);
+function resolve(index,selected,read=false){selection(selected,read?MAX_SOURCE_UNITS:MAX_UNITS,4096);const out=[];for(const requested of selected.runs){let clock=requested.item.clock,end=clock+requested.count;const candidates=index.runs.filter(run=>run.item.client===requested.item.client&&same(run.type,requested.type)&&run.item.clock<end&&run.item.clock+run.count>clock).sort((a,b)=>a.item.clock-b.item.clock);
  for(const run of candidates){if(run.item.clock>clock)break;const from=Math.max(clock,run.item.clock),to=Math.min(end,run.item.clock+run.count);if(from<to){const text=run.text.slice(from-run.item.clock,to-run.item.clock);unicode(text);out.push({type:run.type,item:{client:run.item.client,clock:from},count:to-from,text,attributes:run.attributes,path:run.path,offset:run.offset+from-run.item.clock,position:run.position+from-run.item.clock});clock=to;}}
  if(clock!==end)throw TypeError('Causal selector has unavailable or wrongly typed items');
  }return out;
@@ -145,6 +145,36 @@ export function buildOwnedHistoryWitness(evidence,interpret){
 /** Strict visible-only resolution. Missing items are never inferred tombstones.
  * Hosts fold authenticated ancestry against current visible candidates first. */
 export function resolveContentEditTextItems(snapshot,selected){
- const resolved=resolve(index(snapshot),selected).sort((a,b)=>a.position-b.position);
+ // Read-side selectors are bounded by the existing 16 MiB source frame,
+ // independently of the unchanged 131072-unit authored-command proof guard.
+ validateSourceReadSelector(selected);
+ const resolved=resolve(index(snapshot),selected,true).sort((a,b)=>a.position-b.position);
  return {segments:resolved.map(({position,...segment})=>segment)};
+}
+
+/** Read-only current visible candidates, in bounded classifier windows. A
+ * missing identity is never classified as a tombstone or granted authorship. */
+export function sourceSelectorWindows(snapshot){
+ const windows=[];let runs=[],units=0;
+ const flush=()=>{if(runs.length){windows.push({runs});runs=[];units=0;}};
+ for(const run of index(snapshot).runs){
+  let offset=0;
+  while(offset<run.count){
+   if(units===16384||runs.length===4096)flush();
+   let count=Math.min(run.count-offset,16384-units);
+   const end=offset+count;
+   if(end<run.count&&run.text.charCodeAt(end-1)>=0xd800&&run.text.charCodeAt(end-1)<=0xdbff)count--;
+   if(!count){flush();continue;}
+   runs.push({type:run.type,item:{client:run.item.client,clock:run.item.clock+offset},count});
+   offset+=count;units+=count;
+  }
+ }
+ flush();return {windows};
+}
+
+/** A read selector is checked against the existing checkpoint material budget,
+ * never used to admit an authored command. Its run/proof checks stay strict. */
+export function validateSourceReadSelector(selected){
+ if(JSON.stringify(selected).length>16_777_216)throw TypeError('Source selector transport budget exceeded');
+ selection(selected,MAX_SOURCE_UNITS,4096);return true;
 }

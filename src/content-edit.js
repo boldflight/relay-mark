@@ -206,7 +206,7 @@ export function buildOwnedHistoryWitness(evidence){return buildObservedHistory(e
 
 export {classifyContentEditReference,foldSourceReferences} from './document-source-identities.js';
 
-export {resolveContentEditTextItems} from './content-edit-witness.js';
+export {resolveContentEditTextItems,sourceSelectorWindows,validateSourceReadSelector} from './content-edit-witness.js';
 
 import {contentEditTextGroups,planContentEditTextWrite} from './content-edit-write.js';
 export {planContentEditTextWrite} from './content-edit-write.js';

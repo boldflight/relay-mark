@@ -90,6 +90,14 @@ defmodule RelayMark.ContentEdit do
         references
       ])
 
+  @doc "Read current visible selector windows; no authorship or command admission is inferred."
+  def source_selector_windows(runtime, snapshot),
+    do: execute_arguments(runtime, "sourceSelectorWindows", [snapshot])
+
+  @doc "Resolve validated current visible source ranges in document order."
+  def resolve_text_items(runtime, snapshot, selector),
+    do: execute_arguments(runtime, "resolveContentEditTextItems", [snapshot, selector])
+
   # Source errors are explicit portable codes. Exception text is never parsed.
   defp execute_source_arguments(runtime, function, values) do
     with {:ok, arguments} <- Jason.encode(values) do

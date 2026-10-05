@@ -31,4 +31,25 @@ struct RelayMarkSourceTests {
     #expect(migrated["requires_reconstruction"] as? Bool == false)
   }
 
+  @Test func largeReadWindowsKeepUnicodeAndVisibleIdentityValidation() throws {
+    let text=String(repeating:"h",count:16383)+"🌍"+String(repeating:"j",count:132004-16385)
+    let type:[String:Any] = ["client":101,"clock":1]
+    let snapshot:[String:Any] = ["kind":"fragment","root":"default","children":[
+      ["kind":"element","name":"paragraph","type":["client":101,"clock":0],
+       "attributes":["relaymarkId":"b987654321abc4def8123456789abcdef"],"children":[
+         ["kind":"text","type":type,"runs":[["item":["client":101,"clock":2],"count":132004,"text":text,"attributes":[:]]]]]]]]
+    let bytes=try JSONSerialization.data(withJSONObject:snapshot)
+    let result=try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.sourceSelectorWindows(identitySnapshot:bytes)) as! [String:Any]
+    let windows=result["windows"] as! [[String:Any]]
+    #expect(windows.count==9)
+    let runs=windows.flatMap{$0["runs"] as! [[String:Any]]}
+    #expect(runs[0]["count"] as? Int == 16383)
+    let selector=try JSONSerialization.data(withJSONObject:["runs":runs])
+    try RelayMarkSourceCodec.validateSourceReadSelector(selector)
+    let resolved=try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.resolveTextItems(identitySnapshot:bytes,selector:selector)) as! [String:Any]
+    #expect((resolved["segments"] as! [[String:Any]]).map{$0["text"] as! String}.joined()==text)
+    let forged=try JSONSerialization.data(withJSONObject:["runs":[["type":["client":999,"clock":1],"item":["client":101,"clock":2],"count":1]]])
+    #expect(throws:(any Error).self){try RelayMarkSourceCodec.resolveTextItems(identitySnapshot:bytes,selector:forged)}
+  }
+
 }

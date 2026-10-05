@@ -21,3 +21,21 @@ unproven/malformed reference or candidate evidence, and `source_identity_limit`
 for bounded selection/receipt resources. Adapters translate these explicit codes,
 never infer them from exception text; other command errors retain their own
 existing contract.
+
+Full source reads are distinct from authored-command admission. The existing
+classifier and each operation selector retain their 131,072 UTF16-unit and
+4,096-run bounds. `sourceSelectorWindows(identitySnapshot)` uses the same
+canonical visible snapshot index and returns disjoint windows of at most 16,384
+UTF16 units; boundaries never split a surrogate pair. Hosts authenticate and
+fold the original immutable receipts separately for each window, then discard
+the window's candidate map. This does not infer deleted identities or grant
+source authority.
+
+`validateSourceReadSelector(selector)` and `resolveContentEditTextItems(snapshot,
+selector)` retain exact item/type, overlap, Unicode and missing-item checks for
+visible read ranges. Read ranges use the existing source material budget:
+12,582,912 UTF16 units, 4,096 runs, and 16 MiB of encoded selector JSON. Resolution
+returns current document-order segments; callers may coalesce adjacent segments
+in the same XML path without enumerating every character. These read budgets
+never select a larger command proof or an alternate attribution classifier.
+Host frame transport limits and authorization still apply independently.

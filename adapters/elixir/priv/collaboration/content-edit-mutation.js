@@ -6048,6 +6048,7 @@ function snapshotToDocument(snapshot2) {
 // src/content-edit-witness.js
 var schema2 = createCanonicalEditorSchema();
 var MAX_UNITS = 131072;
+var MAX_SOURCE_UNITS = 12582912;
 var same = (a, b) => stableStringify(a) === stableStringify(b);
 function keys2(value, allowed, required = allowed) {
   if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some((k) => !allowed.includes(k)) || required.some((k) => !Object.hasOwn(value, k))) throw TypeError("Invalid causal evidence fields");
@@ -6067,16 +6068,16 @@ function unicode(text) {
     } else if (c >= 56320 && c <= 57343) throw TypeError("Causal range splits Unicode");
   }
 }
-function selection(value) {
+function selection(value, maxUnits = MAX_UNITS, maxRuns = 4096) {
   keys2(value, ["runs"]);
-  if (!Array.isArray(value.runs) || value.runs.length > 4096) throw TypeError("Invalid causal selection");
+  if (!Array.isArray(value.runs) || value.runs.length > maxRuns) throw TypeError("Invalid causal selection");
   let count = 0;
   const intervals2 = /* @__PURE__ */ new Map();
   for (const run of value.runs) {
     keys2(run, ["type", "item", "count"]);
     identity2(run.type);
     identity2(run.item);
-    if (!Number.isSafeInteger(run.count) || run.count < 1 || (count += run.count) > MAX_UNITS || run.item.clock + run.count > 2 ** 32) throw TypeError("Invalid causal run extent");
+    if (!Number.isSafeInteger(run.count) || run.count < 1 || (count += run.count) > maxUnits || run.item.clock + run.count > 2 ** 32) throw TypeError("Invalid causal run extent");
     const seen = intervals2.get(run.item.client) || [];
     if (seen.some(([a, b]) => a < run.item.clock + run.count && b > run.item.clock)) throw TypeError("Overlapping causal selector");
     seen.push([run.item.clock, run.item.clock + run.count]);
@@ -6155,8 +6156,8 @@ function index(snapshot2) {
   if (pm.content.size !== projected.size) throw TypeError("Causal snapshot size disagrees with maintained schema");
   return { runs, nodes, document: document2, pm: JSON.parse(JSON.stringify(pm.toJSON())) };
 }
-function resolve(index2, selected) {
-  selection(selected);
+function resolve(index2, selected, read = false) {
+  selection(selected, read ? MAX_SOURCE_UNITS : MAX_UNITS, 4096);
   const out = [];
   for (const requested of selected.runs) {
     let clock = requested.item.clock, end = clock + requested.count;

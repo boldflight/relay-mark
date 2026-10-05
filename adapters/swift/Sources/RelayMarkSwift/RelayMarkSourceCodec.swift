@@ -53,6 +53,13 @@ public enum RelayMarkSourceCodec {
     public static func foldSourceReferences(binding: Data, candidateSelector: Data, references: Data) throws -> Data {
         try call("foldSourceReferences",arguments:[json(binding),json(candidateSelector),json(references)])
     }
+    public static func validateSourceReadSelector(_ selector: Data) throws {
+        guard try json(call("validateSourceReadSelector",arguments:[json(selector)])) as? Bool == true else {throw Failure.invalidInput}
+    }
+    /// Bounded read windows over the current admitted visible snapshot.
+    public static func sourceSelectorWindows(identitySnapshot: Data) throws -> Data {
+        try call("sourceSelectorWindows",arguments:[json(identitySnapshot)])
+    }
     /// Visible current candidates only; unavailable items never imply deletion.
     public static func resolveTextItems(identitySnapshot: Data, selector: Data) throws -> Data {
         try call("resolveContentEditTextItems",arguments:[json(identitySnapshot),json(selector)])

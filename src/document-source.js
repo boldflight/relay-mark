@@ -265,4 +265,4 @@ export function importFormPublication(publication,options){return importPublicat
 
 export {classifyContentEditReference,foldSourceReferences} from './document-source-identities.js';
 
-export {resolveContentEditTextItems} from './content-edit-witness.js';
+export {resolveContentEditTextItems,sourceSelectorWindows,validateSourceReadSelector} from './content-edit-witness.js';
