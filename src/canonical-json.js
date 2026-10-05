@@ -1,3 +1,14 @@
+/** UTF-8 binary order is the existing wire contract. Valid Unicode scalar
+ * order is identical, without locale/ICU or UTF-16 supplementary-key drift. */
+function binaryKeyOrder(left,right){
+ const a=left[Symbol.iterator](),b=right[Symbol.iterator]();
+ while(true){const x=a.next(),y=b.next();if(x.done||y.done)return x.done?(y.done?0:-1):1;
+  const first=x.value.codePointAt(0),second=y.value.codePointAt(0);
+  if(first!==second)return first<second?-1:1;
+ }
+}
+function validKey(key){for(const character of key){const point=character.codePointAt(0);if(point>=0xd800&&point<=0xdfff)throw TypeError('Invalid canonical Unicode key');}return key;}
+
 export function equalCanonicalJSON(left, right) {
   return stableStringify(left) === stableStringify(right);
 }
@@ -10,7 +21,8 @@ export function stableStringify(value) {
   if (value && typeof value === "object") {
     const entries = Object.entries(value)
       .filter(([, item]) => item !== undefined)
-      .sort(([a], [b]) => a.localeCompare(b));
+      .map(([key,item])=>[validKey(key),item])
+      .sort(([a], [b]) => binaryKeyOrder(a,b));
     return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`).join(",")}}`;
   }
 

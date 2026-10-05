@@ -332,6 +332,10 @@ command with only `relaymarkId` changed, preserving type, marks, content, other
 attributes and exact gap/Slice geometry. Unique-ID rewrites, old-node repairs,
 other attributes, open Slices, content replacements and metadata changes refuse.
 Target document metadata remains unchanged; donor metadata remains review evidence.
+Reviewed-document hashes use the shared recursive canonical JSON encoder: valid
+Unicode keys sort by UTF-8 binary order, preserving decomposed keys and explicit
+values. Locale sorting and UTF-16 code-unit sorting are not wire encodings.
+Previously retained original JSON bytes and receipt hashes remain immutable.
 
 The result's `recovery_regions` entries contain original XML `archive_path`,
 UTF16 `archive_offset`, `count`, and a bare destination selector. They account

@@ -5953,12 +5953,28 @@ function assertAuthoredMetadata(value) {
 }
 
 // src/canonical-json.js
+function binaryKeyOrder(left, right) {
+  const a = left[Symbol.iterator](), b = right[Symbol.iterator]();
+  while (true) {
+    const x = a.next(), y = b.next();
+    if (x.done || y.done) return x.done ? y.done ? 0 : -1 : 1;
+    const first = x.value.codePointAt(0), second = y.value.codePointAt(0);
+    if (first !== second) return first < second ? -1 : 1;
+  }
+}
+function validKey(key2) {
+  for (const character of key2) {
+    const point = character.codePointAt(0);
+    if (point >= 55296 && point <= 57343) throw TypeError("Invalid canonical Unicode key");
+  }
+  return key2;
+}
 function stableStringify(value) {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(",")}]`;
   }
   if (value && typeof value === "object") {
-    const entries = Object.entries(value).filter(([, item]) => item !== void 0).sort(([a], [b]) => a.localeCompare(b));
+    const entries = Object.entries(value).filter(([, item]) => item !== void 0).map(([key2, item]) => [validKey(key2), item]).sort(([a], [b]) => binaryKeyOrder(a, b));
     return `{${entries.map(([key2, item]) => `${JSON.stringify(key2)}:${stableStringify(item)}`).join(",")}}`;
   }
   return JSON.stringify(value);
