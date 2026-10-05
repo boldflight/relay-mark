@@ -6563,8 +6563,12 @@ function captureContentEditFootprint(doc, bytes2, { maximumSteps = 1e6 } = {}) {
   return { state_vector: [...current].sort((a, b) => a[0] - b[0]).map(([client, clock]) => ({ client, clock })), structs, declared_deletes, deleted_items };
 }
 
-// src/content-edit.js
+// src/document-patch.js
+import { Transform, DocAttrStep } from "prosemirror-transform";
 var schema3 = createCanonicalEditorSchema();
+
+// src/content-edit.js
+var schema4 = createCanonicalEditorSchema();
 function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = {}) {
   if (!operation || operation.kind !== "content_edit" || !Array.isArray(operation.steps) || !Number.isSafeInteger(maximumSteps) || maximumSteps < 1 || maximumSteps > 4096 || operation.steps.length < 1 || operation.steps.length > maximumSteps)
     throw new TypeError("Invalid or oversized canonical content edit");
@@ -6572,7 +6576,7 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
   if (operation.group) validateOwnedCommandGroup(operation.group);
   if (operation.history) validateOwnedHistory(operation.history);
   proseMirrorToRelayMark(admittedDocument);
-  let document2 = schema3.nodeFromJSON(admittedDocument);
+  let document2 = schema4.nodeFromJSON(admittedDocument);
   document2.check();
   const step_maps = [];
   const originalIdentities = /* @__PURE__ */ new Map();
@@ -6589,7 +6593,7 @@ function applyContentEdit(admittedDocument, operation, { maximumSteps = 512 } = 
       if (json2.attr !== "relaymark") throw TypeError("Unknown canonical document attribute");
       assertAuthoredMetadata(json2.value);
     }
-    const step = Step.fromJSON(schema3, json2);
+    const step = Step.fromJSON(schema4, json2);
     if (stableStringify(step.toJSON()) !== stableStringify(json2)) throw new TypeError("Noncanonical content edit step");
     const result = step.apply(document2);
     if (result.failed) throw new TypeError("Canonical content edit refused: " + result.failed);
@@ -6652,7 +6656,7 @@ function buildContentEditWitness(evidence) {
 function prepareContentEditWrite(before, steps, after) {
   const expected = applyContentEdit(before, { kind: "content_edit", steps });
   if (stableStringify(expected.document) !== stableStringify(after)) throw TypeError("Causal writer result disagrees with actual steps");
-  const groups = (document2) => Object.fromEntries(contentEditTextGroups(schema3.nodeFromJSON(document2)).map((group) => [group.parent + ":" + group.index, group]));
+  const groups = (document2) => Object.fromEntries(contentEditTextGroups(schema4.nodeFromJSON(document2)).map((group) => [group.parent + ":" + group.index, group]));
   const prepared = { retained_ranges: expected.retained_ranges, before_groups: groups(before), after_groups: groups(after) };
   const causal_targets = [];
   for (const target of Object.values(prepared.after_groups)) {
@@ -6822,7 +6826,7 @@ function protectedSkeleton(items) {
 // adapters/collaboration/content-edit-mutation.js
 var toBase64 = (bytes2) => (0, import_btoa.default)(Array.from(bytes2, (v) => String.fromCharCode(v)).join(""));
 var fromBase64 = (value) => Uint8Array.from((0, import_atob.default)(value), (v) => v.charCodeAt(0));
-var schema4 = createCanonicalEditorSchema();
+var schema5 = createCanonicalEditorSchema();
 var MAX_BYTES = 8 * 1024 * 1024;
 var same2 = (a, b) => stableStringify(a) === stableStringify(b);
 function fields2(value, allowed, required = allowed) {
@@ -6936,10 +6940,10 @@ function replayContentEditMutation(evidence) {
     const before = Y3.decodeStateVector(Y3.encodeStateVector(current)), clients = /* @__PURE__ */ new Set();
     for (const r of evidence.footprint.structs ?? []) if (r.item.clock + r.count > (before.get(r.item.client) || 0)) clients.add(r.item.client);
     if (clients.size > 1 || (clients.size === 0 ? evidence.writer_client !== null : !clients.has(evidence.writer_client) || !Number.isSafeInteger(evidence.writer_client) || evidence.writer_client < 0)) throw TypeError("Replay writer must be independently observed from fresh structs");
-    const initialized = initProseMirrorDoc(sender.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), evidence.operation);
+    const initialized = initProseMirrorDoc(sender.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), evidence.operation);
     let result = initialized.doc;
     for (const json of evidence.operation.steps) {
-      const applied = Step2.fromJSON(schema4, json).apply(result);
+      const applied = Step2.fromJSON(schema5, json).apply(result);
       if (applied.failed) throw TypeError("Refused maintained command");
       result = applied.doc;
     }
@@ -6968,6 +6972,14 @@ function replayContentEditMutation(evidence) {
     current.destroy();
   }
 }
+function readContentEditDocument(state_base64) {
+  const doc = owner(bytes(state_base64));
+  try {
+    return cloneCanonicalJSON(initProseMirrorDoc(doc.getXmlFragment("default"), schema5).doc.toJSON());
+  } finally {
+    doc.destroy();
+  }
+}
 function produceContentEdit(input) {
   fields2(input, ["state_base64", "writer_client", "transaction_id", "owner_id", "steps"]);
   canonicalOperationID(input.transaction_id);
@@ -6979,11 +6991,11 @@ function produceContentEdit(input) {
     const root = doc.getXmlFragment("default"), metadata = doc.getMap("relaymark");
     const beforeSnapshot = captureContentEditSnapshot(root), beforeClocks = captureContentEditFootprint(doc, Uint8Array.of(0, 0)).state_vector;
     const before_snapshot_base64 = toBase64(Y3.encodeSnapshot(Y3.snapshot(doc)));
-    const initialized = initProseMirrorDoc(root, schema4), operation = { kind: "content_edit", steps: input.steps };
+    const initialized = initProseMirrorDoc(root, schema5), operation = { kind: "content_edit", steps: input.steps };
     const expected = applyContentEdit(initialized.doc.toJSON(), operation);
     let result = initialized.doc;
     for (const json of input.steps) {
-      const applied = Step2.fromJSON(schema4, json).apply(result);
+      const applied = Step2.fromJSON(schema5, json).apply(result);
       if (applied.failed) throw TypeError("Refused maintained command");
       result = applied.doc;
     }
@@ -7121,13 +7133,175 @@ function finishOwnedHistoryObservation(doc, observation) {
   ownedObservations.delete(observation);
   return accounting;
 }
-function replayOwnedHistory(evidence) {
-  fields2(evidence, ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint", "initial_state_base64", "receipts"]);
-  validateOwnedHistory(evidence.operation.history);
-  if (!Array.isArray(evidence.receipts) || evidence.receipts.length < 1 || evidence.receipts.length > 4096) throw TypeError("Unavailable bounded accepted history");
-  const doc = owner(bytes(evidence.initial_state_base64)), origin = {}, manager = new Y3.UndoManager([doc.getXmlFragment("default"), doc.getMap("relaymark")], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
+var historyKey = "relaymark:operation_ids";
+function historyID(value) {
+  fields2(value, ["client", "clock"]);
+  if (!Number.isSafeInteger(value.client) || value.client < 0 || !Number.isInteger(value.clock) || value.clock < 0 || value.clock > 4294967295) throw TypeError("Invalid retained history identity");
+  return value;
+}
+function historyRange(value) {
+  fields2(value, ["item", "count"]);
+  historyID(value.item);
+  if (!Number.isInteger(value.count) || value.count < 1 || value.item.clock + value.count > 4294967296) throw TypeError("Invalid retained history extent");
+  return value;
+}
+function historyIntervals(set) {
+  return [...set.clients].sort(([a], [b]) => a - b).map(([client, ranges]) => ({ client, ranges: ranges.map(({ clock, len }) => ({ clock, len })) }));
+}
+function historySet(value) {
+  if (!Array.isArray(value) || value.length > 1e6) throw TypeError("Invalid retained stack set");
+  const set = Y3.createDeleteSet();
+  let previous = -1, total = 0;
+  for (const row of value) {
+    fields2(row, ["client", "ranges"]);
+    if (!Number.isSafeInteger(row.client) || row.client <= previous || !Array.isArray(row.ranges) || !row.ranges.length) throw TypeError("Noncanonical retained stack set");
+    previous = row.client;
+    let end = -1;
+    const ranges = [];
+    for (const range of row.ranges) {
+      fields2(range, ["clock", "len"]);
+      if (!Number.isInteger(range.clock) || range.clock <= end || !Number.isInteger(range.len) || range.len < 1 || range.clock + range.len > 4294967296 || ++total > 1e6) throw TypeError("Invalid retained stack extent");
+      end = range.clock + range.len;
+      ranges.push({ ...range });
+    }
+    set.clients.set(row.client, ranges);
+  }
+  return set;
+}
+function stackWire(stack, ownerID) {
+  return stack.map((item) => {
+    if (item.meta.size !== 1 || !item.meta.has(historyKey)) throw TypeError("Unavailable canonical stack metadata");
+    const group = validateOwnedCommandGroup(item.meta.get(historyKey));
+    if (group.owner_id !== ownerID) throw TypeError("Conflicting owned checkpoint");
+    return { insertions: historyIntervals(item.insertions), deletions: historyIntervals(item.deletions), group: cloneCanonicalJSON(group) };
+  });
+}
+function stackItems(value, ownerID) {
+  if (!Array.isArray(value) || value.length > 4096) throw TypeError("Oversized retained stack");
+  return value.map((item) => {
+    fields2(item, ["insertions", "deletions", "group"]);
+    const group = validateOwnedCommandGroup(item.group);
+    if (group.owner_id !== ownerID) throw TypeError("Conflicting owned checkpoint");
+    return { insertions: historySet(item.insertions), deletions: historySet(item.deletions), meta: /* @__PURE__ */ new Map([[historyKey, cloneCanonicalJSON(group)]]) };
+  });
+}
+function checkpointItem(transaction, id2, count) {
+  historyRange({ item: id2, count });
+  const item = Y3.getItemCleanStart(transaction, Y3.createID(id2.client, id2.clock));
+  Y3.getItemCleanEnd(transaction, transaction.doc.store, Y3.createID(id2.client, id2.clock + count - 1));
+  if (!(item instanceof Y3.Item) || item.content instanceof Y3.ContentDeleted) throw TypeError("Unavailable retained checkpoint item");
+  return item;
+}
+function sameRestoredContent(source, target) {
+  if (source.content.constructor !== target.content.constructor) return false;
+  if (source.content instanceof Y3.ContentFormat) return source.content.key === target.content.key && same2(source.content.value ?? null, target.content.value ?? null);
+  if (source.content instanceof Y3.ContentType) {
+    const a = source.content.type, b = target.content.type;
+    return a.constructor === b.constructor && (!(a instanceof Y3.XmlElement) || a.nodeName === b.nodeName);
+  }
+  return same2(source.content.getContent(), target.content.getContent());
+}
+function installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID) {
+  fields2(checkpoint, ["owner_id", "state_vector", "undo_stack", "redo_stack", "redone", "retained"]);
+  if (checkpoint.owner_id !== ownerID || JSON.stringify(checkpoint).length > 32 * 1024 * 1024) throw TypeError("Conflicting or oversized owned checkpoint");
+  if (!Array.isArray(checkpoint.state_vector) || !Array.isArray(checkpoint.redone) || !Array.isArray(checkpoint.retained) || checkpoint.redone.length + checkpoint.retained.length > 1e6) throw TypeError("Invalid bounded owned checkpoint");
+  const clocks2 = /* @__PURE__ */ new Map();
+  for (const entry of checkpoint.state_vector) {
+    fields2(entry, ["client", "clock"]);
+    if (!Number.isSafeInteger(entry.client) || entry.client < 0 || !Number.isInteger(entry.clock) || entry.clock < 0 || entry.clock > 4294967296 || clocks2.has(entry.client)) throw TypeError("Invalid checkpoint frontier");
+    clocks2.set(entry.client, entry.clock);
+  }
+  const undo = stackItems(checkpoint.undo_stack, ownerID), redo = stackItems(checkpoint.redo_stack, ownerID), seen = /* @__PURE__ */ new Set();
+  Y3.transact(doc, (transaction) => {
+    for (const row of checkpoint.retained) {
+      historyRange(row);
+      if (row.item.clock + row.count > (clocks2.get(row.item.client) || 0)) throw TypeError("Retained item outside checkpoint frontier");
+      let offset = 0;
+      while (offset < row.count) {
+        const item = checkpointItem(transaction, { client: row.item.client, clock: row.item.clock + offset }, row.count - offset);
+        offset += item.length;
+        let parent2 = item, depth = 0;
+        while (parent2 instanceof Y3.Item) {
+          if (++depth > 128) throw TypeError("Retained checkpoint parent limit");
+          parent2.keep = true;
+          parent2 = parent2.parent?._item;
+        }
+      }
+    }
+    for (const row of checkpoint.redone) {
+      fields2(row, ["item", "count", "target"]);
+      historyRange({ item: row.item, count: row.count });
+      historyID(row.target);
+      if (row.item.clock + row.count > (clocks2.get(row.item.client) || 0) || row.target.clock + row.count > (clocks2.get(row.target.client) || 0) || seen.has(row.item.client + ":" + row.item.clock)) throw TypeError("Invalid checkpoint redone edge");
+      seen.add(row.item.client + ":" + row.item.clock);
+      let offset = 0;
+      while (offset < row.count) {
+        let source = checkpointItem(transaction, { client: row.item.client, clock: row.item.clock + offset }, row.count - offset), target = checkpointItem(transaction, { client: row.target.client, clock: row.target.clock + offset }, row.count - offset);
+        const count = Math.min(source.length, target.length, row.count - offset);
+        source = checkpointItem(transaction, { client: row.item.client, clock: row.item.clock + offset }, count);
+        target = checkpointItem(transaction, { client: row.target.client, clock: row.target.clock + offset }, count);
+        if (source === target || !sameRestoredContent(source, target)) throw TypeError("Mismatched checkpoint redone content");
+        source.redone = Y3.createID(target.id.client, target.id.clock);
+        offset += count;
+      }
+    }
+    for (const item of [...undo, ...redo]) Y3.iterateDeletedStructs(transaction, item.deletions, (struct) => {
+      if (!(struct instanceof Y3.Item) || !struct.keep || struct.content instanceof Y3.ContentDeleted) throw TypeError("Unretained owned stack deletion");
+    });
+  }, "relaymark:checkpoint-restore");
+  for (const structs of doc.store.clients.values()) for (const item of structs) {
+    if (!(item instanceof Y3.Item) || !item.redone) continue;
+    const chain = /* @__PURE__ */ new Set();
+    let current = item;
+    while (current.redone) {
+      const key2 = current.id.client + ":" + current.id.clock;
+      if (chain.has(key2) || chain.size > 1e6) throw TypeError("Cyclic checkpoint redone edge");
+      chain.add(key2);
+      current = Y3.getItem(doc.store, current.redone);
+      if (!(current instanceof Y3.Item)) throw TypeError("Unavailable checkpoint redone target");
+    }
+  }
+  if (typeof manager.restoreHistoryStacks !== "function") throw TypeError("Maintained stack initialization hook unavailable");
+  manager.restoreHistoryStacks(undo, redo);
+}
+function createOwnedHistoryCheckpoint(input) {
+  fields2(input, ["initial_state_base64", "checkpoint", "receipts", "current_state_base64", "owner_id"], ["receipts", "current_state_base64", "owner_id"]);
+  canonicalOperationID(input.owner_id);
+  if (Object.hasOwn(input, "initial_state_base64") === Object.hasOwn(input, "checkpoint")) throw TypeError("Exactly one trusted checkpoint basis is required");
+  if (!Array.isArray(input.receipts)) throw TypeError("Unavailable bounded accepted history");
+  const baseline = input.checkpoint ? input.receipts[0]?.sender_state_base64 ?? input.current_state_base64 : input.initial_state_base64;
+  const retained = retainedHistoryOwner(baseline, input.receipts, input.owner_id, input.checkpoint ?? null);
+  try {
+    Y3.applyUpdate(retained.doc, bytes(input.current_state_base64));
+    const actual = owner(bytes(input.current_state_base64));
+    try {
+      if (!same2(captureContentEditFootprint(retained.doc, Y3.encodeStateAsUpdate(retained.doc)), captureContentEditFootprint(actual, Y3.encodeStateAsUpdate(actual)))) throw TypeError("Checkpoint does not reconstruct exact retained cut");
+    } finally {
+      actual.destroy();
+    }
+    if (typeof retained.manager.exportHistoryStacks !== "function") throw TypeError("Maintained stack export hook unavailable");
+    const stacks = retained.manager.exportHistoryStacks(), redone = [], kept = [];
+    let budget2 = 1e6;
+    for (const structs of retained.doc.store.clients.values()) for (const item of structs) {
+      if (--budget2 < 0) throw TypeError("Checkpoint retained-item budget exhausted");
+      if (!(item instanceof Y3.Item)) continue;
+      const range = { item: { client: item.id.client, clock: item.id.clock }, count: item.length };
+      if (item.redone) redone.push({ ...range, target: { client: item.redone.client, clock: item.redone.clock } });
+      if (item.keep) kept.push(range);
+    }
+    const result = { owner_id: input.owner_id, state_vector: captureContentEditFootprint(retained.doc, Uint8Array.of(0, 0)).state_vector, undo_stack: stackWire(stacks.undo, input.owner_id), redo_stack: stackWire(stacks.redo, input.owner_id), redone, retained: kept };
+    if (JSON.stringify(result).length > 32 * 1024 * 1024) throw TypeError("Oversized owned checkpoint");
+    return result;
+  } finally {
+    retained.destroy();
+  }
+}
+function retainedHistoryOwner(initial_state_base64, receipts, ownerID, checkpoint = null) {
+  canonicalOperationID(ownerID);
+  if (!Array.isArray(receipts) || receipts.length > 4096 || !checkpoint && receipts.length < 1) throw TypeError("Unavailable bounded accepted history");
+  const doc = owner(bytes(initial_state_base64)), origin = {}, manager = new Y3.UndoManager([doc.getXmlFragment("default"), doc.getMap("relaymark")], { trackedOrigins: /* @__PURE__ */ new Set([origin]), captureTimeout: Infinity });
   protectOwnedHistoryBranches(manager);
-  bindOwnedHistoryOwner(manager, evidence.operation.history.owner_id);
+  bindOwnedHistoryOwner(manager, ownerID);
   let activeID = null, popped = null, lastRestored = [];
   const event = (e) => {
     if (!manager.undoing && !manager.redoing && activeID) bindOwnedCommandGroup(manager, e, activeID);
@@ -7141,8 +7315,8 @@ function replayOwnedHistory(evidence) {
   const inverse = (operation, writer) => {
     validateOwnedHistory(operation.history);
     const stack = operation.history.kind === "undo" ? manager.undoStack : manager.redoStack, group = stack.at(-1)?.meta.get("relaymark:operation_ids");
-    if (operation.history.owner_id !== evidence.operation.history.owner_id || !group || !same2(group, { owner_id: operation.history.owner_id, reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
-    const prior = Y3.decodeStateVector(Y3.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema4), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
+    if (operation.history.owner_id !== ownerID || !group || !same2(group, { owner_id: operation.history.owner_id, reference: operation.history.reference, operation_ids: operation.history.operation_ids })) throw TypeError("Owned history differs from actual accepted group");
+    const prior = Y3.decodeStateVector(Y3.encodeStateVector(doc)), links = redoneLinks(doc), initialized = initProseMirrorDoc(doc.getXmlFragment("default"), schema5), expected = applyContentEdit(initialized.doc.toJSON(), operation), updates = [], capture = (u) => updates.push(u);
     doc.clientID = writer ?? 0;
     popped = null;
     doc.on("update", capture);
@@ -7152,23 +7326,24 @@ function replayOwnedHistory(evidence) {
     } finally {
       doc.off("update", capture);
     }
-    if (!popped || updates.length !== 1 || !same2(initProseMirrorDoc(doc.getXmlFragment("default"), schema4).doc.toJSON(), expected.document)) throw TypeError("Actual maintained inverse disagrees with supplied steps");
+    if (!popped || updates.length !== 1 || !same2(initProseMirrorDoc(doc.getXmlFragment("default"), schema5).doc.toJSON(), expected.document)) throw TypeError("Actual maintained inverse disagrees with supplied steps");
     lastRestored = restoredCopies(doc, prior, links);
     return updates[0];
   };
   try {
-    let total = bytes(evidence.initial_state_base64).length;
+    if (checkpoint) installOwnedHistoryCheckpoint(doc, manager, checkpoint, ownerID);
+    let total = bytes(initial_state_base64).length;
     const seen = /* @__PURE__ */ new Set();
-    for (const receipt of evidence.receipts) {
+    for (const receipt of receipts) {
       fields2(receipt, ["transaction_id", "operation", "update_base64", "sender_state_base64"]);
       if (seen.has(receipt.transaction_id)) throw TypeError("Duplicate accepted command receipt");
       seen.add(receipt.transaction_id);
-      const sender2 = bytes(receipt.sender_state_base64), update = bytes(receipt.update_base64);
+      const sender = bytes(receipt.sender_state_base64), update = bytes(receipt.update_base64);
       const receiptOwner = receipt.operation.history ? validateOwnedHistory(receipt.operation.history).owner_id : validateOwnedCommandGroup(receipt.operation.group).owner_id;
-      if (receiptOwner !== evidence.operation.history.owner_id) throw TypeError("Mixed maintained history owner receipts");
-      total += sender2.length + update.length;
+      if (receiptOwner !== ownerID) throw TypeError("Mixed maintained history owner receipts");
+      total += sender.length + update.length;
       if (total > 32 * 1024 * 1024) throw TypeError("Oversized accepted history replay");
-      Y3.applyUpdate(doc, sender2);
+      Y3.applyUpdate(doc, sender);
       if (doc.store.pendingStructs || doc.store.pendingDs) throw TypeError("Unsettled accepted sender frontier");
       const beforeBytes = Y3.encodeStateAsUpdate(doc), candidate = owner(beforeBytes);
       try {
@@ -7199,6 +7374,25 @@ function replayOwnedHistory(evidence) {
         candidate.destroy();
       }
     }
+    return { doc, manager, inverse, restored: () => lastRestored, destroy: () => {
+      manager.destroy();
+      doc.destroy();
+    } };
+  } catch (error) {
+    manager.destroy();
+    doc.destroy();
+    throw error;
+  }
+}
+function replayOwnedHistory(evidence) {
+  const common = ["sender_state_base64", "current_state_base64", "writer_client", "operation", "footprint", "receipts"];
+  fields2(evidence, [...common, "initial_state_base64", "checkpoint"], common);
+  validateOwnedHistory(evidence.operation.history);
+  if (Object.hasOwn(evidence, "initial_state_base64") === Object.hasOwn(evidence, "checkpoint")) throw TypeError("Exactly one trusted owned-history basis is required");
+  const baseline = evidence.checkpoint ? evidence.receipts[0]?.sender_state_base64 ?? evidence.sender_state_base64 : evidence.initial_state_base64;
+  const retained = retainedHistoryOwner(baseline, evidence.receipts, evidence.operation.history.owner_id, evidence.checkpoint ?? null);
+  const { doc, inverse } = retained;
+  try {
     Y3.applyUpdate(doc, bytes(evidence.sender_state_base64));
     const candidateFrontier = Y3.decodeStateVector(Y3.encodeStateVector(doc)), sender = owner(bytes(evidence.sender_state_base64));
     try {
@@ -7209,19 +7403,20 @@ function replayOwnedHistory(evidence) {
     const current = owner(bytes(evidence.current_state_base64));
     try {
       if (observedWriter(evidence.footprint, current) !== evidence.writer_client) throw TypeError("History writer is not independently observed");
-      const frontier = Y3.decodeStateVector(Y3.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, lastRestored);
-      return { ...proof, ...accounting, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: lastRestored };
+      const frontier = Y3.decodeStateVector(Y3.encodeStateVector(current)), update = inverse(evidence.operation, evidence.writer_client), proof = compareUpdate(current, evidence.footprint, update), accounting = ownedTextAccounting(current, frontier, retained.restored());
+      return { ...proof, ...accounting, expected_update_base64: toBase64(update), complete_mutation_correspondence: true, owned_history_correspondence: true, restored_copies: retained.restored() };
     } finally {
       current.destroy();
     }
   } finally {
-    manager.destroy();
-    doc.destroy();
+    retained.destroy();
   }
 }
 export {
   captureOwnedHistoryObservation,
+  createOwnedHistoryCheckpoint,
   finishOwnedHistoryObservation,
   produceContentEdit,
+  readContentEditDocument,
   replayContentEditMutation
 };

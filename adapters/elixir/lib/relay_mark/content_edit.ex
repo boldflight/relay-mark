@@ -59,6 +59,18 @@ defmodule RelayMark.ContentEdit do
 
   def produce(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Plan a complete canonical authored target through the same maintained command producer."
+  def produce_document_patch(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "produceDocumentPatch", [input])
+
+  def produce_document_patch(_, _), do: {:error, :invalid_content_edit}
+
+  @doc "Checkpoint the actual maintained owner after trusted chronological command replay. The host owns scoped checkpoint persistence, coverage and immutable receipt authentication. No raw update archive is returned."
+  def checkpoint_owned_history(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "createOwnedHistoryCheckpoint", [input])
+
+  def checkpoint_owned_history(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Stateless classification after the host authenticates current original receipts, scope and complete proof. Inputs and results are not credentials."
   def classify_source_reference(runtime, binding, transaction, proof, human_ancestry),
     do:
