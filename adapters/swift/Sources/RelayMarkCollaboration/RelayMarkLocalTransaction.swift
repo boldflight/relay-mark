@@ -83,6 +83,10 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
             self.ownedGroup=group;self.ownedHistory=history
             self.witness=try container.decodeIfPresent(Data.self,forKey:.witness)
             let review = try container.decodeIfPresent(Data.self, forKey: .reviewedRecovery)
+            guard review == nil || history == nil else {
+                throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath,
+                    debugDescription: "Reviewed append evidence cannot annotate inverse history"))
+            }
             try Self.validateReviewedRecovery(review)
             self.reviewedRecovery = review
         }

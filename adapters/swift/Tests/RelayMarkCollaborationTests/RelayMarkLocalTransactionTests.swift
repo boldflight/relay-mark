@@ -189,4 +189,22 @@ struct RelayMarkLocalTransactionTests {
         #expect(nilEvidence.reviewedRecovery == nil)
     }
 
+    @Test func inverseJournalCannotClaimTheOriginalReviewedAppendMaterial() throws {
+        let id = UUID()
+        let inverse = RelayMarkLocalTransaction.NativeContentEdit(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8),
+            ownedHistory: try .init(kind: .undo, ownerID: id, reference: id, operationIDs: [id]))
+        let material = Data("{\"originalArchive\":\"exact retained source\"}\n".utf8)
+        var forged = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(inverse)) as? [String: Any])
+        forged["reviewedRecovery"] = material.base64EncodedString()
+        #expect(throws: (any Error).self) {
+            try JSONDecoder().decode(RelayMarkLocalTransaction.NativeContentEdit.self, from: JSONSerialization.data(withJSONObject: forged))
+        }
+        #expect(try JSONDecoder().decode(RelayMarkLocalTransaction.NativeContentEdit.self,
+            from: JSONEncoder().encode(inverse)) == inverse)
+        let original = try RelayMarkLocalTransaction.NativeContentEdit(beforeSnapshot: Data([0, 0]), steps: Data("[]".utf8),
+            ownedGroup: .init(ownerID: id, reference: id, operationIDs: [id]), reviewedRecovery: material)
+        #expect(try JSONDecoder().decode(RelayMarkLocalTransaction.NativeContentEdit.self,
+            from: JSONEncoder().encode(original)).reviewedRecovery == material)
+    }
+
 }
