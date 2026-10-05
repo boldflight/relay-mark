@@ -218,13 +218,21 @@ defmodule RelayMark.ContentEditTest do
       "proven_copies" => copies
     }
 
-    assert {:ok, %{"human_destinations" => ^destination}} =
+    assert {:ok, %{"human_destinations" => ^destination} = reference} =
              RelayMark.ContentEdit.classify_source_reference(
                runtime,
                %{"document_id" => "doc", "incarnation" => "inc"},
                transaction,
                proof,
                source
+             )
+
+    assert {:ok, ^destination} =
+             RelayMark.ContentEdit.fold_source_references(
+               runtime,
+               %{"document_id" => "doc", "incarnation" => "inc"},
+               destination,
+               [reference]
              )
 
     overflow = put_in(source, ["runs", Access.at(0), "count"], 131_073)

@@ -73,3 +73,24 @@ test('copy packet run order pairs identities exactly across independent item and
  const forged=structuredClone(reference);forged.human_destinations=select(52,2);
  assert.throws(()=>foldSourceReferences(binding,select(52,2),[forged]),{code:'source_reference_mismatch'});
 });
+
+const run=(clock,count=1,type=1,client=101)=>({item:{client,clock},type:{client,clock:type},count});
+const selectRun=(...runs)=>({runs});
+const reference=(typed,human=typed,copies=[])=>({binding,transaction_id:'11111111-1111-4111-8111-111111111111',text_items:typed,proven_copies:copies,human_destinations:human});
+test('candidate gaps remain separate and partial mixed human copy ancestry preserves exact types',()=>{
+ const typed=selectRun(run(2,2));const destination=selectRun(run(20,8,7));
+ const ref=reference(typed,selectRun(...typed.runs,run(22,2,7),run(26,2,7)),[{source:selectRun(run(100,8,4)),destination}]);
+ assert.deepEqual(foldSourceReferences(binding,selectRun(run(2,1),run(21,3,7),run(26,1,7)),[ref]),selectRun(run(2,1),run(22,2,7),run(26,1,7)));
+ assert.throws(()=>foldSourceReferences(binding,selectRun(run(22,1,8)),[ref]),{code:'source_identity_mismatch'});
+ const missing=structuredClone(ref);missing.human_destinations.runs.shift();assert.throws(()=>foldSourceReferences(binding,empty,[missing]),{code:'source_reference_mismatch'});
+ const unproven=structuredClone(ref);unproven.human_destinations.runs.push(run(30,1,7));assert.throws(()=>foldSourceReferences(binding,empty,[unproven]),{code:'source_reference_mismatch'});
+});
+test('repeated sources permit two destinations; overlapping destinations and forged selectors refuse even outside candidates',()=>{
+ const source=selectRun(run(100,4,2)),a=selectRun(run(20,4,7)),b=selectRun(run(30,4,8));
+ const copies=[{source,destination:a},{source,destination:b}];
+ const ref=reference(empty,selectRun(run(21,2,7),run(31,2,8)),copies);
+ assert.deepEqual(foldSourceReferences(binding,selectRun(...a.runs,...b.runs),[ref]),ref.human_destinations);
+ const forged=structuredClone(ref);forged.proven_copies[1].destination=selectRun(run(22,4,8));assert.throws(()=>foldSourceReferences(binding,empty,[forged]),{code:'source_reference_mismatch'});
+ const bad=structuredClone(ref);bad.proven_copies[0].source=selectRun(run(0xffffffff,2,2));assert.throws(()=>foldSourceReferences(binding,empty,[bad]),{code:'source_reference_mismatch'});
+ const scope=structuredClone(ref);scope.binding.incarnation='other';assert.throws(()=>foldSourceReferences(binding,empty,[scope]),{code:'source_reference_mismatch'});
+});

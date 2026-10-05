@@ -65,18 +65,90 @@ export function classifyContentEditReference(documentBinding,transaction,proof,h
 }
 /** Receipt references must already be authenticated against their original
  * transaction. Candidates bound memory; absent ancestry remains generated. */
+// REVIEW ONLY: bounded interval validation replacing fold's per-unit temporary maps.
+// Command classifier/public Map APIs are unchanged. No caller-authentication owner moves.
+function referenceRanges(selector){
+ if(!exact(selector,['runs'])||!Array.isArray(selector.runs))fail('Invalid source selector');
+ if(selector.runs.length>maxRuns)fail('Source selector budget','source_identity_limit');
+ let units=0;const ordered=[];
+ const ranges=selector.runs.map(run=>{
+  if(!exact(run,['item','type','count'])||!validID(run.item)||!validID(run.type)||!Number.isInteger(run.count)||run.count<1||run.item.clock+run.count>0x100000000)fail('Invalid source selector');
+  if((units+=run.count)>maxUnits)fail('Source selector budget','source_identity_limit');
+  const value={client:run.item.client,start:run.item.clock,end:run.item.clock+run.count,type:run.type};
+  let low=0,high=ordered.length;while(low<high){const mid=(low+high)>>>1,other=ordered[mid];if(other.client<value.client||(other.client===value.client&&other.start<value.start))low=mid+1;else high=mid;}
+  const previous=ordered[low-1],next=ordered[low];
+  if((previous?.client===value.client&&previous.end>value.start)||(next?.client===value.client&&next.start<value.end))fail('Overlapping source identities');
+  ordered.splice(low,0,value);return value;
+ });
+ return {ranges,ordered,units};
+}
+function sameSourceType(left,right){return left.client===right.client&&left.clock===right.clock;}
+function uncoveredSourceClock(range,available){
+ let at=range.start;
+ for(const candidate of available){
+  if(candidate.client!==range.client||!sameSourceType(candidate.type,range.type)||candidate.end<=at)continue;
+  if(candidate.start>at)return at;
+  at=Math.max(at,candidate.end);if(at>=range.end)return null;
+ }
+ return at;
+}
+function referenceCopyDestinations(copies){
+ if(!Array.isArray(copies))fail('Invalid source copies');
+ if(copies.length>maxRuns)fail('Source copy budget','source_identity_limit');
+ let total=0;const destinations=[];
+ for(const copy of copies){
+  if(!exact(copy,['source','destination']))fail('Invalid source copy');
+  const source=referenceRanges(copy.source),destination=referenceRanges(copy.destination);
+  if(source.units!==destination.units)fail('Source copy correspondence');
+  if((total+=source.units)>maxUnits)fail('Source copy budget','source_identity_limit');
+  for(const value of destination.ranges){
+   let low=0,high=destinations.length;while(low<high){const mid=(low+high)>>>1,other=destinations[mid];if(other.client<value.client||(other.client===value.client&&other.start<value.start))low=mid+1;else high=mid;}
+   const previous=destinations[low-1],next=destinations[low];
+   if((previous?.client===value.client&&previous.end>value.start)||(next?.client===value.client&&next.start<value.end))fail('Overlapping copy destinations');
+   destinations.splice(low,0,value);
+  }
+ }
+ return destinations;
+}
+function mergeReferenceRanges(ranges){
+ const merged=[];
+ for(const range of ranges.sort((a,b)=>a.client-b.client||a.start-b.start)){
+  const previous=merged.at(-1);
+  if(previous&&previous.client===range.client&&previous.end>=range.start&&sameSourceType(previous.type,range.type))previous.end=Math.max(previous.end,range.end);
+  else merged.push({...range});
+ }
+ return merged;
+}
+function encodeReferenceRanges(ranges){
+ const selector={runs:mergeReferenceRanges(ranges).map(range=>({item:{client:range.client,clock:range.start},type:{...range.type},count:range.end-range.start}))};
+ referenceRanges(selector);return selector;
+}
 export function foldSourceReferences(documentBinding,candidateSelector,references){
- binding(documentBinding);const candidates=decodeSourceSelector(candidateSelector),human=new Map();
+ binding(documentBinding);const candidates=referenceRanges(candidateSelector).ordered;let human=[];
  if(!Array.isArray(references))fail('Invalid source references');
  if(references.length>16384)fail('Source receipt budget','source_identity_limit');
  for(const reference of references){
   if(!exact(reference,['binding','transaction_id','text_items','proven_copies','human_destinations'])||!equalCanonicalJSON(reference.binding,documentBinding))fail('Source reference binding mismatch');
-  const typed=decodeSourceSelector(reference.text_items),admitted=decodeSourceSelector(reference.human_destinations),destinations=new Map(copyPairs(reference.proven_copies).map(([,destination])=>[key(destination.item),destination]));
-  for(const [id,value] of typed)if(!equalCanonicalJSON(admitted.get(id),value))fail('Missing typed human destination');
-  for(const [id,value] of admitted){
-   if(!equalCanonicalJSON(typed.get(id),value)&&!equalCanonicalJSON(destinations.get(id),value))fail('Unproven human destination');
-   const candidate=candidates.get(id);if(candidate){if(!equalCanonicalJSON(candidate.type,value.type))fail('Source identity type mismatch','source_identity_mismatch');human.set(id,value);}
+  const typed=referenceRanges(reference.text_items),admitted=referenceRanges(reference.human_destinations),destinations=referenceCopyDestinations(reference.proven_copies);
+  for(const value of typed.ranges)if(uncoveredSourceClock(value,admitted.ordered)!==null)fail('Missing typed human destination');
+  const authorized=[...typed.ordered,...destinations].sort((a,b)=>a.client-b.client||a.start-b.start),intersections=[];
+  // Follow original packet order and preserve the first per-unit refusal code.
+  for(const value of admitted.ranges){
+   const gap=uncoveredSourceClock(value,authorized);let mismatch=null;
+   for(const candidate of candidates){
+    if(candidate.client<value.client)continue;
+    if(candidate.client>value.client)break;
+    if(candidate.end<=value.start)continue;
+    if(candidate.start>=value.end)break;
+    const start=Math.max(candidate.start,value.start),end=Math.min(candidate.end,value.end);
+    if(!sameSourceType(candidate.type,value.type)){mismatch=start;break;}
+    intersections.push({client:value.client,start,end,type:value.type});
+   }
+   if(mismatch!==null&&(gap===null||mismatch<gap))fail('Source identity type mismatch','source_identity_mismatch');
+   if(gap!==null)fail('Unproven human destination');
+   if(mismatch!==null)fail('Source identity type mismatch','source_identity_mismatch');
   }
+  human=mergeReferenceRanges([...human,...intersections]);
  }
- return encodeSourceIdentities(human);
+ return encodeReferenceRanges(human);
 }
