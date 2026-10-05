@@ -196,7 +196,6 @@ public struct RelayMarkCollaborativeProse {
             if let link = mark as? [String: Any], let href = link["href"] as? String,
                 Set(link.keys).isSubset(of: dialect == .rich
                     ? ["href", "target", "rel", "class", "title"] : ["href", "target", "rel", "class"]),
-                (dialect != .rich || link["title"] == nil || link["title"] is NSNull),
                 !href.contains("\n"), !href.contains("<"), !href.contains(">"), let url = URL(string: href) {
                 part.link = url
             } else { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }

@@ -1,5 +1,5 @@
 /** Canonical text-run mapping. Each mark wraps exactly one child, in schema order. */
-import { safeLinkHref } from './document-links.js';
+import { safeLinkHref, linkAttributes, linkProperties, validateLinkAttributes } from './document-links.js';
 import { mapAtom, unmapAtom } from './document-atoms.js';
 export const textMarkNames = ["link", "bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"];
 const markTypes = textMarkNames;
@@ -7,7 +7,6 @@ const inlineTypes = { link: "link", bold: "strong", code: "code_span",
   italic: "emphasis", strike: "strikethrough", underline: "underline",
   highlight: "highlight", superscript: "superscript", subscript: "subscript" };
 const pmTypes = Object.fromEntries(Object.entries(inlineTypes).map(([pm, ast]) => [ast, pm]));
-const linkDefaults = { target: "_blank", rel: "noopener noreferrer nofollow", class: null, title: null };
 
 function object(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`Invalid ${label}`);
@@ -62,17 +61,14 @@ export function mapInline(node) {
     }
     previous = rank;
     if (mark.type === "link") {
-      keys(mark.attrs, ["href", ...Object.keys(linkDefaults)], "link attrs");
-      for (const [key, value] of Object.entries(linkDefaults)) {
-        if (mark.attrs[key] !== value) throw new TypeError(`Unsupported link ${key}`);
-      }
+      validateLinkAttributes(mark.attrs);
     } else if (mark.attrs !== undefined) {
       throw new TypeError(`Unsupported ${mark.type} attrs`);
     }
   }
   for (const mark of marks.toReversed()) {
     result = { type: inlineTypes[mark.type],
-      ...(mark.type === "link" ? { href: href(mark.attrs.href) } : {}), content: [result] };
+      ...(mark.type === "link" ? { href: href(mark.attrs.href), ...(Object.keys(linkProperties(mark.attrs)).length ? {props:linkProperties(mark.attrs)} : {}) } : {}), content: [result] };
   }
   return result;
 }
@@ -94,9 +90,9 @@ export function unmapInline(node) {
       throw new TypeError("Unsupported or noncanonical inline wrapper");
     }
     previous = rank;
-    keys(cursor, pmType === "link" ? ["type", "href", "content"] : ["type", "content"], "inline wrapper");
+    keys(cursor, pmType === "link" ? ["type", "href", "props", "content"] : ["type", "content"], "inline wrapper");
     if (!Array.isArray(cursor.content) || cursor.content.length !== 1) throw new TypeError("Inline wrapper requires one child");
-    marks.push(pmType === "link" ? { type: "link", attrs: { href: href(cursor.href), ...linkDefaults } } : { type: pmType });
+    marks.push(pmType === "link" ? { type: "link", attrs: linkAttributes(href(cursor.href), cursor.props) } : { type: pmType });
     cursor = object(cursor.content[0], "inline child");
   }
   keys(cursor, ["type", "text"], "text");

@@ -4,6 +4,7 @@ import { historyHookPlugin } from './yjs-history-hook.mjs'
 import { historySelectionPlugin } from './y-tiptap-history-selection.mjs'
 const editorSchema = JSON.parse(await readFile('spec/relaymark/editor-schema.json','utf8'))
 await writeFile('src/editor-schema.js', '// Generated from spec/relaymark/editor-schema.json. Never edit independently.\nexport const canonicalEditorSchema = '+JSON.stringify(editorSchema)+';\n')
+await copyFile('spec/relaymark/editor-schema.json','adapters/elixir/priv/relaymark/editor-schema.json')
 await writeFile('adapters/swift/Sources/RelayMarkNativeCollaboration/ProseMirror/PMSchema.swift', 'import Foundation\n\n/// Generated from spec/relaymark/editor-schema.json. Never edit independently.\nenum RelayMarkNativeProseMirrorSchema {\n    static let json = #"'+JSON.stringify(editorSchema)+'"#\n    static let nodeAttributeOrder: [String: [String]] = '+JSON.stringify(Object.fromEntries(editorSchema.nodes.map(node=>[node.name,Object.keys(node.attrs??{})]))).replaceAll('{','[').replaceAll('}',']')+'\n    static let markAttributeOrder: [String: [String]] = '+JSON.stringify(Object.fromEntries(editorSchema.marks.map(mark=>[mark.name,Object.keys(mark.attrs??{})]))).replaceAll('{','[').replaceAll('}',']')+'\n}\n')
 const directives = await Promise.all((await readdir('spec/relaymark/directives')).filter(name => name.endsWith('.json')).sort().map(async name => JSON.parse(await readFile('spec/relaymark/directives/'+name,'utf8'))))
 await writeFile('src/directive-registry.js', '// Generated from spec/relaymark/directives. Never edit independently.\nexport const directiveSpecifications = '+JSON.stringify(directives)+';\n')
@@ -20,7 +21,7 @@ await copyFile('scripts/yjs-history-hook.mjs', 'adapters/elixir/priv/collaborati
 await copyFile('scripts/y-tiptap-history-selection.mjs', 'adapters/elixir/priv/collaboration/y-tiptap-history-selection.mjs')
 
 // Canonical portable contract/grammar adapters are shipped, not imported from a Git checkout's src tree.
-for (const name of ['contract.js', 'document-directives.js', 'registry.js', 'directive-registry.js', 'document-adapter.js', 'document-inline.js', 'document-links.js', 'document-atoms.js', 'document-reference.js', 'document-controls.js', 'document-suggestion.js']) {
+for (const name of ['editor-schema.js', 'contract.js', 'document-directives.js', 'registry.js', 'directive-registry.js', 'document-adapter.js', 'document-inline.js', 'document-links.js', 'document-atoms.js', 'document-reference.js', 'document-controls.js', 'document-suggestion.js']) {
   await copyFile(`src/${name}`, `adapters/elixir/priv/collaboration/${name}`)
 }
 

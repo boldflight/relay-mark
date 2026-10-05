@@ -46,11 +46,10 @@ defmodule RelayMark.DocumentRenderer do
         do:
           tag(
             "a",
-            [
-              {"href", link["href"]},
-              {"target", "_blank"},
-              {"rel", "noopener noreferrer nofollow"}
-            ],
+            Enum.map(
+              ~w(href target rel class title),
+              &{&1, RelayMark.Link.rendered_attributes(link)[&1]}
+            ),
             text
           ),
         else: text

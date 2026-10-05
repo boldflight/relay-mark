@@ -245,3 +245,27 @@ test('canonical atom construction emits only schema-owned attrs and finite impor
  assert.deepEqual(migrated.normalizations,[{path:[0,0],operation:'remove_attribute',name:'status',before:null},{path:[0,0],operation:'remove_attribute',name:'subtitle',before:null},{path:[0,2],operation:'remove_attribute',name:'color',before:null}]);
  old.children[0].children[0].attributes.status='resolved';assert.throws(()=>importDocumentSnapshot(old,{namespace:'retained-atoms'}));
 });
+
+test('authored link title and safe properties survive import, edit, exact persistence and HTML',()=>{
+ const ast=parseDocument('[Label](https://example.com/path "Tooltip 🌍")',{namespace:'link-properties'});
+ assert.deepEqual(ast.blocks[0].content[0].props,{title:'Tooltip 🌍'});
+ const link=ast.blocks[0].content[0];link.props={title:'Tooltip "quoted" 🌍',target:'_self',rel:'author nofollow',class:'paper-link cited'};
+ const pm=relayMarkToProseMirror(ast);const attrs=pm.content[0].content[0].marks[0].attrs;
+ assert.deepEqual(attrs,{href:'https://example.com/path',...link.props});
+ pm.content[0].content[0].text='Edited 🌍';
+ const edited=proseMirrorToRelayMark(pm);
+ assert.deepEqual(snapshotToDocument(documentToSnapshot(edited)),edited);
+ assert.deepEqual(parseDocument(serializeDocument(edited)),edited);
+ assert.match(renderDocument(edited),/target="_self" rel="author nofollow" class="paper-link cited" title="Tooltip &quot;quoted&quot; 🌍"/);
+ assert.match(projectDocumentMarkdown(edited),/Tooltip \\"quoted\\" 🌍/);
+ for(const invalid of [{href:'javascript:alert(1)'},{target:'_unknown'},{target:'_blank\n'},{rel:'nofollow\u0000'},{class:'bad\u0000class'},{title:42},{onclick:'alert(1)'}]){
+  const bad=structuredClone(attrs);Object.assign(bad,invalid);assert.throws(()=>validateTextAttributes({link:bad}));
+ }
+ for(const props of [{target:null,rel:null,title:''},{target:'123 reading 🌍',rel:'',class:'citation \"quoted\" <literal>',title:'Line\n"quoted" 🌍'}]){
+  const declaration=structuredClone(edited);declaration.blocks[0].content[0].props=props;
+  assert.deepEqual(parseDocument(serializeDocument(declaration)),declaration);
+  assert.deepEqual(snapshotToDocument(documentToSnapshot(declaration)),declaration);
+ }
+ const blank=structuredClone(edited);blank.blocks[0].content[0].props={target:'_blank',rel:'author',title:'Tooltip'};
+ assert.match(renderDocument(blank),/rel="author noopener noreferrer"/);
+});

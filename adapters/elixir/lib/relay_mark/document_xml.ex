@@ -19,12 +19,7 @@ defmodule RelayMark.DocumentXML do
     {"superscript", "superscript"},
     {"subscript", "subscript"}
   ]
-  @link_defaults %{
-    "target" => "_blank",
-    "rel" => "noopener noreferrer nofollow",
-    "class" => nil,
-    "title" => nil
-  }
+
   @names %{
     "paragraph" => "paragraph",
     "heading" => "heading",
@@ -938,9 +933,19 @@ defmodule RelayMark.DocumentXML do
     {mark, _} =
       Enum.find(@marks, fn {_pm, ast} -> ast == node["type"] end) || require!(false, :inline_type)
 
-    only!(node, if(mark == "link", do: ~w(type href content), else: ~w(type content)))
+    only!(node, if(mark == "link", do: ~w(type href props content), else: ~w(type content)))
     require!(length(content(node)) == 1 and not Map.has_key?(marks, mark), :mark_children)
-    attrs = if mark == "link", do: Map.put(@link_defaults, "href", node["href"]), else: %{}
+
+    attrs =
+      if mark == "link" do
+        case RelayMark.Link.attributes(node["href"], Map.get(node, "props", %{})) do
+          {:ok, attributes} -> attributes
+          {:error, _} -> require!(false, :link_attributes)
+        end
+      else
+        %{}
+      end
+
     encode_inline_node(hd(content(node)), Map.put(marks, mark, attrs))
   end
 
@@ -999,7 +1004,7 @@ defmodule RelayMark.DocumentXML do
             only!(value, ~w(href target rel class title))
 
             require!(
-              Map.take(value, Map.keys(@link_defaults)) == @link_defaults,
+              RelayMark.Link.safe_attributes?(value),
               :link_attributes
             )
 
@@ -1008,7 +1013,9 @@ defmodule RelayMark.DocumentXML do
               :link_href
             )
 
-            %{"type" => ast, "href" => value["href"], "content" => [leaf]}
+            props = RelayMark.Link.properties(value)
+            wrapper = %{"type" => ast, "href" => value["href"], "content" => [leaf]}
+            if props == %{}, do: wrapper, else: Map.put(wrapper, "props", props)
           else
             require!(value == %{}, :mark_attributes)
             %{"type" => ast, "content" => [leaf]}

@@ -1,6 +1,59 @@
 defmodule RelayMark.DocumentSourceTest do
   use ExUnit.Case, async: true
 
+  test "link title and safe properties persist through rich XML and safe rendering" do
+    assert {:ok, ast} =
+             RelayMark.parse_document(~s|[Label](https://example.com/path "Tooltip 🌍")|,
+               namespace: "link-properties"
+             )
+
+    assert get_in(ast, ["blocks", Access.at(0), "content", Access.at(0), "props"]) == %{
+             "title" => "Tooltip 🌍"
+           }
+
+    props = %{
+      "target" => "_self",
+      "rel" => "author nofollow",
+      "class" => "paper-link cited",
+      "title" => "Tooltip \"quoted\" 🌍"
+    }
+
+    ast = put_in(ast, ["blocks", Access.at(0), "content", Access.at(0), "props"], props)
+    assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
+    assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
+    assert {:ok, source} = RelayMark.serialize_document(ast)
+    assert {:ok, ^ast} = RelayMark.parse_document(source)
+
+    for properties <- [
+          %{"target" => nil, "rel" => nil, "title" => ""},
+          %{"target" => "123 reading 🌍", "rel" => "", "class" => "citation", "title" => "Line\n🌍"}
+        ] do
+      declaration =
+        put_in(ast, ["blocks", Access.at(0), "content", Access.at(0), "props"], properties)
+
+      assert {:ok, snapshot} = RelayMark.DocumentXML.from_document(declaration)
+      assert {:ok, ^declaration} = RelayMark.DocumentXML.to_document(snapshot)
+    end
+
+    assert {:ok, html} = RelayMark.render_document(ast)
+
+    assert html =~
+             ~s|target="_self" rel="author nofollow" class="paper-link cited" title="Tooltip &quot;quoted&quot; 🌍"|
+
+    for invalid <- [
+          %{"href" => "javascript:alert(1)"},
+          %{"target" => "_unknown"},
+          %{"target" => "_blank\n"},
+          %{"rel" => <<0>>},
+          %{"class" => <<0>>},
+          %{"title" => 42},
+          %{"onclick" => "alert(1)"}
+        ] do
+      attrs = Map.merge(Map.put(props, "href", "https://example.com/path"), invalid)
+      assert {:error, _} = RelayMark.DocumentXML.validate_text_attributes(%{"link" => attrs})
+    end
+  end
+
   test "historical published questions preserve slug choices, rich labels, scoring and empty fields" do
     source =
       "<!-- relay:question id=\"q1\" type=\"multiple_choice\" required=\"true\" points=\"5\" conditional=\"show-q0\" -->\n**Capital?**\n- (x) Paris\n- ( ) London\n<!-- /relay:question -->\n\n<!-- relay:question id=\"q2\" type=\"short_text\" -->\n<!-- /relay:question -->\n"

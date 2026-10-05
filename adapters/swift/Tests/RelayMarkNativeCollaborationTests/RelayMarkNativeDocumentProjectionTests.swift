@@ -882,7 +882,7 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         let linkIndex = try XCTUnwrap(runs.firstIndex { ($0["attributes"] as? [String: Any])?["link"] != nil })
         var marks = try XCTUnwrap(runs[linkIndex]["attributes"] as? [String: Any])
         var link = try XCTUnwrap(marks["link"] as? [String: Any])
-        link["title"] = "unapproved"
+        link["title"] = 42
         marks["link"] = link
         runs[linkIndex]["attributes"] = marks
         leaves[2]["delta"] = runs

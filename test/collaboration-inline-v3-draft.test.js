@@ -42,15 +42,15 @@ test('v3 marks reject unknown attrs, noncanonical order and lossy wrappers', () 
   };
   rejectPM(doc => { doc.content[0].content[1].marks[0].attrs = { color: 'red' }; });
   rejectPM(doc => { doc.content[0].content[1].marks.reverse(); });
-  rejectPM(doc => { doc.content[0].content[5].marks[0].attrs.title = 'hidden'; });
-  rejectPM(doc => { doc.content[0].content[7].marks[0].attrs.target = '_self'; });
+  rejectPM(doc => { doc.content[0].content[5].marks[0].attrs.title = 42; });
+  rejectPM(doc => { doc.content[0].content[7].marks[0].attrs.target = '_unknown'; });
   rejectPM(doc => { doc.content[0].content[3].marks.push({ type: 'italic' }); });
   const rejectAST = edit => {
     const ast = clone(fixture.expected_ast);
     edit(ast);
     assert.throws(() => relayMarkToProseMirror(ast));
   };
-  rejectAST(ast => { ast.blocks[0].content[5].props = { title: 'hidden' }; });
+  rejectAST(ast => { ast.blocks[0].content[5].props = { title: 42 }; });
   rejectAST(ast => { ast.blocks[0].content[7].content.push({ type: 'text', text: 'hidden' }); });
   rejectAST(ast => { ast.blocks[0].content[1].content[0].content[0].content[0].type = 'unknown'; });
   rejectAST(ast => { ast.blocks[0].content[3].content[0] = { type: 'strong', content: [{ type: 'text', text: 'x' }] }; });

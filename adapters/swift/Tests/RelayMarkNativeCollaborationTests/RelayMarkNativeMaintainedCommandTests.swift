@@ -119,4 +119,28 @@ final class RelayMarkNativeMaintainedCommandTests: XCTestCase {
         XCTAssertThrowsError(try RelayMarkCollaborativeProse.attributedText(text:"Unknown",attributes:JSONSerialization.data(withJSONObject:["unknown":[:]])))
     }
 
+    func testFullLinkPropertiesSurviveNativeEditCheckpointAndRender() throws {
+        var ast = try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.parseDocument("[Label](https://example.com/path \"Tooltip 🌍\")", namespace: "native-link-properties")) as! [String: Any]
+        var blocks = ast["blocks"] as! [[String: Any]], content = blocks[0]["content"] as! [[String: Any]]
+        XCTAssertEqual(content[0]["props"] as? [String: String], ["title": "Tooltip 🌍"])
+        let props = ["title": "Tooltip \"quoted\" 🌍", "target": "_self", "rel": "author nofollow", "class": "paper-link cited"]
+        content[0]["props"] = props; blocks[0]["content"] = content; ast["blocks"] = blocks
+        let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        let seed = try document.initializeDocument(authoredAST: JSONSerialization.data(withJSONObject: ast)); try peer.applyUpdate(seed)
+        let attrs: [String: Any] = ["link": props.merging(["href": "https://example.com/path"]) { _, new in new }]
+        let observation = try document.captureContentEditObservation()
+        let change = try RelayMarkNativeRichEditing.replace(document: document, range: NSRange(location: 0, length: 5), runs: [("Edited 🌍", attrs)], expectedSnapshot: document.snapshot())
+        let witness = try JSONSerialization.jsonObject(with: document.buildContentEditWitness(observation, steps: change.steps, update: change.update)) as! [String: Any]
+        XCTAssertEqual(((witness["text_items"] as! [String: Any])["runs"] as! [[String: Any]]).reduce(0) { $0 + ($1["count"] as! Int) }, 9)
+        try peer.applyUpdate(change.update)
+        let reopened = RelayMarkNativeDocument(); try reopened.applyUpdate(document.encodeUpdate())
+        let final = try RelayMarkNativeDocumentProjection.project(document: reopened)
+        guard case .inline(let link) = final.blocks[0].content[0] else { return XCTFail("Link must remain authored") }
+        XCTAssertEqual(link.props, props.mapValues(RelayMarkValue.string)); XCTAssertEqual(link.plainText, "Edited 🌍")
+        XCTAssertEqual(final, try RelayMarkNativeDocumentProjection.project(document: peer))
+        let encoded = try document.authoredDocument()
+        XCTAssertTrue(try RelayMarkSourceCodec.renderDocument(encoded).contains("title=\"Tooltip &quot;quoted&quot; 🌍\""))
+        XCTAssertEqual(try reopened.richProseProjection().text.runs.first?.link?.absoluteString, "https://example.com/path")
+    }
+
 }

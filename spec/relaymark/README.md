@@ -472,3 +472,29 @@ missing ids, missing diagnostics, changed action ids, or changed source refs.
 and refused AST/manifest fixture bytes. Conforming release gates for
 `profile.agent_answer.v1` MUST verify every receipted SHA-256 value before
 decoding and MUST validate each receipted document/manifest pair together.
+
+## Canonical authored links
+
+A rich link is an inline `link` wrapper with one text/mark child, `href`, and
+optional `props` for `target`, `rel`, `class`, and `title`. The canonical editor
+schema owns the mark defaults; properties equal to those defaults are omitted
+by semantic AST normalization. A nondefault value, including explicit `null`
+where it differs from the default, stays authored in the AST, exact source,
+XML snapshot, and native checkpoint. CommonMark import preserves a nonempty
+link title; the exact AST interchange retains every admitted property. Readable
+Markdown projects the title but is not an independently writable store for
+HTML navigation/presentation properties.
+
+The shared link validator rejects executable/unsupported URI schemes, unknown
+attributes, invalid types, control characters, and invalid reserved target names.
+Authored rendering escapes properties and adds `noopener noreferrer` for a new
+browsing target without changing the stored declaration. Hosts still authorize
+internal navigation; a link does not grant access. Native typing presentation
+uses the same admitted mark properties and keeps persistence in the canonical
+rich owner.
+
+Named targets and class tokens are retained as Unicode strings rather than
+restricted to an invented ASCII identifier vocabulary; see the HTML Standard's
+[navigable target names](https://html.spec.whatwg.org/multipage/document-sequences.html#navigable-target-names)
+and [class token semantics](https://html.spec.whatwg.org/multipage/dom.html#classes).
+Safe rendering escapes these strings instead of discarding them.

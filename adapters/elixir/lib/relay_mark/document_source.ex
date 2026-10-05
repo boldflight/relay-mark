@@ -525,7 +525,11 @@ defmodule RelayMark.DocumentSource do
 
   defp inline_node(%MDEx.Link{} = n, marks) do
     if RelayMark.Link.safe_href?(n.url),
-      do: Enum.flat_map(n.nodes, &inline_node(&1, [{"link", n.url} | marks])),
+      do:
+        Enum.flat_map(
+          n.nodes,
+          &inline_node(&1, [{"link", %{"href" => n.url, "title" => n.title}} | marks])
+        ),
       else: [
         wrap(
           %{
@@ -561,9 +565,15 @@ defmodule RelayMark.DocumentSource do
       |> Enum.uniq()
       |> Enum.sort_by(fn {m, _} -> Enum.find_index(@marks, &(&1 == m)) end, :desc)
       |> Enum.reduce(node, fn {type, href}, child ->
-        if href,
-          do: %{"type" => type, "href" => href, "content" => [child]},
-          else: %{"type" => type, "content" => [child]}
+        if href do
+          wrapper = %{"type" => type, "href" => href["href"], "content" => [child]}
+
+          if href["title"] in [nil, ""],
+            do: wrapper,
+            else: Map.put(wrapper, "props", %{"title" => href["title"]})
+        else
+          %{"type" => type, "content" => [child]}
+        end
       end)
 
   defp literal_image(image) do
@@ -1075,7 +1085,14 @@ defmodule RelayMark.DocumentSource do
             n["props"]["source"]
 
           "link" ->
-            "[" <> markdown_inline(n["content"]) <> "](" <> n["href"] <> ")"
+            "[" <>
+              markdown_inline(n["content"]) <>
+              "](" <>
+              n["href"] <>
+              if(get_in(n, ["props", "title"]),
+                do: " " <> Jason.encode!(n["props"]["title"]),
+                else: ""
+              ) <> ")"
 
           "code_span" ->
             text = hd(n["content"])["text"]
