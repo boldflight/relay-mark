@@ -142,6 +142,51 @@ defmodule RelayMark.ReviewedRecoveryTest do
              }
            }
 
+    # This preliminary region proof cannot issue source authority without the
+    # independently executed complete mutation proof at the admission owner.
+    context = %{
+      "recovery_regions" => result["recovery_regions"],
+      "human_destinations" => mapped["destination"]
+    }
+
+    transaction = %{
+      "transaction_id" => "22222222-2222-4222-8222-222222222222",
+      "text_items" => result["text_items"],
+      "content_edit" => operation
+    }
+
+    binding = %{"document_id" => "target", "incarnation" => "incarnation"}
+
+    assert {:error, :source_reference_mismatch} =
+             RelayMark.ContentEdit.classify_source_reference(
+               runtime,
+               binding,
+               transaction,
+               result,
+               %{"runs" => []},
+               context
+             )
+
+    assert {:ok, partition} =
+             RelayMark.ContentEdit.partition_reviewed_recovery_destinations(
+               runtime,
+               Map.put(context, "generated_destinations", %{"runs" => []})
+             )
+
+    assert partition["human_destinations"] == mapped["destination"]
+    assert partition["generated_destinations"] == %{"runs" => []}
+
+    assert Enum.map(
+             partition["unknown_destinations"]["runs"],
+             &{&1["item"]["clock"], &1["count"]}
+           ) == [{2, 1}, {5, 1}]
+
+    assert {:error, :source_reference_mismatch} =
+             RelayMark.ContentEdit.partition_reviewed_recovery_destinations(
+               runtime,
+               Map.put(context, "generated_destinations", mapped["destination"])
+             )
+
     bad = put_in(human, ["runs", Access.at(0), "type", "clock"], 0)
 
     assert {:error, :invalid_content_edit} =

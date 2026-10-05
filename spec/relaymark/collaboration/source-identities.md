@@ -39,3 +39,43 @@ returns current document-order segments; callers may coalesce adjacent segments
 in the same XML path without enumerating every character. These read budgets
 never select a larger command proof or an alternate attribution classifier.
 Host frame transport limits and authorization still apply independently.
+
+Reviewed recovery uses the same classifier after independent full admission
+proof. `classifyContentEditReference(binding, transaction, proof, humanAncestry,
+regionalContext)` accepts the optional private context exactly as
+`{recovery_regions, human_destinations}`. The host must authenticate that context
+from the original issued outer association, actor and target namespace; JSON
+fields alone confer no authority. The reviewed annotation and executed Steps
+must match the retained proof, complete regional and full mutation correspondence
+must both hold, and the recomputed regional destinations must exactly account
+for every fresh text item/type. The first append lane requires empty ordinary
+typed/copy/history lanes. Only the independently authenticated human subset is
+issued in the unchanged five-field reference. Missing or mismatched context
+refuses classification; an ordinary command cannot receive regional context.
+
+`foldSourceReferences(binding, candidates, references, regionalContexts)` accepts
+an optional private object keyed by the exact original transaction UUID. Each
+context must match one reference's exact human subset and bounded regional union;
+unused, duplicated, cross-transaction, overlapping or wrongly typed evidence
+refuses. The host must require the authenticated outer association for every
+reviewed receipt before calling this pure fold. A five-field empty normal
+reference alone contains no reviewed annotation, and the fold issues no recovery
+completion or donor grant. Normal references and absent-context behavior remain
+unchanged.
+
+`partitionReviewedRecoveryDestinations({recovery_regions, human_destinations,
+generated_destinations})` validates disjoint exact subsets of the recomputed
+imported item/type union and returns the canonical human, generated and unknown
+selectors. The caller independently authenticates any generated fact; absence of
+human ancestry leaves the remainder unknown. Every region, aggregate selector
+and output retains the unchanged 131,072-unit and 4,096-run command bounds.
+The issued outer association uses only `donor_cut`, independently authenticated
+with the archive/command/update hashes and target scope; request annotations and
+normal nested five-field references are never reinterpreted as credentials.
+
+Swift exposes optional `regionalContext`/`regionalContexts` JSON Data arguments
+on the existing source codec methods and `partitionReviewedRecoveryDestinations`.
+Elixir exposes optional sixth/fifth arguments on the existing
+`classify_source_reference`/`fold_source_references` facades plus
+`partition_reviewed_recovery_destinations`. The same caller-owned runtime and
+stable source failure codes are used by all adapters.

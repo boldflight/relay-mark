@@ -141,3 +141,58 @@ test('fragmented imported archive candidates cannot bypass the existing command 
  const recovery_regions=[{archive_path:[0,0],archive_offset:0,count:4097,destination:{runs:[{type:{client:4,clock:1},item:{client:4,clock:2},count:4097}]}}];
  assert.throws(()=>ContentEdit.reviewedRecoverySourceSelection({archive_identity_snapshot:snapshot,recovery_regions}),/Invalid causal selection/);
 });
+
+function classifiedRecovery(){
+ const evidence=actualEvidence(),prepared=ContentEdit.prepareReviewedRecoveryWitness(evidence);
+ const replay=ContentEdit.replayContentEditMutation({sender_state_base64:fixture.target_before_base64,current_state_base64:fixture.target_before_base64,writer_client:prepared.fresh_items.runs[0].item.client,operation:evidence.operation,footprint:evidence.footprint});
+ const proof={...prepared,...replay};
+ const region=prepared.recovery_regions.find(r=>r.count===2);
+ const context={recovery_regions:prepared.recovery_regions,human_destinations:structuredClone(region.destination)};
+ const binding={document_id:'target',incarnation:'target-incarnation'};
+ const transaction={transaction_id:'22222222-2222-4222-8222-222222222222',text_items:prepared.text_items,content_edit:evidence.operation};
+ return {binding,transaction,proof,context};
+}
+test('authenticated regional context preserves only2 donor human units in the actual18 unit native append',()=>{
+ const {binding,transaction,proof,context}=classifiedRecovery();
+ const reference=ContentEdit.classifyContentEditReference(binding,transaction,proof,{runs:[]},context);
+ assert.deepEqual(Object.keys(reference).sort(),['binding','human_destinations','proven_copies','text_items','transaction_id']);
+ assert.deepEqual(reference.human_destinations,context.human_destinations);
+ const candidates={runs:context.recovery_regions.flatMap(r=>r.destination.runs)};
+ assert.deepEqual(ContentEdit.foldSourceReferences(binding,candidates,[reference],{[transaction.transaction_id]:context}),context.human_destinations);
+ const partition=ContentEdit.partitionReviewedRecoveryDestinations({...context,generated_destinations:{runs:[]}});
+ assert.deepEqual(partition.human_destinations,context.human_destinations);
+ assert.deepEqual(partition.generated_destinations,{runs:[]});assert.equal(extent(partition.unknown_destinations.runs),16);
+ const generated=context.recovery_regions[0].destination;
+ const known=ContentEdit.partitionReviewedRecoveryDestinations({...context,generated_destinations:generated});
+ assert.equal(extent(known.generated_destinations.runs),1);assert.equal(extent(known.unknown_destinations.runs),15);
+});
+test('regional receipt classification refuses missing, forged, partial or cross-command private context',()=>{
+ const {binding,transaction,proof,context}=classifiedRecovery();
+ const classify=(tx=transaction,p=proof,c=context)=>ContentEdit.classifyContentEditReference(binding,tx,p,{runs:[]},c);
+ assert.throws(()=>ContentEdit.classifyContentEditReference(binding,transaction,proof,{runs:[]}));
+ for(const field of ['complete_recovery_correspondence','complete_mutation_correspondence']){const p=structuredClone(proof);delete p[field];assert.throws(()=>classify(transaction,p));}
+ const partial=structuredClone(proof);partial.fresh_items.runs.pop();assert.throws(()=>classify(transaction,partial));
+ const shifted=structuredClone(context);shifted.recovery_regions[0].archive_offset++;assert.throws(()=>classify(transaction,proof,shifted));
+ const forged=structuredClone(context);forged.human_destinations.runs[0].type.clock++;assert.throws(()=>classify(transaction,proof,forged),{code:'source_identity_mismatch'});
+ const outside=structuredClone(context);outside.human_destinations.runs[0].item.clock+=10000;assert.throws(()=>classify(transaction,proof,outside));
+ const altered=structuredClone(transaction);altered.content_edit.reviewed_recovery.archive_sha256='d'.repeat(64);assert.throws(()=>classify(altered));
+ const changedSteps=structuredClone(transaction);changedSteps.content_edit.steps[0].from++;assert.throws(()=>classify(changedSteps));
+ const ordinary=structuredClone(transaction);delete ordinary.content_edit.reviewed_recovery;assert.throws(()=>classify(ordinary));
+ const reference=classify(),candidates={runs:context.recovery_regions.flatMap(r=>r.destination.runs)};
+ assert.throws(()=>ContentEdit.foldSourceReferences(binding,candidates,[reference]));
+ assert.throws(()=>ContentEdit.foldSourceReferences(binding,candidates,[reference],{'33333333-3333-4333-8333-333333333333':context}));
+ const relabeled={...reference,transaction_id:'33333333-3333-4333-8333-333333333333'};
+ assert.throws(()=>ContentEdit.foldSourceReferences(binding,candidates,[relabeled],{[transaction.transaction_id]:context}));
+ const wrong=structuredClone(reference);wrong.human_destinations={runs:[]};assert.throws(()=>ContentEdit.foldSourceReferences(binding,candidates,[wrong],{[transaction.transaction_id]:context}));
+ assert.throws(()=>ContentEdit.foldSourceReferences(binding,candidates,[reference,reference],{[transaction.transaction_id]:context}));
+});
+test('regional partitions reject overlap, forged types, duplicate paths and unchanged command fragmentation limits',()=>{
+ const {context}=classifiedRecovery();const partition=value=>ContentEdit.partitionReviewedRecoveryDestinations(value);
+ assert.throws(()=>partition({...context,generated_destinations:context.human_destinations}));
+ const forged=structuredClone(context.human_destinations);forged.runs[0].type.clock++;assert.throws(()=>partition({...context,generated_destinations:forged}),{code:'source_identity_mismatch'});
+ const duplicate=structuredClone(context);duplicate.recovery_regions.push(duplicate.recovery_regions[0]);assert.throws(()=>partition({...duplicate,generated_destinations:{runs:[]}}));
+ const fragmented={recovery_regions:Array.from({length:4097},(_,i)=>({archive_path:[0,0],archive_offset:i,count:1,destination:{runs:[{item:{client:4,clock:i*2},type:{client:4,clock:1},count:1}]}})),human_destinations:{runs:[]},generated_destinations:{runs:[]}};
+ assert.throws(()=>partition(fragmented),{code:'source_identity_limit'});
+ const oversized={...fragmented,recovery_regions:[{archive_path:[0],archive_offset:0,count:131073,destination:{runs:[{item:{client:4,clock:2},type:{client:4,clock:1},count:131073}]}}]};
+ assert.throws(()=>partition(oversized),{code:'source_identity_limit'});
+});

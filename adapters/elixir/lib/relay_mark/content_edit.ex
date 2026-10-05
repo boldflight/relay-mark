@@ -99,23 +99,48 @@ defmodule RelayMark.ContentEdit do
   def checkpoint_owned_history(_, _), do: {:error, :invalid_content_edit}
 
   @doc "Stateless classification after the host authenticates current original receipts, scope and complete proof. Inputs and results are not credentials."
-  def classify_source_reference(runtime, binding, transaction, proof, human_ancestry),
-    do:
-      execute_source_arguments(runtime, "classifyContentEditReference", [
+  def classify_source_reference(
+        runtime,
         binding,
         transaction,
         proof,
-        human_ancestry
-      ])
+        human_ancestry,
+        regional_context \\ nil
+      ),
+      do:
+        execute_source_arguments(
+          runtime,
+          "classifyContentEditReference",
+          [
+            binding,
+            transaction,
+            proof,
+            human_ancestry
+          ] ++ if(is_nil(regional_context), do: [], else: [regional_context])
+        )
 
   @doc "Fold authenticated current references for only the requested candidate identities; tombstoned ancestors remain exact evidence."
-  def fold_source_references(runtime, binding, candidate_selector, references),
-    do:
-      execute_source_arguments(runtime, "foldSourceReferences", [
+  def fold_source_references(
+        runtime,
         binding,
         candidate_selector,
-        references
-      ])
+        references,
+        regional_contexts \\ nil
+      ),
+      do:
+        execute_source_arguments(
+          runtime,
+          "foldSourceReferences",
+          [
+            binding,
+            candidate_selector,
+            references
+          ] ++ if(is_nil(regional_contexts), do: [], else: [regional_contexts])
+        )
+
+  @doc "Partition recomputed imported destinations using separately authenticated human/generated subsets. Unproven remainder is unknown; inputs confer no authority."
+  def partition_reviewed_recovery_destinations(runtime, input),
+    do: execute_source_arguments(runtime, "partitionReviewedRecoveryDestinations", [input])
 
   @doc "Read current visible selector windows; no authorship or command admission is inferred."
   def source_selector_windows(runtime, snapshot),

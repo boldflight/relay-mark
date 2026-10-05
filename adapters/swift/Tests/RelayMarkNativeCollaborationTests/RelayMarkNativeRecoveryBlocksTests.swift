@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 import RelayMarkCollaboration
-import RelayMarkSwift
+@testable import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
@@ -114,7 +114,7 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
         let source = RelayMarkNativeDocument(), target = RelayMarkNativeDocument()
         _ = try source.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Same **🌍**\n\nSame **🌍**", namespace: "reviewed-regions-donor"))
         _ = try target.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Current peer prefix", namespace: "reviewed-regions-target"))
-        let before = try target.snapshot(), observation = try target.captureContentEditObservation()
+        let before = try target.snapshot(), beforeState = try target.encodeUpdate(), observation = try target.captureContentEditObservation()
         let archive = try source.captureIdentitySnapshot(), reviewed = try source.authoredDocument()
         let change = try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [0, 1], expectedSnapshot: before)
         let review = try JSONSerialization.data(withJSONObject: [
@@ -141,6 +141,36 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
         XCTAssertEqual((destinations["runs"] as? [[String: Any]])?.compactMap { $0["count"] as? Int }.reduce(0, +), 14)
         let empty = try RelayMarkContentEditCodec.mapReviewedRecoverySelection(JSONSerialization.data(withJSONObject: regional.merging(["source_selector": ["runs": []]]) { _, new in new }))
         XCTAssertEqual((try JSONSerialization.jsonObject(with: empty) as? [String: [String: [Any]]])?["destination"]?["runs"]?.count, 0)
+        // The same actual append is independently replayed by the shipped
+        // maintained binding before the stateless classifier sees any source fact.
+        let operation = try XCTUnwrap(proof["operation"] as? [String: Any])
+        let fresh = try XCTUnwrap(proof["fresh_items"] as? [String: [[String: Any]]])
+        let writer = try XCTUnwrap((fresh["runs"]?.first?["item"] as? [String: Any])?["client"])
+        let replayInput: [String: Any] = ["sender_state_base64": beforeState.base64EncodedString(), "current_state_base64": beforeState.base64EncodedString(), "writer_client": writer, "operation": operation, "footprint": try JSONSerialization.jsonObject(with: target.captureUpdateFootprint(change.update))]
+        let replayBytes = try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "replayContentEditMutation", arguments: [replayInput])
+        let replay = try XCTUnwrap(JSONSerialization.jsonObject(with: replayBytes) as? [String: Any])
+        XCTAssertEqual(replay["complete_mutation_correspondence"] as? Bool, true)
+        let completeProof = proof.merging(replay) { _, new in new }
+        let binding: [String: Any] = ["document_id": "target", "incarnation": "incarnation"]
+        let transactionID = "22222222-2222-4222-8222-222222222222"
+        let transaction: [String: Any] = ["transaction_id": transactionID, "text_items": proof["text_items"]!, "content_edit": operation]
+        var destinationRuns = try XCTUnwrap(destinations["runs"] as? [[String: Any]])
+        // An independently authenticated donor subset: exactly the first2units.
+        destinationRuns = [destinationRuns[0]]; destinationRuns[0]["count"] = 2
+        let human: [String: Any] = ["runs": destinationRuns]
+        let context: [String: Any] = ["recovery_regions": regions, "human_destinations": human]
+        func data(_ value: Any) throws -> Data { try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]) }
+        let reference = try RelayMarkSourceCodec.classifyContentEditReference(binding: data(binding), transaction: data(transaction), proof: data(completeProof), humanAncestry: data(["runs": []]), regionalContext: data(context))
+        let referenceObject = try XCTUnwrap(JSONSerialization.jsonObject(with: reference) as? [String: Any])
+        XCTAssertEqual(referenceObject["human_destinations"] as? NSDictionary, human as NSDictionary)
+        let folded = try RelayMarkSourceCodec.foldSourceReferences(binding: data(binding), candidateSelector: data(destinations), references: data([referenceObject]), regionalContexts: data([transactionID: context]))
+        XCTAssertEqual(try JSONSerialization.jsonObject(with: folded) as? NSDictionary, human as NSDictionary)
+        XCTAssertThrowsError(try RelayMarkSourceCodec.classifyContentEditReference(binding: data(binding), transaction: data(transaction), proof: data(completeProof), humanAncestry: data(["runs": []])))
+        let partitionBytes = try RelayMarkSourceCodec.partitionReviewedRecoveryDestinations(data(context.merging(["generated_destinations": ["runs": []]]) { _, new in new }))
+        let partition = try XCTUnwrap(JSONSerialization.jsonObject(with: partitionBytes) as? [String: Any])
+        let unknown = try XCTUnwrap(partition["unknown_destinations"] as? [String: [[String: Any]]])
+        XCTAssertEqual(unknown["runs"]?.compactMap { $0["count"] as? Int }.reduce(0, +), 12)
+
         var forgedRuns = try XCTUnwrap(selected["runs"] as? [[String: Any]])
         forgedRuns[0]["type"] = ["client": 999999, "clock": 0]
         XCTAssertThrowsError(try RelayMarkContentEditCodec.mapReviewedRecoverySelection(JSONSerialization.data(withJSONObject: regional.merging(["source_selector": ["runs": forgedRuns]]) { _, new in new })))

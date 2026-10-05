@@ -204,7 +204,7 @@ import {buildOwnedHistoryWitness as buildObservedHistory} from './content-edit-w
 /** Preliminary immediate inverse observation; authoritative owned receipt replay remains required. */
 export function buildOwnedHistoryWitness(evidence){return buildObservedHistory(evidence,applyContentEdit);}
 
-export {classifyContentEditReference,foldSourceReferences} from './document-source-identities.js';
+export {classifyContentEditReference,foldSourceReferences,partitionReviewedRecoveryDestinations} from './document-source-identities.js';
 
 export {resolveContentEditTextItems,sourceSelectorWindows,validateSourceReadSelector} from './content-edit-witness.js';
 

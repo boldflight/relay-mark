@@ -47,11 +47,20 @@ public enum RelayMarkSourceCodec {
     }
     /// Stateless classification of host-authenticated current receipts. Neither
     /// these JSON inputs nor its result grants source or document authority.
-    public static func classifyContentEditReference(binding: Data, transaction: Data, proof: Data, humanAncestry: Data) throws -> Data {
-        try call("classifyContentEditReference",arguments:[json(binding),json(transaction),json(proof),json(humanAncestry)])
+    public static func classifyContentEditReference(binding: Data, transaction: Data, proof: Data, humanAncestry: Data, regionalContext: Data? = nil) throws -> Data {
+        var arguments = [try json(binding), try json(transaction), try json(proof), try json(humanAncestry)]
+        if let regionalContext { arguments.append(try json(regionalContext)) }
+        return try call("classifyContentEditReference", arguments: arguments)
     }
-    public static func foldSourceReferences(binding: Data, candidateSelector: Data, references: Data) throws -> Data {
-        try call("foldSourceReferences",arguments:[json(binding),json(candidateSelector),json(references)])
+    public static func foldSourceReferences(binding: Data, candidateSelector: Data, references: Data, regionalContexts: Data? = nil) throws -> Data {
+        var arguments = [try json(binding), try json(candidateSelector), try json(references)]
+        if let regionalContexts { arguments.append(try json(regionalContexts)) }
+        return try call("foldSourceReferences", arguments: arguments)
+    }
+    /// Only independently authenticated human/generated subsets may be supplied.
+    /// The remaining exact imported destinations are unknown, never inferred generated.
+    public static func partitionReviewedRecoveryDestinations(_ input: Data) throws -> Data {
+        try call("partitionReviewedRecoveryDestinations", arguments: [json(input)])
     }
     public static func validateSourceReadSelector(_ selector: Data) throws {
         guard try json(call("validateSourceReadSelector",arguments:[json(selector)])) as? Bool == true else {throw Failure.invalidInput}
@@ -103,7 +112,7 @@ enum RelayMarkPortableRuntime {
         context.setObject(arguments,forKeyedSubscript:"relayMarkRuntimeArguments" as NSString)
         let result=context.evaluateScript("JSON.stringify(globalThis[relayMarkRuntimeGlobal][relayMarkRuntimeOperation](...relayMarkRuntimeArguments))")
         if let exception=context.exception {
-            if operation == "classifyContentEditReference" || operation == "foldSourceReferences" {
+            if operation == "classifyContentEditReference" || operation == "foldSourceReferences" || operation == "partitionReviewedRecoveryDestinations" {
                 switch exception.forProperty("code")?.toString() {
                 case "source_identity_mismatch": throw RelayMarkSourceCodec.Failure.sourceIdentityMismatch
                 case "source_identity_limit": throw RelayMarkSourceCodec.Failure.sourceIdentityLimit
