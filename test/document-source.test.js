@@ -269,3 +269,23 @@ test('authored link title and safe properties survive import, edit, exact persis
  const blank=structuredClone(edited);blank.blocks[0].content[0].props={target:'_blank',rel:'author',title:'Tooltip'};
  assert.match(renderDocument(blank),/rel="author noopener noreferrer"/);
 });
+
+test('single and multi select source retain rich choices, stable option IDs and settings',()=>{
+ for(const type of ['single_select','multi_select']){
+  const option=type==='multi_select'?'[x]':'(x)',other=type==='multi_select'?'[ ]':'( )';
+  const source=`<!-- relay:question id="choose" type="${type}" settings='{"randomize":true}' options='[{"id":"first","settings":{"score":3}},{"id":"second","settings":{"hint":"kept"}}]' -->
+**Choose 🌍**
+- ${option} **Bold choice**
+- ${other} Code \`Ω\`
+<!-- /relay:question -->
+`;
+  const document=parseDocument(source,{namespace:'choice-source'}),question=document.blocks[0];
+  assert.equal(question.props.type,type);assert.deepEqual(question.props.settings,{randomize:true});
+  const choices=question.content.filter(n=>n.type==='relay.form_option');
+  assert.deepEqual(choices.map(c=>c.props.id),['first','second']);
+  assert.deepEqual(choices.map(c=>c.props.settings),[{score:3},{hint:'kept'}]);
+  assert.equal(choices[0].props.correct,true);assert.equal(choices[1].props.correct,false);
+  assert.equal(choices[0].content[0].type,'strong');assert.equal(choices[1].content[1].type,'code_span');
+  assert.deepEqual(parseDocument(serializeDocument(document)),document);
+ }
+});

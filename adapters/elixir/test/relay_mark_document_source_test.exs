@@ -54,6 +54,43 @@ defmodule RelayMark.DocumentSourceTest do
     end
   end
 
+  test "single and multi select preserve rich choices, IDs and authored settings" do
+    for {type, first, second} <- [{"single_select", "(x)", "( )"}, {"multi_select", "[x]", "[ ]"}] do
+      source = """
+      <!-- relay:question id="choose" type="#{type}" settings='{"randomize":true}' options='[{"id":"first","settings":{"score":3}},{"id":"second","settings":{"hint":"kept"}}]' -->
+      **Choose 🌍**
+      - #{first} **Bold choice**
+      - #{second} Code `Ω`
+      <!-- /relay:question -->
+      """
+
+      assert {:ok, ast} = RelayMark.parse_document(source, namespace: "choice-source")
+      [question] = ast["blocks"]
+      assert question["props"]["type"] == type
+      assert question["props"]["settings"] == %{"randomize" => true}
+      [label, first, second] = question["content"]
+
+      assert label["content"] == [
+               %{"type" => "strong", "content" => [%{"type" => "text", "text" => "Choose 🌍"}]}
+             ]
+
+      assert first["props"]["id"] == "first"
+      assert second["props"]["id"] == "second"
+      assert first["props"]["correct"] == true
+      assert second["props"]["correct"] == false
+      assert first["props"]["settings"] == %{"score" => 3}
+      assert second["props"]["settings"] == %{"hint" => "kept"}
+
+      assert first["content"] == [
+               %{"type" => "strong", "content" => [%{"type" => "text", "text" => "Bold choice"}]}
+             ]
+
+      assert List.last(second["content"])["type"] == "code_span"
+      assert {:ok, exact} = RelayMark.serialize_document(ast)
+      assert {:ok, ^ast} = RelayMark.parse_document(exact)
+    end
+  end
+
   test "historical published questions preserve slug choices, rich labels, scoring and empty fields" do
     source =
       "<!-- relay:question id=\"q1\" type=\"multiple_choice\" required=\"true\" points=\"5\" conditional=\"show-q0\" -->\n**Capital?**\n- (x) Paris\n- ( ) London\n<!-- /relay:question -->\n\n<!-- relay:question id=\"q2\" type=\"short_text\" -->\n<!-- /relay:question -->\n"

@@ -692,7 +692,7 @@ defmodule RelayMark.DocumentSource do
       end)
 
     pattern =
-      if type == "checkboxes",
+      if type in ~w(checkboxes multi_select),
         do: ~r/^\s*-?\s*\[([xX ])\]\s*(.*)$/,
         else: ~r/^\s*-?\s*\(([xX ])\)\s*(.*)$/
 
@@ -703,7 +703,7 @@ defmodule RelayMark.DocumentSource do
         line = String.trim(line)
 
         match =
-          if type in ~w(multiple_choice dropdown checkboxes),
+          if type in ~w(multiple_choice dropdown checkboxes single_select multi_select),
             do: Regex.run(pattern, line),
             else: nil
 
