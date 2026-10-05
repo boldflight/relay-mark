@@ -1,6 +1,21 @@
 defmodule RelayMark.DocumentSourceTest do
   use ExUnit.Case, async: true
 
+  test "malformed frozen historical child collections refuse without crashing the migration scan" do
+    for document <- [
+          %{"type" => "unsupported"},
+          %{"type" => "relaymark.document", "blocks" => nil},
+          %{"type" => "relaymark.document", "blocks" => %{}},
+          %{
+            "type" => "relaymark.document",
+            "blocks" => [%{"type" => "paragraph", "id" => "historic", "content" => nil}]
+          }
+        ] do
+      assert {:error, [%{"code" => "relaymark.import.invalid", "reason" => ":historical_shape"}]} =
+               RelayMark.import_document(document, namespace: "malformed-frozen-publication")
+    end
+  end
+
   test "link title and safe properties persist through rich XML and safe rendering" do
     assert {:ok, ast} =
              RelayMark.parse_document(~s|[Label](https://example.com/path "Tooltip 🌍")|,

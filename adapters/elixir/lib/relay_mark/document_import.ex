@@ -27,6 +27,7 @@ defmodule RelayMark.DocumentImport do
       mapping: %{"retained" => [], "remapped" => [], "added" => []}
     }
 
+    unless is_list(document["blocks"]), do: throw(:historical_shape)
     {blocks, state} = Enum.map_reduce(document["blocks"], state, &block/2)
     document = document |> Map.put("blocks", blocks) |> references(state.ids)
 
@@ -87,8 +88,11 @@ defmodule RelayMark.DocumentImport do
         node
       end
 
+    children = Map.get(node, "content", [])
+    unless is_list(children), do: throw(:historical_shape)
+
     {children, state} =
-      Enum.map_reduce(Map.get(node, "content", []), state, fn child, s ->
+      Enum.map_reduce(children, state, fn child, s ->
         if child["type"] in @inline, do: {child, s}, else: block(child, s)
       end)
 
