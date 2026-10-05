@@ -1,0 +1,30 @@
+/** Reviewed AST targets execute through the canonical maintained command writer.
+ * This plans editor Steps only; hosts retain authorization and conflict fencing. */
+import {Transform,DocAttrStep} from 'prosemirror-transform';
+import {createCanonicalEditorSchema} from './editor-model.js';
+import {relayMarkToProseMirror} from './document-adapter.js';
+import {stableStringify} from './canonical-json.js';
+import {readContentEditDocument,produceContentEdit} from '../adapters/collaboration/content-edit-mutation.js';
+const schema=createCanonicalEditorSchema();
+export function produceDocumentPatch(input){
+ const keys=['state_base64','writer_client','transaction_id','owner_id','target_document'];
+ if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(k=>!keys.includes(k))||keys.some(k=>!Object.hasOwn(input,k)))throw TypeError('Invalid reviewed document patch');
+ const before=schema.nodeFromJSON(readContentEditDocument(input.state_base64));
+ const target=schema.nodeFromJSON(relayMarkToProseMirror(input.target_document));
+ target.check();
+ const transform=new Transform(before),start=before.content.findDiffStart(target.content);
+ if(start!==null){
+  const end=before.content.findDiffEnd(target.content);
+  let fromEnd=end.a,toEnd=end.b;
+  const overlap=start-Math.min(fromEnd,toEnd);
+  if(overlap>0){fromEnd+=overlap;toEnd+=overlap;}
+  transform.replace(start,fromEnd,target.slice(start,toEnd));
+ }
+ if(stableStringify(before.attrs.relaymark)!==stableStringify(target.attrs.relaymark))transform.step(new DocAttrStep('relaymark',target.attrs.relaymark));
+ if(!transform.doc.eq(target))throw TypeError('Reviewed target cannot be represented losslessly');
+ if(!transform.steps.length)throw TypeError('Reviewed document patch is unchanged');
+ const {target_document,...command}=input;
+ const result=produceContentEdit({...command,steps:transform.steps.map(step=>step.toJSON())});
+ if(stableStringify(result.authored_document)!==stableStringify(target_document))throw TypeError('Maintained command differs from reviewed target');
+ return result;
+}
