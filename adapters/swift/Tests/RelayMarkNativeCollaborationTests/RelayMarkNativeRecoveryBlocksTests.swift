@@ -95,6 +95,43 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
         XCTAssertEqual(try target.snapshot(), initial)
     }
 
+    func testReviewedHeadingAppendAndCompleteReplacementUsePackagedRegionalWitness() throws {
+        for replace in [false, true] {
+            let source = RelayMarkNativeDocument(), target = RelayMarkNativeDocument()
+            var donorAST = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkSourceCodec.parseDocument(
+                "# Recovered 🌍\n\n@Callout(tone: \"warning\") {\nSame **🌍**\n}\n\n| A | B |\n| --- | --- |\n| C | D |\n\n![Kept](https://example.com/kept.png)", namespace: "reviewed-rich-donor")) as? [String: Any])
+            let form = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkSourceCodec.parseDocument(
+                "<!-- relay:question id=\"q\" type=\"multiple_choice\" -->\n**Question?**\n- ( ) One\n- ( ) Two\n<!-- /relay:question -->", namespace: "reviewed-rich-form")) as? [String: Any])
+            donorAST["blocks"] = (donorAST["blocks"] as! [Any]) + (form["blocks"] as! [Any])
+            donorAST["meta"] = ["original": NSNull(), "provider": "retained"]
+            _ = try source.initializeDocument(authoredAST: JSONSerialization.data(withJSONObject: donorAST))
+            var targetAST = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkSourceCodec.parseDocument("Current", namespace: "reviewed-rich-current")) as? [String: Any])
+            targetAST["meta"] = ["target": "unchanged"]
+            _ = try target.initializeDocument(authoredAST: JSONSerialization.data(withJSONObject: targetAST))
+            let before = try target.snapshot(), state = try target.encodeUpdate(), archive = try source.captureIdentitySnapshot(), reviewed = try source.authoredDocument()
+            let observation = try target.captureContentEditObservation()
+            let change: RelayMarkNativeRichEditing.Change
+            if replace { change = try RelayMarkNativeRichEditing.replaceDocument(document: target, authoredAST: reviewed, expectedSnapshot: before) }
+            else { change = try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [0, 1, 2, 3, 4], expectedSnapshot: before) }
+            let annotation: [String: Any] = ["archive_sha256": String(repeating: "a", count: 64), "reviewed_document_sha256": String(repeating: "b", count: 64), "block_indices": [0, 1, 2, 3, 4], "target_guard": ["body_revision": "sha256:" + String(repeating: "c", count: 64)], "donor_cut": NSNull()]
+            let proofBytes = try target.buildReviewedRecoveryWitness(observation, steps: change.steps, update: change.update, reviewedRecovery: JSONSerialization.data(withJSONObject: annotation), archiveIdentitySnapshot: archive, reviewedDocument: reviewed)
+            let proof = try XCTUnwrap(JSONSerialization.jsonObject(with: proofBytes) as? [String: Any])
+            XCTAssertEqual((proof["text_items"] as? [String: [Any]])?["runs"]?.count, 0)
+            XCTAssertEqual((proof["proven_copies"] as? [Any])?.count, 0)
+            XCTAssertEqual(proof["complete_recovery_correspondence"] as? Bool, true)
+            let fresh = try XCTUnwrap(proof["fresh_items"] as? [String: [[String: Any]]])
+            let writer = try XCTUnwrap((fresh["runs"]?.first?["item"] as? [String: Any])?["client"])
+            let input: [String: Any] = ["sender_state_base64": state.base64EncodedString(), "current_state_base64": state.base64EncodedString(), "writer_client": writer, "operation": proof["operation"]!, "footprint": try JSONSerialization.jsonObject(with: target.captureUpdateFootprint(change.update))]
+            let replay = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "replayContentEditMutation", arguments: [input])) as? [String: Any])
+            XCTAssertEqual(replay["complete_mutation_correspondence"] as? Bool, true)
+            let actual = try XCTUnwrap(proof["authored_document"] as? [String: Any])
+            XCTAssertEqual(actual["meta"] as? NSDictionary, (replace ? donorAST["meta"] : targetAST["meta"]) as? NSDictionary)
+            XCTAssertTrue((actual["blocks"] as! [[String: Any]]).contains { $0["type"] as? String == "relay.form_question" })
+            let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: change.steps) as? [[String: Any]])
+            XCTAssertTrue(steps.contains { $0["attr"] as? String == "headingId" })
+        }
+    }
+
     func testOnlyChosenBlocksAreAddedAndStaleOrInvalidSelectionCannotMutate() throws {
         let source = try fixture("markdown-blocks-v3-draft"), target = try fixture("markdown-blocks-v3-draft")
         let initial = try target.snapshot(), old = try blocks(initial)

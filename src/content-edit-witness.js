@@ -190,7 +190,7 @@ export function validateSourceReadSelector(selected){
  * authenticates the exact archive/review hashes, donor cut and fresh target guard.
  * No source is discovered by equal values and no human ancestry is granted here.
  */
-function reviewedAppendGeometry(evidence,interpret,validateSlice=()=>{}){
+function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{}){
  const {operation}=evidence;
  keys(operation,['kind','steps','copies','group','reviewed_recovery'],['kind','steps','copies','reviewed_recovery']);
  const review=operation.reviewed_recovery;
@@ -207,36 +207,77 @@ function reviewedAppendGeometry(evidence,interpret,validateSlice=()=>{}){
  const before=schema.nodeFromJSON(sender.pm);
  const first=operation.steps?.[0];
  keys(first,['stepType','from','to','slice']);
- if(first.stepType!=='replace'||first.from!==before.content.size||first.to!==first.from)throw TypeError('Reviewed recovery requires root-end append');
+ const append=first.stepType==='replace'&&first.from===before.content.size&&first.to===first.from;
+ const replacement=first.stepType==='replace'&&first.from===0&&first.to===before.content.size;
+ if(!append&&!replacement)throw TypeError('Reviewed recovery requires root-end append or complete root replacement');
  keys(first.slice,['content','openStart','openEnd'],['content']);
  if((first.slice.openStart??0)!==0||(first.slice.openEnd??0)!==0||!Array.isArray(first.slice.content)||first.slice.content.length!==indices.length)throw TypeError('Reviewed recovery requires complete closed blocks');
  const targets=first.slice.content.map(node=>schema.nodeFromJSON(node));
- validateSlice(targets,indices);
+ const sourceMetadata=validateSlice(targets,indices);
  const totalSize=targets.reduce((n,node)=>n+node.nodeSize,0),lower=first.from,upper=lower+totalSize;
- let intermediate={...before.toJSON(),content:[...(before.toJSON().content||[]),...first.slice.content]};
- // Any append repair must be the existing ID allocator repairing a null or
- // duplicated imported ID. Arbitrary field changes and old-node repairs refuse.
+ const firstApplied=Step.fromJSON(schema,first).apply(before);
+ if(firstApplied.failed)throw TypeError('Refused maintained reviewed splice');
+ let intermediate=firstApplied.doc.toJSON(),metadataSteps=0;
+ // Repairs are exact maintained allocator operations inside the imported Slice.
+ // Structural IDs are replica identities. Heading anchors are retained authored
+ // values unless the current PaperHeading rule requires a destination repair.
  for(const step of operation.steps.slice(1)){
+  if(step.stepType==='docAttr'){
+   keys(step,['stepType','attr','value']);
+   if(!replacement||step.attr!=='relaymark'||++metadataSteps>1||sourceMetadata!==undefined&&!same(step.value,sourceMetadata))throw TypeError('Illegal reviewed metadata replacement');
+   const applied=Step.fromJSON(schema,step).apply(schema.nodeFromJSON(intermediate));
+   if(applied.failed)throw TypeError('Refused maintained reviewed metadata');intermediate=applied.doc.toJSON();continue;
+  }
   const attributeStep=step.stepType==='attr';
   const position=attributeStep?step.pos:step.from;
   if(attributeStep)keys(step,['stepType','pos','attr','value']);
   else if(step.stepType!=='replaceAround'&&step.stepType!=='replace')throw TypeError('Illegal reviewed append repair');
-  if((attributeStep&&step.attr!=='relaymarkId')||!Number.isSafeInteger(position)||position<lower||position>=upper)throw TypeError('Illegal reviewed append repair');
+  if(!Number.isSafeInteger(position)||position<lower||position>=upper)throw TypeError('Illegal reviewed append repair');
   const doc=schema.nodeFromJSON(intermediate),node=doc.nodeAt(position);
   if(!node||!Object.hasOwn(node.attrs,'relaymarkId')||position+node.nodeSize>upper)throw TypeError('Unavailable reviewed repair node');
-  let matches=0;doc.descendants(n=>{if(n.attrs.relaymarkId===node.attrs.relaymarkId)matches++;});
-  if(node.attrs.relaymarkId!==null&&matches<2)throw TypeError('Reviewed repair changed a unique authored identity');
-  const value=attributeStep?step.value:step.slice?.content?.[0]?.attrs?.relaymarkId;
-  if(typeof value!=='string'||value===node.attrs.relaymarkId)throw TypeError('Invalid reviewed allocated identity');
-  // Community UniqueID uses setNodeMarkup: ReplaceAroundStep for non-leaves,
-  // ReplaceStep for leaves. Compare the untouched original JSON to that exact
-  // maintained command with only relaymarkId changed, including its gap/Slice.
+  const attrs=step.slice?.content?.[0]?.attrs;
+  const changed=attributeStep?[step.attr]:Object.keys({...node.attrs,...attrs}).filter(key=>!same(node.attrs[key],attrs?.[key]));
+  if(changed.length!==1||!['relaymarkId','headingId'].includes(changed[0]))throw TypeError('Illegal reviewed append repair');
+  const field=changed[0],value=attributeStep?step.value:attrs[field];
+  let matches=0;
+  if(field==='relaymarkId'){
+   doc.descendants(n=>{if(n.attrs.relaymarkId===node.attrs.relaymarkId)matches++;});
+   if(node.attrs.relaymarkId!==null&&matches<2)throw TypeError('Reviewed repair changed a unique authored identity');
+   if(typeof value!=='string'||value===node.attrs.relaymarkId)throw TypeError('Invalid reviewed allocated identity');
+  }else{
+   if(node.type.name!=='heading')throw TypeError('Unavailable reviewed heading repair');
+   const anchor=node.attrs.headingId,valid=typeof anchor==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(anchor);
+   let allocatedUsed=false,needsRepair=!valid;
+   doc.descendants((n,pos)=>{
+    const name=n.type.name==='heading'?n.attrs.headingId:n.type.name==='relayAnchor'?n.attrs.name:null;
+    if(name===anchor&&(n.type.name==='relayAnchor'||n.type.name==='heading'&&pos<position))needsRepair=true;
+    if(name===value)allocatedUsed=true;
+   });
+   if(!needsRepair)throw TypeError('Reviewed repair changed a unique authored heading anchor');
+   // A repaired anchor cannot silently redirect an imported navigation target.
+   // Preserve valid unchanged anchors; unsupported ambiguous/absent source
+   // destinations require explicit review instead of an inferred link rewrite.
+   let referenced=false;
+   const checkTarget=target=>{if(typeof target==='string'&&(!valid||target===anchor))referenced=true;};
+   const inspect=n=>{
+    for(const mark of n.marks)if(mark.type.name==='link'&&typeof mark.attrs.href==='string'&&mark.attrs.href.startsWith('#')){
+     let target=mark.attrs.href.slice(1);try{target=decodeURIComponent(target);}catch{}checkTarget(target);
+    }
+    if(n.type.name==='relayButton'&&n.attrs.kind==='anchor')checkTarget(n.attrs.target);
+   };
+   for(const target of targets){inspect(target);target.descendants(inspect);}
+   if(referenced)throw TypeError('Reviewed heading repair would alter imported internal destination');
+   if(typeof value!=='string'||!/^h-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)||allocatedUsed)throw TypeError('Invalid reviewed allocated heading anchor');
+  }
+  // UniqueID and PaperHeading use setNodeMarkup; native emits AttrStep. The
+  // exact maintained Step must change this one permitted identity field only.
   const repair=new Transform(doc);
-  if(attributeStep)repair.setNodeAttribute(position,'relaymarkId',value);
-  else repair.setNodeMarkup(position,null,{...node.attrs,relaymarkId:value},node.marks);
+  if(attributeStep)repair.setNodeAttribute(position,field,value);
+  else repair.setNodeMarkup(position,null,{...node.attrs,[field]:value},node.marks);
   if(repair.steps.length!==1||!same(repair.steps[0].toJSON(),step))throw TypeError('Illegal reviewed append repair');
   const applied=Step.fromJSON(schema,step).apply(doc);if(applied.failed)throw TypeError('Refused maintained identity repair');intermediate=applied.doc.toJSON();
  }
+ if(replacement&&sourceMetadata!==undefined&&!same(schema.nodeFromJSON(intermediate).attrs.relaymark,sourceMetadata))throw TypeError('Reviewed replacement metadata differs from original archive');
  const expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm)||!same(intermediate,senderAfter.pm))throw TypeError('Reviewed append result disagrees with maintained steps');
  return {operation,review,indices,sender,senderAfter,after,before,targets,lower,upper};
@@ -246,16 +287,17 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
  const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
  keys(evidence,[...fields,'archive_identity_snapshot','reviewed_document']);
  const archive=index(evidence.archive_identity_snapshot),original=schema.nodeFromJSON(archive.pm);let sourceBlocks;
- const {operation,indices,senderAfter,after,lower}=reviewedAppendGeometry(evidence,interpret,(targets,indices)=>{
+ const {operation,indices,senderAfter,after,lower}=reviewedSpliceGeometry(evidence,interpret,(targets,indices)=>{
  if(indices.some(i=>i>=original.childCount))throw TypeError('Unavailable reviewed archive block');
  const reviewed={...archive.document,blocks:indices.map(i=>archive.document.blocks[i])};
- relayMarkToProseMirror(evidence.reviewed_document);
+ const reviewedPM=schema.nodeFromJSON(relayMarkToProseMirror(evidence.reviewed_document));
  if(!same(reviewed,evidence.reviewed_document))throw TypeError('Reviewed document differs from selected archive blocks');
  const stripID=node=>{const result={...node};if(node.attrs){const {relaymarkId,...attrs}=node.attrs;result.attrs=attrs;}if(node.content)result.content=node.content.map(stripID);return result;};
  sourceBlocks=indices.map(i=>original.child(i));
  // The exact Slice ordinal is the source pointer. IDs may be newly allocated by
  // the canonical writer, while every other field/mark/atom/child remains exact.
  for(let i=0;i<targets.length;i++)if(!same(stripID(sourceBlocks[i].toJSON()),stripID(targets[i].toJSON())))throw TypeError('Reviewed Slice changed archive content or properties');
+ return reviewedPM.attrs.relaymark;
  });
  const frontier=clocks(evidence.before_state_vector),regions=[],destinations=[];let units=0,totalRuns=0;
  let destinationStart=lower;
@@ -293,7 +335,7 @@ export function prepareRetainedReviewedRecoveryWitness(evidence,interpret){
  const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
  keys(evidence,[...fields,'regional_context']);
  const context=evidence.regional_context;keys(context,['recovery_regions','human_destinations']);
- const {operation,indices,senderAfter,after,targets,lower}=reviewedAppendGeometry(evidence,interpret);
+ const {operation,indices,senderAfter,after,targets,lower}=reviewedSpliceGeometry(evidence,interpret);
  const regions=context.recovery_regions,frontier=clocks(evidence.before_state_vector),destinations=[],sources=new Map();
  if(!Array.isArray(regions)||regions.length>4096)throw TypeError('Invalid retained recovery regions');
  const blocks=new Map();let position=lower,units=0,totalRuns=0;

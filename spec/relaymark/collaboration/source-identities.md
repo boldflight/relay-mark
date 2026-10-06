@@ -48,7 +48,7 @@ from the original issued outer association, actor and target namespace; JSON
 fields alone confer no authority. The reviewed annotation and executed Steps
 must match the retained proof, complete regional and full mutation correspondence
 must both hold, and the recomputed regional destinations must exactly account
-for every fresh text item/type. The first append lane requires empty ordinary
+for every fresh text item/type. The reviewed splice lane requires empty ordinary
 typed/copy/history lanes. Only the independently authenticated human subset is
 issued in the unchanged five-field reference. Missing or mismatched context
 refuses classification; an ordinary command cannot receive regional context.
@@ -79,3 +79,27 @@ Elixir exposes optional sixth/fifth arguments on the existing
 `classify_source_reference`/`fold_source_references` facades plus
 `partition_reviewed_recovery_destinations`. The same caller-owned runtime and
 stable source failure codes are used by all adapters.
+
+Reviewed splice correspondence accepts only complete closed blocks placed by the
+first original `ReplaceStep`: root-end append, or complete root-content replacement
+from zero through the exact sender-before content size. Partial root replacement
+and open Slices remain unsupported. The existing schema, Step replay, source
+ordinal regions, fresh text item/type union and independent complete mutation
+proof apply to both. Replacement may carry one actual `DocAttrStep` for
+`relaymark`; its final value must equal the exact original reviewed document
+metadata, including explicit null/empty values and removed target keys. Append
+preserves target metadata. The retained accepted path authenticates the original
+issued command and association at the host; it does not reread or grant donor
+content. Old target deletions and all field/format/struct allocations remain part
+of the separate mandatory whole-update proof.
+
+Only exact maintained structural-ID or heading-anchor repair Steps are permitted
+inside imported nodes. Valid unique authored heading anchors remain unchanged.
+Absent anchors, later duplicate headings and collisions with explicit anchors
+may receive the existing allocator's fresh `h-UUID`, with all other fields, marks,
+content and geometry exact. Native AttrSteps and browser setNodeMarkup Steps are
+checked against that same maintained operation. A repair that would redirect an
+imported local link or anchor button refuses while retaining the original proposal.
+Correctly preserving relative-link correspondence through a conflicting heading
+repair remains unfinished supported-operation work; this refusal is not a second
+import path or a claim of complete heading-link parity.

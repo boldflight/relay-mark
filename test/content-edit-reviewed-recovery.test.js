@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import {runInNewContext} from 'node:vm';
 import * as Y from 'yjs';
 import * as ContentEdit from '../src/content-edit.js';
 import {captureContentEditSnapshot,captureContentEditFootprint} from '../adapters/collaboration/content-edit-observer.js';
@@ -31,16 +32,25 @@ test('actual native foreign generated recovery accounts18 imported units without
 import {parseDocument} from '../src/document-source.js';
 import {relayMarkToProseMirror,proseMirrorToRelayMark} from '../src/document-adapter.js';
 import {prosemirrorToYXmlFragment,initProseMirrorDoc,updateYFragment} from '@tiptap/y-tiptap';
-import {Step,Transform} from 'prosemirror-transform';
+import {Step,Transform,DocAttrStep} from 'prosemirror-transform';
+import {EditorState} from 'prosemirror-state';
+import {ProsemirrorBinding} from '@tiptap/y-tiptap';
+import {bindOwnedHistoryOwner,bindOwnedCommandGroup,readOwnedCommandGroup,bindOwnedCommandHistory} from '../adapters/collaboration/owned-command-group.js';
+import {protectOwnedHistoryBranches} from '../adapters/collaboration/owned-history-branches.js';
+import {captureOwnedHistoryObservation,finishOwnedHistoryObservation} from '../adapters/collaboration/content-edit-mutation.js';
 const schema=ContentEdit.createCanonicalEditorSchema();
 const encode=bytes=>Buffer.from(bytes).toString('base64');
-function duplicateEvidence({repairIDs=false,markupRepairs=false,afterRepairs=null,repairAttributes=null}={}){
+function duplicateEvidence({repairIDs=false,markupRepairs=false,afterRepairs=null,repairAttributes=null,fullReplace=false,withHeading=false,headingAnchor=null,repairHeading=false,includeForm=false,withHistory=false,headingMarkup=false,replacementMetadata=null,internalLink=null,anchorCollision=false,partialReplace=false}={}){
  const donor=new Y.Doc({gc:false}),sender=new Y.Doc({gc:false}),current=new Y.Doc({gc:false});donor.clientID=21;sender.clientID=31;
  const ast=parseDocument('Same **🌍**\n\nSame **🌍**\n\n@Callout(tone: "info") {\nKept *🌍*\n}\n\n| A | B |\n| --- | --- |\n| C | D |\n\n![kept](https://example.com/kept.png)',{namespace:'regional-duplicate'});
  ast.frontmatter={title:'Archived title'};
+ if(withHeading)ast.blocks.unshift({id:'b00000000001140008000000000000000',type:'heading',props:{level:2,headingId:headingAnchor},content:[{type:'text',text:'Recovered 🌍'}]});
+ if(internalLink)ast.blocks.push(...parseDocument(`[Go](${internalLink})`,{namespace:'regional-internal-link'}).blocks);
+ if(anchorCollision)ast.blocks.push(...parseDocument('@Anchor(name: "chapter_one")',{namespace:'regional-anchor-collision'}).blocks);
+ if(includeForm)ast.blocks.push(structuredClone(actualEvidence().reviewed_document.blocks[1]));
  ast.blocks.push({id:'b00000000001040008000000000000000',type:'relay.video_embed',props:{videoId:'11111111-1111-4111-8111-111111111111'},content:[]});
  prosemirrorToYXmlFragment(schema.nodeFromJSON(relayMarkToProseMirror(ast)),donor.getXmlFragment('default'));
- const seed=parseDocument('Current **peer** prefix',{namespace:'regional-target'});seed.frontmatter={title:'Current title'};
+ const seed=parseDocument('Current **peer** prefix'+(partialReplace?'\n\nRetained following block':''),{namespace:'regional-target'});seed.frontmatter={title:'Current title'};
  prosemirrorToYXmlFragment(schema.nodeFromJSON(relayMarkToProseMirror(seed)),sender.getXmlFragment('default'));
  const before=captureContentEditSnapshot(sender.getXmlFragment('default')),initial=Y.encodeStateAsUpdate(sender);
  Y.applyUpdate(current,initial);current.getMap('relaymark');current.clientID=41;
@@ -54,16 +64,22 @@ function duplicateEvidence({repairIDs=false,markupRepairs=false,afterRepairs=nul
  const repairs=[];let pos=initialized.doc.content.size;
  function clear(node,position){if(node.attrs&&Object.hasOwn(node.attrs,'relaymarkId')){repairs.push([position,node.attrs.relaymarkId]);node.attrs.relaymarkId=null;}let child=position+1;for(const n of node.content||[]){clear(n,child);child+=schema.nodeFromJSON(n).nodeSize;}}
  if(repairIDs)for(const node of content){clear(node,pos);pos+=schema.nodeFromJSON(node).nodeSize;}
- const steps=[{stepType:'replace',from:initialized.doc.content.size,to:initialized.doc.content.size,slice:{content}}];
+ const steps=[{stepType:'replace',from:fullReplace||partialReplace?0:initialized.doc.content.size,to:partialReplace?initialized.doc.child(0).nodeSize:initialized.doc.content.size,slice:{content}}];
  let target=Step.fromJSON(schema,steps[0]).apply(initialized.doc).doc;
+ if(fullReplace){const tr=new Transform(target);tr.step(new DocAttrStep('relaymark',replacementMetadata??source.attrs.relaymark));steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
+ if(repairHeading){const tr=new Transform(target),at=fullReplace?0:initialized.doc.content.size;if(headingMarkup)tr.setNodeMarkup(at,null,{...tr.doc.nodeAt(at).attrs,headingId:'h-44444444-4444-4444-8444-444444444444'});else tr.setNodeAttribute(at,'headingId','h-44444444-4444-4444-8444-444444444444');steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
  if(repairIDs){const tr=new Transform(target);for(const [position,id]of repairs){const node=tr.doc.nodeAt(position);if(markupRepairs)tr.setNodeMarkup(position,null,repairAttributes?repairAttributes(node,{...node.attrs,relaymarkId:id}):{...node.attrs,relaymarkId:id},node.marks);else tr.setNodeAttribute(position,'relaymarkId',id);}if(afterRepairs)afterRepairs(tr);steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
+ const origin={},commandID='77777777-7777-4777-8777-777777777777';
+ const manager=withHistory?new Y.UndoManager([sender.getXmlFragment('default'),sender.getMap('relaymark')],{trackedOrigins:new Set([origin]),captureTimeout:Infinity}):null;
+ if(manager){protectOwnedHistoryBranches(manager);bindOwnedHistoryOwner(manager,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');manager.on('stack-item-added',event=>{if(!manager.undoing&&!manager.redoing)bindOwnedCommandGroup(manager,event,commandID);});}
  const updates=[];sender.on('update',update=>updates.push(update));
- initialized.meta.contentEditWrite=ContentEdit.createContentEditWrite(initialized.doc,steps,target);updateYFragment(sender,sender.getXmlFragment('default'),target,initialized.meta);
+ initialized.meta.contentEditWrite=ContentEdit.createContentEditWrite(initialized.doc,steps,target);sender.transact(()=>updateYFragment(sender,sender.getXmlFragment('default'),target,initialized.meta),origin);
  assert.equal(updates.length,1);Y.applyUpdate(current,updates[0]);
  const after=captureContentEditSnapshot(current.getXmlFragment('default')),senderAfter=captureContentEditSnapshot(sender.getXmlFragment('default'));
  const indices=source.toJSON().content.map((_,i)=>i);
  const evidence={sender_before_snapshot:before,sender_after_snapshot:senderAfter,before_snapshot:lockedBefore,after_snapshot:after,before_state_vector:clocks,operation:{kind:'content_edit',steps,copies:[],reviewed_recovery:{...actualEvidence().operation.reviewed_recovery,block_indices:indices}},footprint:captureContentEditFootprint(current,updates[0]),archive_identity_snapshot:archive,reviewed_document:proseMirrorToRelayMark(source.toJSON())};
  const mutation={sender_state_base64:encode(initial),current_state_base64:lockedState,writer_client:31,operation:evidence.operation,footprint:evidence.footprint};
+ if(manager){evidence.operation.group=readOwnedCommandGroup(manager,commandID);return{evidence,mutation,live:{sender,current,donor,manager,commandID,initial,update:updates[0]}};}
  donor.destroy();sender.destroy();current.destroy();return{evidence,mutation};
 }
 test('duplicate donor text keeps distinct archive paths through actual append with unseen peer prefix and rich fields',()=>{
@@ -76,6 +92,125 @@ test('duplicate donor text keeps distinct archive paths through actual append wi
  assert.equal(evidence.reviewed_document.blocks.at(-1).type,'relay.video_embed');
  assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
 });
+test('actual heading allocator append preserves custom authored anchors and accounts repaired import regions',()=>{
+ const {evidence,mutation}=duplicateEvidence({withHeading:true,repairHeading:true});
+ const result=ContentEdit.prepareReviewedRecoveryWitness(evidence);
+ assert.deepEqual(result.text_items,{runs:[]});assert.deepEqual(result.proven_copies,[]);
+ assert.equal(result.authored_document.blocks.find(block=>block.type==='heading').props.headingId,'h-44444444-4444-4444-8444-444444444444');
+ assert.deepEqual(result.authored_document.frontmatter,{title:'Current title'});
+ assert.equal(result.recovery_regions.filter(region=>region.archive_path[0]===0).reduce((n,r)=>n+r.count,0),12);
+ assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
+ const custom=duplicateEvidence({withHeading:true,headingAnchor:'chapter_one'});
+ assert.equal(ContentEdit.prepareReviewedRecoveryWitness(custom.evidence).authored_document.blocks.find(block=>block.type==='heading').props.headingId,'chapter_one');
+});
+test('actual closed full-root rich recovery replaces body and reviewed metadata without typed source',()=>{
+ const {evidence,mutation}=duplicateEvidence({fullReplace:true,withHeading:true,repairHeading:true,includeForm:true});
+ const result=ContentEdit.prepareReviewedRecoveryWitness(evidence);
+ assert.equal(result.complete_recovery_correspondence,true);assert.deepEqual(result.text_items,{runs:[]});assert.deepEqual(result.proven_copies,[]);
+ assert.deepEqual(result.authored_document.frontmatter,{title:'Archived title'});
+ assert.equal(result.authored_document.blocks.length,evidence.reviewed_document.blocks.length);
+ assert.ok(result.authored_document.blocks.some(block=>block.type==='relay.form_question'));
+ assert.equal(result.recovery_regions.reduce((n,r)=>n+r.count,0),extent(result.fresh_items.runs));
+ assert.ok(evidence.footprint.deleted_items.length>0);
+ assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
+ const retained={...Object.fromEntries(['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'].map(key=>[key,evidence[key]])),regional_context:{recovery_regions:result.recovery_regions,human_destinations:{runs:[]}}};
+ assert.deepEqual(ContentEdit.prepareRetainedReviewedRecoveryWitness(retained).recovery_regions,result.recovery_regions);
+});
+
+test('actual heading setNodeMarkup repairs preserve fields while unique authored anchors cannot be rewritten',()=>{
+ const mounted=duplicateEvidence({withHeading:true,repairHeading:true,headingMarkup:true});
+ assert.ok(mounted.evidence.operation.steps.some(step=>step.stepType==='replaceAround'));
+ assert.equal(ContentEdit.prepareReviewedRecoveryWitness(mounted.evidence).complete_recovery_correspondence,true);
+ assert.equal(ContentEdit.replayContentEditMutation(mounted.mutation).complete_mutation_correspondence,true);
+ const authored=duplicateEvidence({withHeading:true,headingAnchor:'chapter_one',repairHeading:true});
+ assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(authored.evidence),/unique authored heading anchor/);
+ const arbitrary=duplicateEvidence({fullReplace:true,replacementMetadata:{frontmatter:{title:'Unreviewed'}}});
+ assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(arbitrary.evidence),/Illegal reviewed metadata replacement/);
+ for(const mutate of [
+  e=>{e.operation.steps[0].from=1;},
+  e=>{e.operation.steps[0].to--;},
+  e=>{e.operation.steps[0].slice.openStart=1;},
+  e=>{e.operation.steps[0].slice.openEnd=1;},
+  e=>{e.operation.steps[1].attr='unreviewed';},
+  e=>{e.operation.steps.push(e.operation.steps[1]);},
+  e=>{e.operation.steps.splice(1,1);},
+  e=>{e.operation.steps.at(-1).value='chapter_one';},
+  e=>{e.operation.steps[0].slice.content[0].attrs.level=4;},
+  e=>{e.operation.steps[0].slice.content[0].content[0].marks=[{type:'italic'}];}
+ ]){const changed=duplicateEvidence({fullReplace:true,withHeading:true,repairHeading:true}).evidence;mutate(changed);assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(changed));}
+});
+test('heading repair refuses imported internal destinations that would lose their original anchor correspondence',()=>{
+ const valid=duplicateEvidence({withHeading:true,headingAnchor:'chapter_one',internalLink:'#chapter_one'});
+ assert.equal(ContentEdit.prepareReviewedRecoveryWitness(valid.evidence).complete_recovery_correspondence,true);
+ for(const options of [
+  {headingAnchor:'chapter_one',anchorCollision:true,internalLink:'#chapter_one'},
+  {headingAnchor:'chapter_one',anchorCollision:true,internalLink:'#%63hapter_one'},
+  {internalLink:'#unresolved'}
+ ]){
+  const altered=duplicateEvidence({withHeading:true,repairHeading:true,...options});
+  assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(altered.evidence),/heading repair would alter imported internal destination/);
+ }
+});
+test('actual partial root replacement with complete imported blocks remains unsupported',()=>{
+ const {evidence,mutation}=duplicateEvidence({partialReplace:true});
+ // This is a real valid maintained command/update, not a malformed Step or
+ // inconsistent snapshot. Only the bounded reviewed geometry must reject it.
+ assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
+ assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(evidence),/root-end append or complete root replacement/);
+});
+function actualInverseSteps(doc,pre){
+ let state=EditorState.create({schema,doc:pre});const steps=[];
+ const binding=new ProsemirrorBinding(doc.getXmlFragment('default'));
+ binding.prosemirrorView={get state(){return state;},dispatch(tr){steps.push(...tr.steps.map(step=>step.toJSON()));state=state.apply(tr);}};
+ binding._forceRerender();
+ assert.deepEqual(state.doc.toJSON(),initProseMirrorDoc(doc.getXmlFragment('default'),schema).doc.toJSON());
+ return steps;
+}
+test('reviewed full-root replacement owned undo and redo retain later peer text and exact rich metadata',()=>{
+ const {evidence,mutation,live}=duplicateEvidence({fullReplace:true,withHeading:true,repairHeading:true,includeForm:true,withHistory:true});
+ const {sender:doc,donor,current,manager,commandID,initial,update}=live;
+ const normal=ContentEdit.prepareReviewedRecoveryWitness(evidence);
+ assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
+ const receipts=[{transaction_id:commandID,sender_state_base64:encode(initial),update_base64:encode(update),operation:evidence.operation}];
+ let popped;manager.on('stack-item-popped',event=>{popped=bindOwnedCommandHistory(manager,event);});
+ const peer=new Y.Doc({gc:false});Y.applyUpdate(peer,Y.encodeStateAsUpdate(doc));peer.getMap('relaymark');peer.clientID=303;
+ const peerUpdates=[];peer.on('update',bytes=>peerUpdates.push(bytes));peer.getXmlFragment('default').get(0).get(0).insert(0,'Peer ');
+ assert.equal(peerUpdates.length,1);Y.applyUpdate(doc,peerUpdates[0]);
+ try{
+  for(const [i,kind]of ['undo','redo','undo'].entries()){
+   const root=doc.getXmlFragment('default'),prior=encode(Y.encodeStateAsUpdate(doc)),before=captureContentEditSnapshot(root),clocks=captureContentEditFootprint(doc,Uint8Array.of(0,0)).state_vector;
+   const pre=initProseMirrorDoc(root,schema).doc,token=captureOwnedHistoryObservation(doc),updates=[],capture=bytes=>updates.push(bytes);
+   doc.on('update',capture);try{manager[kind]();}finally{doc.off('update',capture);}
+   assert.equal(updates.length,1);const accounting=finishOwnedHistoryObservation(doc,token),steps=actualInverseSteps(doc,pre),after=captureContentEditSnapshot(root),footprint=captureContentEditFootprint(doc,updates[0]);
+   const operation={kind:'content_edit',steps,history:popped};
+   const immediate=ContentEdit.buildOwnedHistoryWitness({before_snapshot:before,after_snapshot:after,before_state_vector:clocks,operation,restored_copies:accounting.proven_copies,footprint});operation.copies=immediate.proven_copies;
+   const frontier=new Map(clocks.map(row=>[row.client,row.clock])),writers=new Set(footprint.structs.filter(row=>row.item.clock+row.count>(frontier.get(row.item.client)||0)).map(row=>row.item.client));
+   const replay=ContentEdit.replayContentEditMutation({initial_state_base64:encode(initial),receipts:receipts.slice(),sender_state_base64:prior,current_state_base64:prior,writer_client:writers.size?[...writers][0]:null,operation,footprint});
+   assert.equal(replay.owned_history_correspondence,true);assert.deepEqual(replay.text_items,{runs:[]});
+   const ast=proseMirrorToRelayMark(initProseMirrorDoc(root,schema).doc.toJSON()),text=root.toString();
+   assert.ok(text.includes('Peer '));
+   if(kind==='redo'){
+    assert.deepEqual(ast.frontmatter,{title:'Archived title'});assert.ok(ast.blocks.some(block=>block.type==='relay.form_question'));
+    assert.ok(ast.blocks.some(block=>block.type==='table'));assert.ok(text.includes('Recovered 🌍'));
+   }else{assert.deepEqual(ast.frontmatter,{title:'Current title'});assert.ok(text.includes('Current'));assert.ok(!text.includes('Recovered 🌍'));}
+   receipts.push({transaction_id:`${i+2}2222222-2222-4222-8222-222222222222`,sender_state_base64:prior,update_base64:encode(updates[0]),operation});
+  }
+  assert.deepEqual(normal.text_items,{runs:[]});
+ }finally{manager.destroy();peer.destroy();donor.destroy();current.destroy();doc.destroy();}
+});
+
+test('shipped reviewed witness and retained replay preserve exact full-root metadata and regional allocations',()=>{
+ const {evidence,mutation}=duplicateEvidence({fullReplace:true,withHeading:true,repairHeading:true,includeForm:true});
+ const global={btoa:value=>Buffer.from(value,'binary').toString('base64'),atob:value=>Buffer.from(value,'base64').toString('binary')};
+ runInNewContext(fs.readFileSync(new URL('../adapters/elixir/priv/collaboration/content-edit-runtime.js',import.meta.url),'utf8'),global);
+ const invoke=(operation,input)=>{global.inputJSON=JSON.stringify(input);global.operation=operation;return JSON.parse(runInNewContext('JSON.stringify(RelayMarkContentEditRuntime[operation](JSON.parse(inputJSON)))',global));};
+ const proof=invoke('prepareReviewedRecoveryWitness',evidence);assert.deepEqual(proof,ContentEdit.prepareReviewedRecoveryWitness(evidence));
+ assert.equal(invoke('replayContentEditMutation',mutation).complete_mutation_correspondence,true);
+ const retained={...Object.fromEntries(['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'].map(key=>[key,evidence[key]])),regional_context:{recovery_regions:proof.recovery_regions,human_destinations:{runs:[]}}};
+ assert.deepEqual(invoke('prepareRetainedReviewedRecoveryWitness',retained).recovery_regions,proof.recovery_regions);
+ const wrong=structuredClone(evidence);wrong.operation.steps[1].value={meta:{unreviewed:true}};assert.throws(()=>invoke('prepareReviewedRecoveryWitness',wrong));
+});
+
 test('different selected path, altered marked content/properties, target replacement and illegal allocator repair refuse',()=>{
  for(const mutate of [
   e=>{e.operation.reviewed_recovery.block_indices=[1];},
