@@ -497,3 +497,57 @@ content and does not claim to. The original issued association authenticates
 those pointers; no archive reread, text-equality provenance search, annotation
 stripping, or producer complete flag substitutes for that authority. Missing or
 mismatched private context refuses; normal preparation remains unchanged.
+
+
+### Imported heading navigation correspondence
+
+`planReviewedHeadingNavigation({archive_document,before_document,block_indices,steps})`
+reads canonical PM trees and actual closed root append/replacement Steps.
+`paperDocumentDestinations` resolves original explicit Anchor names first, then
+heading names by source tree ordinal. Valid authored heading names are retained;
+nullable names use deterministic PM-authored text slugs, excluding resolved
+inline entity labels. Duplicate headings receive original ordinal suffixes.
+Original names never discover imported nodes by text equality.
+
+The planner returns maintained RemoveMark/AddMark Steps changing only link href,
+and AttrSteps changing only anchor Button target. Other link attributes, marks,
+node fields, target blocks and metadata remain exact. Raw fragment bytes stay
+unchanged when the destination name is unchanged. Percent decoding happens once;
+malformed, unresolved, ambiguous or unselected source destinations refuse before
+writing. Complete commands retain the existing512-Step maximum; valid imports
+needing more repairs remain explicitly unsupported under that budget.
+
+Fresh reviewed preparation independently compares exact repairs, selected node
+placement, original fields and the fresh allocation union. Its additional
+`navigation_correspondence` has exactly:
+
+- `source_inventory_sha256`: SHA256 of shared canonical JSON containing the full
+  original `{destinations,references}` inventory.
+- `destinations`: selected `{source_path,kind,source_name,destination_name}` entries,
+  with kind heading or anchor.
+- `references`: selected `{source_path,kind,source_target,destination_target}` entries,
+  with kind link or button.
+
+Paths are original PM node ordinals, bounded to128 safe nonnegative integers and
+selected `block_indices`. Each array has at most4096 entries with unique kind/path
+identities. The existing issued outer association may seal only selected entries
+and the full-inventory digest, retaining no unselected private names. Normal
+nested five-field references remain unchanged.
+
+Target-only `prepareRetainedReviewedRecoveryWitness` accepts optional
+`navigation_correspondence` separately from `regional_context`. The host already
+authenticates original issuance, command/update/hash/scope and selected bindings.
+The library checks all selected destinations and references against the original
+Slice and permitted repair Steps; missing, extra, altered or claimed unchanged
+entries cannot hide a repair. It retains the issued inventory digest without
+pretending to rederive it from a partial Slice. Full original mutation replay,
+current authorization and donor/source authority remain independent requirements.
+Synthetic correspondence fixtures confer none.
+
+Swift and Elixir expose the same planner through
+`RelayMarkContentEditCodec.planReviewedHeadingNavigation` and
+`RelayMark.ContentEdit.plan_reviewed_heading_navigation/2`. Native rich append/full
+replacement applies its Steps before the existing one-writer commit. Browser
+commands can append the same Steps after allocator repairs in their existing PM
+transform. Explicit Anchor collisions and ambiguous duplicate original Anchors
+remain refused pending the supported corresponding allocator operation.

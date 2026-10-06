@@ -255,3 +255,5 @@ export {reviewedRecoverySourceSelection,mapReviewedRecoverySelection} from "./co
 
 /** Accepted issued regions only; host authentication and full replay remain mandatory. */
 export function prepareRetainedReviewedRecoveryWitness(evidence){return prepareRetainedRecovery(evidence,applyContentEdit);}
+
+export {planReviewedHeadingNavigation} from './content-edit-witness.js';

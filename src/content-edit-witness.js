@@ -3,7 +3,8 @@
 import {snapshotToDocument} from './document-snapshot.js';
 import {Step,Transform} from 'prosemirror-transform';
 import {relayMarkToProseMirror} from './document-adapter.js';
-import {stableStringify} from './canonical-json.js';
+import {stableStringify,canonicalJSONSHA256} from './canonical-json.js';
+import {paperDocumentDestinations} from './document-controls.js';
 import {validateTextAttributes} from './document-inline.js';
 import {createCanonicalEditorSchema} from './editor-model.js';
 import {validateOwnedHistory,canonicalOperationID} from './owned-command-group.js';
@@ -190,7 +191,88 @@ export function validateSourceReadSelector(selected){
  * authenticates the exact archive/review hashes, donor cut and fresh target guard.
  * No source is discovered by equal values and no human ancestry is granted here.
  */
-function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{}){
+/** Pure source-ordinal navigation repair over an actual maintained import
+ * transform. It is not receipt issuance or source-authority evidence. */
+export function planReviewedHeadingNavigation(input){return planHeadingNavigation(input);}
+function planHeadingNavigation(input,issued=null){
+ keys(input,issued?['before_document','block_indices','steps']:['archive_document','before_document','block_indices','steps']);
+ const indices=input.block_indices,steps=input.steps;
+ const source=schema.nodeFromJSON(issued?{type:'doc',content:steps?.[0]?.slice?.content}:input.archive_document),before=schema.nodeFromJSON(input.before_document);
+ source.check();before.check();
+ if(!Array.isArray(indices)||!indices.length||indices.length>4096||indices.some((n,i)=>!Number.isSafeInteger(n)||n<0||(!issued&&n>=source.childCount)||(i&&n<=indices[i-1]))||!Array.isArray(steps)||!steps.length||steps.length>512)throw TypeError('Invalid reviewed navigation input');
+ const first=steps[0],append=first.stepType==='replace'&&first.from===before.content.size&&first.to===first.from,replacement=first.stepType==='replace'&&first.from===0&&first.to===before.content.size;
+ if(!append&&!replacement||first.slice?.openStart||first.slice?.openEnd||first.slice?.content?.length!==indices.length)throw TypeError('Unavailable reviewed navigation placement');
+ const strip=node=>{const out={...node};if(node.attrs){const {relaymarkId,...attrs}=node.attrs;out.attrs=attrs;}if(node.content)out.content=node.content.map(strip);return out;};
+ const initial=Step.fromJSON(schema,first).apply(before);if(initial.failed)throw TypeError('Refused reviewed navigation Slice');
+ for(let i=0;!issued&&i<indices.length;i++)if(!same(strip(source.child(indices[i]).toJSON()),strip(first.slice.content[i])))throw TypeError('Reviewed navigation changed original Slice');
+ let current=before;for(const step of steps){const applied=Step.fromJSON(schema,step).apply(current);if(applied.failed)throw TypeError('Refused reviewed navigation Step');current=applied.doc;}
+ if(current.content.size!==initial.doc.content.size)throw TypeError('Reviewed navigation changed import geometry');
+ if(append)for(let i=0;i<before.childCount;i++)if(!before.child(i).eq(current.child(i)))throw TypeError('Reviewed navigation changed retained target');
+ const selected=new Set(indices),inventory=issued?issued.destinations.map(entry=>({source_path:entry.source_path,kind:entry.kind,name:entry.source_name})):paperDocumentDestinations(source.toJSON()),destinations=[],references=[],allReferences=[];
+ const walk=(node,path,visit)=>{visit(node,path);for(let i=0;i<node.childCount;i++)walk(node.child(i),[...path,i],visit);};
+ const lookup=path=>{let node=current,position=0;const actual=[(append?before.childCount:0)+indices.indexOf(path[0]),...path.slice(1)];for(let depth=0;depth<actual.length;depth++){const child=actual[depth];if(child<0||child>=node.childCount)throw TypeError('Unavailable reviewed navigation path');for(let i=0;i<child;i++)position+=node.child(i).nodeSize;if(depth)position++;node=node.child(child);}return {node,position};};
+ const finalNames=new Set();current.descendants(node=>{const name=node.type.name==='heading'?node.attrs.headingId:node.type.name==='relayAnchor'?node.attrs.name:null;if(typeof name==='string'){if(finalNames.has(name))throw TypeError('Ambiguous reviewed destination');finalNames.add(name);}});
+ for(const entry of inventory)if(selected.has(entry.source_path[0])){
+  const {node}=lookup(entry.source_path),name=entry.kind==='heading'?node.attrs.headingId:node.attrs.name;
+  if(typeof name!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(name))throw TypeError('Unavailable reviewed destination');
+  destinations.push({source_path:entry.source_path,kind:entry.kind,source_name:entry.name,destination_name:name});
+ }
+ walk(source,[],(node,path)=>{
+  if(issued&&path.length)path=[indices[path[0]],...path.slice(1)];
+  const href=node.marks.find(mark=>mark.type.name==='link')?.attrs.href;
+  if(typeof href==='string'&&href.startsWith('#'))allReferences.push({source_path:path,kind:'link',source_target:href});
+  if(node.type.name==='relayButton'&&node.attrs.kind==='anchor')allReferences.push({source_path:path,kind:'button',source_target:node.attrs.target});
+ });
+ const repair=new Transform(current);
+ for(const reference of allReferences)if(selected.has(reference.source_path[0])){
+  let name=reference.source_target;
+  if(reference.kind==='link'){try{name=decodeURIComponent(name.slice(1));}catch{throw TypeError('Malformed original navigation fragment');}}
+  const original=inventory.filter(entry=>entry.name===name);
+  if(original.length!==1)throw TypeError('Unresolved or ambiguous original navigation destination');
+  const destination=destinations.find(entry=>same(entry.source_path,original[0].source_path)&&entry.kind===original[0].kind);
+  if(!destination)throw TypeError('Original navigation destination was not selected');
+  const target=destination.destination_name===destination.source_name?reference.source_target:(reference.kind==='link'?'#':'')+destination.destination_name;
+  references.push({...reference,destination_target:target});
+  const {node,position}=lookup(reference.source_path);
+  if(reference.kind==='link'){
+   const mark=node.marks.find(mark=>mark.type.name==='link');
+   if(!node.isInline||mark?.attrs.href!==reference.source_target)throw TypeError('Reviewed navigation changed original link');
+   if(target!==reference.source_target){repair.removeMark(position,position+node.nodeSize,mark);repair.addMark(position,position+node.nodeSize,mark.type.create({...mark.attrs,href:target}));}
+  }else{
+   if(node.type.name!=='relayButton'||node.attrs.kind!=='anchor'||node.attrs.target!==reference.source_target)throw TypeError('Reviewed navigation changed original button');
+   if(target!==reference.source_target)repair.setNodeAttribute(position,'target',target);
+  }
+ }
+ if(steps.length+repair.steps.length>512)throw TypeError('Reviewed navigation Step limit');
+ if(destinations.length>4096||references.length>4096)throw TypeError('Reviewed navigation correspondence limit');
+ if(issued){if(!same(destinations,issued.destinations)||!same(references,issued.references))throw TypeError('Retained navigation correspondence disagrees with original Steps');}
+ return {steps:repair.steps.map(step=>step.toJSON()),document:repair.doc.toJSON(),navigation_correspondence:{source_inventory_sha256:issued?issued.source_inventory_sha256:canonicalJSONSHA256({destinations:inventory,references:allReferences}),destinations,references}};
+}
+
+function retainedNavigation(context,input){
+ keys(context,['source_inventory_sha256','destinations','references']);
+ if(typeof context.source_inventory_sha256!=='string'||!(/^[0-9a-f]{64}$/).test(context.source_inventory_sha256))throw TypeError('Invalid navigation inventory digest');
+ const seen=new Set();
+ for(const [field,kinds]of [['destinations',['heading','anchor']],['references',['link','button']]]){
+  const entries=context[field];if(!Array.isArray(entries)||entries.length>4096)throw TypeError('Invalid retained navigation entries');
+  for(const entry of entries){
+   keys(entry,field==='destinations'?['source_path','kind','source_name','destination_name']:['source_path','kind','source_target','destination_target']);
+   const path=entry.source_path;
+   if(!Array.isArray(path)||!path.length||path.length>128||path.some(n=>!Number.isSafeInteger(n)||n<0)||!input.block_indices.includes(path[0])||!kinds.includes(entry.kind))throw TypeError('Invalid retained navigation path');
+   const key=entry.kind+':'+stableStringify(path);if(seen.has(key))throw TypeError('Duplicate retained navigation entry');seen.add(key);
+   for(const value of field==='destinations'?[entry.source_name,entry.destination_name]:[entry.source_target,entry.destination_target])if(typeof value!=='string'||!value||value.length>16384)throw TypeError('Invalid retained navigation target');
+  }
+ }
+ const first=input.steps[0],selected=schema.nodeFromJSON({type:'doc',content:first.slice.content}),actualDestinations=[];
+ const visit=(node,path)=>{const mapped=[input.block_indices[path[0]],...path.slice(1)];if(node.type.name==='heading'||node.type.name==='relayAnchor')actualDestinations.push([mapped,node.type.name==='heading'?'heading':'anchor']);for(let i=0;i<node.childCount;i++)visit(node.child(i),[...path,i]);};
+ for(let i=0;i<selected.childCount;i++)visit(selected.child(i),[i]);
+ const claimed=context.destinations.map(entry=>[entry.source_path,entry.kind]);
+ const order=entries=>entries.map(stableStringify).sort();
+ if(!same(order(actualDestinations),order(claimed)))throw TypeError('Retained navigation destination inventory is incomplete');
+ return planHeadingNavigation(input,context);
+}
+
+function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{},navigation=null){
  const {operation}=evidence;
  keys(operation,['kind','steps','copies','group','reviewed_recovery'],['kind','steps','copies','reviewed_recovery']);
  const review=operation.reviewed_recovery;
@@ -218,10 +300,18 @@ function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{}){
  const firstApplied=Step.fromJSON(schema,first).apply(before);
  if(firstApplied.failed)throw TypeError('Refused maintained reviewed splice');
  let intermediate=firstApplied.doc.toJSON(),metadataSteps=0;
+ const baseSteps=[first],navigationSteps=[];
  // Repairs are exact maintained allocator operations inside the imported Slice.
  // Structural IDs are replica identities. Heading anchors are retained authored
  // values unless the current PaperHeading rule requires a destination repair.
  for(const step of operation.steps.slice(1)){
+  if(step.stepType==='removeMark'||step.stepType==='addMark'||step.stepType==='attr'&&step.attr==='target'){
+   if(!navigation)throw TypeError('Reviewed navigation repair requires original correspondence');
+   const applied=Step.fromJSON(schema,step).apply(schema.nodeFromJSON(intermediate));
+   if(applied.failed)throw TypeError('Refused maintained navigation repair');
+   intermediate=applied.doc.toJSON();navigationSteps.push(step);continue;
+  }
+  baseSteps.push(step);
   if(step.stepType==='docAttr'){
    keys(step,['stepType','attr','value']);
    if(!replacement||step.attr!=='relaymark'||++metadataSteps>1||sourceMetadata!==undefined&&!same(step.value,sourceMetadata))throw TypeError('Illegal reviewed metadata replacement');
@@ -266,7 +356,7 @@ function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{}){
     if(n.type.name==='relayButton'&&n.attrs.kind==='anchor')checkTarget(n.attrs.target);
    };
    for(const target of targets){inspect(target);target.descendants(inspect);}
-   if(referenced)throw TypeError('Reviewed heading repair would alter imported internal destination');
+   if(referenced&&!navigation)throw TypeError('Reviewed heading repair would alter imported internal destination');
    if(typeof value!=='string'||!/^h-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value)||allocatedUsed)throw TypeError('Invalid reviewed allocated heading anchor');
   }
   // UniqueID and PaperHeading use setNodeMarkup; native emits AttrStep. The
@@ -277,17 +367,24 @@ function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{}){
   if(repair.steps.length!==1||!same(repair.steps[0].toJSON(),step))throw TypeError('Illegal reviewed append repair');
   const applied=Step.fromJSON(schema,step).apply(doc);if(applied.failed)throw TypeError('Refused maintained identity repair');intermediate=applied.doc.toJSON();
  }
+ let navigationCorrespondence;
+ if(navigation){
+  const input={before_document:sender.pm,block_indices:indices,steps:baseSteps};
+  const planned=navigation.archive_document?planHeadingNavigation({...input,archive_document:navigation.archive_document}):retainedNavigation(navigation.navigation_correspondence,input);
+  if(!same(planned.steps,navigationSteps)||!same(planned.document,intermediate))throw TypeError('Reviewed navigation Steps disagree with original correspondence');
+  navigationCorrespondence=planned.navigation_correspondence;
+ }
  if(replacement&&sourceMetadata!==undefined&&!same(schema.nodeFromJSON(intermediate).attrs.relaymark,sourceMetadata))throw TypeError('Reviewed replacement metadata differs from original archive');
  const expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm)||!same(intermediate,senderAfter.pm))throw TypeError('Reviewed append result disagrees with maintained steps');
- return {operation,review,indices,sender,senderAfter,after,before,targets,lower,upper};
+ return {operation,review,indices,sender,senderAfter,after,before,targets,lower,upper,navigationCorrespondence};
 }
 
 export function prepareReviewedRecoveryWitness(evidence,interpret){
  const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
  keys(evidence,[...fields,'archive_identity_snapshot','reviewed_document']);
  const archive=index(evidence.archive_identity_snapshot),original=schema.nodeFromJSON(archive.pm);let sourceBlocks;
- const {operation,indices,senderAfter,after,lower}=reviewedSpliceGeometry(evidence,interpret,(targets,indices)=>{
+ const {operation,indices,senderAfter,after,lower,navigationCorrespondence}=reviewedSpliceGeometry(evidence,interpret,(targets,indices)=>{
  if(indices.some(i=>i>=original.childCount))throw TypeError('Unavailable reviewed archive block');
  const reviewed={...archive.document,blocks:indices.map(i=>archive.document.blocks[i])};
  const reviewedPM=schema.nodeFromJSON(relayMarkToProseMirror(evidence.reviewed_document));
@@ -298,7 +395,13 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
  // the canonical writer, while every other field/mark/atom/child remains exact.
  for(let i=0;i<targets.length;i++)if(!same(stripID(sourceBlocks[i].toJSON()),stripID(targets[i].toJSON())))throw TypeError('Reviewed Slice changed archive content or properties');
  return reviewedPM.attrs.relaymark;
- });
+ },{archive_document:original.toJSON()});
+ const navigationLinks=[];
+ for(const reference of navigationCorrespondence.references.filter(r=>r.kind==='link'&&r.source_target!==r.destination_target)){
+  let node=original,position=0;
+  for(const [depth,child]of reference.source_path.entries()){for(let i=0;i<child;i++)position+=node.child(i).nodeSize;if(depth)position++;node=node.child(child);}
+  navigationLinks.push({from:position,to:position+node.nodeSize,reference});
+ }
  const frontier=clocks(evidence.before_state_vector),regions=[],destinations=[];let units=0,totalRuns=0;
  let destinationStart=lower;
  const originalStarts=[];let sourceStart=0;original.forEach(node=>{originalStarts.push(sourceStart);sourceStart+=node.nodeSize;});
@@ -313,7 +416,9 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
     const itemClock=part.item.clock+from-part.position;
     if(itemClock<(frontier.get(part.item.client)||0))throw TypeError('Reviewed append borrowed retained target text');
     const text=part.text.slice(from-part.position,to-part.position),sourceText=run.text.slice(from-destinationPosition,to-destinationPosition);unicode(text);unicode(sourceText);
-    if(text!==sourceText||!same(part.attributes,run.attributes))throw TypeError('Reviewed regional text or full marks disagree');
+    const sourcePosition=run.position+from-destinationPosition,link=navigationLinks.find(link=>sourcePosition>=link.from&&sourcePosition+to-from<=link.to);
+    const attributes=link?{...run.attributes,link:{...run.attributes.link,href:link.reference.destination_target}}:run.attributes;
+    if(link&&run.attributes.link?.href!==link.reference.source_target||text!==sourceText||!same(part.attributes,attributes))throw TypeError('Reviewed regional text or full marks disagree');
     mapped.push({type:part.type,item:{client:part.item.client,clock:itemClock},count:to-from});cursor=to;
    }
    if(cursor!==end||(units+=run.count)>MAX_UNITS||regions.length>=4096)throw TypeError('Incomplete or oversized reviewed recovery regions');
@@ -324,7 +429,7 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
   destinationStart+=sourceBlocks[selected].nodeSize;
  }
  const prepared=prepare({...Object.fromEntries(fields.map(field=>[field,evidence[field]])),text_items:{runs:[]}},interpret,destinations);
- return {...prepared,operation,recovery_regions:regions,complete_recovery_correspondence:true,requires_recovery_authorization:true};
+ return {...prepared,operation,recovery_regions:regions,...(navigationCorrespondence?{navigation_correspondence:navigationCorrespondence}:{}),complete_recovery_correspondence:true,requires_recovery_authorization:true};
 }
 
 /** Target-only replay of an already issued reviewed association. The host must
@@ -333,9 +438,9 @@ export function prepareReviewedRecoveryWitness(evidence,interpret){
  * Full maintained mutation replay remains an independent mandatory proof. */
 export function prepareRetainedReviewedRecoveryWitness(evidence,interpret){
  const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
- keys(evidence,[...fields,'regional_context']);
+ keys(evidence,[...fields,'regional_context','navigation_correspondence'],[...fields,'regional_context']);
  const context=evidence.regional_context;keys(context,['recovery_regions','human_destinations']);
- const {operation,indices,senderAfter,after,targets,lower}=reviewedSpliceGeometry(evidence,interpret);
+ const {operation,indices,senderAfter,after,targets,lower,navigationCorrespondence}=reviewedSpliceGeometry(evidence,interpret,()=>{},Object.hasOwn(evidence,'navigation_correspondence')?{navigation_correspondence:evidence.navigation_correspondence}:null);
  const regions=context.recovery_regions,frontier=clocks(evidence.before_state_vector),destinations=[],sources=new Map();
  if(!Array.isArray(regions)||regions.length>4096)throw TypeError('Invalid retained recovery regions');
  const blocks=new Map();let position=lower,units=0,totalRuns=0;
@@ -362,7 +467,7 @@ export function prepareRetainedReviewedRecoveryWitness(evidence,interpret){
  // every current typed destination and the entire imported allocation union.
  const senderFresh=freshRuns(senderAfter,frontier);cover(senderFresh,destinations);cover(destinations,senderFresh);
  const prepared=prepare({...Object.fromEntries(fields.map(field=>[field,evidence[field]])),text_items:{runs:[]}},interpret,destinations);
- return {...prepared,operation,recovery_regions:regions,complete_recovery_correspondence:true,requires_recovery_authorization:true};
+ return {...prepared,operation,recovery_regions:regions,...(navigationCorrespondence?{navigation_correspondence:navigationCorrespondence}:{}),complete_recovery_correspondence:true,requires_recovery_authorization:true};
 }
 
 

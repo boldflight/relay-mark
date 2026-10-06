@@ -1,6 +1,87 @@
 defmodule RelayMark.ReviewedRecoveryTest do
   use ExUnit.Case, async: true
 
+  test "packaged imported heading link plan retains the original encoded destination and target" do
+    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
+    on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
+
+    heading = %{
+      "type" => "heading",
+      "attrs" => %{
+        "relaymarkId" => "b00000000000040008000000000000001",
+        "level" => 1,
+        "headingId" => "chapter"
+      },
+      "content" => [%{"type" => "text", "text" => "Donor 🌍"}]
+    }
+
+    paragraph = %{
+      "type" => "paragraph",
+      "attrs" => %{"relaymarkId" => "b00000000000040008000000000000002"},
+      "content" => [
+        %{
+          "type" => "text",
+          "text" => "Jump",
+          "marks" => [
+            %{
+              "type" => "link",
+              "attrs" => %{
+                "href" => "#%63hapter",
+                "title" => "Kept title",
+                "target" => "_blank",
+                "rel" => "noopener noreferrer nofollow",
+                "class" => nil
+              }
+            }
+          ]
+        }
+      ]
+    }
+
+    target = put_in(heading, ["content"], [%{"type" => "text", "text" => "Target"}])
+    before = %{"type" => "doc", "content" => [target]}
+
+    input = %{
+      "archive_document" => %{"type" => "doc", "content" => [heading, paragraph]},
+      "before_document" => before,
+      "block_indices" => [0, 1],
+      "steps" => [
+        %{
+          "stepType" => "replace",
+          "from" => 8,
+          "to" => 8,
+          "slice" => %{"content" => [heading, paragraph]}
+        },
+        %{
+          "stepType" => "attr",
+          "pos" => 8,
+          "attr" => "headingId",
+          "value" => "h-44444444-4444-4444-8444-444444444444"
+        }
+      ]
+    }
+
+    assert {:ok, planned} = RelayMark.ContentEdit.plan_reviewed_heading_navigation(runtime, input)
+    assert Enum.map(planned["steps"], & &1["stepType"]) == ["removeMark", "addMark"]
+    assert hd(planned["document"]["content"])["content"] == target["content"]
+    [reference] = planned["navigation_correspondence"]["references"]
+
+    assert reference == %{
+             "source_path" => [1, 0],
+             "kind" => "link",
+             "source_target" => "#%63hapter",
+             "destination_target" => "#h-44444444-4444-4444-8444-444444444444"
+           }
+
+    assert List.last(planned["steps"])["mark"]["attrs"]["title"] == "Kept title"
+
+    assert {:error, :invalid_content_edit} =
+             RelayMark.ContentEdit.plan_reviewed_heading_navigation(runtime, %{
+               input
+               | "block_indices" => [1]
+             })
+  end
+
   test "packaged regional proof accounts imported Unicode without issuing human ancestry" do
     current = paragraph(1, "b00000000000040008000000000000001", "Current")
     imported = paragraph(2, "b00000000000040008000000000000002", "A🌍Z")

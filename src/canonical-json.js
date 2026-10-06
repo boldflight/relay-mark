@@ -1,3 +1,5 @@
+import {sha256} from '@noble/hashes/sha2.js';
+import {bytesToHex} from '@noble/hashes/utils.js';
 /** UTF-8 binary order is the existing wire contract. Valid Unicode scalar
  * order is identical, without locale/ICU or UTF-16 supplementary-key drift. */
 function binaryKeyOrder(left,right){
@@ -36,4 +38,14 @@ export function cloneCanonicalJSON(value){
  if(Array.isArray(value))return value.map(cloneCanonicalJSON);
  if(value&&(Object.getPrototypeOf(value)===Object.prototype||Object.getPrototypeOf(value)===null))return Object.fromEntries(Object.entries(value).map(([key,item])=>[key,cloneCanonicalJSON(item)]));
  throw new TypeError('Invalid authored JSON value');
+}
+
+/** Same canonical bytes in browsers and JSCore, without a host serializer. */
+export function canonicalJSONSHA256(value){
+ const encoded=encodeURIComponent(stableStringify(value)),bytes=[];
+ for(let i=0;i<encoded.length;i++){
+  if(encoded[i]==='%'){bytes.push(Number.parseInt(encoded.slice(i+1,i+3),16));i+=2;}
+  else bytes.push(encoded.charCodeAt(i));
+ }
+ return bytesToHex(sha256(new Uint8Array(bytes)));
 }

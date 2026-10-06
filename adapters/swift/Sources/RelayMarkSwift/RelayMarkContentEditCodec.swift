@@ -6,6 +6,11 @@ public enum RelayMarkContentEditCodec {
     public static func command(document: Data, request: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "createContentEditCommand", arguments: [JSONSerialization.jsonObject(with: document), JSONSerialization.jsonObject(with: request)])
     }
+    /// Original source ordinals resolve internal navigation before the existing
+    /// writer commits. This pure plan confers no archive or donor authority.
+    public static func planReviewedHeadingNavigation(_ evidence: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planReviewedHeadingNavigation", arguments: [JSONSerialization.jsonObject(with: evidence)])
+    }
     public static func prepareWrite(before: Data, steps: Data, after: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"prepareContentEditWrite",arguments:[JSONSerialization.jsonObject(with:before),JSONSerialization.jsonObject(with:steps),JSONSerialization.jsonObject(with:after)])
     }

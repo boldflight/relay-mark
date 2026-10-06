@@ -30,6 +30,7 @@ public extension RelayMarkNativeDocument {
         }
         let additions = indices.map { copied(blocks[$0]) }
         return try RelayMarkNativeRichEditing.replaceRootChildren(document: self, tree: current,
-            index: existing.count, count: 0, replacements: additions)
+            index: existing.count, count: 0, replacements: additions,
+            reviewedArchive: try PMYXmlBridge.canonical().document(fromSnapshot: source), reviewedIndices: indices)
     }
 }

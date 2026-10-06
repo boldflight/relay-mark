@@ -40,17 +40,19 @@ import {protectOwnedHistoryBranches} from '../adapters/collaboration/owned-histo
 import {captureOwnedHistoryObservation,finishOwnedHistoryObservation} from '../adapters/collaboration/content-edit-mutation.js';
 const schema=ContentEdit.createCanonicalEditorSchema();
 const encode=bytes=>Buffer.from(bytes).toString('base64');
-function duplicateEvidence({repairIDs=false,markupRepairs=false,afterRepairs=null,repairAttributes=null,fullReplace=false,withHeading=false,headingAnchor=null,repairHeading=false,includeForm=false,withHistory=false,headingMarkup=false,replacementMetadata=null,internalLink=null,anchorCollision=false,partialReplace=false}={}){
+function duplicateEvidence({repairIDs=false,markupRepairs=false,afterRepairs=null,repairAttributes=null,fullReplace=false,withHeading=false,headingAnchor=null,repairHeading=false,includeForm=false,withHistory=false,headingMarkup=false,replacementMetadata=null,internalLink=null,anchorCollision=false,partialReplace=false,navigationRepairs=false,targetHeadingAnchor=null,withButton=false}={}){
  const donor=new Y.Doc({gc:false}),sender=new Y.Doc({gc:false}),current=new Y.Doc({gc:false});donor.clientID=21;sender.clientID=31;
  const ast=parseDocument('Same **🌍**\n\nSame **🌍**\n\n@Callout(tone: "info") {\nKept *🌍*\n}\n\n| A | B |\n| --- | --- |\n| C | D |\n\n![kept](https://example.com/kept.png)',{namespace:'regional-duplicate'});
  ast.frontmatter={title:'Archived title'};
  if(withHeading)ast.blocks.unshift({id:'b00000000001140008000000000000000',type:'heading',props:{level:2,headingId:headingAnchor},content:[{type:'text',text:'Recovered 🌍'}]});
  if(internalLink)ast.blocks.push(...parseDocument(`[Go](${internalLink})`,{namespace:'regional-internal-link'}).blocks);
+ if(withButton)ast.blocks.push(...parseDocument('@Button(label: "Jump", kind: "anchor", target: "chapter_one")',{namespace:'regional-button'}).blocks);
  if(anchorCollision)ast.blocks.push(...parseDocument('@Anchor(name: "chapter_one")',{namespace:'regional-anchor-collision'}).blocks);
  if(includeForm)ast.blocks.push(structuredClone(actualEvidence().reviewed_document.blocks[1]));
  ast.blocks.push({id:'b00000000001040008000000000000000',type:'relay.video_embed',props:{videoId:'11111111-1111-4111-8111-111111111111'},content:[]});
  prosemirrorToYXmlFragment(schema.nodeFromJSON(relayMarkToProseMirror(ast)),donor.getXmlFragment('default'));
  const seed=parseDocument('Current **peer** prefix'+(partialReplace?'\n\nRetained following block':''),{namespace:'regional-target'});seed.frontmatter={title:'Current title'};
+ if(targetHeadingAnchor){seed.blocks[0].type='heading';seed.blocks[0].props={level:2,headingId:targetHeadingAnchor};}
  prosemirrorToYXmlFragment(schema.nodeFromJSON(relayMarkToProseMirror(seed)),sender.getXmlFragment('default'));
  const before=captureContentEditSnapshot(sender.getXmlFragment('default')),initial=Y.encodeStateAsUpdate(sender);
  Y.applyUpdate(current,initial);current.getMap('relaymark');current.clientID=41;
@@ -69,6 +71,10 @@ function duplicateEvidence({repairIDs=false,markupRepairs=false,afterRepairs=nul
  if(fullReplace){const tr=new Transform(target);tr.step(new DocAttrStep('relaymark',replacementMetadata??source.attrs.relaymark));steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
  if(repairHeading){const tr=new Transform(target),at=fullReplace?0:initialized.doc.content.size;if(headingMarkup)tr.setNodeMarkup(at,null,{...tr.doc.nodeAt(at).attrs,headingId:'h-44444444-4444-4444-8444-444444444444'});else tr.setNodeAttribute(at,'headingId','h-44444444-4444-4444-8444-444444444444');steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
  if(repairIDs){const tr=new Transform(target);for(const [position,id]of repairs){const node=tr.doc.nodeAt(position);if(markupRepairs)tr.setNodeMarkup(position,null,repairAttributes?repairAttributes(node,{...node.attrs,relaymarkId:id}):{...node.attrs,relaymarkId:id},node.marks);else tr.setNodeAttribute(position,'relaymarkId',id);}if(afterRepairs)afterRepairs(tr);steps.push(...tr.steps.map(step=>step.toJSON()));target=tr.doc;}
+ if(navigationRepairs){
+  const planned=ContentEdit.planReviewedHeadingNavigation({archive_document:source.toJSON(),before_document:initialized.doc.toJSON(),block_indices:content.map((_,i)=>i),steps});
+  for(const step of planned.steps){target=Step.fromJSON(schema,step).apply(target).doc;steps.push(step);}
+ }
  const origin={},commandID='77777777-7777-4777-8777-777777777777';
  const manager=withHistory?new Y.UndoManager([sender.getXmlFragment('default'),sender.getMap('relaymark')],{trackedOrigins:new Set([origin]),captureTimeout:Infinity}):null;
  if(manager){protectOwnedHistoryBranches(manager);bindOwnedHistoryOwner(manager,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');manager.on('stack-item-added',event=>{if(!manager.undoing&&!manager.redoing)bindOwnedCommandGroup(manager,event,commandID);});}
@@ -139,17 +145,37 @@ test('actual heading setNodeMarkup repairs preserve fields while unique authored
   e=>{e.operation.steps[0].slice.content[0].content[0].marks=[{type:'italic'}];}
  ]){const changed=duplicateEvidence({fullReplace:true,withHeading:true,repairHeading:true}).evidence;mutate(changed);assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(changed));}
 });
-test('heading repair refuses imported internal destinations that would lose their original anchor correspondence',()=>{
- const valid=duplicateEvidence({withHeading:true,headingAnchor:'chapter_one',internalLink:'#chapter_one'});
- assert.equal(ContentEdit.prepareReviewedRecoveryWitness(valid.evidence).complete_recovery_correspondence,true);
- for(const options of [
-  {headingAnchor:'chapter_one',anchorCollision:true,internalLink:'#chapter_one'},
-  {headingAnchor:'chapter_one',anchorCollision:true,internalLink:'#%63hapter_one'},
-  {internalLink:'#unresolved'}
- ]){
-  const altered=duplicateEvidence({withHeading:true,repairHeading:true,...options});
-  assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(altered.evidence),/heading repair would alter imported internal destination/);
+test('explicit source Anchor precedence retains links while unresolved original destinations refuse',()=>{
+ for(const internalLink of ['#chapter_one','#%63hapter_one']){
+  const actual=duplicateEvidence({withHeading:true,repairHeading:true,headingAnchor:'chapter_one',anchorCollision:true,internalLink});
+  const proof=ContentEdit.prepareReviewedRecoveryWitness(actual.evidence);
+  assert.equal(proof.complete_recovery_correspondence,true);
+  assert.equal(proof.navigation_correspondence.references[0].destination_target,internalLink);
  }
+ const unresolved=duplicateEvidence({withHeading:true,repairHeading:true,internalLink:'#unresolved'});
+ assert.throws(()=>ContentEdit.prepareReviewedRecoveryWitness(unresolved.evidence),/Unresolved or ambiguous/);
+});
+test('issued selected navigation replays exact encoded links and Button repairs without donor names',()=>{
+ const actual=duplicateEvidence({withHeading:true,repairHeading:true,headingAnchor:'chapter_one',targetHeadingAnchor:'chapter_one',internalLink:'#%63hapter_one',withButton:true,navigationRepairs:true});
+ const proof=ContentEdit.prepareReviewedRecoveryWitness(actual.evidence);
+ assert.equal(ContentEdit.replayContentEditMutation(actual.mutation).complete_mutation_correspondence,true);
+ assert.deepEqual(proof.text_items,{runs:[]});assert.deepEqual(proof.proven_copies,[]);
+ assert.deepEqual(proof.navigation_correspondence.references.map(r=>[r.source_target,r.destination_target]),[['#%63hapter_one','#h-44444444-4444-4444-8444-444444444444'],['chapter_one','h-44444444-4444-4444-8444-444444444444']]);
+ const retained={...Object.fromEntries(['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'].map(k=>[k,actual.evidence[k]])),regional_context:{recovery_regions:proof.recovery_regions,human_destinations:{runs:[]}},navigation_correspondence:proof.navigation_correspondence};
+ const replay=ContentEdit.prepareRetainedReviewedRecoveryWitness(retained);
+ assert.deepEqual(replay.navigation_correspondence,proof.navigation_correspondence);
+ assert.deepEqual(replay.recovery_regions,proof.recovery_regions);
+ for(const mutate of [
+  e=>{delete e.navigation_correspondence;},
+  e=>{e.navigation_correspondence.references.pop();},
+  e=>{e.navigation_correspondence.references[0].source_target='#chapter_one';},
+  e=>{e.navigation_correspondence.references[0].destination_target=e.navigation_correspondence.references[0].source_target;},
+  e=>{e.navigation_correspondence.destinations[0].source_path=[1];},
+  e=>{e.navigation_correspondence.destinations.push(structuredClone(e.navigation_correspondence.destinations[0]));},
+  e=>{e.operation.steps=e.operation.steps.filter(s=>s.stepType!=='addMark');},
+  e=>{e.operation.steps.find(s=>s.stepType==='addMark').mark.attrs.title='Injected';},
+  e=>{e.operation.steps.find(s=>s.stepType==='attr'&&s.attr==='target').value='chapter_one';},
+ ]){const forged=structuredClone(retained);mutate(forged);assert.throws(()=>ContentEdit.prepareRetainedReviewedRecoveryWitness(forged));}
 });
 test('actual partial root replacement with complete imported blocks remains unsupported',()=>{
  const {evidence,mutation}=duplicateEvidence({partialReplace:true});
@@ -166,8 +192,9 @@ function actualInverseSteps(doc,pre){
  assert.deepEqual(state.doc.toJSON(),initProseMirrorDoc(doc.getXmlFragment('default'),schema).doc.toJSON());
  return steps;
 }
-test('reviewed full-root replacement owned undo and redo retain later peer text and exact rich metadata',()=>{
- const {evidence,mutation,live}=duplicateEvidence({fullReplace:true,withHeading:true,repairHeading:true,includeForm:true,withHistory:true});
+test('reviewed replacement and repaired navigation append owned inverses retain later peer text and exact fields',()=>{
+ for(const fullReplace of [true,false]){
+ const {evidence,mutation,live}=duplicateEvidence(fullReplace?{fullReplace:true,withHeading:true,repairHeading:true,includeForm:true,withHistory:true}:{withHeading:true,repairHeading:true,headingAnchor:'chapter_one',targetHeadingAnchor:'chapter_one',internalLink:'#%63hapter_one',withButton:true,navigationRepairs:true,includeForm:true,withHistory:true});
  const {sender:doc,donor,current,manager,commandID,initial,update}=live;
  const normal=ContentEdit.prepareReviewedRecoveryWitness(evidence);
  assert.equal(ContentEdit.replayContentEditMutation(mutation).complete_mutation_correspondence,true);
@@ -190,13 +217,15 @@ test('reviewed full-root replacement owned undo and redo retain later peer text 
    const ast=proseMirrorToRelayMark(initProseMirrorDoc(root,schema).doc.toJSON()),text=root.toString();
    assert.ok(text.includes('Peer '));
    if(kind==='redo'){
-    assert.deepEqual(ast.frontmatter,{title:'Archived title'});assert.ok(ast.blocks.some(block=>block.type==='relay.form_question'));
+    assert.deepEqual(ast.frontmatter,{title:fullReplace?'Archived title':'Current title'});assert.ok(ast.blocks.some(block=>block.type==='relay.form_question'));
+    if(!fullReplace){const name=ast.blocks.find(block=>block.type==='heading'&&block.content?.[0]?.text==='Recovered 🌍').props.headingId;assert.equal(ast.blocks.find(block=>block.type==='paragraph'&&block.content?.[0]?.type==='link').content[0].href,'#'+name);assert.equal(ast.blocks.find(block=>block.type==='relay.paper_control'&&block.props.control==='button').props.target,name);}
     assert.ok(ast.blocks.some(block=>block.type==='table'));assert.ok(text.includes('Recovered 🌍'));
    }else{assert.deepEqual(ast.frontmatter,{title:'Current title'});assert.ok(text.includes('Current'));assert.ok(!text.includes('Recovered 🌍'));}
    receipts.push({transaction_id:`${i+2}2222222-2222-4222-8222-222222222222`,sender_state_base64:prior,update_base64:encode(updates[0]),operation});
   }
   assert.deepEqual(normal.text_items,{runs:[]});
  }finally{manager.destroy();peer.destroy();donor.destroy();current.destroy();doc.destroy();}
+ }
 });
 
 test('shipped reviewed witness and retained replay preserve exact full-root metadata and regional allocations',()=>{

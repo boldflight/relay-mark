@@ -43,16 +43,21 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
                      "inline-atoms-v3-draft", "inline-offered-marks-v3-draft", "rich-image-v3-draft",
                      "rich-video-v3-draft", "rich-callout-v3-draft", "paper-controls-v3-draft",
                      "agent-suggestion-v3-draft"] {
-            let source = try fixture(name), target = try fixture(name)
+            let source = try fixture(name)
+            let target: RelayMarkNativeDocument
+            if name == "paper-controls-v3-draft" {
+                target = RelayMarkNativeDocument()
+                _ = try target.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Current control target", namespace: "control-recovery-target"))
+            } else { target = try fixture(name) }
             let baseline = try target.encodeUpdate(), initial = try target.snapshot()
-            let original = try blocks(initial), selected = Array(original.indices)
+            let original = try blocks(initial), offered = try blocks(source.snapshot()), selected = Array(offered.indices)
             let update = try target.appendRecoveredRichBlocks(from: source.snapshot(),
                 indices: selected, expectedSnapshot: initial)
             receipts.append(["name": name, "seed": baseline.base64EncodedString(), "update": update.update.base64EncodedString()])
             let restored = try blocks(target.snapshot())
             XCTAssertEqual(try json(Array(restored.prefix(original.count))), try json(original), name)
             XCTAssertEqual(try json(Array(restored.dropFirst(original.count)).map(withoutCopiedIdentities)),
-                try json(original.map(withoutCopiedIdentities)), name)
+                try json(offered.map(withoutCopiedIdentities)), name)
             // The canonical projection rejects any duplicate block IDs or invalid shapes.
             _ = try RelayMarkNativeDocumentProjection.project(document: target)
             let peer = try RelayMarkCollaborationDocument()
@@ -93,6 +98,83 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
         XCTAssertEqual(afterAST["meta"] as? [String: String], ["provider": "retained"])
         _ = try target.undo()
         XCTAssertEqual(try target.snapshot(), initial)
+    }
+
+    func testAmbiguousExplicitAnchorAndUnselectedOriginalDestinationRefuseWithoutChangingCurrentReplica() throws {
+        let source = try fixture("paper-controls-v3-draft"), target = try fixture("paper-controls-v3-draft")
+        let before = try target.snapshot(), state = try target.encodeUpdate()
+        XCTAssertThrowsError(try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: Array(try blocks(source.snapshot()).indices), expectedSnapshot: before))
+        XCTAssertEqual(try target.encodeUpdate(), state)
+        XCTAssertEqual(try target.snapshot(), before)
+        let donor = RelayMarkNativeDocument(), current = RelayMarkNativeDocument()
+        _ = try donor.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("# Chapter {#chapter}\n\n[Jump](#chapter)", namespace: "unselected-heading-donor"))
+        _ = try current.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("# Target {#chapter}", namespace: "unselected-heading-target"))
+        let frozen = try current.encodeUpdate(), snapshot = try current.snapshot()
+        XCTAssertThrowsError(try current.appendRecoveredRichBlocks(from: donor.snapshot(), indices: [1], expectedSnapshot: snapshot))
+        XCTAssertEqual(try current.encodeUpdate(), frozen)
+        XCTAssertEqual(try current.snapshot(), snapshot)
+    }
+
+    func testImportedHeadingCollisionRetainsOriginalRelativeLinkAndButtonDestination() throws {
+        let source = RelayMarkNativeDocument(), target = RelayMarkNativeDocument()
+        var donor = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkSourceCodec.parseDocument(
+            "# Donor 🌍\n\n[Jump](#%63hapter)\n\n@Button(label: \"Jump\", kind: \"anchor\", target: \"chapter\")", namespace: "heading-correspondence-donor")) as? [String: Any])
+        var blocks = try XCTUnwrap(donor["blocks"] as? [[String: Any]])
+        blocks[0]["props"] = ["level": 1, "headingId": "chapter"]
+        donor["blocks"] = blocks
+        _ = try source.initializeDocument(authoredAST: JSONSerialization.data(withJSONObject: donor))
+        var current = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkSourceCodec.parseDocument(
+            "# Existing target", namespace: "heading-correspondence-target")) as? [String: Any])
+        var currentBlocks = try XCTUnwrap(current["blocks"] as? [[String: Any]])
+        currentBlocks[0]["props"] = ["level": 1, "headingId": "chapter"]
+        current["blocks"] = currentBlocks
+        _ = try target.initializeDocument(authoredAST: JSONSerialization.data(withJSONObject: current))
+        let before = try target.snapshot(), beforeState = try target.encodeUpdate()
+        let beforeIdentity = try JSONSerialization.jsonObject(with: target.captureIdentitySnapshot())
+        let beforeFootprint = try XCTUnwrap(JSONSerialization.jsonObject(with: target.captureUpdateFootprint(Data([0, 0]))) as? [String: Any])
+        let observation = try target.captureContentEditObservation()
+        let archive = try source.captureIdentitySnapshot(), reviewed = try source.authoredDocument()
+        let change = try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [0, 1, 2], expectedSnapshot: before)
+        let after = try XCTUnwrap(JSONSerialization.jsonObject(with: target.authoredDocument()) as? [String: Any])
+        let result = try XCTUnwrap(after["blocks"] as? [[String: Any]])
+        XCTAssertEqual(result[0] as NSDictionary, currentBlocks[0] as NSDictionary)
+        let importedProps = try XCTUnwrap(result[1]["props"] as? [String: Any])
+        let allocated = try XCTUnwrap(importedProps["headingId"] as? String)
+        XCTAssertNotEqual(allocated, "chapter")
+        let content = try XCTUnwrap(result[2]["content"] as? [[String: Any]])
+        let link = try XCTUnwrap(content.first { $0["type"] as? String == "link" })
+        XCTAssertEqual(link["href"] as? String, "#" + allocated,
+            "The imported relative link must target its original donor heading, not the same-name target heading")
+        let button = try XCTUnwrap(result[3]["props"] as? [String: Any])
+        XCTAssertEqual(button["target"] as? String, allocated,
+            "The imported button must follow the same original heading correspondence")
+        XCTAssertFalse(change.steps.isEmpty)
+        let annotation: [String: Any] = ["archive_sha256": String(repeating: "a", count: 64), "reviewed_document_sha256": String(repeating: "b", count: 64), "block_indices": [0, 1, 2], "target_guard": ["body_revision": "sha256:" + String(repeating: "c", count: 64)], "donor_cut": NSNull()]
+        let proof = try XCTUnwrap(JSONSerialization.jsonObject(with: target.buildReviewedRecoveryWitness(observation, steps: change.steps, update: change.update, reviewedRecovery: JSONSerialization.data(withJSONObject: annotation), archiveIdentitySnapshot: archive, reviewedDocument: reviewed)) as? [String: Any])
+        XCTAssertEqual((proof["text_items"] as? [String: [Any]])?["runs"]?.count, 0)
+        let afterIdentity = try JSONSerialization.jsonObject(with: target.captureIdentitySnapshot())
+        let footprint = try JSONSerialization.jsonObject(with: target.captureUpdateFootprint(change.update))
+        let retainedInput: [String: Any] = ["sender_before_snapshot": beforeIdentity, "sender_after_snapshot": afterIdentity, "before_snapshot": beforeIdentity, "after_snapshot": afterIdentity, "before_state_vector": beforeFootprint["state_vector"]!, "operation": proof["operation"]!, "footprint": footprint, "regional_context": ["recovery_regions": proof["recovery_regions"]!, "human_destinations": ["runs": []]], "navigation_correspondence": proof["navigation_correspondence"]!]
+        let retained = try XCTUnwrap(JSONSerialization.jsonObject(with: RelayMarkContentEditCodec.prepareRetainedReviewedRecoveryWitness(JSONSerialization.data(withJSONObject: retainedInput))) as? [String: Any])
+        XCTAssertEqual(retained["navigation_correspondence"] as? NSDictionary, proof["navigation_correspondence"] as? NSDictionary)
+        let fresh = try XCTUnwrap(proof["fresh_items"] as? [String: [[String: Any]]])
+        let writer = try XCTUnwrap((fresh["runs"]?.first?["item"] as? [String: Any])?["client"])
+        let replay = try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "replayContentEditMutation", arguments: [["sender_state_base64": beforeState.base64EncodedString(), "current_state_base64": beforeState.base64EncodedString(), "writer_client": writer, "operation": proof["operation"]!, "footprint": footprint]])
+        XCTAssertEqual((try JSONSerialization.jsonObject(with: replay) as? [String: Any])?["complete_mutation_correspondence"] as? Bool, true)
+        let cold = RelayMarkNativeDocument()
+        try cold.applyUpdate(beforeState); try cold.applyUpdate(change.update)
+        XCTAssertEqual(try cold.authoredDocument(), try target.authoredDocument())
+        let peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(target.encodeUpdate())
+        let peerChange = try RelayMarkNativeRichEditing.replace(document: peer, range: NSRange(location: 0, length: 0), runs: [("Peer ", [:])], expectedSnapshot: peer.snapshot())
+        try target.applyUpdate(peerChange.update)
+        _ = try target.undo()
+        XCTAssertEqual(try String(target.richProseProjection().text.characters), "Peer Existing target")
+        _ = try target.redo()
+        let redone = try XCTUnwrap(JSONSerialization.jsonObject(with: target.authoredDocument()) as? [String: Any])
+        let redoneBlocks = try XCTUnwrap(redone["blocks"] as? [[String: Any]])
+        XCTAssertEqual(redoneBlocks[2] as NSDictionary, result[2] as NSDictionary)
+        XCTAssertEqual(redoneBlocks[3] as NSDictionary, result[3] as NSDictionary)
     }
 
     func testReviewedHeadingAppendAndCompleteReplacementUsePackagedRegionalWitness() throws {

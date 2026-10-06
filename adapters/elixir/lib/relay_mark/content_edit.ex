@@ -50,6 +50,12 @@ defmodule RelayMark.ContentEdit do
 
   def build_witness(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Plan original-ordinal imported heading/link repairs as actual maintained Steps. No donor or receipt authority is issued."
+  def plan_reviewed_heading_navigation(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "planReviewedHeadingNavigation", [input])
+
+  def plan_reviewed_heading_navigation(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Prove complete-block reviewed append regions against exact archived structure and actual fresh allocations. The host still authenticates archive hashes, target guard, donor ancestry and complete mutation correspondence."
   def prepare_reviewed_recovery_witness(runtime, evidence) when is_map(evidence),
     do: execute_arguments(runtime, "prepareReviewedRecoveryWitness", [evidence])

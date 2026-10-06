@@ -66,3 +66,28 @@ export function parsePaperControlSource(source) {
     return { control, attrs, source: canonicalPaperControlSource(control, attrs) };
   } catch { return null; }
 }
+
+/** Original paper destinations by canonical tree ordinal. Names are interpreted
+ * once in the original document; they never discover copied nodes by text. */
+export function paperDocumentDestinations(document) {
+  const nodes = [];
+  const visit = (node, path) => {
+    nodes.push({ node, path });
+    (node.content || []).forEach((child, index) => visit(child, [...path, index]));
+  };
+  visit(document, []);
+  const anchors = nodes.filter(({ node }) => node.type === 'relayAnchor' && typeof node.attrs?.name === 'string' && anchorName.test(node.attrs.name))
+    .map(({ node, path }) => ({ source_path: path, kind: 'anchor', name: node.attrs.name }));
+  const used = new Set(anchors.map(entry => entry.name));
+  const text = node => node.type === 'text' ? node.text : (node.content || []).map(text).join('');
+  const headings = nodes.filter(({ node }) => node.type === 'heading').map(({ node, path }) => {
+    const base = text(node).trim().toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 110) || 'section';
+    let name = typeof node.attrs?.headingId === 'string' && anchorName.test(node.attrs.headingId) ? node.attrs.headingId : base;
+    const identity = name; let suffix = 2;
+    while (used.has(name)) name = `${identity}-${suffix++}`;
+    used.add(name);
+    return { source_path: path, kind: 'heading', name };
+  });
+  return [...anchors, ...headings];
+}

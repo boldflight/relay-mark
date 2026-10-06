@@ -48,7 +48,7 @@ public enum RelayMarkNativeRichEditing {
         var transform=PMTransform(source)
         try transform.replace(0,source.content.size,PMSlice(incoming.content,openStart:0,openEnd:0))
         if !pmCompareDeep(source.attrs["relaymark"] ?? [:],envelope){try transform.step(.docAttr(name:"relaymark",value:envelope))}
-        let (update,_,beforeSnapshot,steps)=try commit(transform,source:source,bridge:bridge,document:document)
+        let (update,_,beforeSnapshot,steps)=try commit(transform,source:source,bridge:bridge,document:document, reviewedArchive: incoming, reviewedIndices: Array(0..<incoming.childCount))
         let changed = !pmCompareDeep(before["metadata"] ?? [:],envelope)
         return Change(update:update,beforeSnapshot:beforeSnapshot,steps:steps,caret:nil,authoredMetadataChanged:changed)
     }
@@ -478,7 +478,8 @@ public enum RelayMarkNativeRichEditing {
     /// An explicit root-child replacement command, using the full shared rich
     /// fragment and one maintained ReplaceStep rather than a document diff.
     static func replaceRootChildren(document: RelayMarkNativeDocument, tree: [String: Any],
-                                    index: Int, count: Int, replacements: [[String: Any]]) throws -> Change {
+                                    index: Int, count: Int, replacements: [[String: Any]],
+                                    reviewedArchive: PMNode? = nil, reviewedIndices: [Int]? = nil) throws -> Change {
         let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
         guard var children = tree["children"] as? [[String: Any]], index >= 0, count >= 0,
               index + count <= children.count else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
@@ -492,7 +493,7 @@ public enum RelayMarkNativeRichEditing {
         var transform = PMTransform(source)
         try transform.step(.replace(from: from, to: to,
             slice: PMSlice(PMFragment.fromArray(replacement), openStart: 0, openEnd: 0)))
-        return try change(transform, source: source, bridge: bridge, document: document)
+        return try change(transform, source: source, bridge: bridge, document: document, reviewedArchive: reviewedArchive, reviewedIndices: reviewedIndices)
     }
 
     /// Full authored replacement uses the admitted candidate's schema defaults,
@@ -517,15 +518,16 @@ public enum RelayMarkNativeRichEditing {
     }
 
     private static func change(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
-                               document: RelayMarkNativeDocument) throws -> Change {
-        let (update, _, beforeSnapshot, steps) = try commit(transform, source: source, bridge: bridge, document: document)
+                               document: RelayMarkNativeDocument, reviewedArchive: PMNode? = nil, reviewedIndices: [Int]? = nil) throws -> Change {
+        let (update, _, beforeSnapshot, steps) = try commit(transform, source: source, bridge: bridge, document: document, reviewedArchive: reviewedArchive, reviewedIndices: reviewedIndices)
         return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: nil)
     }
 
     /// Applies identity rules, validates the prospective document on a
     /// scratch replica, then writes it through y-prosemirror's diff.
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
-                               document: RelayMarkNativeDocument, preferredIDs: [String: Int] = [:]) throws -> (Data, PMNode, Data, Data) {
+                               document: RelayMarkNativeDocument, preferredIDs: [String: Int] = [:],
+                               reviewedArchive: PMNode? = nil, reviewedIndices: [Int]? = nil) throws -> (Data, PMNode, Data, Data) {
         var seen = Set<String>(), anchors = Set<String>()
         transform.doc.content.nodesBetween(0, transform.doc.content.size, { node, _, _, _ in
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
@@ -543,6 +545,19 @@ public enum RelayMarkNativeRichEditing {
         })
         for repair in repairs { try witnessed.step(repair) }
         guard witnessed.doc.eq(identifiedDocument) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        if let reviewedArchive, let reviewedIndices {
+            let input: [String: Any] = ["archive_document": reviewedArchive.json(), "before_document": source.json(),
+                "block_indices": reviewedIndices, "steps": witnessed.steps.map { $0.json() }]
+            let result = try RelayMarkContentEditCodec.planReviewedHeadingNavigation(JSONSerialization.data(withJSONObject: input))
+            guard let planned = try JSONSerialization.jsonObject(with: result) as? [String: Any],
+                  let navigationSteps = planned["steps"] as? [[String: Any]] else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            for step in navigationSteps { try witnessed.step(PMStep.fromJSON(step, schema: bridge.schema)) }
+            guard pmCompareDeep(witnessed.doc.json(), planned["document"] ?? NSNull()) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+        }
         let updated=witnessed.doc
         let beforeSnapshot=try document.captureSenderSnapshot()
         let steps=try JSONSerialization.data(withJSONObject:witnessed.steps.map { $0.json() },options:[.sortedKeys])
