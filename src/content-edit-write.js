@@ -42,3 +42,33 @@ export function planContentEditTextWrite(prepared,sourceParent,sourceGroup,targe
  for(const range of kept){gaps(range.source,range.target);boundary(source.text,range.source+range.count);boundary(target.text,range.target+range.count);if(source.text.slice(range.source,range.source+range.count)!==target.text.slice(range.target,range.target+range.count))throw TypeError('Causal writer retained contents disagree');delta.push({retain:range.count});from=range.source+range.count;to=range.target+range.count;}
  gaps(source.text.length,target.text.length);return delta;
 }
+
+/** Internal pure derivation after the caller's exact interpreter/result check.
+ * This is not exported by the runtime facade and accepts no authority/token. */
+export function contentEditWritePlan(before,after,retained_ranges){
+ const groups=document=>Object.fromEntries(contentEditTextGroups(document).map(group=>[group.parent+':'+group.index,group]));
+ const prepared={retained_ranges,before_groups:groups(before),after_groups:groups(after)};
+ const causal_targets=[];
+ for(const target of Object.values(prepared.after_groups)){
+  const source=prepared.before_groups[target.parent+':'+target.index];
+  let retained=false;
+  if(source&&source.text.length===target.text.length){
+   if(!source.text.length)retained=true;
+   else{
+    let lower=0,upper=prepared.retained_ranges.length;
+    while(lower<upper){const middle=(lower+upper)>>>1,range=prepared.retained_ranges[middle];if(range.source_from+range.length<=source.position)lower=middle+1;else upper=middle;}
+    const range=prepared.retained_ranges[lower];
+    retained=!!range&&range.source_from<=source.position&&range.source_from+range.length>=source.position+source.text.length&&range.destination_from+source.position-range.source_from===target.position;
+   }
+  }
+  if(!retained)causal_targets.push(target.parent);
+ }
+ return {...prepared,causal_targets:[...new Set(causal_targets)]};
+}
+/** One callback implementation shared by validated public writers and replay. */
+export function contentEditWriteCallbacks(prepared,after){
+ const targets=new Set(prepared.causal_targets),needed=new WeakMap();
+ function visit(node){let changed=targets.has(node.attrs.relaymarkId);node.forEach(child=>{if(visit(child))changed=true});needed.set(node,changed);return changed}
+ visit(after);
+ return {requiresWrite:node=>needed.get(node)===true,planText:(sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)=>planContentEditTextWrite(prepared,sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)};
+}

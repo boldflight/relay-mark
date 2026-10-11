@@ -77,6 +77,24 @@ function readOwnedCommandGroup(manager, operationID) {
   if (group.operation_ids.at(-1) !== operationID) throw TypeError("No actual owned command group");
   return { ...group, operation_ids: group.operation_ids.slice() };
 }
+function readOwnedHistoryGroups(manager) {
+  if (!manager || manager.undoing || manager.redoing || !Array.isArray(manager.undoStack) || !Array.isArray(manager.redoStack) || manager.undoStack.length + manager.redoStack.length > 4096) throw TypeError("Unavailable actual history groups");
+  const ownerID = manager[ownerKey];
+  canonicalOperationID(ownerID);
+  const groups = [], references = /* @__PURE__ */ new Set(), operations = /* @__PURE__ */ new Set();
+  for (const item of [...manager.undoStack, ...manager.redoStack]) {
+    const group = ownedGroup(manager, item);
+    if (references.has(group.reference)) throw TypeError("Duplicate actual history group");
+    references.add(group.reference);
+    for (const operationID of group.operation_ids) {
+      if (operations.has(operationID)) throw TypeError("Duplicate actual history operation");
+      operations.add(operationID);
+      if (operations.size > 16384) throw TypeError("Actual history groups exceed resource limit");
+    }
+    groups.push({ ...group, operation_ids: group.operation_ids.slice() });
+  }
+  return groups;
+}
 function bindOwnedCommandHistory(manager, event) {
   const undo = event?.type === "undo", redo = event?.type === "redo";
   if (!manager || event.origin !== manager || !(undo && manager.undoing || redo && manager.redoing)) throw TypeError("Unavailable actual maintained inverse");
@@ -133,6 +151,7 @@ export {
   prepareOwnedCommandGroup,
   prepareOwnedHistory,
   readOwnedCommandGroup,
+  readOwnedHistoryGroups,
   readOwnedHistoryOwner,
   retireOwnedHistoryGroups,
   validateOwnedCommandGroup,

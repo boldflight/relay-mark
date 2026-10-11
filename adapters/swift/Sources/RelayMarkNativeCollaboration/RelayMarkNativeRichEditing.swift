@@ -400,6 +400,29 @@ public enum RelayMarkNativeRichEditing {
         return try change(transform, source: source, bridge: bridge, document: document)
     }
 
+    /// Delete the exact retained node, then decode its insertion through the
+    /// canonical serialized Step owner used by maintained mutation replay.
+    static func moveWidget(document: RelayMarkNativeDocument, tree: [String: Any],
+                           parentID: String?, index: Int, direction: Int) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let parent = try identifiedNode(parentID, in: source)
+        guard direction == -1 || direction == 1, index >= 0, index < parent.node.childCount,
+              index + direction >= 0, index + direction < parent.node.childCount else {
+            throw RelayMarkNativeDocument.Failure.invalidTextPath
+        }
+        let node = parent.node.child(index), neighbor = parent.node.child(index + direction)
+        guard node.type.name == neighbor.type.name else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        let position = parent.position + (parentID == nil ? 0 : 1) + parent.node.content.children.prefix(index).reduce(0) { $0 + $1.nodeSize }
+        // Destination after deletion; no detached AST or direct YXml mutation.
+        let destination = direction == -1 ? position - neighbor.nodeSize : position + neighbor.nodeSize
+        var transform = PMTransform(source)
+        try transform.step(.replace(from: position, to: position + node.nodeSize, slice: .empty))
+        let insertion = PMStep.replace(from: destination, to: destination,
+            slice: PMSlice(PMFragment.from(node), openStart: 0, openEnd: 0))
+        try transform.step(PMStep.fromJSON(insertion.json(), schema: bridge.schema))
+        return try change(transform, source: source, bridge: bridge, document: document)
+    }
+
     static func removeWidget(document: RelayMarkNativeDocument, tree: [String: Any], id: String) throws -> Change {
         let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
         let target = try identifiedNode(id, in: source)
@@ -528,23 +551,53 @@ public enum RelayMarkNativeRichEditing {
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
                                document: RelayMarkNativeDocument, preferredIDs: [String: Int] = [:],
                                reviewedArchive: PMNode? = nil, reviewedIndices: [Int]? = nil) throws -> (Data, PMNode, Data, Data) {
-        var seen = Set<String>(), anchors = Set<String>()
-        transform.doc.content.nodesBetween(0, transform.doc.content.size, { node, _, _, _ in
+        var witnessed = transform
+        var retainedHeadingPositions = Set<Int>(), retainedDestinationNames = Set<String>()
+        func applyRepairs(_ candidate: PMNode) throws {
+            var repairs: [PMStep] = []
+            candidate.content.nodesBetween(0, candidate.content.size, { node, pos, _, _ in
+                if let original = witnessed.doc.nodeAt(pos) {
+                    for name in node.attrs.keys.sorted() where !pmCompareDeep(node.attrs[name]!, original.attrs[name] ?? NSNull()) {
+                        repairs.append(.attr(pos: pos, name: name, value: node.attrs[name]!))
+                    }
+                }
+                return true
+            })
+            for repair in repairs { try witnessed.step(repair) }
+            guard witnessed.doc.eq(candidate) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        }
+        if let reviewedArchive, let reviewedIndices {
+            // Allocate structural identity before deriving imported Anchor names.
+            // This keeps an imported Anchor from renaming a retained heading.
+            var identities = Set<String>(), ignoredAnchors = Set<String>()
+            try applyRepairs(identified(witnessed.doc, seen: &identities, anchors: &ignoredAnchors,
+                preferredIDs: preferredIDs, normalizeHeadings: false))
+            let input: [String: Any] = ["archive_document": reviewedArchive.json(), "before_document": source.json(),
+                "block_indices": reviewedIndices, "steps": witnessed.steps.map { $0.json() }]
+            let result = try RelayMarkContentEditCodec.planReviewedAnchorAllocation(JSONSerialization.data(withJSONObject: input))
+            guard let planned = try JSONSerialization.jsonObject(with: result) as? [String: Any],
+                  let steps = planned["steps"] as? [[String: Any]],
+                  let names = planned["retained_destination_names"] as? [String] else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            retainedDestinationNames = Set(names)
+            if let first = witnessed.steps.first?.json(), first["from"] as? Int == source.content.size, first["to"] as? Int == source.content.size {
+                source.content.nodesBetween(0, source.content.size, { node, pos, _, _ in
+                    if node.type.name == "heading" { retainedHeadingPositions.insert(pos) }
+                    return true
+                })
+            }
+            for step in steps { try witnessed.step(PMStep.fromJSON(step, schema: bridge.schema)) }
+            guard pmCompareDeep(witnessed.doc.json(), planned["document"] ?? NSNull()) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+        }
+        var seen = Set<String>(), anchors = retainedDestinationNames
+        witnessed.doc.content.nodesBetween(0, witnessed.doc.content.size, { node, _, _, _ in
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
             return true
         })
-        let identifiedDocument = identified(transform.doc, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs)
-        var witnessed=transform
-        var repairs:[PMStep]=[]
-        identifiedDocument.content.nodesBetween(0,identifiedDocument.content.size,{node,pos,_,_ in
-            if let original=transform.doc.nodeAt(pos) {
-                for name in node.attrs.keys.sorted() where !pmCompareDeep(node.attrs[name]!,original.attrs[name] ?? NSNull()) {
-                    repairs.append(.attr(pos:pos,name:name,value:node.attrs[name]!))
-                }
-            };return true
-        })
-        for repair in repairs { try witnessed.step(repair) }
-        guard witnessed.doc.eq(identifiedDocument) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        try applyRepairs(identified(witnessed.doc, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs, retainedHeadingPositions: retainedHeadingPositions))
         if let reviewedArchive, let reviewedIndices {
             let input: [String: Any] = ["archive_document": reviewedArchive.json(), "before_document": source.json(),
                 "block_indices": reviewedIndices, "steps": witnessed.steps.map { $0.json() }]
@@ -563,7 +616,7 @@ public enum RelayMarkNativeRichEditing {
         let steps=try JSONSerialization.data(withJSONObject:witnessed.steps.map { $0.json() },options:[.sortedKeys])
         let prepared=try RelayMarkContentEditCodec.prepareWrite(before:JSONSerialization.data(withJSONObject:source.json()),steps:steps,after:JSONSerialization.data(withJSONObject:updated.json()))
         try bridge.prepareWrite(prepared)
-        let prospective = bridge.snapshot(updated)
+        let prospective = try bridge.snapshot(updated)
         let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
         let scratch = RelayMarkNativeDocument()
@@ -609,9 +662,9 @@ public enum RelayMarkNativeRichEditing {
     /// UniqueID and PaperHeading after a local edit: nodes created by the
     /// transform (null IDs) and later duplicates receive fresh relaymarkIds,
     /// headings keep a unique anchor headingId; retained nodes keep theirs.
-    private static func identified(_ node: PMNode, seen: inout Set<String>, anchors: inout Set<String>, preferredIDs: [String: Int] = [:], position: Int = -1) -> PMNode {
+    private static func identified(_ node: PMNode, seen: inout Set<String>, anchors: inout Set<String>, preferredIDs: [String: Int] = [:], position: Int = -1, normalizeHeadings: Bool = true, retainedHeadingPositions: Set<Int> = []) -> PMNode {
         var attrs = node.attrs, changed = false
-        if node.type.name == "heading" {
+        if normalizeHeadings && node.type.name == "heading" && !retainedHeadingPositions.contains(position) {
             let current = attrs["headingId"]
             if !anchorName(current) || anchors.contains(current as? String ?? "") {
                 var id = "h-" + UUID().uuidString.lowercased()
@@ -635,7 +688,7 @@ public enum RelayMarkNativeRichEditing {
         var childPosition = position + 1
         for (index, child) in children.enumerated() {
             if !child.isText {
-                let next = identified(child, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs, position: childPosition)
+                let next = identified(child, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs, position: childPosition, normalizeHeadings: normalizeHeadings, retainedHeadingPositions: retainedHeadingPositions)
                 if next !== child { children[index] = next; childChanged = true }
             }
             childPosition += child.nodeSize

@@ -1,11 +1,13 @@
 /** Causal identity preparation. This is deliberately not final admission: hosts
  * still prove complete non-text/deletion correspondence and accepted history scope. */
-import {snapshotToDocument} from './document-snapshot.js';
+import {snapshotToDocument,snapshotToDocumentWithProseMirror,importAggregateSettingsSnapshot} from './document-snapshot.js';
+import {canonicalContract} from './contract.js';
 import {Step,Transform} from 'prosemirror-transform';
 import {relayMarkToProseMirror} from './document-adapter.js';
-import {stableStringify,canonicalJSONSHA256} from './canonical-json.js';
+import {stableStringify,canonicalJSONSHA256,cloneCanonicalJSON} from './canonical-json.js';
 import {paperDocumentDestinations} from './document-controls.js';
 import {validateTextAttributes} from './document-inline.js';
+import {withLinkSyntaxScope} from './document-links.js';
 import {createCanonicalEditorSchema} from './editor-model.js';
 import {validateOwnedHistory,canonicalOperationID} from './owned-command-group.js';
 const schema=createCanonicalEditorSchema(),MAX_UNITS=131072,MAX_SOURCE_UNITS=12_582_912;
@@ -16,11 +18,11 @@ const idKey=id=>id.client+':'+id.clock;
 function unicode(text){for(let i=0;i<text.length;i++){const c=text.charCodeAt(i);if(c>=0xd800&&c<=0xdbff){const next=text.charCodeAt(++i);if(!(next>=0xdc00&&next<=0xdfff))throw TypeError('Causal range splits Unicode');}else if(c>=0xdc00&&c<=0xdfff)throw TypeError('Causal range splits Unicode');}}
 function selection(value,maxUnits=MAX_UNITS,maxRuns=4096){keys(value,['runs']);if(!Array.isArray(value.runs)||value.runs.length>maxRuns)throw TypeError('Invalid causal selection');let count=0;const intervals=new Map();for(const run of value.runs){keys(run,['type','item','count']);identity(run.type);identity(run.item);if(!Number.isSafeInteger(run.count)||run.count<1||(count+=run.count)>maxUnits||run.item.clock+run.count>2**32)throw TypeError('Invalid causal run extent');const seen=intervals.get(run.item.client)||[];if(seen.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping causal selector');seen.push([run.item.clock,run.item.clock+run.count]);intervals.set(run.item.client,seen);}return value;}
 function clocks(values){if(!Array.isArray(values))throw TypeError('Missing trusted state vector');const result=new Map();for(const entry of values){keys(entry,['client','clock']);if(!Number.isSafeInteger(entry.client)||entry.client<0||!Number.isSafeInteger(entry.clock)||entry.clock<0||entry.clock>2**32||result.has(entry.client))throw TypeError('Invalid trusted state vector');result.set(entry.client,entry.clock);}return result;}
-function index(snapshot){const runs=[],nodes=new Map(),positions=[],seen=new Map();let budget=1_000_000;
+function snapshotProjection(snapshot){const runs=[],nodes=new Map(),positions=[],seen=new Map();let budget=1_000_000;
  const step=()=>{if(--budget<0)throw TypeError('Causal snapshot budget exceeded');};
  function visit(node,position,depth,path=[]){step();if(depth>128)throw TypeError('Causal snapshot depth exceeded');
   if(node.kind==='text'){keys(node,['kind','type','runs']);identity(node.type);if(!Array.isArray(node.runs)||nodes.has(idKey(node.type)))throw TypeError('Invalid causal text branch');nodes.set(idKey(node.type),node);let size=0;
-   for(const run of node.runs){step();keys(run,['item','count','text','attributes']);identity(run.item);if(typeof run.text!=='string'||!run.text||run.text.length!==run.count||run.item.clock+run.count>2**32)throw TypeError('Invalid causal string run');unicode(run.text);validateTextAttributes(run.attributes);const known=seen.get(run.item.client)||[];if(known.some(([a,b])=>a<run.item.clock+run.count&&b>run.item.clock))throw TypeError('Overlapping visible causal items');known.push([run.item.clock,run.item.clock+run.count]);seen.set(run.item.client,known);runs.push({...run,type:node.type,path,offset:size,position:position+size});size+=run.count;}
+   for(const run of node.runs){step();keys(run,['item','count','text','attributes']);identity(run.item);if(typeof run.text!=='string'||!run.text||run.text.length!==run.count||run.item.clock+run.count>2**32)throw TypeError('Invalid causal string run');unicode(run.text);validateTextAttributes(run.attributes);const known=seen.get(run.item.client)||[];known.push([run.item.clock,run.item.clock+run.count]);seen.set(run.item.client,known);runs.push({...run,type:node.type,path,offset:size,position:position+size});size+=run.count;}
    positions.push({node,position,size,path});return {portable:{kind:'text',delta:node.runs.map(run=>({insert:run.text,attributes:run.attributes}))},size};
   }
   if(node.kind==='fragment'){keys(node,['kind','root','children','metadata'],['kind','root','children']);if(node.root!=='default'||!Array.isArray(node.children))throw TypeError('Invalid causal root');}
@@ -31,8 +33,39 @@ function index(snapshot){const runs=[],nodes=new Map(),positions=[],seen=new Map
   if(schema.nodes[node.name].isLeaf){if(size)throw TypeError('Causal atom contains children');size=1;}else size+=2;
   positions.push({node,position,size,path});return {portable:{kind:'element',name:node.name,attributes:node.attributes,children},size};
  }
- const projected=visit(snapshot,0,0),document=snapshotToDocument(projected.portable),pm=schema.nodeFromJSON(relayMarkToProseMirror(document));pm.check();if(pm.content.size!==projected.size)throw TypeError('Causal snapshot size disagrees with maintained schema');
+ const projection=withLinkSyntaxScope(()=>visit(snapshot,0,0));
+ // Visible item clocks are scoped to their actual client across all branches.
+ // Validate the complete half-open intervals once; adjacent ranges are valid.
+ for(const intervals of seen.values()){
+  intervals.sort((a,b)=>a[0]-b[0]);
+  for(let i=1;i<intervals.length;i++)if(intervals[i][0]<intervals[i-1][1])throw TypeError('Overlapping visible causal items');
+ }
+ return {...projection,runs,nodes,positions};
+}
+function index(snapshot,decode=snapshotToDocument){
+ const {portable,size,runs,nodes,positions}=snapshotProjection(snapshot);
+ // Reuse only the paired result of this exact current decoder in this call.
+ // Explicit finite/custom decoders retain their own full conversion path.
+ const decoded=decode===snapshotToDocument?snapshotToDocumentWithProseMirror(portable):null;
+ const document=decoded?decoded.document:decode(portable),json=decoded?decoded.prosemirror:relayMarkToProseMirror(document),pm=schema.nodeFromJSON(json);pm.check();if(pm.content.size!==size)throw TypeError('Causal snapshot size disagrees with maintained schema');
  return {runs,nodes,positions,document,pm:JSON.parse(JSON.stringify(pm.toJSON()))};
+}
+// Only an explicitly qualified original archive may choose finite semantic
+// import. Its raw identity/run geometry remains the same maintained projection.
+// A binding claim is not an authorization, receipt or human ancestry credential.
+function archiveIndex(evidence){
+ if(!Object.hasOwn(evidence,'archive_context'))return index(evidence.archive_identity_snapshot);
+ const context=evidence.archive_context;keys(context,['binding']);const binding=context.binding;
+ const extra=binding?.layer==='enhanced'?['draft_id','source_revision','source_hash']:[];
+ keys(binding,['authority_id','account_id','organization_id','entity_id','document_id','incarnation','schema','root','source_contract','contract_version','access_epoch','cache_key','layer',...extra]);
+ const uuid=value=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value);
+ if(binding.contract_version!==canonicalContract.contract_version||binding.schema!==canonicalContract.schema||binding.source_contract!==canonicalContract.source_contract||binding.root!=='default'||
+  !['authored','enhanced'].includes(binding.layer)||!uuid(binding.document_id)||binding.document_id!==binding.incarnation||!/^[a-f0-9]{64}$/.test(binding.access_epoch)||
+  ['authority_id','account_id','organization_id','entity_id'].some(name=>typeof binding[name]!=='string'||!binding[name])||
+  binding.layer==='enhanced'&&(!uuid(binding.draft_id)||!/^sha256:[a-f0-9]{64}$/.test(binding.source_revision)||!/^[a-f0-9]{64}$/.test(binding.source_hash)))throw TypeError('Invalid original archive context');
+ const lane=[binding.authority_id,binding.account_id,binding.organization_id,binding.layer==='enhanced'?binding.document_id:binding.entity_id,binding.incarnation,binding.access_epoch];
+ if(binding.cache_key!==JSON.stringify(lane))throw TypeError('Invalid original archive lane');
+ return index(evidence.archive_identity_snapshot,portable=>importAggregateSettingsSnapshot(portable).document);
 }
 function resolve(index,selected,read=false){selection(selected,read?MAX_SOURCE_UNITS:MAX_UNITS,4096);const out=[];for(const requested of selected.runs){let clock=requested.item.clock,end=clock+requested.count;const candidates=index.runs.filter(run=>run.item.client===requested.item.client&&same(run.type,requested.type)&&run.item.clock<end&&run.item.clock+run.count>clock).sort((a,b)=>a.item.clock-b.item.clock);
  for(const run of candidates){if(run.item.clock>clock)break;const from=Math.max(clock,run.item.clock),to=Math.min(end,run.item.clock+run.count);if(from<to){const text=run.text.slice(from-run.item.clock,to-run.item.clock);unicode(text);out.push({type:run.type,item:{client:run.item.client,clock:from},count:to-from,text,attributes:run.attributes,path:run.path,offset:run.offset+from-run.item.clock,position:run.position+from-run.item.clock});clock=to;}}
@@ -67,16 +100,17 @@ function refuseReusedInsertedText(after,inserted,beforeClocks){
  }
 }
 function freshRuns(after,beforeClocks){return after.runs.flatMap(run=>{const clock=Math.max(run.item.clock,beforeClocks.get(run.item.client)||0),count=run.item.clock+run.count-clock;return count>0?[{...run,item:{client:run.item.client,clock},count,text:run.text.slice(clock-run.item.clock),position:run.position+clock-run.item.clock}]:[]});}
-export function prepareWitness(evidence,interpret){
+export function prepareWitness(evidence,interpret){return prepareNormal(evidence,interpret,index);}
+function prepareNormal(evidence,interpret,snapshotIndex){
  if(evidence.operation?.reviewed_recovery)throw TypeError('Reviewed recovery requires regional correspondence');
- return prepare(evidence,interpret,null);
+ return prepare(evidence,interpret,null,snapshotIndex);
 }
-function prepare(evidence,interpret,recoveryDestinations){
+function prepare(evidence,interpret,recoveryDestinations,snapshotIndex=index){
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','text_items','footprint']);
  const {footprint,operation}=evidence;if(operation?.history)throw TypeError('Owned history accounting requires maintained accepted-receipt replay');keys(footprint,['state_vector','structs','declared_deletes','deleted_items']);if(!Array.isArray(footprint.structs)||!Array.isArray(footprint.declared_deletes)||!Array.isArray(footprint.deleted_items)||footprint.structs.length+footprint.deleted_items.length>1_000_000)throw TypeError('Invalid complete mutation footprint');
  const beforeClocks=clocks(evidence.before_state_vector),afterClocks=clocks(footprint.state_vector);for(const [client,clock]of beforeClocks)if(clock>(afterClocks.get(client)||0))throw TypeError('Mutation frontier is behind trusted prestate');
  keys(operation,['kind','steps','copies','history','group',...(recoveryDestinations?['reviewed_recovery']:[])],['kind','steps','copies']);if(!Array.isArray(operation.copies)||operation.copies.length>4096)throw TypeError('Invalid causal copies');
- const sender=index(evidence.sender_before_snapshot),senderAfter=index(evidence.sender_after_snapshot),before=index(evidence.before_snapshot),after=index(evidence.after_snapshot),expected=interpret(sender.pm,operation);
+ const sender=snapshotIndex(evidence.sender_before_snapshot),senderAfter=snapshotIndex(evidence.sender_after_snapshot),before=snapshotIndex(evidence.before_snapshot),after=snapshotIndex(evidence.after_snapshot),expected=interpret(sender.pm,operation);
  if(!same(expected.document,senderAfter.pm))throw TypeError('Actual sender result disagrees with maintained steps');
  refuseReusedInsertedText(senderAfter,expected.inserted_ranges,beforeClocks);
  // Exact metadata consequences are part of the maintained doc attribute; full footprint correspondence remains required.
@@ -99,12 +133,16 @@ function prepare(evidence,interpret,recoveryDestinations){
 /** Derive relocation witnesses from actual maintained StepMaps and fresh item
  * identities. Text equality never discovers a source. Clipboard/source authority
  * for inserted Slice content remains an independent host obligation. */
-export function buildWitness(evidence,interpret){
+export function buildWitness(evidence,interpret,decode=snapshotToDocument){
  if(evidence.operation?.reviewed_recovery)throw TypeError('Reviewed recovery requires regional correspondence');
  keys(evidence,['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint']);
  if(evidence.operation?.history)throw TypeError('Owned history accounting requires maintained accepted-receipt replay');
  keys(evidence.operation,['kind','steps','history','group','copies'],['kind','steps']);
- const sender=index(evidence.sender_before_snapshot),after=index(evidence.sender_after_snapshot),frontier=clocks(evidence.before_state_vector),expected=interpret(sender.pm,{...evidence.operation,copies:[]});
+ // The synchronous builder and final preparation share exact observer objects.
+ // Reuse only within this call: distinct peer snapshots still validate in full,
+ // and a later call must revalidate even a previously observed object.
+ const indexes=new Map(),snapshotIndex=snapshot=>{if(!indexes.has(snapshot))indexes.set(snapshot,index(snapshot,decode));return indexes.get(snapshot);};
+ const sender=snapshotIndex(evidence.sender_before_snapshot),after=snapshotIndex(evidence.sender_after_snapshot),frontier=clocks(evidence.before_state_vector),expected=interpret(sender.pm,{...evidence.operation,copies:[]});
  if(!same(after.pm,expected.document))throw TypeError('Actual sender disagrees with maintained command');
  refuseReusedInsertedText(after,expected.inserted_ranges,frontier);
  const supplied=evidence.operation.copies??[];if(!Array.isArray(supplied)||supplied.length>4096)throw TypeError('Invalid explicit Slice copies');const copies=[...supplied];let human=[];
@@ -119,7 +157,7 @@ export function buildWitness(evidence,interpret){
   for(const [from,to]of uncovered)human.push({type:run.type,item:{client:run.item.client,clock:run.item.clock+from-run.position},count:to-from});
  }
  for(const copy of supplied){keys(copy,['source','destination']);for(const destination of resolve(after,copy.destination))human=human.flatMap(run=>{if(!same(run.type,destination.type)||run.item.client!==destination.item.client)return[run];const a=run.item.clock,b=a+run.count,c=destination.item.clock,d=c+destination.count;if(c>=b||d<=a)return[run];return[...(a<c?[{...run,count:c-a}]:[]),...(d<b?[{...run,item:{client:run.item.client,clock:d},count:b-d}]:[])];})}
- const operation={...evidence.operation,copies},text_items={runs:human},prepared=prepareWitness({...evidence,operation,text_items},interpret);
+ const operation={...evidence.operation,copies},text_items={runs:human},prepared=prepareNormal({...evidence,operation,text_items},interpret,snapshotIndex);
  return {...prepared,operation,text_items};
 }
 
@@ -162,10 +200,11 @@ export function resolveContentEditTextItems(snapshot,selected){
 
 /** Read-only current visible candidates, in bounded classifier windows. A
  * missing identity is never classified as a tombstone or granted authorship. */
-export function sourceSelectorWindows(snapshot){
+export function sourceSelectorWindows(snapshot){return selectorWindows(index(snapshot));}
+function selectorWindows(snapshotIndex){
  const windows=[];let runs=[],units=0;
  const flush=()=>{if(runs.length){windows.push({runs});runs=[];units=0;}};
- for(const run of index(snapshot).runs){
+ for(const run of snapshotIndex.runs){
   let offset=0;
   while(offset<run.count){
    if(units===16384||runs.length===4096)flush();
@@ -193,8 +232,16 @@ export function validateSourceReadSelector(selected){
  */
 /** Pure source-ordinal navigation repair over an actual maintained import
  * transform. It is not receipt issuance or source-authority evidence. */
+/** Same validated identity snapshot projection consumed by causal proof. */
+/** Same identity/run validation and projection as the strict current reader.
+ * This portable shape is input only: current or explicit finite grammar decoding
+ * remains required, and no source, receipt or conversion authority is inferred. */
+export function contentEditSnapshotToPortableSnapshot(snapshot){return cloneCanonicalJSON(snapshotProjection(snapshot).portable);}
+export function readContentEditSnapshotDocument(snapshot){return index(snapshot).pm;}
+export function readReviewedRecoveryArchiveDocument(evidence){keys(evidence,['archive_identity_snapshot','archive_context'],['archive_identity_snapshot']);return archiveIndex(evidence).pm;}
+export function reviewedRecoveryArchiveSourceWindows(evidence){keys(evidence,['archive_identity_snapshot','archive_context'],['archive_identity_snapshot']);return selectorWindows(archiveIndex(evidence));}
 export function planReviewedHeadingNavigation(input){return planHeadingNavigation(input);}
-function planHeadingNavigation(input,issued=null){
+function navigationPlacement(input,issued=null){
  keys(input,issued?['before_document','block_indices','steps']:['archive_document','before_document','block_indices','steps']);
  const indices=input.block_indices,steps=input.steps;
  const source=schema.nodeFromJSON(issued?{type:'doc',content:steps?.[0]?.slice?.content}:input.archive_document),before=schema.nodeFromJSON(input.before_document);
@@ -208,9 +255,47 @@ function planHeadingNavigation(input,issued=null){
  let current=before;for(const step of steps){const applied=Step.fromJSON(schema,step).apply(current);if(applied.failed)throw TypeError('Refused reviewed navigation Step');current=applied.doc;}
  if(current.content.size!==initial.doc.content.size)throw TypeError('Reviewed navigation changed import geometry');
  if(append)for(let i=0;i<before.childCount;i++)if(!before.child(i).eq(current.child(i)))throw TypeError('Reviewed navigation changed retained target');
+ const lookup=path=>{let node=current,position=0;const actual=[(append?before.childCount:0)+indices.indexOf(path[0]),...path.slice(1)];for(let depth=0;depth<actual.length;depth++){const child=actual[depth];if(child<0||child>=node.childCount)throw TypeError('Unavailable reviewed navigation path');for(let i=0;i<child;i++)position+=node.child(i).nodeSize;if(depth)position++;node=node.child(child);}return {node,position};};
+ return {source,before,indices,steps,append,current,lookup};
+}
+
+export function planReviewedAnchorAllocation(input){return planAnchorAllocation(input);}
+function planAnchorAllocation(input,issued=null){
+ const {source,before,indices,steps,append,current,lookup}=navigationPlacement(input,issued);
+ const inventory=issued?issued.destinations.filter(entry=>entry.kind==='anchor').map(entry=>({source_path:entry.source_path,name:entry.source_name})):paperDocumentDestinations(source.toJSON()).filter(entry=>entry.kind==='anchor');
+ const selected=new Set(indices),counts=new Map(),used=new Set(),reserved=new Set();
+ for(const entry of inventory)counts.set(entry.name,(counts.get(entry.name)||0)+1);
+ const names=(doc,out)=>doc.descendants(node=>{const name=node.type.name==='relayAnchor'?node.attrs.name:node.type.name==='heading'?node.attrs.headingId:null;if(typeof name==='string')out.add(name);});
+ const retainedNames=append?paperDocumentDestinations(before.toJSON()).map(entry=>entry.name):[];
+ for(const name of retainedNames)used.add(name);names(current,reserved);
+ for(const entry of paperDocumentDestinations(current.toJSON()))reserved.add(entry.name);
+ const repair=new Transform(current);
+ for(const entry of inventory)if(selected.has(entry.source_path[0])){
+  if(counts.get(entry.name)!==1)throw TypeError('Ambiguous original explicit Anchor');
+  const {node,position}=lookup(entry.source_path);
+  if(node.type.name!=='relayAnchor'||node.attrs.name!==entry.name)throw TypeError('Reviewed Anchor changed original source name');
+  let name=entry.name;
+  if(used.has(name)){
+   const id=node.attrs.relaymarkId;
+   if(typeof id!=='string'||!/^b[0-9a-f]{32}$/.test(id))throw TypeError('Reviewed Anchor requires allocated canonical identity');
+   const base='a-'+id;name=base;let suffix=2;while(reserved.has(name))name=base+'-'+suffix++;
+   if(name.length>128)throw TypeError('Reviewed Anchor name limit');
+   repair.setNodeAttribute(position,'name',name);reserved.add(name);
+  }
+  used.add(name);
+ }
+ if(steps.length+repair.steps.length>512)throw TypeError('Reviewed navigation Step limit');
+ return {steps:repair.steps.map(step=>step.toJSON()),document:repair.doc.toJSON(),retained_destination_names:retainedNames};
+}
+
+function planHeadingNavigation(input,issued=null){
+ const {source,before,indices,steps,append,current,lookup}=navigationPlacement(input,issued);
+ const anchorSteps=steps.filter(step=>step.stepType==='attr'&&step.attr==='name');
+ const allocation=planAnchorAllocation({...input,steps:steps.filter(step=>!anchorSteps.includes(step))},issued);
+ if(!same(allocation.steps,anchorSteps))throw TypeError('Reviewed Anchor name Steps disagree with original collision');
  const selected=new Set(indices),inventory=issued?issued.destinations.map(entry=>({source_path:entry.source_path,kind:entry.kind,name:entry.source_name})):paperDocumentDestinations(source.toJSON()),destinations=[],references=[],allReferences=[];
  const walk=(node,path,visit)=>{visit(node,path);for(let i=0;i<node.childCount;i++)walk(node.child(i),[...path,i],visit);};
- const lookup=path=>{let node=current,position=0;const actual=[(append?before.childCount:0)+indices.indexOf(path[0]),...path.slice(1)];for(let depth=0;depth<actual.length;depth++){const child=actual[depth];if(child<0||child>=node.childCount)throw TypeError('Unavailable reviewed navigation path');for(let i=0;i<child;i++)position+=node.child(i).nodeSize;if(depth)position++;node=node.child(child);}return {node,position};};
+
  const finalNames=new Set();current.descendants(node=>{const name=node.type.name==='heading'?node.attrs.headingId:node.type.name==='relayAnchor'?node.attrs.name:null;if(typeof name==='string'){if(finalNames.has(name))throw TypeError('Ambiguous reviewed destination');finalNames.add(name);}});
  for(const entry of inventory)if(selected.has(entry.source_path[0])){
   const {node}=lookup(entry.source_path),name=entry.kind==='heading'?node.attrs.headingId:node.attrs.name;
@@ -327,13 +412,22 @@ function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{},navigati
   if(!node||!Object.hasOwn(node.attrs,'relaymarkId')||position+node.nodeSize>upper)throw TypeError('Unavailable reviewed repair node');
   const attrs=step.slice?.content?.[0]?.attrs;
   const changed=attributeStep?[step.attr]:Object.keys({...node.attrs,...attrs}).filter(key=>!same(node.attrs[key],attrs?.[key]));
-  if(changed.length!==1||!['relaymarkId','headingId'].includes(changed[0]))throw TypeError('Illegal reviewed append repair');
+  if(changed.length!==1||!['relaymarkId','headingId','name','id'].includes(changed[0]))throw TypeError('Illegal reviewed append repair');
   const field=changed[0],value=attributeStep?step.value:attrs[field];
   let matches=0;
   if(field==='relaymarkId'){
    doc.descendants(n=>{if(n.attrs.relaymarkId===node.attrs.relaymarkId)matches++;});
    if(node.attrs.relaymarkId!==null&&matches<2)throw TypeError('Reviewed repair changed a unique authored identity');
    if(typeof value!=='string'||value===node.attrs.relaymarkId)throw TypeError('Invalid reviewed allocated identity');
+  }else if(field==='id'){
+   if(!['questionBlock','questionOption'].includes(node.type.name))throw TypeError('Unavailable reviewed form identity repair');
+   let allocatedUsed=false;
+   doc.descendants(n=>{if(['questionBlock','questionOption'].includes(n.type.name)&&n.attrs.id===node.attrs.id)matches++;if(n.attrs.id===value)allocatedUsed=true;});
+   if(node.attrs.id!==null&&matches<2)throw TypeError('Reviewed repair changed a unique authored form identity');
+   canonicalOperationID(value);
+   if(value===node.attrs.id||allocatedUsed)throw TypeError('Invalid reviewed allocated form identity');
+  }else if(field==='name'){
+   if(!navigation||!attributeStep||node.type.name!=='relayAnchor'||typeof value!=='string'||!/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value))throw TypeError('Illegal reviewed Anchor repair');
   }else{
    if(node.type.name!=='heading')throw TypeError('Unavailable reviewed heading repair');
    const anchor=node.attrs.headingId,valid=typeof anchor==='string'&&/^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(anchor);
@@ -382,8 +476,8 @@ function reviewedSpliceGeometry(evidence,interpret,validateSlice=()=>{},navigati
 
 export function prepareReviewedRecoveryWitness(evidence,interpret){
  const fields=['sender_before_snapshot','sender_after_snapshot','before_snapshot','after_snapshot','before_state_vector','operation','footprint'];
- keys(evidence,[...fields,'archive_identity_snapshot','reviewed_document']);
- const archive=index(evidence.archive_identity_snapshot),original=schema.nodeFromJSON(archive.pm);let sourceBlocks;
+ keys(evidence,[...fields,'archive_identity_snapshot','reviewed_document','archive_context'],[...fields,'archive_identity_snapshot','reviewed_document']);
+ const archive=archiveIndex(evidence),original=schema.nodeFromJSON(archive.pm);let sourceBlocks;
  const {operation,indices,senderAfter,after,lower,navigationCorrespondence}=reviewedSpliceGeometry(evidence,interpret,(targets,indices)=>{
  if(indices.some(i=>i>=original.childCount))throw TypeError('Unavailable reviewed archive block');
  const reviewed={...archive.document,blocks:indices.map(i=>archive.document.blocks[i])};
@@ -472,9 +566,10 @@ export function prepareRetainedReviewedRecoveryWitness(evidence,interpret){
 
 
 
+function evidenceForArchive(evidence){return {archive_identity_snapshot:evidence.archive_identity_snapshot,...(Object.hasOwn(evidence,'archive_context')?{archive_context:evidence.archive_context}:{})};}
 function reviewedRegions(evidence){
- keys(evidence,['archive_identity_snapshot','recovery_regions']);
- const archive=index(evidence.archive_identity_snapshot),regions=evidence.recovery_regions,byPath=new Map();
+ keys(evidence,['archive_identity_snapshot','recovery_regions','archive_context'],['archive_identity_snapshot','recovery_regions']);
+ const archive=archiveIndex(evidence),regions=evidence.recovery_regions,byPath=new Map();
  for(const run of archive.runs){const key=stableStringify(run.path),list=byPath.get(key)||[];list.push(run);byPath.set(key,list);}
  for(const list of byPath.values())list.sort((a,b)=>a.offset-b.offset);
  if(!Array.isArray(regions)||regions.length>4096)throw TypeError('Invalid reviewed regional selection');
@@ -501,8 +596,8 @@ export function reviewedRecoverySourceSelection(evidence){return plain(reviewedR
  * destinations. Regions/offsets are structural pointers, never equal-text search
  * or same-namespace copy ancestry. This result grants no donor authority. */
 export function mapReviewedRecoverySelection(evidence){
- keys(evidence,['archive_identity_snapshot','recovery_regions','source_selector']);
- const {archive,regions}=reviewedRegions({archive_identity_snapshot:evidence.archive_identity_snapshot,recovery_regions:evidence.recovery_regions});
+ keys(evidence,['archive_identity_snapshot','recovery_regions','source_selector','archive_context'],['archive_identity_snapshot','recovery_regions','source_selector']);
+ const {archive,regions}=reviewedRegions({...evidenceForArchive(evidence),recovery_regions:evidence.recovery_regions});
  const human=resolve(archive,evidence.source_selector),mapped=[];
  for(const region of regions){
   for(const source of human){
@@ -522,4 +617,4 @@ export function mapReviewedRecoverySelection(evidence){
 
 /** Internal maintained replay layout. This reuses the witness's exact schema
  * projection; positions are not a caller-authenticated source credential. */
-export function contentEditIdentityLayout(snapshot){return index(snapshot);}
+export function contentEditIdentityLayout(snapshot,decode=snapshotToDocument){return index(snapshot,decode);}

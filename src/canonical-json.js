@@ -3,11 +3,13 @@ import {bytesToHex} from '@noble/hashes/utils.js';
 /** UTF-8 binary order is the existing wire contract. Valid Unicode scalar
  * order is identical, without locale/ICU or UTF-16 supplementary-key drift. */
 function binaryKeyOrder(left,right){
- const a=left[Symbol.iterator](),b=right[Symbol.iterator]();
- while(true){const x=a.next(),y=b.next();if(x.done||y.done)return x.done?(y.done?0:-1):1;
-  const first=x.value.codePointAt(0),second=y.value.codePointAt(0);
+ let i=0,j=0;
+ while(i<left.length&&j<right.length){
+  const first=left.codePointAt(i),second=right.codePointAt(j);
   if(first!==second)return first<second?-1:1;
+  i+=first>0xffff?2:1;j+=second>0xffff?2:1;
  }
+ return i<left.length?1:j<right.length?-1:0;
 }
 function validKey(key){for(const character of key){const point=character.codePointAt(0);if(point>=0xd800&&point<=0xdfff)throw TypeError('Invalid canonical Unicode key');}return key;}
 

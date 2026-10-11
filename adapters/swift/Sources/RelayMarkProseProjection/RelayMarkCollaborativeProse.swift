@@ -340,18 +340,26 @@ public struct RelayMarkCollaborativeProse {
         func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil,
                   ordinal: Int = 1, tableRows: [[Int]]? = nil, tableColumns: [Int]? = nil,
                   tableIdentity: Int? = nil, tableWidth: Int? = nil, tableRow: Int? = nil,
-                  cellContext: CellContext? = nil, allowCalloutTitle: Bool = false) {
+                  cellContext: CellContext? = nil, allowCalloutTitle: Bool = false) throws {
             var offsets: [Int] = []
             for (index, block) in nodes.enumerated() {
                 let blockPath = path + [index]
                 let name = block["name"] as? String ?? ""
-                let attributes = block["attributes"] as? [String: Any] ?? [:]
+                let physicalAttributes = block["attributes"] as? [String: Any] ?? [:]
+                let attributes: [String: Any]
+                if dialect == .rich {
+                    // Rich admission above already validates the complete physical
+                    // snapshot. Presentation and offered widget reviews use the
+                    // same logical attrs as PM, without changing retained XML.
+                    attributes = try RelayMarkContentEditCodec.decodeDocumentAttributes(
+                        nodeName: name, attributes: physicalAttributes)
+                } else { attributes = physicalAttributes }
                 let children = block["children"] as? [[String: Any]] ?? []
                 if block["kind"] as? String != "element" { supported = false }
                 identity += 1
                 if dialect == .rich && (name=="questionBlock" || (genericNames.contains(name) && !children.isEmpty)) {
                     let firstRange=ranges.count
-                    walk(children,path:blockPath,parent:parent,cellContext:cellContext)
+                    try walk(children,path:blockPath,parent:parent,cellContext:cellContext)
                     guard ranges.count>firstRange,let id=attributes["relaymarkId"] as? String else { supported=false;continue }
                     let first=ranges[firstRange],last=ranges[ranges.count-1]
                     widget(kind:name=="questionBlock" ? .question : .directive,id:id,name:name,attributes:attributes,
@@ -375,7 +383,7 @@ public struct RelayMarkCollaborativeProse {
                     }
                     let intent = PresentationIntent(.listItem(ordinal: index + 1), identity: identity, parent: parent)
                     let firstRange = ranges.count
-                    walk(children, path: blockPath, parent: intent, cellContext: cellContext)
+                    try walk(children, path: blockPath, parent: intent, cellContext: cellContext)
                     guard ranges.count > firstRange else { supported = false; continue }
                     taskItems.append(TaskItem(id: id, checked: checked, entityID: entityID,
                         firstParagraphRange: ranges[firstRange], firstParagraphText: xmlText(children[0]),
@@ -397,7 +405,7 @@ public struct RelayMarkCollaborativeProse {
                         supported = false; continue
                     }
                     let firstRange = ranges.count
-                    walk(children, path: blockPath, parent: parent, cellContext: cellContext, allowCalloutTitle: true)
+                    try walk(children, path: blockPath, parent: parent, cellContext: cellContext, allowCalloutTitle: true)
                     guard ranges.count > firstRange else { supported = false; continue }
                     let first = ranges[firstRange]
                     let last = ranges[ranges.count - 1]
@@ -509,14 +517,14 @@ public struct RelayMarkCollaborativeProse {
                 if ["blockquote", "bulletList", "orderedList", "listItem", "taskList"].contains(name) {
                     if ["bulletList", "orderedList"].contains(name), children.contains(where: { $0["name"] as? String != "listItem" }) { supported = false }
                     if name == "taskList", children.contains(where: { $0["name"] as? String != "taskItem" }) { supported = false }
-                    walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1, cellContext: cellContext)
+                    try walk(children, path: blockPath, parent: intent, ordinal: attributes["start"] as? Int ?? 1, cellContext: cellContext)
                 } else if name == "table" {
                     guard dialect == .rich, let table, table.width > 0 else { supported = false; continue }
-                    walk(children, path: blockPath, parent: intent, tableRows: table.starts,
+                    try walk(children, path: blockPath, parent: intent, tableRows: table.starts,
                          tableIdentity: identity, tableWidth: table.width)
                 } else if name == "tableRow" {
                     guard dialect == .rich, let columns = tableRows?[index] else { supported = false; continue }
-                    walk(children, path: blockPath, parent: intent, tableColumns: columns,
+                    try walk(children, path: blockPath, parent: intent, tableColumns: columns,
                          tableIdentity: tableIdentity, tableWidth: tableWidth, tableRow: index)
                 } else if name == "tableHeader" || name == "tableCell" {
                     guard dialect == .rich, let tableIdentity, let tableWidth, let tableRow,
@@ -536,7 +544,7 @@ public struct RelayMarkCollaborativeProse {
                               ["left", "center", "right"].contains(value) else { supported = false; continue }
                         alignment = value
                     } else { alignment = nil }
-                    walk(children, path: blockPath, parent: intent,
+                    try walk(children, path: blockPath, parent: intent,
                          cellContext: CellContext(tableIdentity: tableIdentity, columns: tableWidth,
                             row: tableRow, column: column,
                             rowSpan: attributes["rowspan"] as? Int ?? 1,
@@ -628,7 +636,7 @@ public struct RelayMarkCollaborativeProse {
             }
             offsets.append(length()); boundaries[path] = offsets
         }
-        walk(root?["children"] as? [[String: Any]] ?? [], path: [])
+        try walk(root?["children"] as? [[String: Any]] ?? [], path: [])
         text = value; blockRanges = ranges; blockPaths = paths; blockIntents = intents
         tableCells = cells; callouts = calloutRanges; inlineAtoms = atoms
         self.blockAtoms = blockAtoms; self.entityReferenceAtoms = entityReferenceAtoms

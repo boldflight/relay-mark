@@ -16,8 +16,8 @@ function itemAt(doc,identity){const item=Y.getItem(doc.store,Y.createID(identity
 function storedRanges(doc,selected){const result=[];for(const selectedRange of selected){range(selectedRange);let clock=selectedRange.item.clock,end=clock+selectedRange.count;while(clock<end){const item=itemAt(doc,{client:selectedRange.item.client,clock}),next=Math.min(end,item.id.clock+item.length);if(next<=clock)throw TypeError('Unavailable dependency extent');result.push({item:{client:selectedRange.item.client,clock},count:next-clock,stored:item});if(result.length>MAX)throw TypeError('Dependency item resource limit');clock=next;}}return result;}
 function edge(source,destination,count,kind){return{source:id(source),destination:id(destination),count,kind};}
 function copyPairs(copies){const edges=[];for(const copy of copies){let a=0,b=0,ao=0,bo=0;while(a<copy.source.runs.length&&b<copy.destination.runs.length){const source=copy.source.runs[a],destination=copy.destination.runs[b],n=Math.min(source.count-ao,destination.count-bo);edges.push(edge({client:source.item.client,clock:source.item.clock+ao},{client:destination.item.client,clock:destination.item.clock+bo},n,'copied_text'));ao+=n;bo+=n;if(ao===source.count){a++;ao=0}if(bo===destination.count){b++;bo=0}}if(a!==copy.source.runs.length||b!==copy.destination.runs.length)throw TypeError('Incomplete dependency copy');}return edges;}
-function copyAllocations(sourceDoc,afterDoc,expected,fresh){
- const before=contentEditIdentityLayout(captureContentEditSnapshot(sourceDoc.getXmlFragment('default'))),after=contentEditIdentityLayout(captureContentEditSnapshot(afterDoc.getXmlFragment('default'))),edges=[];
+function copyAllocations(sourceDoc,afterDoc,expected,fresh,indexSnapshot=contentEditIdentityLayout){
+ const before=indexSnapshot(captureContentEditSnapshot(sourceDoc.getXmlFragment('default'))),after=indexSnapshot(captureContentEditSnapshot(afterDoc.getXmlFragment('default'))),edges=[];
  const allocated=new Map(fresh.map(record=>[key(record.item),record]));
  const freshItem=item=>allocated.has(key(item.id));
  for(const mapped of expected.copied_subtree_ranges){
@@ -42,7 +42,10 @@ function copyAllocations(sourceDoc,afterDoc,expected,fresh){
 }
 function merged(ranges){const result=[];for(const r of ranges.slice().sort((a,b)=>a.item.client-b.item.client||a.item.clock-b.item.clock)){const last=result.at(-1);if(last&&last.item.client===r.item.client&&r.item.clock<=last.item.clock+last.count)last.count=Math.max(last.item.clock+last.count,r.item.clock+r.count)-last.item.clock;else result.push({item:id(r.item),count:r.count});}return result;}
 function intersects(ranges,item,count){return ranges.some(range=>range.item.client===item.client&&range.item.clock<item.clock+count&&item.clock<range.item.clock+range.count);}
-function closure(seeds,edges){let ranges=merged(seeds),changed=true,budget=MAX;while(changed){if(--budget<0)throw TypeError('Dependency closure resource limit');const additions=[];for(const e of edges)for(const r of ranges){if(r.item.client!==e.source.client)continue;const from=Math.max(r.item.clock,e.source.clock),to=Math.min(r.item.clock+r.count,e.source.clock+e.count);if(from<to)additions.push({item:{client:e.destination.client,clock:e.destination.clock+from-e.source.clock},count:to-from});}const next=merged([...ranges,...additions]);changed=!same(ranges,next);ranges=next;if(ranges.length>MAX)throw TypeError('Dependency closure resource limit');}return ranges;}
+function closure(seeds,edges,fanout=null){let ranges=merged(seeds),changed=true,budget=MAX;const activated=new Set();while(changed){if(--budget<0)throw TypeError('Dependency closure resource limit');const additions=[];for(const e of edges){
+ if(e.sources){if(!fanout)throw TypeError('Finite inheritance is not a typed source relation');if(activated.has(e))continue;let hit=false;for(const source of e.sources)for(const r of ranges){if(--fanout.work<0)throw TypeError('Finite inheritance work limit');if(intersects([r],source.item,source.count)){hit=true;break;}}if(hit){activated.add(e);for(const destination of e.destinations){if(--fanout.material<0)throw TypeError('Finite inheritance material limit');additions.push(destination);}}continue;}
+ for(const r of ranges){if(r.item.client!==e.source.client)continue;const from=Math.max(r.item.clock,e.source.clock),to=Math.min(r.item.clock+r.count,e.source.clock+e.count);if(from<to)additions.push({item:{client:e.destination.client,clock:e.destination.clock+from-e.source.clock},count:to-from});}}
+ const next=merged([...ranges,...additions]);changed=!same(ranges,next);ranges=next;if(ranges.length>MAX)throw TypeError('Dependency closure resource limit');}return ranges;}
 function stackRanges(set){return[...set.clients].flatMap(([client,ranges])=>ranges.map(r=>({item:{client,clock:r.clock},count:r.len})));}
 const hash=bytes=>Array.from(digest(bytes),value=>value.toString(16).padStart(2,'0')).join('');
 function encodedBytes(value){let bytes=0;for(const character of JSON.stringify(value)){const point=character.codePointAt(0);bytes+=point<=0x7f?1:point<=0x7ff?2:point<=0xffff?3:4;if(bytes>32*1024*1024)throw TypeError('Dependency checkpoint byte resource limit');}return bytes;}
@@ -51,8 +54,8 @@ function association(receipt,roster){fields(receipt,['transaction_id','transacti
 function cut(value){fields(value,['through_update_id','state_sha256']);if(!Number.isSafeInteger(value.through_update_id)||value.through_update_id<0||typeof value.state_sha256!=='string'||!/^[0-9a-f]{64}$/.test(value.state_sha256))throw TypeError('Invalid dependency checkpoint cut');}
 function textRanges(doc,selection){fields(selection,['runs']);if(!Array.isArray(selection.runs))throw TypeError('Invalid dependency source intervals');for(const run of selection.runs){fields(run,['type','item','count']);fields(run.type,['client','clock']);range({item:run.type,count:1});for(const part of storedRanges(doc,[{item:run.item,count:run.count}]))if(!(part.stored.content instanceof Y.ContentString)||!(part.stored.parent instanceof Y.XmlText)||!part.stored.parent._item||!same(id(part.stored.parent._item.id),run.type))throw TypeError('Wrong dependency source item/type');}return selection.runs.map(({item,count})=>({item,count}));}
 function subset(wanted,available){for(const r of wanted){let clock=r.item.clock,end=clock+r.count;for(const other of available.filter(p=>p.item.client===r.item.client).sort((a,b)=>a.item.clock-b.item.clock)){if(other.item.clock>clock)break;if(other.item.clock+other.count>clock)clock=Math.min(end,other.item.clock+other.count);}if(clock!==end)throw TypeError('Unaccounted dependency checkpoint interval');}}
-export function planRecoveryRetirement(input,owner){
- fields(input,['binding','current_state_base64','current_cut','expected_manager_scopes','manager_contexts','imports','dependency_checkpoint','checkpoint_state_base64'],['binding','current_state_base64','current_cut','expected_manager_scopes','manager_contexts','imports']);fields(input.binding,['document_id','incarnation']);canonicalOperationID(input.binding.document_id);canonicalOperationID(input.binding.incarnation);cut(input.current_cut);encodedBytes(input);
+export function restoreRecoveryDependencyCohort(input,owner,associationInventory=null){
+ fields(input,['binding','current_state_base64','current_cut','expected_manager_scopes','manager_contexts','imports','dependency_checkpoint','checkpoint_state_base64'],['binding','current_state_base64','current_cut','expected_manager_scopes','manager_contexts','imports']);fields(input.binding,['document_id','incarnation']);canonicalOperationID(input.binding.document_id);canonicalOperationID(input.binding.incarnation);cut(input.current_cut);encodedBytes(associationInventory===null?input:{input,associationInventory});
  if(!Array.isArray(input.expected_manager_scopes)||!Array.isArray(input.manager_contexts)||!Array.isArray(input.imports))throw TypeError('Unavailable complete dependency roster');
  const roster=new Set();for(const value of input.expected_manager_scopes){fields(value,['actor_id','owner_id']);const identity=scope(value);if(roster.has(identity))throw TypeError('Duplicate dependency manager scope');roster.add(identity);}
  const contexts=new Set();for(const value of input.manager_contexts){fields(value,['actor_id','owner_id','initial_state_base64','checkpoint','receipts'],['actor_id','owner_id','receipts']);const identity=scope(value);if(contexts.has(identity)||!roster.has(identity))throw TypeError('Incomplete dependency manager scope');contexts.add(identity);}
@@ -60,7 +63,7 @@ export function planRecoveryRetirement(input,owner){
  if(Object.hasOwn(input,'dependency_checkpoint')!==Object.hasOwn(input,'checkpoint_state_base64'))throw TypeError('Unavailable dependency checkpoint state');
  if(!input.dependency_checkpoint&&input.manager_contexts.some(context=>context.checkpoint))throw TypeError('Checkpoint recovery dependencies require authenticated pre-cut summary');
  const currentBytes=owner.bytes(input.current_state_base64);if(hash(currentBytes)!==input.current_cut.state_sha256)throw TypeError('Dependency current state digest mismatch');
- const current=owner.owner(currentBytes),retained=[],edges=[],sourceEdges=[],associations=new Map();let material=0;
+ const current=owner.owner(currentBytes),retained=[],edges=[],sourceEdges=[],associations=new Map(),indexSnapshot=owner.identityLayout??contentEditIdentityLayout,witness=owner.buildWitness??buildContentEditWitness;let material=0;
  const budget=ranges=>{if(!Array.isArray(ranges)||(material+=ranges.length)>MAX)throw TypeError('Aggregate dependency interval resource limit');return ranges;};
  try{
   if(input.dependency_checkpoint){
@@ -86,31 +89,56 @@ export function planRecoveryRetirement(input,owner){
    associations.set(receipt.transaction_id,{receipt,imported_items:clone(added.imported_items),capability_items:clone(added.imported_items),source_items:{runs:imports.filter(part=>part.stored.content instanceof Y.ContentString).map(part=>({type:id(part.stored.parent._item.id),item:part.item,count:part.count}))}});
   }
   if(!associations.size)throw TypeError('Unavailable reviewed dependency associations');
+  if(associationInventory!==null){
+   if(!Array.isArray(associationInventory)||associationInventory.length!==associations.size)throw TypeError('Incomplete original reviewed association inventory');
+   let previousID=0;const seen=new Set(),priorIDs=new Set(input.dependency_checkpoint?.associations.map(entry=>entry.receipt.transaction_id)??[]);
+   for(const entry of associationInventory){fields(entry,['update_id','receipt']);const original=association(entry.receipt,roster);if(!Number.isSafeInteger(entry.update_id)||entry.update_id<=previousID||entry.update_id>input.current_cut.through_update_id)throw TypeError('Invalid original reviewed association row cut');previousID=entry.update_id;
+    const expected=associations.get(original.transaction_id);if(!expected||seen.has(original.transaction_id)||!same(original,expected.receipt))throw TypeError('Relabeled original reviewed association inventory');seen.add(original.transaction_id);
+    if(input.dependency_checkpoint&&(priorIDs.has(original.transaction_id)?entry.update_id>input.dependency_checkpoint.through_update_id:entry.update_id<=input.dependency_checkpoint.through_update_id))throw TypeError('Original reviewed association interval mismatch');
+   }
+  }
+
   for(const context of input.manager_contexts){
    const observe=({receipt,doc,footprint})=>{
     const imported=input.imports.find(association=>association.receipt.transaction_id===receipt.transaction_id&&association.receipt.actor_id===context.actor_id&&association.receipt.owner_id===context.owner_id);
     if(imported&&!same(merged(imported.imported_items),merged(footprint.structs.map(({item,count})=>({item,count})))))throw TypeError('Imported dependencies differ from exact original fresh allocation union');
     const sender=owner.owner(owner.bytes(receipt.sender_state_base64));try{
-     const expected=applyContentEdit(contentEditIdentityLayout(captureContentEditSnapshot(sender.getXmlFragment('default'))).pm,receipt.operation);
+     const expected=applyContentEdit(indexSnapshot(captureContentEditSnapshot(sender.getXmlFragment('default'))).pm,receipt.operation);
      if(!receipt.operation.history&&!receipt.operation.reviewed_recovery){
       const senderAfter=owner.owner(owner.bytes(receipt.sender_state_base64));try{Y.applyUpdate(senderAfter,owner.bytes(receipt.update_base64));
-       const proof=buildContentEditWitness({sender_before_snapshot:captureContentEditSnapshot(sender.getXmlFragment('default')),sender_after_snapshot:captureContentEditSnapshot(senderAfter.getXmlFragment('default')),before_snapshot:captureContentEditSnapshot(sender.getXmlFragment('default')),after_snapshot:captureContentEditSnapshot(senderAfter.getXmlFragment('default')),before_state_vector:captureContentEditFootprint(sender,Uint8Array.of(0,0)).state_vector,operation:{...receipt.operation,copies:[]},footprint:captureContentEditFootprint(senderAfter,owner.bytes(receipt.update_base64))});
+       const proof=witness({sender_before_snapshot:captureContentEditSnapshot(sender.getXmlFragment('default')),sender_after_snapshot:captureContentEditSnapshot(senderAfter.getXmlFragment('default')),before_snapshot:captureContentEditSnapshot(sender.getXmlFragment('default')),after_snapshot:captureContentEditSnapshot(senderAfter.getXmlFragment('default')),before_state_vector:captureContentEditFootprint(sender,Uint8Array.of(0,0)).state_vector,operation:{...receipt.operation,copies:[]},footprint:captureContentEditFootprint(senderAfter,owner.bytes(receipt.update_base64))});
        if(!same(proof.proven_copies,receipt.operation.copies))throw TypeError('Unavailable independently derived copy dependency');
-       const text=copyPairs(proof.proven_copies);edges.push(...text);sourceEdges.push(...text);edges.push(...copyAllocations(sender,senderAfter,expected,footprint.structs));
+       const text=copyPairs(proof.proven_copies);edges.push(...text);sourceEdges.push(...text);edges.push(...copyAllocations(sender,senderAfter,expected,footprint.structs,indexSnapshot));
       }finally{senderAfter.destroy()}
      }
-     // Effective predecessor effects propagate capabilities, never independent
-     // typing merely sharing a parent or origin/right-origin anchor.
-     for(const previous of footprint.deleted_items){if(previous.key===null&&previous.content.kind!=='format')continue;for(const fresh of footprint.structs){if(!same(previous.parent,fresh.parent)||previous.key!==fresh.key||previous.content.kind!==fresh.content.kind||(previous.content.kind==='format'&&previous.content.key!==fresh.content.key))continue;edges.push(edge(previous.item,fresh.item,Math.min(previous.count,fresh.count),'field_predecessor'));}}
-     if(edges.length>MAX)throw TypeError('Dependency edge resource limit');
+     observeDependencyPredecessors({edges},footprint);
     }finally{sender.destroy()}
    };
    const {actor_id,...basis}=context;const value=owner.checkpointOwner({...basis,current_state_base64:input.current_state_base64},observe);retained.push({...value,actor_id,owner_id:context.owner_id});
    for(const structs of value.doc.store.clients.values())for(const item of structs){if(!(item instanceof Y.Item)||!item.redone)continue;const target=itemAt(value.doc,id(item.redone));if(target.id.clock+target.length<item.redone.clock+item.length)throw TypeError('Unavailable dependency redone extent');const link=edge(item.id,item.redone,item.length,'redone');edges.push(link);if(item.content instanceof Y.ContentString)sourceEdges.push(link);if(edges.length>MAX)throw TypeError('Dependency edge resource limit');}
   }
+  return {input,current,retained,edges,sourceEdges,associations,budget,fanout:{work:MAX,material:MAX},destroy(){for(const value of retained)value.destroy();current.destroy();}};
+ }catch(error){for(const value of retained)value.destroy();current.destroy();throw error;}
+}
+
+/** Package-internal observation: only an independently replayed effective
+ * footprint is supplied by the maintained mutation owner. */
+export function observeDependencyPredecessors(cohort,footprint,relations=[]){
+ for(const relation of relations){fields(relation,['kind','sources','destinations']);if(!['finite_attribute','finite_option'].includes(relation.kind)||!relation.sources.length||!relation.destinations.length)throw TypeError('Invalid finite inheritance');cohort.budget(relation.sources);cohort.budget(relation.destinations);for(const source of relation.sources){range(source);if(source.count!==1)throw TypeError('Finite inheritance source must be one exact unit');}for(const destination of relation.destinations)range(destination);cohort.edges.push(relation);}
+ const {edges}=cohort;
+ // Independent typing sharing a parent or sequence anchor never propagates.
+ for(const previous of footprint.deleted_items){if(previous.key===null&&previous.content.kind!=='format')continue;for(const fresh of footprint.structs){if(!same(previous.parent,fresh.parent)||previous.key!==fresh.key||previous.content.kind!==fresh.content.kind||(previous.content.kind==='format'&&previous.content.key!==fresh.content.key))continue;edges.push(edge(previous.item,fresh.item,Math.min(previous.count,fresh.count),'field_predecessor'));}}
+ if(edges.length>MAX)throw TypeError('Dependency edge resource limit');
+}
+
+/** Package-internal sealing over the same restored original dependency seeds.
+ * Ordinary plans pass their original document/cut; the finite owner passes only
+ * its independently verified destination and actual converted managers. */
+export function finalizeRecoveryDependencyCohort(cohort,current=cohort.current,current_cut=cohort.input.current_cut){
+ const {input,retained,edges,sourceEdges,associations,budget}=cohort;cut(current_cut);
   const planned=[],summaries=[];
   for(const previous of associations.values()){
-   const capability=closure(previous.capability_items,edges),source=closure(textRanges(current,previous.source_items),sourceEdges),retirements=[];
+   const capability=closure(previous.capability_items,edges,cohort.fanout),source=closure(textRanges(current,previous.source_items),sourceEdges),retirements=[];
    for(const manager of retained){const groups=[],seen=new Set();for(const item of [...manager.manager.undoStack,...manager.manager.redoStack]){
     if(![...stackRanges(item.insertions),...stackRanges(item.deletions)].some(r=>intersects(capability,r.item,r.count)))continue;
     const group=item.meta.get('relaymark:operation_ids');if(!group||group.owner_id!==manager.owner_id)throw TypeError('Unavailable actual dependency group');if(seen.has(group.reference))throw TypeError('Ambiguous actual dependency group');seen.add(group.reference);groups.push(clone(group));
@@ -119,7 +147,11 @@ export function planRecoveryRetirement(input,owner){
    budget(capability);budget(source_dependencies.runs);
    planned.push({receipt:clone(previous.receipt),retirements,source_dependencies});summaries.push({receipt:clone(previous.receipt),imported_items:previous.imported_items,capability_items:capability,source_items:source_dependencies});
   }
-  const dependency_checkpoint={binding:clone(input.binding),...clone(input.current_cut),manager_scopes:clone(input.expected_manager_scopes),associations:summaries};
+  const dependency_checkpoint={binding:clone(input.binding),...clone(current_cut),manager_scopes:clone(input.expected_manager_scopes),associations:summaries};
   const result={binding:clone(input.binding),associations:planned,dependency_checkpoint,dependency_edges:[...new Map(edges.map(e=>[stableStringify(e),e])).values()],complete_dependency_correspondence:true};encodedBytes(result);return result;
- }finally{for(const value of retained)value.destroy();current.destroy();}
+}
+
+export function planRecoveryRetirement(input,owner){
+ const cohort=restoreRecoveryDependencyCohort(input,owner);
+ try{return finalizeRecoveryDependencyCohort(cohort);}finally{cohort.destroy();}
 }

@@ -22,6 +22,24 @@ export function bindOwnedCommandGroup(manager,event,operationID){
  const group=validateOwnedCommandGroup({owner_id:ownerID,reference:ids[0],operation_ids:ids});item.meta.set(key,freeze(group));return group;
 }
 export function readOwnedCommandGroup(manager,operationID){canonicalOperationID(operationID);const item=manager?.undoStack.at(-1);if(!item?.meta.get(key))throw TypeError('No actual owned command group');const group=ownedGroup(manager,item);if(group.operation_ids.at(-1)!==operationID)throw TypeError('No actual owned command group');return {...group,operation_ids:group.operation_ids.slice()};}
+/** Read the actual complete retained capability set for fresh reconciliation.
+ * No caller filter, serialized archive or new namespace can stand in for it. */
+export function readOwnedHistoryGroups(manager){
+ if(!manager||manager.undoing||manager.redoing||!Array.isArray(manager.undoStack)||!Array.isArray(manager.redoStack)||manager.undoStack.length+manager.redoStack.length>4096)throw TypeError('Unavailable actual history groups');
+ const ownerID=manager[ownerKey];canonicalOperationID(ownerID);
+ const groups=[],references=new Set(),operations=new Set();
+ for(const item of [...manager.undoStack,...manager.redoStack]){
+  const group=ownedGroup(manager,item);
+  if(references.has(group.reference))throw TypeError('Duplicate actual history group');
+  references.add(group.reference);
+  for(const operationID of group.operation_ids){
+   if(operations.has(operationID))throw TypeError('Duplicate actual history operation');
+   operations.add(operationID);if(operations.size>16384)throw TypeError('Actual history groups exceed resource limit');
+  }
+  groups.push({...group,operation_ids:group.operation_ids.slice()});
+ }
+ return groups;
+}
 export {validateOwnedCommandGroup,validateOwnedHistory} from '../../src/owned-command-group.js';
 export function bindOwnedCommandHistory(manager,event){
  const undo=event?.type==='undo',redo=event?.type==='redo';

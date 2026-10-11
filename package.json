@@ -26,7 +26,9 @@
     "yjs": "https://github.com/boldflight/yjs/releases/download/v13.6.33-relay.1/yjs-13.6.33.tgz"
   },
   "dependencies": {
+    "linkedom": "0.18.13",
     "@noble/hashes": "^2.0.1",
+    "@stablelib/base64": "2.0.1",
     "@tiptap/y-tiptap": "3.0.9",
     "core-js-pure": "3.50.0",
     "markdown-it": "^15.0.2",

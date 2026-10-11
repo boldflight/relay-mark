@@ -3,11 +3,43 @@ import Foundation
 /// The packaged maintained StepMap/identity witness owner. This stateless
 /// preparation confers neither accepted receipt scope nor source authority.
 public enum RelayMarkContentEditCodec {
+    /// Logical PM attributes and physical XML fields share the browser codec.
+    /// This is stateless grammar conversion, with no source or edit authority.
+    public static func encodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
+        try documentAttributes(operation: "encodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
+    }
+    public static func decodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
+        try documentAttributes(operation: "decodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
+    }
+    private static func documentAttributes(operation: String, nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
+        let result = try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
+            operation: operation, arguments: [nodeName, attributes])
+        guard let value = try JSONSerialization.jsonObject(with: result) as? [String: Any] else {
+            throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
+        }
+        return value
+    }
+
+    /// Finite detached aggregate-settings archive conversion. This invokes the
+    /// existing grammar owner and grants no live schema or donor authority.
+    public static func importAggregateSettingsSnapshot(_ snapshot: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
+            operation: "importAggregateSettingsSnapshot", arguments: [JSONSerialization.jsonObject(with: snapshot)])
+    }
+
+    /// Candidate-bounded subtraction of host-authenticated typed masks. This
+    /// pure operation grants no authorship or erasure authority.
+    public static func subtractSourceSelectors(candidates: Data, excluding: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "subtractSourceSelectors", arguments: [JSONSerialization.jsonObject(with: candidates), JSONSerialization.jsonObject(with: excluding)])
+    }
     public static func command(document: Data, request: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "createContentEditCommand", arguments: [JSONSerialization.jsonObject(with: document), JSONSerialization.jsonObject(with: request)])
     }
     /// Original source ordinals resolve internal navigation before the existing
     /// writer commits. This pure plan confers no archive or donor authority.
+    public static func planReviewedAnchorAllocation(_ evidence: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planReviewedAnchorAllocation", arguments: [JSONSerialization.jsonObject(with: evidence)])
+    }
     public static func planReviewedHeadingNavigation(_ evidence: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planReviewedHeadingNavigation", arguments: [JSONSerialization.jsonObject(with: evidence)])
     }

@@ -6,7 +6,7 @@ import {proseMirrorToRelayMark,relayMarkToProseMirror,identifiedDocumentNodeName
 import {mapInline,textMarkNames} from './document-inline.js';
 import {cloneCanonicalJSON as cloneJSON} from './canonical-json.js';
 import {documentToSnapshot,snapshotToDocument,normalizeDocument} from './document-snapshot.js';
-export {documentToSnapshot,snapshotToDocument,normalizeDocument} from './document-snapshot.js';
+export {documentToSnapshot,snapshotToDocument,normalizeDocument,importAggregateSettingsSnapshot} from './document-snapshot.js';
 export {validateTextAttributes} from './document-inline.js';
 import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';
@@ -16,7 +16,7 @@ import {parseAttributes} from './attributes.js';
 import {directiveNodeForName,directiveNodeForType,canonicalDirectiveNodes} from './document-directives.js';
 import {directiveForName,directiveForType} from './registry.js';
 import {isBlockNode} from './node-kind.js';
-import {parsePaperControlSource} from './document-controls.js';
+import {parsePaperControlSource,paperDocumentDestinations as authoredPMDestinations} from './document-controls.js';
 import {parseEntityReferenceSource,buildBlockEntityReferenceSource} from './document-reference.js';
 const md=new MarkdownIt({html:true,linkify:false,typographer:false});
 // Maintained CommonMark's inline rule owns code/escape/mark boundaries. This rule
@@ -46,6 +46,9 @@ function linkedTask(item){
 
 const marksOrder=textMarkNames;
 function valid(ast){return normalizeDocument(ast);}
+/** Read-only authored destination inventory. Duplicate explicit Anchors remain
+ * ambiguous; a host may activate only an exact unique selected target. */
+export function paperDocumentDestinations(ast){return authoredPMDestinations(relayMarkToProseMirror(valid(ast)));}
 function id(namespace,path){const hash=bytesToHex(sha256(utf8Bytes(namespace+'\0'+path.join('.'))));return 'b'+hash.slice(0,12)+'4'+hash.slice(13,16)+'8'+hash.slice(17,32);}
 function block(ns,path,type,content=[],props){return {id:id(ns,path),type,...(props?{props}:{}),content};}
 function longestTicks(s){return Math.max(0,...Array.from(s.matchAll(/`+/g),m=>m[0].length));}
@@ -68,7 +71,7 @@ export function importDocumentSource(source,{namespace}={}){
  return importDocument(exact===undefined?parseDocument(source,{namespace}):exact,{namespace});
 }
 // UTF-8 encoding is portable across JSCore and browser hosts without Web API globals.
-function utf8Bytes(string){const bytes=[];for(const char of string){let c=char.codePointAt(0);if(c>=0xd800&&c<=0xdfff)c=0xfffd;if(c<128)bytes.push(c);else if(c<2048)bytes.push(192|(c>>6),128|(c&63));else if(c<65536)bytes.push(224|(c>>12),128|((c>>6)&63),128|(c&63));else bytes.push(240|(c>>18),128|((c>>12)&63),128|((c>>6)&63),128|(c&63));}return new Uint8Array(bytes);}
+export function utf8Bytes(string){const bytes=[];for(const char of string){let c=char.codePointAt(0);if(c>=0xd800&&c<=0xdfff)c=0xfffd;if(c<128)bytes.push(c);else if(c<2048)bytes.push(192|(c>>6),128|(c&63));else if(c<65536)bytes.push(224|(c>>12),128|((c>>6)&63),128|(c&63));else bytes.push(240|(c>>18),128|((c>>12)&63),128|((c>>6)&63),128|(c&63));}return new Uint8Array(bytes);}
 export function editorDirectiveDefinitions(){return canonicalDirectiveNodes;}
 /** Finite XML migration. Returns edits for the host's existing CRDT transaction;
  * never allocates a replica or rewrites text/items/history. Unknown schemas fail. */
@@ -177,11 +180,21 @@ function historicalQuestion(header,body,ns,path){
  content.push(block(ns,[...path,index],'relay.form_option',inline(md.parseInline(text,{})[0]?.children||[]),{id:o.id||slug||'option-'+index,correct:o.correct??false,points:o.points??null,settings:{...(o.settings||{}),...extra}}));}
  return block(ns,path,'relay.form_question',content,{id:a.id,type,required:a.required==='true',points:number('points'),min:number('min'),max:number('max'),settings});
 }
+// A trailing unmarked source marker is authored identity, never a host HTML rewrite.
+function headingSource(inlineToken){
+ const tokens=[...(inlineToken.children||[])],last=tokens.at(-1);
+ const raw=inlineToken.content.match(/\s+\{#([A-Za-z0-9][A-Za-z0-9_-]{0,127})\}$/u);
+ const marker=last?.type==='text'?last.content.match(/\s+\{#([A-Za-z0-9][A-Za-z0-9_-]{0,127})\}$/u):null;
+ if(!raw||!marker||raw[1]!==marker[1])return {tokens,headingId:null};
+ const content=last.content.slice(0,-marker[0].length);
+ if(content)tokens[tokens.length-1]={...last,content};else tokens.pop();
+ return {tokens,headingId:raw[1]};
+}
 function markdownBlocks(tokens,ns,prefix){let at=0;
  const sequence=(end,path)=>{const nodes=[];while(at<tokens.length&&tokens[at].type!==end){const t=tokens[at++],p=[...path,nodes.length];let n;
   switch(t.type){
    case 'paragraph_open':{const i=tokens[at++];if(i.type!=='inline')throw new TypeError('Paragraph shape');at++;n=inlineMediaBlocks(i.children||[],ns,p,'paragraph');break;}
-   case 'heading_open':{const i=tokens[at++];at++;n=inlineMediaBlocks(i.children||[],ns,p,'heading',{level:Number(t.tag.slice(1)),headingId:null});break;}
+   case 'heading_open':{const i=tokens[at++];at++;const {tokens:content,headingId}=headingSource(i);n=inlineMediaBlocks(content,ns,p,'heading',{level:Number(t.tag.slice(1)),headingId});break;}
    case 'blockquote_open':n=block(ns,p,'quote',sequence('blockquote_close',p));break;
    case 'bullet_list_open':case 'ordered_list_open':{const children=sequence(t.type.replace('_open','_close'),p);let task=false;for(const item of children){const first=item.content[0]?.content[0];const m=first?.type==='text'?first.text.match(/^\[([ xX])\]\s+/):null;if(m){task=true;item.type='task_item';item.props={checked:m[1].toLowerCase()==='x',entityId:null};first.text=first.text.slice(m[0].length);if(!first.text)item.content[0].content.shift();}}
     if(task)for(const item of children){item.type='task_item';item.props??={checked:false,entityId:null};linkedTask(item);}
@@ -238,10 +251,10 @@ function inline(tokens){const output=[],marks=[];for(const t of inertInlineToken
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const attrs=a=>Object.entries(a).filter(([,v])=>v!=null).map(([k,v])=>' '+k+'="'+esc(v)+'"').join('');
 const tag=(n,a,body)=>'<'+n+attrs(a)+'>'+body+'</'+n+'>';
-export function renderDocument(ast){const pm=relayMarkToProseMirror(ast);const render=n=>{const a=n.attrs||{},body=(n.content||[]).map(render).join(''),{relaymarkId,...authored}=a,hydration={'data-authored':JSON.stringify(authored)};if(n.type==='text'){let text=esc(n.text);for(const m of(n.marks||[]).toReversed()){const names={bold:'strong',code:'code',italic:'em',strike:'s',underline:'u',highlight:'mark',superscript:'sup',subscript:'sub'};text=m.type==='link'?tag('a',renderedLinkAttributes(m.attrs),text):tag(names[m.type],{},text);}return text;}
+export function renderDocument(ast){const pm=relayMarkToProseMirror(ast);const headings=new Map(authoredPMDestinations(pm).filter(entry=>entry.kind==='heading').map(entry=>[entry.source_path.join('.'),entry.name]));const render=(n,path)=>{const a=n.attrs||{},body=(n.content||[]).map((child,index)=>render(child,[...path,index])).join(''),{relaymarkId,...authored}=a,hydration={'data-authored':JSON.stringify(authored)};if(n.type==='text'){let text=esc(n.text);for(const m of(n.marks||[]).toReversed()){const names={bold:'strong',code:'code',italic:'em',strike:'s',underline:'u',highlight:'mark',superscript:'sup',subscript:'sub'};text=m.type==='link'?tag('a',renderedLinkAttributes(m.attrs),text):tag(names[m.type],{},text);}return text;}
  const generic=directiveNodeForName(n.type);if(generic){const{relaymarkId,...authored}=a;return tag('section',{'data-relay-directive':generic.type,'data-authored':JSON.stringify(authored)},body);}
  const names={paragraph:'p',blockquote:'blockquote',bulletList:'ul',orderedList:'ol',listItem:'li',taskList:'ul',taskItem:'li',table:'table',tableRow:'tr',tableCell:'td',tableHeader:'th',calloutTitle:'div',questionLabel:'legend'};
- if(n.type==='hardBreak')return '<br>';if(n.type==='horizontalRule')return '<hr>';if(n.type==='heading')return tag('h'+a.level,{id:a.headingId},body);if(n.type==='codeBlock')return tag('pre',{},tag('code',{'data-language':a.language},body));if(n.type==='image')return '<img'+attrs({src:a.src,alt:a.alt,title:a.title,width:a.width,height:a.height})+'>';
+ if(n.type==='hardBreak')return '<br>';if(n.type==='horizontalRule')return '<hr>';if(n.type==='heading'){const name=headings.get(path.join('.'));return tag('h'+a.level,{id:name,'data-relay-heading-id':name,...hydration},body)};if(n.type==='codeBlock')return tag('pre',{},tag('code',{'data-language':a.language},body));if(n.type==='image')return '<img'+attrs({src:a.src,alt:a.alt,title:a.title,width:a.width,height:a.height})+'>';
  // Match maintained table column projection: first-row spans define columns;
  // zero/null widths remain unspecified, without importing a host minimum width.
  if(n.type==='table'){const cols=n.content[0].content.flatMap(cell=>Array.from({length:cell.attrs.colspan},(_,index)=>{const width=cell.attrs.colwidth?.[index];return '<col'+attrs({style:width?'width: '+width+'px':null})+'>';})).join('');return tag('table',{},tag('colgroup',{},cols)+body);}
@@ -254,10 +267,10 @@ export function renderDocument(ast){const pm=relayMarkToProseMirror(ast);const r
  if(n.type==='relayDataView'){const{relaymarkId,...authored}=a;return tag('div',{'data-relay-data-view':a.source,'data-authored':JSON.stringify(authored)},esc(a.title||a.source));}
  if(n.type==='relayButton')return tag('button',{type:'button',disabled:true,'data-relay-kind':a.kind,'data-relay-target':a.target,...hydration},esc(a.label));if(n.type==='relayAnchor')return tag('span',{'data-relay-anchor':a.name,...hydration},'');if(n.type==='relayConnection')return tag('div',{'data-relay-connection':a.provider,...hydration},esc(a.provider));
  const extra=n.type==='calloutTitle'?{'data-callout-title':true}:n.type==='orderedList'?{start:a.start}:n.type==='taskList'?{'data-relay-task-list':true}:n.type==='taskItem'?{'data-checked':a.checked,'data-relay-task-item':a.entityId,...hydration}:['tableCell','tableHeader'].includes(n.type)?{colspan:a.colspan,rowspan:a.rowspan,colwidth:a.colwidth?.join(','),'data-align':a.align,style:a.align?'text-align: '+a.align:null}:{};
- if(!names[n.type])throw new TypeError('Unsupported authored renderer');return tag(names[n.type],extra,body);};return pm.content.map(render).join('');}
+ if(!names[n.type])throw new TypeError('Unsupported authored renderer');return tag(names[n.type],extra,body);};return pm.content.map((node,index)=>render(node,[index])).join('');}
 export function projectDocumentMarkdown(ast){valid(ast);return ast.blocks.map(markdown).join('\n\n')+'\n';}
-function inlineMarkdown(nodes){return nodes.map(n=>{if(n.type==='text')return n.text.replace(/([\\`*_[\]])/g,'\\$1');if(n.type==='hard_break')return '  \n';if(['relay.entity_ref','relay.tag_ref'].includes(n.type))return n.props.source;if(n.type==='link')return '['+inlineMarkdown(n.content)+']('+n.href+(n.props?.title!==undefined&&n.props.title!==null?' '+JSON.stringify(n.props.title):'')+')';if(n.type==='code_span'){const text=n.content[0].text,f='`'.repeat(longestTicks(text)+1);return f+text+f;}const delimiter={strong:'**',emphasis:'*',strikethrough:'~~',underline:'<u>',highlight:'<mark>',superscript:'<sup>',subscript:'<sub>'}[n.type];if(!delimiter)throw new TypeError('Unsupported inline projection');return delimiter+inlineMarkdown(n.content)+(delimiter.startsWith('<')?delimiter.replace('<','</'):delimiter);}).join('');}
-function markdown(n){const p=n.props||{};switch(n.type){case 'paragraph':case 'relay.callout_title':return inlineMarkdown(n.content);case 'heading':return '#'.repeat(p.level)+' '+inlineMarkdown(n.content);case 'quote':return n.content.map(markdown).join('\n\n').split('\n').map(x=>'> '+x).join('\n');case 'horizontal_rule':return '---';case 'code':{const text=n.content.map(x=>x.text||'').join(''),f='`'.repeat(Math.max(3,longestTicks(text)+1));return f+(p.language||'')+'\n'+text+(text.endsWith('\n')?'':'\n')+f;}
+function inlineMarkdown(nodes){return nodes.map(n=>{if(n.type==='text')return n.text.replace(/([\\`*_[\]{}])/g,'\\$1');if(n.type==='hard_break')return '  \n';if(['relay.entity_ref','relay.tag_ref'].includes(n.type))return n.props.source;if(n.type==='link')return '['+inlineMarkdown(n.content)+']('+n.href+(n.props?.title!==undefined&&n.props.title!==null?' '+JSON.stringify(n.props.title):'')+')';if(n.type==='code_span'){const text=n.content[0].text,f='`'.repeat(longestTicks(text)+1);return f+text+f;}const delimiter={strong:'**',emphasis:'*',strikethrough:'~~',underline:'<u>',highlight:'<mark>',superscript:'<sup>',subscript:'<sub>'}[n.type];if(!delimiter)throw new TypeError('Unsupported inline projection');return delimiter+inlineMarkdown(n.content)+(delimiter.startsWith('<')?delimiter.replace('<','</'):delimiter);}).join('');}
+function markdown(n){const p=n.props||{};switch(n.type){case 'paragraph':case 'relay.callout_title':return inlineMarkdown(n.content);case 'heading':return '#'.repeat(p.level)+' '+inlineMarkdown(n.content)+(p.headingId?' {#'+p.headingId+'}':'');case 'quote':return n.content.map(markdown).join('\n\n').split('\n').map(x=>'> '+x).join('\n');case 'horizontal_rule':return '---';case 'code':{const text=n.content.map(x=>x.text||'').join(''),f='`'.repeat(Math.max(3,longestTicks(text)+1));return f+(p.language||'')+'\n'+text+(text.endsWith('\n')?'':'\n')+f;}
  case 'image':return '!['+(p.alt||'')+']('+p.src+')';case 'list':case 'task_list':return n.content.map((item,i)=>{const marker=n.type==='task_list'?(item.props.checked?'- [x] ':'- [ ] '):p.kind==='ordered'?(p.start+i)+'. ':'- ';const[first,...rest]=item.content.map(markdown).join('\n\n').split('\n');return marker+first+rest.map(x=>'\n'+' '.repeat(marker.length)+x).join('');}).join('\n');
  case 'table':{const rows=n.content.map(r=>'| '+r.content.map(c=>c.content.map(markdown).join(' ').replace(/\|/g,'\\|').replace(/\n/g,'<br>')).join(' | ')+' |');const separator='| '+n.content[0].content.map(c=>({left:':---',center:':---:',right:'---:'}[c.props.align]||'---')).join(' | ')+' |';return [rows[0],separator,...rows.slice(1)].join('\n');}
  case 'relay.form_option':return '- '+inlineMarkdown(n.content);case 'relay.paper_control':case 'relay.entity_reference':return p.source;

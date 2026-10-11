@@ -69,6 +69,19 @@ public final class RelayMarkNativeDocument {
     /// metadata, without a host traversal or text-diff reconstruction.
     public func captureIdentitySnapshot() throws -> Data {
         _ = try authoredDocument()
+        return try retainedIdentitySnapshot()
+    }
+
+    /// Detached archive inspection only: the shared finite converter qualifies
+    /// aggregate settings before raw retained identities are observed. Normal
+    /// live identity capture continues to require canonical authored content.
+    public func captureAggregateArchiveIdentitySnapshot() throws -> Data {
+        guard integrationStatus().isComplete else { throw Failure.unsupportedProseEdit }
+        _ = try RelayMarkContentEditCodec.importAggregateSettingsSnapshot(snapshot())
+        return try retainedIdentitySnapshot()
+    }
+
+    private func retainedIdentitySnapshot() throws -> Data {
         var tree=try JSONSerialization.jsonObject(with:document.inspectXMLSnapshot()) as! [String:Any]
         let envelope=metadata.toMap()
         if !envelope.isEmpty {tree["metadata"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(envelope))}
@@ -815,6 +828,27 @@ public final class RelayMarkNativeDocument {
               let operations=self.operationReferences(metadata),operations.last==operationID,
               let first=operations.first else {throw Failure.unboundOwnedHistory}
         return OwnedCommandGroup(ownerID:historyOwnerID,reference:first,operationIDs:operations)
+    }
+
+    /// Contentless current capabilities from the actual maintained undo and
+    /// redo StackItems. Hosts still authenticate receipt/erasure scope and keep
+    /// original pending packets separately. Reading never closes capture,
+    /// exports an archive, or grants inverse authority.
+    public func ownedHistoryGroups() throws -> [OwnedCommandGroup] {
+        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
+        let undo = undoManager.undoMetadata(), redo = undoManager.redoMetadata()
+        guard undo.count <= 4096, redo.count <= 4096, undo.count + redo.count <= 4096 else { throw Failure.conflictingOwnedCommand }
+        var groups: [OwnedCommandGroup] = [], references = Set<UUID>(), identifiers = Set<UUID>()
+        for metadata in undo + redo {
+            guard let operations = operationReferences(metadata), let reference = operations.first,
+                  references.insert(reference).inserted,
+                  identifiers.count + operations.count <= 16_384 else { throw Failure.unboundOwnedHistory }
+            for id in operations {
+                guard identifiers.insert(id).inserted else { throw Failure.unboundOwnedHistory }
+            }
+            groups.append(OwnedCommandGroup(ownerID: historyOwnerID, reference: reference, operationIDs: operations))
+        }
+        return groups
     }
 
     /// Trusted whole-group transition. Hosts authenticate donor dependencies,
@@ -1785,7 +1819,7 @@ public final class RelayMarkNativeDocument {
                 } else {
                     guard let name = raw["name"] as? String else { throw Failure.unsupportedProseEdit }
                     let node = try parent.insertElement(named: name, at: index, in: transaction)
-                    for (key, value) in try PMYXmlBridge.orderedAttributes(nodeName: name, values: raw["attributes"] as? [String: Any] ?? [:]) {
+                    for (key, value) in try PMYXmlBridge.orderedPhysicalAttributes(nodeName: name, values: raw["attributes"] as? [String: Any] ?? [:]) {
                         try node.setAttribute(key, value: value, in: transaction)
                     }
                     for child in raw["children"] as? [[String: Any]] ?? [] {

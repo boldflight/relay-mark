@@ -1,6 +1,7 @@
-// Generated binding of spec/relaymark/contract.json; checked by check-contract-version.mjs.
+// Generated from spec/relaymark/contract.json + editor-schema.json + xml-attribute-encoding.json. Never edit independently.
 export const canonicalContract = Object.freeze({
   "contract_version": 1,
   "schema": "relaymark-prosemirror",
-  "source_contract": "relaymark_ast"
+  "source_contract": "relaymark_ast",
+  "schema_hash": "b4dc52bc7a0f3b8bdfd022beff054db6f7104c3299bcf65abad28fad3c0c391a"
 });

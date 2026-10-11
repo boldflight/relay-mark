@@ -73,19 +73,24 @@ export function classifyContentEditReference(documentBinding,transaction,proof,h
 /** Receipt references must already be authenticated against their original
  * transaction. Candidates bound memory; absent ancestry remains generated. */
 // Candidate-bounded interval validation; command selector and authentication bounds remain unchanged.
-function referenceRanges(selector){
+function referenceRanges(selector,summary=false){
  if(!exact(selector,['runs'])||!Array.isArray(selector.runs))fail('Invalid source selector');
- if(selector.runs.length>maxRuns)fail('Source selector budget','source_identity_limit');
+ if(selector.runs.length>(summary?1_000_000:maxRuns))fail('Source selector budget','source_identity_limit');
  let units=0;const ordered=[];
  const ranges=selector.runs.map(run=>{
   if(!exact(run,['item','type','count'])||!validID(run.item)||!validID(run.type)||!Number.isInteger(run.count)||run.count<1||run.item.clock+run.count>0x100000000)fail('Invalid source selector');
-  if((units+=run.count)>maxUnits)fail('Source selector budget','source_identity_limit');
+  units+=run.count;if(!summary&&units>maxUnits)fail('Source selector budget','source_identity_limit');
   const value={client:run.item.client,start:run.item.clock,end:run.item.clock+run.count,type:run.type};
+  if(summary)return value;
   let low=0,high=ordered.length;while(low<high){const mid=(low+high)>>>1,other=ordered[mid];if(other.client<value.client||(other.client===value.client&&other.start<value.start))low=mid+1;else high=mid;}
   const previous=ordered[low-1],next=ordered[low];
   if((previous?.client===value.client&&previous.end>value.start)||(next?.client===value.client&&next.start<value.end))fail('Overlapping source identities');
   ordered.splice(low,0,value);return value;
  });
+ if(summary){
+  for(const value of ranges.sort((a,b)=>a.client-b.client||a.start-b.start))ordered.push(value);
+  for(let i=1;i<ordered.length;i++)if(ordered[i-1].client===ordered[i].client&&ordered[i-1].end>ordered[i].start)fail('Overlapping source identities');
+ }
  return {ranges,ordered,units};
 }
 function sameSourceType(left,right){return left.client===right.client&&left.clock===right.clock;}
@@ -209,14 +214,55 @@ export function partitionReviewedRecoveryDestinations(input){
  if(!exact(input,['recovery_regions','human_destinations','generated_destinations']))fail('Invalid reviewed destination partition');
  const destinations=regionalDestinationRanges(input.recovery_regions),human=requireRegionalSubset(input.human_destinations,destinations),generated=requireRegionalSubset(input.generated_destinations,destinations);
  const known=referenceRanges({runs:[...input.human_destinations.runs,...input.generated_destinations.runs]}).ordered,unknown=[];
- for(const destination of destinations){
-  let at=destination.start;
-  for(const part of known){
-   if(part.client!==destination.client||part.end<=at||part.start>=destination.end)continue;
-   if(part.start>at)unknown.push({...destination,start:at,end:part.start});
-   at=Math.max(at,part.end);
-  }
-  if(at<destination.end)unknown.push({...destination,start:at});
- }
+ unknown.push(...subtractReferenceRanges(destinations,known));
  return {human_destinations:encodeReferenceRanges(human.ordered),generated_destinations:encodeReferenceRanges(generated.ordered),unknown_destinations:encodeReferenceRanges(unknown)};
+}
+
+
+// Shared typed interval subtraction. Both callers validate their selectors first.
+function subtractReferenceRanges(candidates,masks){
+ const result=[];let first=0;
+ for(const candidate of candidates){
+  while(first<masks.length&&(masks[first].client<candidate.client||(masks[first].client===candidate.client&&masks[first].end<=candidate.start)))first++;
+  let at=candidate.start;
+  for(let i=first;i<masks.length;i++){
+   const mask=masks[i];if(mask.client>candidate.client||mask.start>=candidate.end&&mask.client===candidate.client)break;
+   if(mask.client!==candidate.client||mask.end<=at)continue;
+   if(!sameSourceType(candidate.type,mask.type))fail('Source identity type mismatch','source_identity_mismatch');
+   if(mask.start>at)result.push({...candidate,start:at,end:mask.start});
+   at=Math.max(at,Math.min(candidate.end,mask.end));if(at===candidate.end)break;
+  }
+  if(at<candidate.end)result.push({...candidate,start:at});
+ }
+ return result;
+}
+/** Removes authenticated erasure source ranges from one bounded candidate window.
+ * The host authenticates original checkpoint/receipt masks. This helper grants
+ * no erasure, authorship or admission authority and never expands text units.
+ * Summary input retains the existing 1M interval / 32MiB resource bounds;
+ * command candidate and result bounds remain unchanged.
+ */
+export function subtractSourceSelectors(candidateSelector,excludedSelectors){
+ const candidates=referenceRanges(candidateSelector).ordered;
+ if(!Array.isArray(excludedSelectors))fail('Invalid source masks');
+ if(excludedSelectors.length>1_000_000)fail('Source summary budget','source_identity_limit');
+ let count=0;
+ for(const selector of excludedSelectors){
+  if(!exact(selector,['runs'])||!Array.isArray(selector.runs))fail('Invalid source selector');
+  if((count+=selector.runs.length)>1_000_000)fail('Source summary budget','source_identity_limit');
+ }
+ let bytes=0;for(const character of JSON.stringify(excludedSelectors)){
+  const point=character.codePointAt(0);bytes+=point<=0x7f?1:point<=0x7ff?2:point<=0xffff?3:4;
+  if(bytes>33_554_432)fail('Source summary budget','source_identity_limit');
+ }
+ const ranges=[];for(const selector of excludedSelectors)for(const value of referenceRanges(selector,true).ordered)ranges.push(value);
+ ranges.sort((a,b)=>a.client-b.client||a.start-b.start);
+ const masks=[];
+ for(const range of ranges){
+  const previous=masks.at(-1);
+  if(previous&&previous.client===range.client&&previous.end>range.start&&!sameSourceType(previous.type,range.type))fail('Source identity type mismatch','source_identity_mismatch');
+  if(previous&&previous.client===range.client&&previous.end>=range.start&&sameSourceType(previous.type,range.type))previous.end=Math.max(previous.end,range.end);
+  else masks.push({...range});
+ }
+ return encodeReferenceRanges(subtractReferenceRanges(candidates,masks));
 }

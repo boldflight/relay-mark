@@ -69,6 +69,27 @@ final class PMYXmlBridge {
         return type.attrs.compactMap { attribute in values[attribute.name].map { (attribute.name, $0) } }
     }
 
+    /// Replacement snapshots already contain physical fields. Validate them
+    /// through the sole codec, then retain schema order for plain attributes
+    /// and a deterministic order for the codec-owned additional fields.
+    static func orderedPhysicalAttributes(nodeName: String, values: [String: Any]) throws -> [(String, Any)] {
+        let logical = try logicalAttributes(nodeName: nodeName, physical: values)
+        _ = try orderedAttributes(nodeName: nodeName, values: logical)
+        let schema = try canonical().schema
+        guard let type = schema.nodes[nodeName] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let names = type.attrs.map(\.name)
+        return names.compactMap { name in values[name].map { (name, $0) } }
+            + values.keys.filter { !names.contains($0) }.sorted().map { ($0, values[$0]!) }
+    }
+
+    private static func logicalAttributes(nodeName: String, physical: [String: Any]) throws -> [String: Any] {
+        try RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: nodeName, attributes: physical)
+    }
+    private static func physicalAttributes(nodeName: String, logical: [String: Any]) throws -> [String: Any] {
+        _ = try orderedAttributes(nodeName: nodeName, values: logical)
+        return try RelayMarkContentEditCodec.encodeDocumentAttributes(nodeName: nodeName, attributes: logical)
+    }
+
     // MARK: Y XML snapshot → ProseMirror
 
     func document(fromSnapshot tree: [String: Any]) throws -> PMNode {
@@ -113,7 +134,7 @@ final class PMYXmlBridge {
     private func element(_ raw: [String: Any]) throws -> PMNode {
         guard raw["kind"] as? String == "element", let name = raw["name"] as? String,
               let type = schema.nodes[name], !type.isText else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let attributes = raw["attributes"] as? [String: Any] ?? [:]
+        let attributes = try Self.logicalAttributes(nodeName: name, physical: raw["attributes"] as? [String: Any] ?? [:])
         let known = Set(type.attrs.map(\.name))
         guard attributes.keys.allSatisfy(known.contains) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let rawChildren = raw["children"] as? [[String: Any]] ?? []
@@ -126,11 +147,11 @@ final class PMYXmlBridge {
 
     // MARK: ProseMirror → Y XML snapshot (prospective validation)
 
-    func snapshot(_ doc: PMNode) -> [String: Any] {
-        ["kind": "fragment", "children": Self.normalize(doc).map(snapshot),"metadata":doc.attrs["relaymark"] ?? [:]]
+    func snapshot(_ doc: PMNode) throws -> [String: Any] {
+        ["kind": "fragment", "children": try Self.normalize(doc).map(snapshot),"metadata":doc.attrs["relaymark"] ?? [:]]
     }
 
-    private func snapshot(_ child: Child) -> [String: Any] {
+    private func snapshot(_ child: Child) throws -> [String: Any] {
         switch child {
         case .text(let texts):
             return ["kind": "text", "delta": texts.map { text -> [String: Any] in
@@ -140,8 +161,8 @@ final class PMYXmlBridge {
             }]
         case .node(let node):
             return ["kind": "element", "name": node.type.name,
-                    "attributes": node.attrs.filter { !($0.value is NSNull) },
-                    "children": Self.normalize(node).map(snapshot)]
+                    "attributes": try Self.physicalAttributes(nodeName: node.type.name, logical: node.attrs),
+                    "children": try Self.normalize(node).map(snapshot)]
         }
     }
 
@@ -186,20 +207,19 @@ final class PMYXmlBridge {
         if isElement {
             guard y.tag(in: tx) == p.type.name else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
             let yAttrs = try y.attributes(in: tx)
-            for attribute in p.type.attrs {
-                let key = attribute.name
-                guard let value = p.attrs[key] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-                if value is NSNull {
-                    if yAttrs[key] != nil { try y.removeAttribute(key, in: tx) }
-                } else if !Self.strictEqual(yAttrs[key], value) {
-                    try y.setAttribute(key, value: value, in: tx)
-                }
+            let physical = try Self.physicalAttributes(nodeName: p.type.name, logical: p.attrs)
+            for (key, value) in try Self.orderedPhysicalAttributes(nodeName: p.type.name, values: physical) {
+                // Maintained y-tiptap's codec path uses equalityDeep. Literal
+                // null and unchanged nested settings retain their original Items.
+                if !pmCompareDeep(yAttrs[key], value) { try y.setAttribute(key, value: value, in: tx) }
             }
-            for key in yAttrs.keys where p.attrs[key] == nil { try y.removeAttribute(key, in: tx) }
+            for key in yAttrs.keys.sorted() where physical[key] == nil { try y.removeAttribute(key, in: tx) }
         }
         let pChildren = Self.normalize(p), yChildren = y.children(in: tx)
         let pCount = pChildren.count, yCount = yChildren.count, minCount = min(pCount, yCount)
         let mapping = mapped(source, count: yCount)
+        if try reconcileMappedChildren(y, p, source: source, yChildren: yChildren,
+                                       pChildren: pChildren, mapping: mapping, in: tx) { return }
         var left = 0, right = 0
         while left < minCount {
             if try requiresWrite(pChildren[left], y: yChildren[left], sourceParent: source, sourceGroup: left, targetParent: p, targetGroup: left, in: tx) {break}
@@ -260,6 +280,87 @@ final class PMYXmlBridge {
         }
     }
 
+    // Maintained y-tiptap reconciles reordered mapped PM children before its
+    // positional fallback. Anchors are PM object identities, never rich IDs,
+    // equal labels, or semantically equal attributes.
+    private func mappedChildAnchors(_ mapping: [Child]?, _ targets: [Child]) -> [(y: Int, p: Int)] {
+        guard let mapping else { return [] }
+        var targetIndices: [ObjectIdentifier: Int] = [:]
+        for (index, child) in targets.enumerated() {
+            if case .node(let node) = child, targetIndices[ObjectIdentifier(node)] == nil {
+                targetIndices[ObjectIdentifier(node)] = index
+            }
+        }
+        var candidates: [(y: Int, p: Int)] = []
+        for (index, child) in mapping.enumerated() {
+            if case .node(let node) = child, let target = targetIndices[ObjectIdentifier(node)] {
+                candidates.append((index, target))
+            }
+        }
+        var predecessors = Array(repeating: -1, count: candidates.count), tails: [Int] = []
+        for index in candidates.indices {
+            var low = 0, high = tails.count
+            while low < high {
+                let middle = (low + high) / 2
+                if candidates[tails[middle]].p < candidates[index].p { low = middle + 1 }
+                else { high = middle }
+            }
+            predecessors[index] = low > 0 ? tails[low - 1] : -1
+            if low == tails.count { tails.append(index) } else { tails[low] = index }
+        }
+        guard var index = tails.last else { return [] }
+        var anchors: [(y: Int, p: Int)] = []
+        while index != -1 { anchors.append(candidates[index]); index = predecessors[index] }
+        return anchors.reversed()
+    }
+
+    private func reconcileMappedChildren(_ y: YXmlNode, _ p: PMNode, source: PMNode?,
+                                        yChildren: [YXmlNode], pChildren: [Child], mapping: [Child]?,
+                                        in tx: YrsTransaction) throws -> Bool {
+        let anchors = mappedChildAnchors(mapping, pChildren)
+        guard anchors.count >= 2, anchors.contains(where: { $0.y != $0.p }),
+              anchors.allSatisfy({ matchNodeName(yChildren[$0.y], pChildren[$0.p], in: tx) }) else { return false }
+
+        func updateMatching(_ oldIndex: Int, _ targetIndex: Int) throws -> Bool {
+            let old = yChildren[oldIndex], target = pChildren[targetIndex]
+            if old.kind(in: tx) == "text", case .text(let texts) = target {
+                if try requiresWrite(target, y: old, sourceParent: source, sourceGroup: oldIndex,
+                                     targetParent: p, targetGroup: targetIndex, in: tx) || !equalText(old, texts, in: tx) {
+                    try updateText(old, texts, sourceParent: source, sourceGroup: oldIndex,
+                                   targetParent: p, targetGroup: targetIndex, in: tx)
+                }
+                return true
+            }
+            if matchNodeName(old, target, in: tx), case .node(let node) = target {
+                if try requiresWrite(node) || !equal(old, target, in: tx) {
+                    try update(old, node, source: Self.sourceNode(mapping?[oldIndex]), in: tx)
+                }
+                return true
+            }
+            return false
+        }
+        func reconcileGap(_ oldStart: Int, _ oldEnd: Int, _ targetStart: Int, _ targetEnd: Int) throws {
+            let count = min(oldEnd - oldStart, targetEnd - targetStart)
+            for offset in 0..<count {
+                if try !updateMatching(oldStart + offset, targetStart + offset) {
+                    try y.removeChildren(start: UInt32(targetStart + offset), length: 1, in: tx)
+                    try create(pChildren[targetStart + offset], in: y, at: targetStart + offset, tx)
+                }
+            }
+            let deleted = oldEnd - oldStart - count
+            if deleted > 0 { try y.removeChildren(start: UInt32(targetStart + count), length: UInt32(deleted), in: tx) }
+            for index in (targetStart + count)..<targetEnd { try create(pChildren[index], in: y, at: index, tx) }
+        }
+        var oldIndex = 0, targetIndex = 0
+        for anchor in anchors {
+            try reconcileGap(oldIndex, anchor.y, targetIndex, anchor.p)
+            _ = try updateMatching(anchor.y, anchor.p)
+            oldIndex = anchor.y + 1; targetIndex = anchor.p + 1
+        }
+        try reconcileGap(oldIndex, yChildren.count, targetIndex, pChildren.count)
+        return true
+    }
+
     private func matchNodeName(_ y: YXmlNode, _ p: Child, in tx: YrsTransaction) -> Bool {
         guard case .node(let node) = p, y.kind(in: tx) == "element" else { return false }
         return y.tag(in: tx) == node.type.name
@@ -292,7 +393,8 @@ final class PMYXmlBridge {
             guard y.kind(in: tx) == "element", y.tag(in: tx) == node.type.name else { return false }
             let normalized = Self.normalize(node), children = y.children(in: tx)
             guard children.count == normalized.count,
-                  Self.equalAttrs(node.attrs, try y.attributes(in: tx)) else { return false }
+                  pmCompareDeep(try Self.physicalAttributes(nodeName: node.type.name, logical: node.attrs),
+                                try y.attributes(in: tx)) else { return false }
             for (child, expected) in zip(children, normalized) where !(try equal(child, expected, in: tx)) { return false }
             return true
         case .text(let texts):
@@ -368,9 +470,9 @@ final class PMYXmlBridge {
             for (offset, grandchild) in Self.normalize(node).enumerated() {
                 try create(grandchild, in: element, at: offset, tx)
             }
-            for attribute in node.type.attrs {
-                guard let value = node.attrs[attribute.name] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-                if !(value is NSNull) { try element.setAttribute(attribute.name, value: value, in: tx) }
+            let physical = try Self.physicalAttributes(nodeName: node.type.name, logical: node.attrs)
+            for (key, value) in try Self.orderedPhysicalAttributes(nodeName: node.type.name, values: physical) {
+                try element.setAttribute(key, value: value, in: tx)
             }
         case .text(let texts):
             let leaf = try parent.insertText(at: UInt32(index), in: tx)

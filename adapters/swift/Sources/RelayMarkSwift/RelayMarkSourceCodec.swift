@@ -17,6 +17,11 @@ public enum RelayMarkSourceCodec {
     public static func renderDocument(_ document: Data) throws -> String {
         try text("renderDocument",document:document)
     }
+    /// Canonical authored PM block ordinals, never hydrated labels or XML offsets.
+    /// Duplicate explicit Anchor names remain ambiguous and require a unique match.
+    public static func paperDocumentDestinations(document: Data) throws -> Data {
+        try call("paperDocumentDestinations", arguments: [json(document)])
+    }
     public static func importDocument(_ original: Data, namespace: String) throws -> Data {
         try call("importDocument",arguments:[json(original),["namespace":namespace]])
     }

@@ -852,7 +852,16 @@
         "projection": {
           "default": "chart"
         },
+        "columns": {
+          "default": null
+        },
         "filter": {
+          "default": null
+        },
+        "sort": {
+          "default": null
+        },
+        "group": {
           "default": null
         },
         "limit": {

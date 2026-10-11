@@ -1,4 +1,4 @@
-import {safeImageSource} from './document-links.js';
+import {safeImageSource, withLinkSyntaxScope} from './document-links.js';
 /** Canonical rich editor projection and strict lossless AST inverse. */
 import { directiveNodeForName, directiveNodeForType, authoredDirectiveProps, canonicalDirectiveNodes } from './document-directives.js';
 import { mapInline, unmapInline } from './document-inline.js';
@@ -18,6 +18,8 @@ const entityId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 const maxTaskDepth = 16;
 const maxListDepth = 16;
 const maxDocumentDepth = 64;
+/** Existing canonical PM/AST nesting admission; HTML adds only mark/structural wrappers. */
+export function documentDepthLimit(){return maxDocumentDepth;}
 const maxTaskChildren = 4096;
 
 export function tableProseMirrorToRelayMark(prosemirror) {
@@ -29,6 +31,7 @@ export function tableProseMirrorToRelayMark(prosemirror) {
 }
 
 export function proseMirrorToRelayMark(prosemirror) {
+ return withLinkSyntaxScope(() => {
   assertObject(prosemirror, "doc");
   onlyKeys(prosemirror, ["type", "content", "attrs"], "doc");
   const metadata=prosemirror.attrs && Object.hasOwn(prosemirror.attrs,"relaymark") ? prosemirror.attrs.relaymark : {};
@@ -39,6 +42,7 @@ export function proseMirrorToRelayMark(prosemirror) {
   const seen = new Set();
   const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen, 0));
   return { type: "relaymark.document", blocks, ...metadata };
+ });
 }
 
 export function relayMarkTableToProseMirror(document) {
@@ -50,6 +54,7 @@ export function relayMarkTableToProseMirror(document) {
 }
 
 export function relayMarkToProseMirror(document) {
+ return withLinkSyntaxScope(() => {
   assertObject(document, "document");
   onlyKeys(document, ["type", "blocks", "frontmatter", "annotations", "resources", "meta"], "document");
   for (const key of ["frontmatter", "meta"]) if (document[key] !== undefined) assertObject(document[key], key);
@@ -63,6 +68,7 @@ export function relayMarkToProseMirror(document) {
   const metadata=Object.fromEntries(["frontmatter","annotations","resources","meta"].filter(key=>Object.hasOwn(document,key)).map(key=>[key,document[key]]));
   assertAuthoredMetadata(metadata);
   return { type: "doc", ...(Object.keys(metadata).length?{attrs:{relaymark:metadata}}:{}), content: blocks.map(block => unmapBlock(block, seen, 0)) };
+ });
 }
 
 function mapBlock(node, seen, calloutDepth) {
@@ -734,7 +740,7 @@ export function validateQuestionProps(props, option = false) {
   assertObject(props.settings, "form authored settings");
   validateJSONValue(props.settings);
 }
-function validateJSONValue(value, depth = 0) {
+export function validateJSONValue(value, depth = 0) {
   if (depth > 32) throw new TypeError("Authored settings nesting exceeds bound");
   if (value === null || typeof value === "string" || typeof value === "boolean") return;
   if (typeof value === "number" && Number.isFinite(value)) return;

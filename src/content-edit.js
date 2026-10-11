@@ -1,9 +1,17 @@
+export {importDocumentHTML} from './document-html.js';
 /** Pure maintained ProseMirror operation interpreter. The host supplies its
  * admitted pre-document and verifies CRDT anchors/copy authority independently.
  * No client pre-document, persistence, transport, or alternate editor lives here. */
 import {Step} from 'prosemirror-transform';
 import {createCanonicalEditorSchema} from './editor-model.js';
 export {createCanonicalEditorSchema} from './editor-model.js';
+import {canonicalAttributeCodec} from './document-attributes.js';
+export {canonicalAttributeCodec};
+/** Stateless adapters for native PM/XML bridges; the canonical codec owns policy. */
+export function encodeDocumentAttributes(name,attributes){return canonicalAttributeCodec.encode(name,attributes);}
+export function decodeDocumentAttributes(name,attributes){return canonicalAttributeCodec.decode(name,attributes);}
+export {xmlAttributeEncodingPolicy} from './document-attribute-policy.js';
+export {importAggregateSettingsSnapshot} from './document-snapshot.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror,assertAuthoredMetadata} from './document-adapter.js';
 import {stableStringify} from './canonical-json.js';
 import {validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
@@ -197,55 +205,46 @@ import {prepareWitness} from './content-edit-witness.js';
 export function prepareContentEditWitness(evidence){return prepareWitness(evidence,applyContentEdit);}
 
 import {buildWitness} from './content-edit-witness.js';
-export function buildContentEditWitness(evidence){return buildWitness(evidence,applyContentEdit);}
-export {planReviewedRecoveryRetirement,replayContentEditMutation,produceContentEdit,createOwnedHistoryCheckpoint,retireOwnedHistoryCheckpoint,readContentEditDocument,exportOwnedHistoryState,restoreOwnedHistoryState} from '../adapters/collaboration/content-edit-mutation.js';
+export function buildContentEditWitness(evidence){
+ // Only this synchronous canonical wrapper can reuse its own successful
+ // interpretation. Copies are proven separately and do not affect Step meaning.
+ // Exact semantic bytes also detect in-place changes between the two phases.
+ let prior;
+ return buildWitness(evidence,(document,operation)=>{
+  const {kind,steps,group,history}=operation,semantic=stableStringify({kind,steps,group,history});
+  if(prior&&document===prior.document&&kind===prior.kind&&steps===prior.steps&&group===prior.group&&history===prior.history&&semantic===prior.semantic)return prior.result;
+  const result=applyContentEdit(document,operation);
+  prior={document,kind,steps,group,history,semantic,result};return result;
+ });
+}
+export {prepareAggregateSettingsHistoryCut,planReviewedRecoveryRetirement,replayContentEditMutation,produceContentEdit,produceOwnedHistory,createOwnedHistoryCheckpoint,retireOwnedHistoryCheckpoint,readContentEditDocument,exportOwnedHistoryState,restoreOwnedHistoryState} from '../adapters/collaboration/content-edit-mutation.js';
 
 import {buildOwnedHistoryWitness as buildObservedHistory} from './content-edit-witness.js';
 /** Preliminary immediate inverse observation; authoritative owned receipt replay remains required. */
 export function buildOwnedHistoryWitness(evidence){return buildObservedHistory(evidence,applyContentEdit);}
 
-export {classifyContentEditReference,foldSourceReferences,partitionReviewedRecoveryDestinations} from './document-source-identities.js';
+export {classifyContentEditReference,foldSourceReferences,partitionReviewedRecoveryDestinations,subtractSourceSelectors} from './document-source-identities.js';
 
 export {resolveContentEditTextItems,sourceSelectorWindows,validateSourceReadSelector} from './content-edit-witness.js';
 
-import {contentEditTextGroups,planContentEditTextWrite} from './content-edit-write.js';
+import {contentEditWritePlan,contentEditWriteCallbacks} from './content-edit-write.js';
 export {planContentEditTextWrite} from './content-edit-write.js';
 /** In-process causal writer evidence, never a transport claim or authority. */
 export function prepareContentEditWrite(before,steps,after){
  const expected=applyContentEdit(before,{kind:'content_edit',steps});
  if(stableStringify(expected.document)!==stableStringify(after))throw TypeError('Causal writer result disagrees with actual steps');
- const groups=document=>Object.fromEntries(contentEditTextGroups(schema.nodeFromJSON(document)).map(group=>[group.parent+':'+group.index,group]));
- const prepared={retained_ranges:expected.retained_ranges,before_groups:groups(before),after_groups:groups(after)};
- const causal_targets=[];
- for(const target of Object.values(prepared.after_groups)){
-  const source=prepared.before_groups[target.parent+':'+target.index];
-  let retained=false;
-  if(source&&source.text.length===target.text.length){
-   if(!source.text.length)retained=true;
-   else{
-    let lower=0,upper=prepared.retained_ranges.length;
-    while(lower<upper){const middle=(lower+upper)>>>1,range=prepared.retained_ranges[middle];if(range.source_from+range.length<=source.position)lower=middle+1;else upper=middle;}
-    const range=prepared.retained_ranges[lower];
-    retained=!!range&&range.source_from<=source.position&&range.source_from+range.length>=source.position+source.text.length&&range.destination_from+source.position-range.source_from===target.position;
-   }
-  }
-  if(!retained)causal_targets.push(target.parent);
- }
- return {...prepared,causal_targets:[...new Set(causal_targets)]};
+ return contentEditWritePlan(schema.nodeFromJSON(before),schema.nodeFromJSON(after),expected.retained_ranges);
 }
 
 /** Callback for the maintained binding, also used by exact headless replay. */
 export function createContentEditWrite(before,steps,after){
  const prepared=prepareContentEditWrite(before.toJSON(),steps,after.toJSON());
- const targets=new Set(prepared.causal_targets),needed=new WeakMap();
- function visit(node){let changed=targets.has(node.attrs.relaymarkId);node.forEach(child=>{if(visit(child))changed=true});needed.set(node,changed);return changed}
- visit(after);
- return {requiresWrite:node=>needed.get(node)===true,planText:(sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)=>planContentEditTextWrite(prepared,sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)};
+ return contentEditWriteCallbacks(prepared,after);
 }
 
 export {reconciliationCoverage} from '../adapters/collaboration/content-edit-observer.js';
 
-export {produceDocumentPatch} from './document-patch.js';
+export {produceDocumentPatch,prepareDocumentTextReplacement} from './document-patch.js';
 
 import {prepareReviewedRecoveryWitness as prepareRecovery,prepareRetainedReviewedRecoveryWitness as prepareRetainedRecovery} from './content-edit-witness.js';
 /** Regional allocation correspondence only; donor ancestry and hashes remain host authority. */
@@ -256,4 +255,4 @@ export {reviewedRecoverySourceSelection,mapReviewedRecoverySelection} from "./co
 /** Accepted issued regions only; host authentication and full replay remain mandatory. */
 export function prepareRetainedReviewedRecoveryWitness(evidence){return prepareRetainedRecovery(evidence,applyContentEdit);}
 
-export {planReviewedHeadingNavigation} from './content-edit-witness.js';
+export {planReviewedHeadingNavigation,planReviewedAnchorAllocation,readContentEditSnapshotDocument,readReviewedRecoveryArchiveDocument,reviewedRecoveryArchiveSourceWindows,contentEditSnapshotToPortableSnapshot} from './content-edit-witness.js';
