@@ -43,9 +43,9 @@ final class RelayMarkNativeRichEditingTests: XCTestCase {
         try XCTUnwrap(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any])
     }
 
-    func testEmbeddedSchemaIsTheBrowserSchema() throws {
+    func testEmbeddedSchemaIsTheCanonicalSharedSchema() throws {
         let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-        let exported=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-editor-schema.json")))
+        let exported=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/editor-schema.json")))
         let embedded = try JSONSerialization.jsonObject(with: Data(RelayMarkNativeProseMirrorSchema.json.utf8))
         // The host registers PaperDocument at a different priority; paragraph
         // remains the shared default fill. Compare every serializable semantic

@@ -101,7 +101,11 @@ final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
     }
 
     func testAmbiguousExplicitAnchorAndUnselectedOriginalDestinationRefuseWithoutChangingCurrentReplica() throws {
-        let source = try fixture("paper-controls-v3-draft"), target = try fixture("paper-controls-v3-draft")
+        let source = RelayMarkNativeDocument(), target = try fixture("paper-controls-v3-draft")
+        // Cross-document collisions are allocated safely. Ambiguity means two
+        // original donor destinations, which must refuse before any mutation.
+        _ = try source.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(
+            "@Anchor(name: \"next\")\n\n@Anchor(name: \"next\")\n\n@Button(label: \"Next\", kind: \"anchor\", target: \"next\")", namespace: "ambiguous-donor"))
         let before = try target.snapshot(), state = try target.encodeUpdate()
         XCTAssertThrowsError(try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: Array(try blocks(source.snapshot()).indices), expectedSnapshot: before))
         XCTAssertEqual(try target.encodeUpdate(), state)

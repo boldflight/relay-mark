@@ -15,7 +15,9 @@ struct RelayMarkAttributedHistoryTests {
         try encoded(JSONSerialization.jsonObject(with: data))
     }
     private func setup() throws -> (RelayMarkCollaborationDocument, RelayMarkCollaborationDocument.AttributionReplay, [String: Any]) {
-        let url = try #require(Bundle.module.url(forResource: "attributed-history-v1", withExtension: "json"))
+        // Current records were emitted by the maintained owner; historical bytes stay immutable.
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let url = root.appendingPathComponent("test/fixtures/attributed-history-current.json")
         let fixture = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let expected = try #require(fixture["expected"] as? [String: Any])
         let binding = try #require(expected["binding"] as? [String: String])
