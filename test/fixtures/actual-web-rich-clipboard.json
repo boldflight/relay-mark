@@ -1,0 +1,194 @@
+[
+  {
+    "name": "whole-rich-callout-table-question",
+    "html": "<p data-relaymark-id=\"leadingOriginal\" data-pm-slice=\"1 1 []\">Selection begins</p><section data-relaymark-id=\"calloutOriginal\" data-relay-callout=\"\" data-tone=\"warning\" data-emphasis=\"strong\" class=\"relay-callout\"><p data-relaymark-id=\"titleOriginal\" data-callout-title=\"\" class=\"relay-callout-title\">Instructions</p><p data-relaymark-id=\"bodyOriginal\"><strong>Own bold body</strong></p></section><table data-relaymark-id=\"tableOriginal\" style=\"min-width: 50px;\"><colgroup><col style=\"min-width: 25px;\"><col style=\"min-width: 25px;\"></colgroup><tbody><tr data-relaymark-id=\"rowOriginal\"><th data-relaymark-id=\"headerOriginal\" colspan=\"1\" rowspan=\"1\"><p data-relaymark-id=\"headerParagraphOriginal\">Column</p></th><td data-relaymark-id=\"cellOriginal\" colspan=\"1\" rowspan=\"1\"><p data-relaymark-id=\"cellParagraphOriginal\">Value</p></td></tr></tbody></table><div data-question-block=\"\" class=\"question-block-paper\" data-relaymark-id=\"questionOriginal\" data-id=\"10000000-0000-4000-8000-000000000011\" data-type=\"multiple_choice\" data-required=\"true\" data-settings=\"{&quot;randomize&quot;:true,&quot;description&quot;:&quot;日本語&quot;,&quot;optional&quot;:null}\"><div data-question-label=\"\" class=\"question-block-content\" data-relaymark-id=\"labelOriginal\">Question</div><div data-question-option=\"\" data-relaymark-id=\"optionOriginal\" data-id=\"10000000-0000-4000-8000-000000000012\" data-correct=\"false\" data-settings=\"{&quot;description&quot;:&quot;Keep this option&quot;}\"><strong>First choice</strong></div></div><p data-relaymark-id=\"trailingOriginal\">Selection ends</p>",
+    "text": "Selection begins\n\nInstructions\n\nOwn bold body\n\nColumn\n\nValue\n\nQuestion\n\nFirst choice\n\nSelection ends",
+    "slice": {
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "relaymarkId": "leadingOriginal"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Selection begins"
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "attrs": {
+            "relaymarkId": "calloutOriginal",
+            "tone": "warning",
+            "emphasis": "strong"
+          },
+          "content": [
+            {
+              "type": "calloutTitle",
+              "attrs": {
+                "relaymarkId": "titleOriginal"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Instructions"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "bodyOriginal"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ],
+                  "text": "Own bold body"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "attrs": {
+            "relaymarkId": "tableOriginal"
+          },
+          "content": [
+            {
+              "type": "tableRow",
+              "attrs": {
+                "relaymarkId": "rowOriginal"
+              },
+              "content": [
+                {
+                  "type": "tableHeader",
+                  "attrs": {
+                    "relaymarkId": "headerOriginal",
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": null,
+                    "align": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": "headerParagraphOriginal"
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Column"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "tableCell",
+                  "attrs": {
+                    "relaymarkId": "cellOriginal",
+                    "colspan": 1,
+                    "rowspan": 1,
+                    "colwidth": null,
+                    "align": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": "cellParagraphOriginal"
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Value"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "questionBlock",
+          "attrs": {
+            "relaymarkId": "questionOriginal",
+            "id": "10000000-0000-4000-8000-000000000011",
+            "type": "multiple_choice",
+            "required": true,
+            "points": null,
+            "min": null,
+            "max": null,
+            "settings": {
+              "randomize": true,
+              "description": "日本語",
+              "optional": null
+            }
+          },
+          "content": [
+            {
+              "type": "questionLabel",
+              "attrs": {
+                "relaymarkId": "labelOriginal"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Question"
+                }
+              ]
+            },
+            {
+              "type": "questionOption",
+              "attrs": {
+                "relaymarkId": "optionOriginal",
+                "id": "10000000-0000-4000-8000-000000000012",
+                "correct": false,
+                "points": null,
+                "settings": {
+                  "description": "Keep this option"
+                }
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "marks": [
+                    {
+                      "type": "bold"
+                    }
+                  ],
+                  "text": "First choice"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {
+            "relaymarkId": "trailingOriginal"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Selection ends"
+            }
+          ]
+        }
+      ],
+      "openStart": 1,
+      "openEnd": 1
+    }
+  }
+]

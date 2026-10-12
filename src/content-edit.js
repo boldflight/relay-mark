@@ -1,4 +1,4 @@
-export {importDocumentHTML} from './document-html.js';
+export {importDocumentHTML,importClipboardHTML} from './document-html.js';
 /** Pure maintained ProseMirror operation interpreter. The host supplies its
  * admitted pre-document and verifies CRDT anchors/copy authority independently.
  * No client pre-document, persistence, transport, or alternate editor lives here. */
@@ -255,4 +255,4 @@ export {reviewedRecoverySourceSelection,mapReviewedRecoverySelection} from "./co
 /** Accepted issued regions only; host authentication and full replay remain mandatory. */
 export function prepareRetainedReviewedRecoveryWitness(evidence){return prepareRetainedRecovery(evidence,applyContentEdit);}
 
-export {planReviewedHeadingNavigation,planReviewedAnchorAllocation,readContentEditSnapshotDocument,readReviewedRecoveryArchiveDocument,reviewedRecoveryArchiveSourceWindows,contentEditSnapshotToPortableSnapshot} from './content-edit-witness.js';
+export {planClipboardHeadingNavigation,planClipboardAnchorAllocation,planReviewedHeadingNavigation,planReviewedAnchorAllocation,readContentEditSnapshotDocument,readReviewedRecoveryArchiveDocument,reviewedRecoveryArchiveSourceWindows,contentEditSnapshotToPortableSnapshot} from './content-edit-witness.js';

@@ -3,6 +3,15 @@ import Foundation
 /// The packaged maintained StepMap/identity witness owner. This stateless
 /// preparation confers neither accepted receipt scope nor source authority.
 public enum RelayMarkContentEditCodec {
+    /// Pure canonical HTML conversion through the packaged shared DOM/PM
+    /// grammar. The returned document grants no source, media or edit authority.
+    /// Hosts must fence the captured paste and authorize references before using
+    /// this material in their existing document transaction.
+    public static func importDocumentHTML(_ html: String, namespace: String) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
+            operation: "importDocumentHTML", arguments: [["html": html, "namespace": namespace]])
+    }
+
     /// Logical PM attributes and physical XML fields share the browser codec.
     /// This is stateless grammar conversion, with no source or edit authority.
     public static func encodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
@@ -42,6 +51,18 @@ public enum RelayMarkContentEditCodec {
     }
     public static func planReviewedHeadingNavigation(_ evidence: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planReviewedHeadingNavigation", arguments: [JSONSerialization.jsonObject(with: evidence)])
+    }
+    /// Pure clipboard repair; confers no reviewed-history or host authority.
+    /// Pure clipboard Slice parser; returned context grants no host authority.
+    public static func importClipboardHTML(_ html: String, namespace: String) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
+            operation: "importClipboardHTML", arguments: [["html": html, "namespace": namespace]])
+    }
+    public static func planClipboardAnchorAllocation(_ evidence: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planClipboardAnchorAllocation", arguments: [JSONSerialization.jsonObject(with: evidence)])
+    }
+    public static func planClipboardHeadingNavigation(_ evidence: Data) throws -> Data {
+        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planClipboardHeadingNavigation", arguments: [JSONSerialization.jsonObject(with: evidence)])
     }
     public static func prepareWrite(before: Data, steps: Data, after: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"prepareContentEditWrite",arguments:[JSONSerialization.jsonObject(with:before),JSONSerialization.jsonObject(with:steps),JSONSerialization.jsonObject(with:after)])

@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import RelayMarkProseProjection
 import RelayMarkSwift
 
@@ -32,9 +33,11 @@ public enum RelayMarkNativeRichEditing {
         /// storedMarks state; an empty array/map explicitly clears marks.
         public let storedMarks: Data?
         public let storedTextAttributes: Data?
-        init(update:Data,beforeSnapshot:Data,steps:Data,caret:Caret?,authoredMetadataChanged:Bool=false,storedMarks:Data?=nil,storedTextAttributes:Data?=nil){
+        /// Call-local exact fitter correspondence/normalizations, never a grant or journal field.
+        public let clipboardFitting: Data?
+        init(update:Data,beforeSnapshot:Data,steps:Data,caret:Caret?,authoredMetadataChanged:Bool=false,storedMarks:Data?=nil,storedTextAttributes:Data?=nil,clipboardFitting:Data?=nil){
             self.update=update;self.beforeSnapshot=beforeSnapshot;self.steps=steps;self.caret=caret;self.authoredMetadataChanged=authoredMetadataChanged
-            self.storedMarks=storedMarks;self.storedTextAttributes=storedTextAttributes
+            self.storedMarks=storedMarks;self.storedTextAttributes=storedTextAttributes;self.clipboardFitting=clipboardFitting
         }
     }
 
@@ -276,6 +279,185 @@ public enum RelayMarkNativeRichEditing {
             head = inside
         }
         return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps, caret: head.flatMap { caret($0, in: updated) })
+    }
+
+    /// Insert a validated canonical block slice through the maintained PM
+    /// replacement owner. Caller-supplied depths describe the clipboard Slice;
+    /// this does not guess browser clipboard openness or grant host authority.
+    public static func insertDocumentSlice(document: RelayMarkNativeDocument, range: NSRange,
+        authoredAST: Data, openStart: Int, openEnd: Int, expectedSnapshot: Data) throws -> Change {
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              range.location >= 0, range.length >= 0, openStart >= 0, openEnd >= 0,
+              let before = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let incomingSnapshot = try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.documentToSnapshot(authoredAST)) as? [String: Any],
+              (incomingSnapshot["metadata"] == nil || (incomingSnapshot["metadata"] as? [String: Any])?.isEmpty == true) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: before)
+        let imported = try bridge.document(fromSnapshot: incomingSnapshot)
+        guard imported.childCount > 0 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        return try applyDocumentSlice(document: document, range: range, source: source, imported: imported,
+            openStart: openStart, openEnd: openEnd, bridge: bridge)
+    }
+
+    /// Original fragment preflight is the host's responsibility; final fitted
+    /// document passes the existing canonical write/projector before mutation.
+    public static func insertDocumentSlice(document: RelayMarkNativeDocument, range: NSRange,
+        clipboardSlice: Data, expectedSnapshot: Data) throws -> Change {
+        func depth(_ value: Any?) -> Int? {
+            guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                  number.doubleValue.isFinite, number.doubleValue.rounded() == number.doubleValue,
+                  number.doubleValue >= 0, number.doubleValue <= 128 else { return nil }
+            return number.intValue
+        }
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              range.location >= 0, range.length >= 0,
+              let before = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let result = try JSONSerialization.jsonObject(with: clipboardSlice) as? [String: Any],
+              Set(result.keys) == Set(["slice", "normalizations"]), let raw = result["slice"] as? [String: Any],
+              Set(raw.keys) == Set(["content", "openStart", "openEnd"]),
+              result["normalizations"] is [[String: Any]],
+              let start = depth(raw["openStart"]), let end = depth(raw["openEnd"]),
+              let content = raw["content"] as? [[String: Any]], !content.isEmpty, content.count <= 4096 else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: before)
+        let fragment = try PMSlice.fromJSON(raw, schema: bridge.schema)
+        // A call-local root is only a path inventory wrapper, not a DocumentAST.
+        let imported = try bridge.schema.nodes["doc"]!.create(nil, fragment.content)
+        return try applyDocumentSlice(document: document, range: range, source: source, imported: imported,
+            openStart: start, openEnd: end, bridge: bridge)
+    }
+
+    private static func applyDocumentSlice(document: RelayMarkNativeDocument, range: NSRange,
+        source: PMNode, imported: PMNode, openStart: Int, openEnd: Int, bridge: PMYXmlBridge) throws -> Change {
+        try applyDocumentSlices(document: document, range: range, source: source,
+            fragments: [(imported, openStart, openEnd)], bridge: bridge)
+    }
+
+    public static func insertDocumentSlice(document: RelayMarkNativeDocument, range: NSRange,
+        clipboardSlices: [Data], expectedSnapshot: Data) throws -> Change {
+        guard (1...4096).contains(clipboardSlices.count), document.integrationStatus().isComplete,
+              try document.snapshot() == expectedSnapshot, range.location >= 0, range.length >= 0,
+              let before = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: before)
+        var count = 0, fragments: [(PMNode, Int, Int)] = []
+        for bytes in clipboardSlices {
+            guard let result = try JSONSerialization.jsonObject(with: bytes) as? [String: Any],
+                  Set(result.keys) == Set(["slice", "normalizations"]), result["normalizations"] is [[String: Any]],
+                  let raw = result["slice"] as? [String: Any], Set(raw.keys) == Set(["content", "openStart", "openEnd"]),
+                  let content = raw["content"] as? [[String: Any]], !content.isEmpty else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            count += content.count
+            guard count <= 4096 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+            for key in ["openStart", "openEnd"] {
+                guard let number = raw[key] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                      number.doubleValue.isFinite, number.doubleValue.rounded() == number.doubleValue,
+                      (0...128).contains(number.intValue), number.doubleValue == Double(number.intValue) else {
+                    throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+                }
+            }
+            let slice = try PMSlice.fromJSON(raw, schema: bridge.schema)
+            fragments.append((try bridge.schema.nodes["doc"]!.create(nil, slice.content), slice.openStart, slice.openEnd))
+        }
+        return try applyDocumentSlices(document: document, range: range, source: source, fragments: fragments, bridge: bridge)
+    }
+
+    private static func applyDocumentSlices(document: RelayMarkNativeDocument, range: NSRange,
+        source: PMNode, fragments: [(PMNode, Int, Int)], bridge: PMYXmlBridge) throws -> Change {
+        // Allocate by copied-fragment path, not by supplied donor identity.
+        // Normal external HTML has no IDs; repeated supplied IDs are not a
+        // destination identity. Only unambiguous explicit evidence can be moved.
+        var allocated: [String: [String: String]] = [:]
+        var copiedBlocks: [String: [String]] = [:]
+        var hostEvidenceIDs = Set<String>()
+        func key(_ path: [Int]) -> String { path.map(String.init).joined(separator: ".") }
+        func allocate(_ node: PMNode, path: [Int]) {
+            var fields: [String: String] = [:]
+            if node.type.attrs.contains(where: { $0.name == "relaymarkId" }) {
+                let fresh = RelayMarkNativeRichXML.freshID()
+                fields["relaymarkId"] = fresh
+                if let old = node.attrs["relaymarkId"] as? String, !old.isEmpty {
+                    copiedBlocks[old, default: []].append(fresh)
+                }
+            }
+            if node.type.name == "questionBlock" || node.type.name == "questionOption" {
+                fields["id"] = UUID().uuidString.lowercased()
+            }
+            if ["relayEvidence", "relaySourceBundle"].contains(node.type.name),
+               let id = node.attrs["id"] as? String { hostEvidenceIDs.insert(id) }
+            allocated[key(path)] = fields
+            for (index, child) in node.content.children.enumerated() { allocate(child, path: path + [index]) }
+        }
+        for (index, fragment) in fragments.enumerated() { allocate(fragment.0, path: [index]) }
+        func copied(_ node: PMNode, path: [Int]) throws -> PMNode {
+            var attrs = node.attrs
+            for (name, value) in allocated[key(path)] ?? [:] { attrs[name] = value }
+            // Canonical evidence arrays can name copied blocks or stable source
+            // entries. Do not touch host Evidence.id, entity/media IDs, selectors
+            // or arbitrary settings. An ambiguous supplied block ref refuses.
+            if ["agentSuggestion", "relayClaim", "relayComparison", "relayAction"].contains(node.type.name),
+               let evidence = attrs["evidence"] as? [String] {
+                attrs["evidence"] = try evidence.map { old in
+                    guard let destinations = copiedBlocks[old] else { return old }
+                    guard destinations.count == 1, !hostEvidenceIDs.contains(old) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+                    return destinations[0]
+                }
+            }
+            let children = try node.content.children.enumerated().map { index, child in
+                try copied(child, path: path + [index])
+            }
+            return PMNode(type: node.type, attrs: attrs,
+                content: PMFragment(children), marks: node.marks, text: node.text)
+        }
+        let projection = try document.richProseProjection()
+        guard projection.isEditable else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        var from = try position(range.location, projection: projection, doc: source)
+        var to = try position(NSMaxRange(range), projection: projection, doc: source)
+        var transform = PMTransform(source), items: [[String: Any]] = [], slices: [PMSlice] = []
+        for (index, fragment) in fragments.enumerated() {
+            let incoming = try copied(fragment.0, path: [index]), maximum = PMSlice.maxOpen(incoming.content)
+            guard fragment.1 <= maximum.openStart, fragment.2 <= maximum.openEnd else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            let slice = PMSlice(incoming.content, openStart: fragment.1, openEnd: fragment.2)
+            let trace = try PMClipboardFitTrace(slice), stepIndex = transform.steps.count
+            try transform.replaceRange(from, to, slice, sourceTrace: trace)
+            guard transform.steps.count > stepIndex, let step = transform.steps.last,
+                  let end = step.ranges.last.map({ $0.0 + $0.2 }) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            items.append(["clipboard_slice": slice.json(), "source_trace": try trace.json(), "step_index": stepIndex])
+            slices.append(slice)
+            // Each subsequent item follows the actual maintained fitter's insertion end,
+            // never text search or an inferred block/UTF offset.
+            from = end; to = end
+        }
+        var preferred: [String: Int] = [:], headings = Set<Int>()
+        source.content.nodesBetween(0, source.content.size, { node, pos, _, _ in
+            let mapped = transform.map(pos)
+            if let id = node.attrs["relaymarkId"] as? String,
+               transform.doc.nodeAt(mapped)?.attrs["relaymarkId"] as? String == id {
+                preferred[id] = mapped
+                if node.type.name == "heading" { headings.insert(mapped) }
+            }
+            return true
+        })
+        let fitting = try JSONSerialization.data(withJSONObject: items.count == 1 ? items[0]["source_trace"]! : items)
+        let (update, updated, beforeSnapshot, steps) = try commit(transform, source: source, bridge: bridge,
+            document: document, preferredIDs: preferred, preservedHeadingPositions: headings,
+            clipboardSlice: slices.count == 1 ? slices[0] : nil,
+            clipboardSourceTrace: items.count == 1 ? items[0]["source_trace"] as? [String: Any] : nil,
+            clipboardItems: items.count > 1 ? items : nil)
+        let end = transform.steps.last?.ranges.last.map { $0.0 + $0.2 }
+        let selected = end.flatMap { try? updated.resolve($0) }.flatMap { PMCommands.near($0) }
+        let head: Int?
+        if case .text(let position)? = selected { head = position } else { head = nil }
+        return Change(update: update, beforeSnapshot: beforeSnapshot, steps: steps,
+            caret: head.flatMap { caret($0, in: updated) }, clipboardFitting: fitting)
     }
 
     public enum Key: Sendable {
@@ -550,9 +732,10 @@ public enum RelayMarkNativeRichEditing {
     /// scratch replica, then writes it through y-prosemirror's diff.
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
                                document: RelayMarkNativeDocument, preferredIDs: [String: Int] = [:],
-                               reviewedArchive: PMNode? = nil, reviewedIndices: [Int]? = nil) throws -> (Data, PMNode, Data, Data) {
+                               reviewedArchive: PMNode? = nil, reviewedIndices: [Int]? = nil,
+                               preservedHeadingPositions: Set<Int> = [], clipboardSlice: PMSlice? = nil, clipboardSourceTrace: [String: Any]? = nil, clipboardItems: [[String: Any]]? = nil) throws -> (Data, PMNode, Data, Data) {
         var witnessed = transform
-        var retainedHeadingPositions = Set<Int>(), retainedDestinationNames = Set<String>()
+        var retainedHeadingPositions = preservedHeadingPositions, retainedDestinationNames = Set<String>()
         func applyRepairs(_ candidate: PMNode) throws {
             var repairs: [PMStep] = []
             candidate.content.nodesBetween(0, candidate.content.size, { node, pos, _, _ in
@@ -592,6 +775,25 @@ public enum RelayMarkNativeRichEditing {
                 throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
             }
         }
+        if clipboardSlice != nil || clipboardItems != nil {
+            var identities = Set<String>(), ignoredAnchors = Set<String>()
+            try applyRepairs(identified(witnessed.doc, seen: &identities, anchors: &ignoredAnchors,
+                preferredIDs: preferredIDs, normalizeHeadings: false))
+            var input: [String: Any] = ["before_document": source.json(), "steps": witnessed.steps.map { $0.json() }]
+            if let clipboardItems { input["clipboard_items"] = clipboardItems }
+            else if let clipboardSlice { input["clipboard_slice"] = clipboardSlice.json(); input["source_trace"] = clipboardSourceTrace ?? NSNull() }
+            let result = try RelayMarkContentEditCodec.planClipboardAnchorAllocation(JSONSerialization.data(withJSONObject: input))
+            guard let planned = try JSONSerialization.jsonObject(with: result) as? [String: Any],
+                  let steps = planned["steps"] as? [[String: Any]],
+                  let names = planned["retained_destination_names"] as? [String] else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            retainedDestinationNames = Set(names)
+            for step in steps { try witnessed.step(PMStep.fromJSON(step, schema: bridge.schema)) }
+            guard pmCompareDeep(witnessed.doc.json(), planned["document"] ?? NSNull()) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+        }
         var seen = Set<String>(), anchors = retainedDestinationNames
         witnessed.doc.content.nodesBetween(0, witnessed.doc.content.size, { node, _, _, _ in
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
@@ -607,6 +809,20 @@ public enum RelayMarkNativeRichEditing {
                 throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
             }
             for step in navigationSteps { try witnessed.step(PMStep.fromJSON(step, schema: bridge.schema)) }
+            guard pmCompareDeep(witnessed.doc.json(), planned["document"] ?? NSNull()) else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+        }
+        if clipboardSlice != nil || clipboardItems != nil {
+            var input: [String: Any] = ["before_document": source.json(), "steps": witnessed.steps.map { $0.json() }]
+            if let clipboardItems { input["clipboard_items"] = clipboardItems }
+            else if let clipboardSlice { input["clipboard_slice"] = clipboardSlice.json(); input["source_trace"] = clipboardSourceTrace ?? NSNull() }
+            let result = try RelayMarkContentEditCodec.planClipboardHeadingNavigation(JSONSerialization.data(withJSONObject: input))
+            guard let planned = try JSONSerialization.jsonObject(with: result) as? [String: Any],
+                  let steps = planned["steps"] as? [[String: Any]] else {
+                throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+            }
+            for step in steps { try witnessed.step(PMStep.fromJSON(step, schema: bridge.schema)) }
             guard pmCompareDeep(witnessed.doc.json(), planned["document"] ?? NSNull()) else {
                 throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
             }

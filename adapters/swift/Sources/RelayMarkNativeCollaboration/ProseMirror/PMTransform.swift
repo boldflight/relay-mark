@@ -169,17 +169,22 @@ struct PMTransform {
         for change in matches { try step(.removeMark(from:change.from,to:change.to,mark:change.mark)) }
     }
 
-    mutating func replace(_ from: Int, _ to: Int? = nil, _ slice: PMSlice = .empty) throws {
-        if let step = try pmReplaceStep(doc, from, to ?? from, slice) { try self.step(step) }
+    mutating func replace(_ from: Int, _ to: Int? = nil, _ slice: PMSlice = .empty,
+                          sourceTrace: PMClipboardFitTrace? = nil, sourceTape: PMFitTape? = nil) throws {
+        if let step = try pmReplaceStep(doc, from, to ?? from, slice, sourceTrace: sourceTrace, sourceTape: sourceTape) { try self.step(step) }
     }
 
     mutating func delete(_ from: Int, _ to: Int) throws { try replace(from, to, .empty) }
 
-    mutating func replaceRange(_ from: Int, _ to: Int, _ slice: PMSlice) throws {
+    mutating func replaceRange(_ from: Int, _ to: Int, _ slice: PMSlice, sourceTrace: PMClipboardFitTrace? = nil) throws {
         var from = from, to = to
         if slice.size == 0 { return try deleteRange(from, to) }
         let from$ = try doc.resolve(from), to$ = try doc.resolve(to)
-        if pmFitsTrivially(from$, to$, slice) { return try step(.replace(from: from, to: to, slice: slice)) }
+        if pmFitsTrivially(from$, to$, slice) {
+            let result = PMStep.replace(from: from, to: to, slice: slice)
+            if let sourceTrace { sourceTrace.beginAttempt(); try sourceTrace.finish(result, tape: sourceTrace.freshTape()) }
+            return try step(result)
+        }
         var targetDepths = pmCoveredDepths(from$, to$)
         if targetDepths.last == 0 { targetDepths.removeLast() }
         var preferredTarget = -(from$.depth + 1)
@@ -222,9 +227,11 @@ struct PMTransform {
                     if targetDepth < 0 { expand = false; targetDepth = -targetDepth }
                     let parent = from$.node(targetDepth - 1), index = from$.index(targetDepth - 1)
                     if parent.canReplaceWith(index, index, insert.type, marks: insert.marks) {
+                        let tape = sourceTrace?.freshTape()
+                        let closed = pmCloseFragment(slice.content, 0, slice.openStart, openDepth, nil, tape: tape)
                         return try replace(from$.before(targetDepth), expand ? to$.after(targetDepth) : to,
-                            PMSlice(pmCloseFragment(slice.content, 0, slice.openStart, openDepth, nil),
-                                    openStart: openDepth, openEnd: slice.openEnd))
+                            PMSlice(closed, openStart: openDepth, openEnd: slice.openEnd),
+                            sourceTrace: sourceTrace, sourceTape: tape)
                     }
                 }
             }
@@ -233,7 +240,7 @@ struct PMTransform {
         let startSteps = steps.count
         var index = targetDepths.count - 1
         while index >= 0 {
-            try replace(from, to, slice)
+            try replace(from, to, slice, sourceTrace: sourceTrace, sourceTape: sourceTrace?.freshTape())
             if steps.count > startSteps { break }
             let depth = targetDepths[index]
             index -= 1
@@ -304,11 +311,18 @@ struct PMTransform {
     }
 }
 
-func pmReplaceStep(_ doc: PMNode, _ from: Int, _ to: Int, _ slice: PMSlice) throws -> PMStep? {
+func pmReplaceStep(_ doc: PMNode, _ from: Int, _ to: Int, _ slice: PMSlice,
+                   sourceTrace: PMClipboardFitTrace? = nil, sourceTape: PMFitTape? = nil) throws -> PMStep? {
     if from == to && slice.size == 0 { return nil }
     let from$ = try doc.resolve(from), to$ = try doc.resolve(to)
-    if pmFitsTrivially(from$, to$, slice) { return .replace(from: from, to: to, slice: slice) }
-    return try PMFitter(from$, to$, slice).fit()
+    sourceTrace?.beginAttempt()
+    let tape = sourceTape ?? sourceTrace?.freshTape()
+    if pmFitsTrivially(from$, to$, slice) {
+        let result = PMStep.replace(from: from, to: to, slice: slice)
+        if let sourceTrace, let tape { try sourceTrace.finish(result, tape: tape) }
+        return result
+    }
+    return try PMFitter(from$, to$, slice, sourceTrace: sourceTrace, sourceTape: tape).fit()
 }
 
 func pmFitsTrivially(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ slice: PMSlice) -> Bool {
@@ -335,15 +349,19 @@ func pmCoveredDepths(_ from$: PMResolvedPos, _ to$: PMResolvedPos) -> [Int] {
 }
 
 private func pmCloseFragment(_ fragment: PMFragment, _ depth: Int, _ oldOpen: Int, _ newOpen: Int,
-                             _ parent: PMNode?) -> PMFragment {
+                             _ parent: PMNode?, tape: PMFitTape? = nil) -> PMFragment {
     var fragment = fragment
     if depth < oldOpen, let first = fragment.firstChild {
-        fragment = fragment.replaceChild(0, first.copy(pmCloseFragment(first.content, depth + 1, oldOpen, newOpen, first)))
+        let inner = tape?.part(1, first.nodeSize - 1)
+        fragment = fragment.replaceChild(0, first.copy(pmCloseFragment(first.content, depth + 1, oldOpen, newOpen, first, tape: inner)))
+        if let inner { tape?.replace(1, first.nodeSize - 1, with: inner) }
     }
     if depth > newOpen, let parent, let match = try? parent.contentMatchAt(0),
        let before = match.fillBefore(fragment) {
         let start = before.append(fragment)
+        tape?.prependGenerated(before.size)
         if let after = match.matchFragment(start)?.fillBefore(.empty, toEnd: true) {
+            tape?.appendGenerated(after.size)
             fragment = start.append(after)
         } else {
             fragment = start
@@ -392,11 +410,18 @@ private final class PMFitter {
     var unplaced: PMSlice
     var frontier: [(type: PMNodeType, match: PMContentMatch)] = []
     var placed: PMFragment = .empty
+    let sourceTrace: PMClipboardFitTrace?
+    var unplacedTape: PMFitTape?
+    var placedTape: PMFitTape?
 
-    init(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ unplaced: PMSlice) throws {
+    init(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ unplaced: PMSlice,
+         sourceTrace: PMClipboardFitTrace? = nil, sourceTape: PMFitTape? = nil) throws {
         self.from$ = from$
         self.to$ = to$
         self.unplaced = unplaced
+        self.sourceTrace = sourceTrace
+        unplacedTape = sourceTape
+        placedTape = sourceTrace == nil ? nil : PMFitTape([])
         for i in 0...from$.depth {
             let node = from$.node(i)
             frontier.append((node.type, try node.contentMatchAt(from$.indexAfter(i))))
@@ -404,6 +429,7 @@ private final class PMFitter {
         var i = from$.depth
         while i > 0 {
             placed = PMFragment.from(from$.node(i).copy(placed))
+            placedTape?.prependGenerated(1); placedTape?.appendGenerated(1)
             i -= 1
         }
     }
@@ -419,17 +445,25 @@ private final class PMFitter {
         let from$ = self.from$
         guard let to$ = try close(moveInline < 0 ? self.to$ : from$.doc.resolve(moveInline)) else { return nil }
         var content = placed, openStart = from$.depth, openEnd = to$.depth
+        let resultTape = placedTape?.copy()
         while openStart > 0 && openEnd > 0 && content.childCount == 1 {
+            resultTape?.stripWrapper()
             content = content.firstChild!.content
             openStart -= 1
             openEnd -= 1
         }
         let slice = PMSlice(content, openStart: openStart, openEnd: openEnd)
         if moveInline > -1 {
-            return .replaceAround(from: from$.pos, to: moveInline, gapFrom: self.to$.pos, gapTo: self.to$.end(),
+            let result = PMStep.replaceAround(from: from$.pos, to: moveInline, gapFrom: self.to$.pos, gapTo: self.to$.end(),
                                   slice: slice, insert: placedSize)
+            if let sourceTrace, let resultTape { try sourceTrace.finish(result, tape: resultTape) }
+            return result
         }
-        if slice.size > 0 || from$.pos != self.to$.pos { return .replace(from: from$.pos, to: to$.pos, slice: slice) }
+        if slice.size > 0 || from$.pos != self.to$.pos {
+            let result = PMStep.replace(from: from$.pos, to: to$.pos, slice: slice)
+            if let sourceTrace, let resultTape { try sourceTrace.finish(result, tape: resultTape) }
+            return result
+        }
         return nil
     }
 
@@ -487,6 +521,7 @@ private final class PMFitter {
         var openEnd = unplaced.openEnd
         if pmMaxOpen(content, -1) <= openStart { return false }
         if unplaced.size > 1 && pmMaxOpen(content, 1) > openEnd { openEnd += 1 }
+        sourceTrace?.opened(unplacedTape?.contentAt(content, openStart))
         unplaced = PMSlice(content, openStart: openStart + 1, openEnd: openEnd)
         return true
     }
@@ -496,10 +531,10 @@ private final class PMFitter {
         let inner = pmContentAt(content, openStart)
         if inner.childCount <= 1 && openStart > 0 {
             let openAtEnd = content.size - openStart <= openStart + inner.size
-            unplaced = PMSlice(pmDropFromFragment(content, openStart - 1, 1), openStart: openStart - 1,
+            unplaced = PMSlice(pmDropFromFragment(content, openStart - 1, 1, tape: unplacedTape, discarded: sourceTrace), openStart: openStart - 1,
                                openEnd: openAtEnd ? openStart - 1 : openEnd)
         } else {
-            unplaced = PMSlice(pmDropFromFragment(content, openStart, 1), openStart: openStart, openEnd: openEnd)
+            unplaced = PMSlice(pmDropFromFragment(content, openStart, 1, tape: unplacedTape, discarded: sourceTrace), openStart: openStart, openEnd: openEnd)
         }
     }
 
@@ -508,10 +543,14 @@ private final class PMFitter {
         if let wrap = fit.wrap { for type in wrap { try openFrontierNode(type) } }
         let slice = unplaced, fragment = fit.parent?.content ?? slice.content
         let openStart = slice.openStart - fit.sliceDepth
+        let fragmentTape = unplacedTape?.contentAt(slice.content, fit.sliceDepth)
         var taken = 0, add: [PMNode] = []
+        let addTape = sourceTrace == nil ? nil : PMFitTape([])
+        var offset = 0
         var (type, match) = (frontier[fit.frontierDepth].type, frontier[fit.frontierDepth].match)
         if let inject = fit.inject {
             add.append(contentsOf: inject.children)
+            addTape?.appendGenerated(inject.size)
             guard let injected = match.matchFragment(inject) else { throw PMReplaceError(message: "Invalid injection") }
             match = injected
         }
@@ -519,16 +558,24 @@ private final class PMFitter {
         while taken < fragment.childCount {
             let next = fragment.child(taken)
             guard let matches = match.matchType(next.type) else { break }
+            let nextTape = fragmentTape?.part(offset, offset + next.nodeSize)
+            offset += next.nodeSize
             taken += 1
             if taken > 1 || openStart == 0 || next.content.size > 0 {
                 match = matches
-                add.append(pmCloseNodeStart(next.mark(type.allowedMarks(next.marks)), taken == 1 ? openStart : 0,
-                                            taken == fragment.childCount ? openEndCount : -1))
+                let allowed = type.allowedMarks(next.marks)
+                let removed = next.marks.filter { mark in !allowed.contains(where: { $0.eq(mark) }) }
+                sourceTrace?.filtered(nextTape, marks: removed)
+                add.append(pmCloseNodeStart(next.mark(allowed), taken == 1 ? openStart : 0,
+                                            taken == fragment.childCount ? openEndCount : -1, tape: nextTape))
+                if let nextTape { addTape?.append(nextTape) }
+            } else {
+                sourceTrace?.dropped(nextTape, reason: "empty_open_node")
             }
         }
         let toEnd = taken == fragment.childCount
         if !toEnd { openEndCount = -1 }
-        placed = pmAddToFragment(placed, fit.frontierDepth, PMFragment.fromArray(add))
+        placed = pmAddToFragment(placed, fit.frontierDepth, PMFragment.fromArray(add), tape: placedTape, addTape: addTape)
         frontier[fit.frontierDepth].match = match
         if toEnd && openEndCount < 0, let parent = fit.parent, parent.type === frontier[depth].type, frontier.count > 1 {
             closeFrontierNode()
@@ -539,11 +586,15 @@ private final class PMFitter {
             frontier.append((node.type, try node.contentMatchAt(node.childCount)))
             current = node.content
         }
-        unplaced = !toEnd ? PMSlice(pmDropFromFragment(slice.content, fit.sliceDepth, taken),
+        if toEnd && fit.sliceDepth > 0 {
+            sourceTrace?.opened(unplacedTape?.contentAt(slice.content, fit.sliceDepth - 1))
+        }
+        unplaced = !toEnd ? PMSlice(pmDropFromFragment(slice.content, fit.sliceDepth, taken, tape: unplacedTape),
                                     openStart: slice.openStart, openEnd: slice.openEnd)
             : fit.sliceDepth == 0 ? .empty
-            : PMSlice(pmDropFromFragment(slice.content, fit.sliceDepth - 1, 1), openStart: fit.sliceDepth - 1,
+            : PMSlice(pmDropFromFragment(slice.content, fit.sliceDepth - 1, 1, tape: unplacedTape), openStart: fit.sliceDepth - 1,
                       openEnd: openEndCount < 0 ? slice.openEnd : fit.sliceDepth - 1)
+        if toEnd && fit.sliceDepth == 0 { unplacedTape = sourceTrace == nil ? nil : PMFitTape([]) }
     }
 
     private func mustMoveInline() -> Int {
@@ -584,7 +635,7 @@ private final class PMFitter {
     private func close(_ to$: PMResolvedPos) throws -> PMResolvedPos? {
         guard let close = findCloseLevel(to$) else { return nil }
         while depth > close.depth { closeFrontierNode() }
-        if close.fit.childCount > 0 { placed = pmAddToFragment(placed, close.depth, close.fit) }
+        if close.fit.childCount > 0 { placed = pmAddToFragment(placed, close.depth, close.fit, tape: placedTape) }
         let moved = close.move
         var d = close.depth + 1
         while d <= moved.depth {
@@ -601,27 +652,45 @@ private final class PMFitter {
             throw PMReplaceError(message: "Cannot open \(type.name) here")
         }
         frontier[depth].match = matched
-        placed = pmAddToFragment(placed, depth, PMFragment.from(try type.create(attrs, content ?? .empty)))
+        placed = pmAddToFragment(placed, depth, PMFragment.from(try type.create(attrs, content ?? .empty)), tape: placedTape)
         frontier.append((type, type.contentMatch))
     }
 
     private func closeFrontierNode() {
         let open = frontier.removeLast()
         if let add = open.match.fillBefore(.empty, toEnd: true), add.childCount > 0 {
-            placed = pmAddToFragment(placed, frontier.count, add)
+            placed = pmAddToFragment(placed, frontier.count, add, tape: placedTape)
         }
     }
 }
 
-private func pmDropFromFragment(_ fragment: PMFragment, _ depth: Int, _ count: Int) -> PMFragment {
-    if depth == 0 { return fragment.cutByIndex(count, fragment.childCount) }
-    return fragment.replaceChild(0, fragment.firstChild!.copy(pmDropFromFragment(fragment.firstChild!.content, depth - 1, count)))
+private func pmDropFromFragment(_ fragment: PMFragment, _ depth: Int, _ count: Int,
+                                tape: PMFitTape? = nil, discarded: PMClipboardFitTrace? = nil) -> PMFragment {
+    if depth == 0 {
+        let size = fragment.children.prefix(count).reduce(0) { $0 + $1.nodeSize }
+        discarded?.dropped(tape?.part(0, size), reason: "drop_node")
+        tape?.remove(0, size)
+        return fragment.cutByIndex(count, fragment.childCount)
+    }
+    let first = fragment.firstChild!, inner = tape?.part(1, first.nodeSize - 1)
+    let result = fragment.replaceChild(0, first.copy(pmDropFromFragment(first.content, depth - 1, count,
+                                                                          tape: inner, discarded: discarded)))
+    if let inner { tape?.replace(1, first.nodeSize - 1, with: inner) }
+    return result
 }
 
-private func pmAddToFragment(_ fragment: PMFragment, _ depth: Int, _ content: PMFragment) -> PMFragment {
-    if depth == 0 { return fragment.append(content) }
-    return fragment.replaceChild(fragment.childCount - 1,
-        fragment.lastChild!.copy(pmAddToFragment(fragment.lastChild!.content, depth - 1, content)))
+private func pmAddToFragment(_ fragment: PMFragment, _ depth: Int, _ content: PMFragment,
+                             tape: PMFitTape? = nil, addTape: PMFitTape? = nil) -> PMFragment {
+    if depth == 0 {
+        if let addTape { tape?.append(addTape) } else { tape?.appendGenerated(content.size) }
+        return fragment.append(content)
+    }
+    let last = fragment.lastChild!, start = fragment.size - last.nodeSize + 1
+    let inner = tape?.part(start, fragment.size - 1)
+    let result = fragment.replaceChild(fragment.childCount - 1,
+        last.copy(pmAddToFragment(last.content, depth - 1, content, tape: inner, addTape: addTape)))
+    if let inner { tape?.replace(start, fragment.size - 1, with: inner) }
+    return result
 }
 
 private func pmMaxOpen(_ fragment: PMFragment, _ side: Int) -> Int {
@@ -639,19 +708,24 @@ private func pmContentAt(_ fragment: PMFragment, _ depth: Int) -> PMFragment {
     return fragment
 }
 
-private func pmCloseNodeStart(_ node: PMNode, _ openStart: Int, _ openEnd: Int) -> PMNode {
+private func pmCloseNodeStart(_ node: PMNode, _ openStart: Int, _ openEnd: Int, tape: PMFitTape? = nil) -> PMNode {
     if openStart <= 0 { return node }
     var fragment = node.content
+    let inner = tape?.part(1, node.nodeSize - 1)
     if openStart > 1 {
-        fragment = fragment.replaceChild(0, pmCloseNodeStart(fragment.firstChild!, openStart - 1,
-                                                             fragment.childCount == 1 ? openEnd - 1 : 0))
+        let first = fragment.firstChild!, firstTape = inner?.part(0, first.nodeSize)
+        fragment = fragment.replaceChild(0, pmCloseNodeStart(first, openStart - 1,
+                                  fragment.childCount == 1 ? openEnd - 1 : 0, tape: firstTape))
+        if let firstTape { inner?.replace(0, first.nodeSize, with: firstTape) }
     }
     if openStart > 0 {
-        fragment = (node.type.contentMatch.fillBefore(fragment) ?? .empty).append(fragment)
+        let before = node.type.contentMatch.fillBefore(fragment) ?? .empty
+        fragment = before.append(fragment); inner?.prependGenerated(before.size)
         if openEnd <= 0, let end = node.type.contentMatch.matchFragment(fragment)?.fillBefore(.empty, toEnd: true) {
-            fragment = fragment.append(end)
+            fragment = fragment.append(end); inner?.appendGenerated(end.size)
         }
     }
+    if let inner { tape?.replace(1, node.nodeSize - 1, with: inner) }
     return node.copy(fragment)
 }
 
@@ -703,23 +777,10 @@ extension PMStep {
                   value.doubleValue >= 0, value.doubleValue <= 1_000_000_000 else { throw PMReplaceError(message: "Invalid step position") }
             return value.intValue
         }
-        func mark(_ json: [String: Any]) throws -> PMMark {
-            guard let name = json["type"] as? String, let type = schema.marks[name] else { throw PMReplaceError(message: "Unknown mark") }
-            return type.create(json["attrs"] as? [String: Any])
-        }
-        func node(_ json: [String: Any]) throws -> PMNode {
-            guard let name = json["type"] as? String, let type = schema.nodes[name] else { throw PMReplaceError(message: "Unknown node") }
-            let marks = try (json["marks"] as? [[String: Any]] ?? []).map(mark)
-            if type.isText {
-                guard let text = json["text"] as? String, !text.isEmpty else { throw PMReplaceError(message: "Invalid text") }
-                return schema.text(Array(text.utf16), marks: marks)
-            }
-            return try type.create(json["attrs"] as? [String: Any], PMFragment.fromArray(try (json["content"] as? [[String: Any]] ?? []).map(node)), marks: marks)
-        }
+        func mark(_ json: [String: Any]) throws -> PMMark { try PMJSON.mark(json, schema: schema) }
         func slice() throws -> PMSlice {
             guard let value = json["slice"] as? [String: Any] else { return .empty }
-            return PMSlice(PMFragment.fromArray(try (value["content"] as? [[String: Any]] ?? []).map(node)),
-                openStart: value["openStart"] as? Int ?? 0, openEnd: value["openEnd"] as? Int ?? 0)
+            return try PMSlice.fromJSON(value, schema: schema)
         }
         switch json["stepType"] as? String {
         case "replace": return try .replace(from: number("from"), to: number("to"), slice: slice(), structure: json["structure"] as? Bool ?? false)
@@ -736,5 +797,168 @@ extension PMStep {
             return .docAttr(name: name, value: value)
         default: throw PMReplaceError(message: "Unknown step")
         }
+    }
+}
+
+// Same maintained partial Node/Mark decoder used by Step and clipboard Slice.
+private enum PMJSON {
+    static func mark(_ json: [String: Any], schema: PMSchema) throws -> PMMark {
+            guard let name = json["type"] as? String, let type = schema.marks[name] else { throw PMReplaceError(message: "Unknown mark") }
+            return type.create(json["attrs"] as? [String: Any])
+        }
+    static func node(_ json: [String: Any], schema: PMSchema) throws -> PMNode {
+            guard let name = json["type"] as? String, let type = schema.nodes[name] else { throw PMReplaceError(message: "Unknown node") }
+            let marks = try (json["marks"] as? [[String: Any]] ?? []).map { try mark($0, schema: schema) }
+            if type.isText {
+                guard let text = json["text"] as? String, !text.isEmpty else { throw PMReplaceError(message: "Invalid text") }
+                return schema.text(Array(text.utf16), marks: marks)
+            }
+            return try type.create(json["attrs"] as? [String: Any], PMFragment.fromArray(try (json["content"] as? [[String: Any]] ?? []).map { try node($0, schema: schema) }), marks: marks)
+        }
+ }
+extension PMSlice {
+    static func fromJSON(_ value: [String: Any], schema: PMSchema) throws -> PMSlice {
+        let content = try (value["content"] as? [[String: Any]] ?? []).map { try PMJSON.node($0, schema: schema) }
+        return PMSlice(PMFragment.fromArray(content), openStart: value["openStart"] as? Int ?? 0,
+                       openEnd: value["openEnd"] as? Int ?? 0)
+    }
+}
+
+// Ephemeral positional source correspondence owned by the maintained fitter.
+// Numbers denote original PM fragment tokens (UTF-16 units for text), never
+// equality of source text, node object identity, or a persisted ancestry claim.
+final class PMFitTape {
+    private(set) var units: [Int?]
+    private(set) var valid = true
+    init(_ units: [Int?]) { self.units = units }
+    func copy() -> PMFitTape { let result = PMFitTape(units); result.valid = valid; return result }
+    func part(_ from: Int, _ to: Int) -> PMFitTape {
+        guard valid, from >= 0, to >= from, to <= units.count else {
+            let result = PMFitTape([]); result.valid = false; return result
+        }
+        return PMFitTape(Array(units[from..<to]))
+    }
+    func replace(_ from: Int, _ to: Int, with other: PMFitTape) {
+        guard valid, other.valid, from >= 0, to >= from, to <= units.count else { valid = false; return }
+        units.replaceSubrange(from..<to, with: other.units)
+    }
+    func remove(_ from: Int, _ to: Int) { replace(from, to, with: PMFitTape([])) }
+    func append(_ other: PMFitTape) { replace(units.count, units.count, with: other) }
+    func prependGenerated(_ count: Int) {
+        guard count >= 0 else { valid = false; return }
+        replace(0, 0, with: PMFitTape(Array(repeating: nil, count: count)))
+    }
+    func appendGenerated(_ count: Int) {
+        guard count >= 0 else { valid = false; return }
+        append(PMFitTape(Array(repeating: nil, count: count)))
+    }
+    func stripWrapper() {
+        guard units.count >= 2 else { valid = false; return }
+        units.removeLast(); units.removeFirst()
+    }
+    func contentAt(_ fragment: PMFragment, _ depth: Int) -> PMFitTape {
+        var nodeContent = fragment, result = copy()
+        for _ in 0..<depth {
+            guard let first = nodeContent.firstChild, !first.isLeaf else {
+                let invalid = PMFitTape([]); invalid.valid = false; return invalid
+            }
+            result = result.part(1, first.nodeSize - 1); nodeContent = first.content
+        }
+        return result
+    }
+}
+
+final class PMClipboardFitTrace {
+    struct SourceNode {
+        let path: [Int], from: Int, to: Int, contentFrom: Int, contentTo: Int, type: String
+        func json() -> [String: Any] {
+            ["source_path": path, "from": from, "to": to,
+             "content_from": contentFrom, "content_to": contentTo, "type": type]
+        }
+    }
+    struct Placement: Equatable {
+        var sourceFrom: Int, sourceTo: Int, targetFrom: Int, targetTo: Int
+        func json() -> [String: Any] {
+            ["source_from": sourceFrom, "source_to": sourceTo,
+             "target_from": targetFrom, "target_to": targetTo]
+        }
+    }
+    let original: PMSlice
+    private(set) var nodes: [SourceNode] = []
+    private(set) var placements: [Placement] = []
+    private var nodesAtStart: [Int: SourceNode] = [:]
+    private(set) var events: [[String: Any]] = []
+    private(set) var resultStep: PMStep?
+    private(set) var omitted: [Int] = []
+    init(_ original: PMSlice) throws {
+        guard original.content.size > 0, original.content.size <= 1_000_000 else {
+            throw PMReplaceError(message: "Clipboard trace token budget")
+        }
+        self.original = original
+        func visit(_ fragment: PMFragment, _ path: [Int], _ start: Int) throws {
+            guard path.count <= 128 else { throw PMReplaceError(message: "Clipboard trace depth budget") }
+            var offset = start
+            for (index, node) in fragment.children.enumerated() {
+                guard nodes.count < 65_536 else { throw PMReplaceError(message: "Clipboard trace node budget") }
+                let childPath = path + [index], inner = node.isLeaf ? offset : offset + 1
+                nodes.append(SourceNode(path: childPath, from: offset, to: offset + node.nodeSize,
+                                        contentFrom: inner, contentTo: node.isLeaf ? offset + node.nodeSize : offset + node.nodeSize - 1,
+                                        type: node.type.name))
+                if !node.isLeaf { try visit(node.content, childPath, inner) }
+                offset += node.nodeSize
+            }
+        }
+        try visit(original.content, [], 0)
+        nodesAtStart = Dictionary(uniqueKeysWithValues: nodes.map { ($0.from, $0) })
+    }
+    func freshTape() -> PMFitTape { PMFitTape((0..<original.content.size).map { Optional($0) }) }
+    func beginAttempt() { events = []; placements = []; omitted = []; resultStep = nil }
+    func opened(_ tape: PMFitTape?) {
+        guard let tape, let first = tape.units.first, let token = first,
+              let node = nodesAtStart[token] else { return }
+        events.append(["kind": "open_wrapper", "source_path": node.path])
+    }
+    func dropped(_ tape: PMFitTape?, reason: String) {
+        guard let tape else { return }
+        events.append(["kind": reason, "source_tokens": tape.units.compactMap { $0 }])
+    }
+    func filtered(_ tape: PMFitTape?, marks: [PMMark]) {
+        guard let tape, !marks.isEmpty else { return }
+        events.append(["kind": "filtered_marks", "source_tokens": tape.units.compactMap { $0 },
+                       "marks": marks.map { $0.json() }])
+    }
+    func finish(_ step: PMStep, tape: PMFitTape) throws {
+        let slice: PMSlice, start: Int, gap: Int, insert: Int
+        switch step {
+        case let .replace(from, _, value, _): slice = value; start = from; gap = 0; insert = Int.max
+        case let .replaceAround(from, _, gapFrom, gapTo, value, at, _):
+            slice = value; start = from; gap = gapTo - gapFrom; insert = at
+        default: throw PMReplaceError(message: "Clipboard trace nonreplacement")
+        }
+        guard tape.valid, tape.units.count == slice.content.size,
+              slice.openStart >= 0, slice.openEnd >= 0,
+              slice.openStart + slice.openEnd <= tape.units.count else {
+            throw PMReplaceError(message: "Clipboard trace geometry diverged")
+        }
+        var seen = Set<Int>(), result: [Placement] = []
+        for position in slice.openStart..<(tape.units.count - slice.openEnd) {
+            guard let source = tape.units[position] else { continue }
+            guard source >= 0, source < original.content.size, seen.insert(source).inserted else {
+                throw PMReplaceError(message: "Clipboard trace duplicated source token")
+            }
+            let offset = position - slice.openStart
+            let target = start + offset + (offset >= insert ? gap : 0)
+            if let last = result.last, last.sourceTo == source, last.targetTo == target {
+                result[result.count - 1].sourceTo += 1; result[result.count - 1].targetTo += 1
+            } else {
+                result.append(Placement(sourceFrom: source, sourceTo: source + 1, targetFrom: target, targetTo: target + 1))
+            }
+        }
+        placements = result; omitted = (0..<original.content.size).filter { !seen.contains($0) }; resultStep = step
+    }
+    func json() throws -> [String: Any] {
+        guard let resultStep else { throw PMReplaceError(message: "Clipboard trace not committed") }
+        return ["source_nodes": nodes.map { $0.json() }, "placements": placements.map { $0.json() },
+                "omitted_source_tokens": omitted, "events": events, "step": resultStep.json()]
     }
 }

@@ -1,16 +1,12 @@
 import Foundation
 import RelayMarkSwift
+import RelayMarkProseProjection
 
 /// Resolve the displayed cell identities, then execute the maintained table
 /// command through the shared canonical PM schema and existing native writer.
 @MainActor
 public enum RelayMarkNativeRichTableCommand {
-    public enum Operation: String, Sendable, CaseIterable {
-        case addRowBefore, addRowAfter, addColumnBefore, addColumnAfter
-        case deleteRow, deleteColumn, deleteTable
-        case toggleHeaderCell, toggleHeaderRow, toggleHeaderColumn
-        case mergeCells, splitCell
-    }
+    public typealias Operation = RelayMarkTableOperation
     private typealias Failure = RelayMarkNativeDocument.Failure
 
     public static func canApply(_ operation: Operation, document: RelayMarkNativeDocument,

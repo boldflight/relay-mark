@@ -21,16 +21,21 @@ public enum RelayMarkPaperControlContract {
         case unsupported
     }
 
-    public static func validate(nodeName: String, attributes: [String: Any]) throws -> Validated {
-        let control: Control
-        let fields: [String]
-        let directive: String
+    public static func authoredFieldNames(nodeName: String) throws -> [String] {
+        try definition(nodeName: nodeName).fields
+    }
+
+    private static func definition(nodeName: String) throws -> (control: Control, fields: [String], directive: String) {
         switch nodeName {
-        case "relayButton": control = .button; fields = ["label", "kind", "target"]; directive = "Button"
-        case "relayAnchor": control = .anchor; fields = ["name"]; directive = "Anchor"
-        case "relayConnection": control = .connection; fields = ["provider"]; directive = "Connection"
+        case "relayButton": return (.button, ["label", "kind", "target"], "Button")
+        case "relayAnchor": return (.anchor, ["name"], "Anchor")
+        case "relayConnection": return (.connection, ["provider"], "Connection")
         default: throw Failure.unsupported
         }
+    }
+
+    public static func validate(nodeName: String, attributes: [String: Any]) throws -> Validated {
+        let (control, fields, directive) = try definition(nodeName: nodeName)
         guard Set(attributes.keys) == Set(["relaymarkId"] + fields),
               let id = attributes["relaymarkId"] as? String else { throw Failure.unsupported }
         let chars = Array(id), hex = Set("0123456789abcdef")

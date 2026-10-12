@@ -1,7 +1,8 @@
 import Foundation
 import RelayMarkSwift
+import RelayMarkProseProjection
 
-public enum RelayMarkNativeListDepthChange: Sendable { case indent, outdent }
+public typealias RelayMarkNativeListDepthChange = RelayMarkListDepthChange
 
 @MainActor
 public extension RelayMarkNativeDocument {

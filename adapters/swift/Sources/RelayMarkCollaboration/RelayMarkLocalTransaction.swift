@@ -1,4 +1,5 @@
 import Foundation
+import RelayMarkProseProjection
 
 /// One local editor transaction. Hosts persist this together with its exact update bytes.
 /// Replica replay never creates a contribution; generation provenance belongs to the layer host.
@@ -194,7 +195,7 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
     }
 
     public struct NativeFormatting: Codable, Equatable, Sendable {
-        public enum Mark: String, Codable, Sendable { case bold, italic, strike, code }
+        public typealias Mark = RelayMarkFormattingMark
         public let startUTF16: Int
         public let lengthUTF16: Int
         public let mark: Mark
@@ -269,6 +270,9 @@ public struct RelayMarkLocalTransaction: Codable, Equatable, Sendable, Identifia
         /// The start is in the pre-edit prose projection's UTF-16 coordinates.
         /// The removed string's UTF-16 length determines the replaced extent.
         case nativeReplacement(startUTF16: Int, removed: String, inserted: String)
+        /// Actual explicitly supplied command arguments frozen with this update.
+        /// This local original is not a grant, ancestry or reconstruction recipe.
+        case declaredCommand(RelayMarkDeclaredCommandInput)
         /// A candidate diff without a validated native replacement request.
         case derived
         /// Committed or explicitly reviewed marked input; ownership is unresolved.
