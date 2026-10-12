@@ -13,6 +13,7 @@ defmodule RelayMark.DocumentRendererTest do
         ] do
       bad = put_in(ast, ["blocks", Access.at(0), "content", Access.at(0), "href"], href)
       assert {:error, _} = RelayMark.render_document(bad)
+      assert {:error, _} = RelayMark.project_document(bad)
     end
   end
 
@@ -46,6 +47,17 @@ defmodule RelayMark.DocumentRendererTest do
 
     assert html ==
              "<blockquote><p><strong>A &lt; B</strong><br><a href=\"https://example.com/?a=1&amp;b=2\" target=\"_blank\" rel=\"noopener noreferrer nofollow\">Evidence</a></p></blockquote>"
+
+    assert {:ok, projected} = RelayMark.project_document(ast)
+    assert projected.body == "> **A < B**  \n> [Evidence](https://example.com/?a=1&b=2)\n"
+
+    assert projected.body_html ==
+             "<blockquote><p><strong>A &lt; B</strong><br><a href=\"https://example.com/?a=1&amp;b=2\" target=\"_blank\" rel=\"noopener noreferrer nofollow\">Evidence</a></p></blockquote>"
+
+    assert {:error, _} = RelayMark.project_document(Map.put(ast, "unknown_root_field", true))
+
+    assert {:error, _} =
+             RelayMark.project_document(%{ast | "blocks" => ast["blocks"] ++ ast["blocks"]})
 
     assert {:error, _} =
              RelayMark.render_document(put_in(ast, ["blocks", Access.at(0), "type"], "unknown"))

@@ -91,21 +91,30 @@ defmodule RelayMark.DocumentSource do
 
   def project_markdown(ast) do
     attempt(fn ->
-      ensure!(ast)
+      ast = normalize!(ast)
       Enum.map_join(ast["blocks"], "\n\n", &markdown/1) <> "\n"
+    end)
+  end
+
+  @doc false
+  def project_with_render(ast, renderer) when is_function(renderer, 1) do
+    attempt(fn ->
+      {snapshot, normalized} =
+        case RelayMark.DocumentXML.project_document(ast) do
+          {:ok, pair} -> pair
+          {:error, diagnostics} -> throw({:source_diagnostics, diagnostics})
+        end
+
+      %{
+        body: Enum.map_join(normalized["blocks"], "\n\n", &markdown/1) <> "\n",
+        body_html: renderer.(snapshot)
+      }
     end)
   end
 
   defp normalize!(ast) do
     case RelayMark.DocumentXML.normalize_document(ast) do
       {:ok, document} -> document
-      {:error, diagnostics} -> throw({:source_diagnostics, diagnostics})
-    end
-  end
-
-  defp ensure!(ast) do
-    case RelayMark.DocumentXML.from_document(ast) do
-      {:ok, _} -> :ok
       {:error, diagnostics} -> throw({:source_diagnostics, diagnostics})
     end
   end
@@ -251,7 +260,9 @@ defmodule RelayMark.DocumentSource do
 
       case segment do
         {:markdown, body} ->
-          convert_children(MDEx.parse_document!(body, @options).nodes, namespace, path)
+          MDEx.parse_document!(body, @options).nodes
+          |> source_heading_nodes(String.split(body, "\n"))
+          |> convert_children(namespace, path)
 
         {:historical_question, header, body} ->
           [historical_question(header, body, namespace, path)]
@@ -261,6 +272,46 @@ defmodule RelayMark.DocumentSource do
 
         {:control, source} ->
           [control(source, namespace, path)]
+      end
+    end)
+  end
+
+  # Interpret source identity before rendering; source positions distinguish escaped literals.
+  defp source_heading_nodes(nodes, lines) do
+    Enum.map(nodes, fn node ->
+      node =
+        if Map.has_key?(node, :nodes),
+          do: %{node | nodes: source_heading_nodes(node.nodes, lines)},
+          else: node
+
+      case node do
+        %MDEx.Heading{nodes: children} ->
+          case List.last(children) do
+            %MDEx.Text{literal: text, sourcepos: %{end: {line, column}}} = last ->
+              raw = Enum.at(lines, line - 1, "") |> binary_part(0, column)
+
+              case {Regex.run(~r/\s+\{#([A-Za-z0-9][A-Za-z0-9_-]{0,127})\}\z/u, raw),
+                    Regex.run(~r/\s+\{#([A-Za-z0-9][A-Za-z0-9_-]{0,127})\}\z/u, text)} do
+                {[_, name], [marker, name]} ->
+                  text = String.replace_suffix(text, marker, "")
+
+                  children =
+                    if text == "",
+                      do: Enum.drop(children, -1),
+                      else: List.replace_at(children, -1, %{last | literal: text})
+
+                  {:source_heading, %{node | nodes: children}, name}
+
+                _ ->
+                  node
+              end
+
+            _ ->
+              node
+          end
+
+        _ ->
+          node
       end
     end)
   end
@@ -287,9 +338,16 @@ defmodule RelayMark.DocumentSource do
   defp convert(%MDEx.HtmlBlock{literal: text}, ns, path),
     do: block(ns, path, "paragraph", [%{"type" => "text", "text" => text}], nil)
 
+  defp convert({:source_heading, %MDEx.Heading{} = n, name}, ns, path),
+    do:
+      inline_media_blocks(n.nodes, ns, path, "heading", %{"level" => n.level, "headingId" => name})
+
   defp convert(%MDEx.Heading{} = n, ns, path),
     do:
-      inline_media_blocks(n.nodes, ns, path, "heading", %{"level" => n.level, "headingId" => nil})
+      inline_media_blocks(n.nodes, ns, path, "heading", %{
+        "level" => n.level,
+        "headingId" => nil
+      })
 
   defp convert(%MDEx.BlockQuote{} = n, ns, path),
     do: block(ns, path, "quote", convert_children(n.nodes, ns, path), nil)
@@ -977,7 +1035,11 @@ defmodule RelayMark.DocumentSource do
   defp markdown(%{"type" => "paragraph"} = n), do: markdown_inline(n["content"])
 
   defp markdown(%{"type" => "heading"} = n),
-    do: String.duplicate("#", n["props"]["level"]) <> " " <> markdown_inline(n["content"])
+    do:
+      String.duplicate("#", n["props"]["level"]) <>
+        " " <>
+        markdown_inline(n["content"]) <>
+        if(n["props"]["headingId"], do: " {#" <> n["props"]["headingId"] <> "}", else: "")
 
   defp markdown(%{"type" => "quote"} = n),
     do:
@@ -1055,10 +1117,11 @@ defmodule RelayMark.DocumentSource do
     label =
       case type do
         "relay.callout" -> "Callout"
-        "relay.form_question" -> "Question"
+        "relay.form_question" -> "FormQuestion"
         "relay.agent_suggestion" -> "AgentSuggestion"
         "relay.data_view" -> "DataView"
-        "relay.video_embed" -> "Video"
+        "relay.video_embed" -> "VideoEmbed"
+        "relay.file_ref" -> "FileRef"
         _ -> fail(:markdown_projection)
       end
 
@@ -1070,7 +1133,9 @@ defmodule RelayMark.DocumentSource do
     "@" <>
       label <>
       "(" <>
-      Enum.map_join(n["props"] || %{}, ", ", fn {k, v} -> k <> ": " <> Jason.encode!(v) end) <>
+      Enum.map_join(n["props"] || %{}, ", ", fn {k, v} ->
+        k <> ": " <> RelayMark.CanonicalJSON.encode(v)
+      end) <>
       ") {\n" <> children <> "\n}"
   end
 
@@ -1079,7 +1144,7 @@ defmodule RelayMark.DocumentSource do
       Enum.map_join(nodes, fn n ->
         case n["type"] do
           "text" ->
-            String.replace(n["text"], ~r/([\\`*_[\]])/, "\\\\\\1")
+            String.replace(n["text"], ~r/([\\`*_[\]{}])/, "\\\\\\1")
 
           "hard_break" ->
             "  \n"

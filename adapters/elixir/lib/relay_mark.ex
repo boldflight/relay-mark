@@ -39,6 +39,9 @@ defmodule RelayMark do
   @doc "Projects readable Markdown; this projection is never a second writable body."
   def project_document_markdown(document), do: RelayMark.DocumentSource.project_markdown(document)
 
+  @doc "Derives readable Markdown and safe static HTML through one strict preparation."
+  def project_document(document), do: RelayMark.DocumentRenderer.project(document)
+
   @doc "Renders authored semantics; host hydration and authorization remain outside."
   def render_document(document), do: RelayMark.DocumentRenderer.render(document)
 

@@ -1,6 +1,129 @@
 defmodule RelayMark.DocumentSourceTest do
   use ExUnit.Case, async: true
 
+  @tag :canonical_directive_names
+  test "authored video Markdown uses its registered directive and reparses without losing media identity" do
+    source = ~s|@VideoEmbed(videoId: "530dd8cb-3f36-47e1-925d-7969cd81aa67") {
+
+}|
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "video-source-roundtrip")
+    assert {:ok, exact} = RelayMark.serialize_document(ast)
+    assert {:ok, ^ast} = RelayMark.parse_document(exact)
+    assert {:ok, projected} = RelayMark.project_document_markdown(ast)
+    assert projected == source <> "\n"
+    assert {:ok, ^ast} = RelayMark.parse_document(projected, namespace: "video-source-roundtrip")
+  end
+
+  @tag :canonical_directive_names
+  test "authored question Markdown uses its registered directive and reparses its rich label" do
+    source = ~s|@FormQuestion(id: "care", type: "short_text") {
+**Choose carefully 🌍**
+}|
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "question-source-roundtrip")
+    assert {:ok, exact} = RelayMark.serialize_document(ast)
+    assert {:ok, ^ast} = RelayMark.parse_document(exact)
+    assert {:ok, projected} = RelayMark.project_document_markdown(ast)
+    assert String.starts_with?(projected, "@FormQuestion(")
+
+    assert {:ok, ^ast} =
+             RelayMark.parse_document(projected, namespace: "question-source-roundtrip")
+  end
+
+  test "derived Markdown keeps structural numbers stable after collaborative JSON decoding" do
+    source =
+      "<!-- relay:question id=\"projection\" type=\"slot_picker\" -->\nChoose **carefully**\n<!-- /relay:question -->"
+
+    assert {:ok, imported} = RelayMark.import_source(source, namespace: "projection-numbers")
+    settings = %{"unknown" => %{"count" => 7, "fraction" => 0.25, "literal" => "0.0"}}
+    decoded_settings = put_in(settings, ["unknown", "count"], 7.0)
+
+    integer_ast =
+      update_in(imported.document, ["blocks"], fn [question] ->
+        [
+          update_in(question, ["props"], fn props ->
+            Map.merge(props, %{"points" => 0, "min" => 0, "max" => 0.5, "settings" => settings})
+          end)
+        ]
+      end)
+
+    decoded_ast =
+      update_in(integer_ast, ["blocks"], fn [question] ->
+        [
+          update_in(question, ["props"], fn props ->
+            Map.merge(props, %{"points" => 0.0, "min" => 0.0, "settings" => decoded_settings})
+          end)
+        ]
+      end)
+
+    assert {:ok, integer_markdown} = RelayMark.project_document_markdown(integer_ast)
+    assert {:ok, decoded_markdown} = RelayMark.project_document_markdown(decoded_ast)
+    assert decoded_markdown == integer_markdown
+    assert decoded_markdown =~ "points: 0,"
+    refute decoded_markdown =~ "points: 0.0"
+    assert decoded_markdown =~ "min: 0,"
+    assert decoded_markdown =~ "max: 0.5"
+
+    assert decoded_markdown =~
+             ~s|settings: {"unknown":{"count":7,"fraction":0.25,"literal":"0.0"}}|
+
+    assert get_in(decoded_ast, ["blocks", Access.at(0), "props", "points"]) === 0.0
+    assert get_in(decoded_ast, ["blocks", Access.at(0), "props", "settings"]) === decoded_settings
+  end
+
+  test "source heading anchors roundtrip without consuming literal marker text" do
+    source = "## Original {#h-stable}\n\n### **Renamed** {#h-second}\n\n## Duplicate {#h-stable}"
+    assert {:ok, ast} = RelayMark.parse_document(source, namespace: "heading-source")
+
+    assert Enum.map(ast["blocks"], & &1["props"]["headingId"]) == [
+             "h-stable",
+             "h-second",
+             "h-stable"
+           ]
+
+    assert {:ok, source} = RelayMark.project_document_markdown(ast)
+    assert {:ok, ^ast} = RelayMark.parse_document(source, namespace: "heading-source")
+
+    for source <- [
+          "## Literal \\{#plain\\}",
+          "## `Code {#plain}`",
+          "## **Marked {#plain}**",
+          "## 世界 {#unicode}"
+        ] do
+      assert {:ok, literal} = RelayMark.parse_document(source, namespace: "literal-heading")
+      assert {:ok, projected} = RelayMark.project_document_markdown(literal)
+      assert {:ok, ^literal} = RelayMark.parse_document(projected, namespace: "literal-heading")
+    end
+  end
+
+  test "static nullable heading projects canonical destination and retains authored null" do
+    fixture =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/canonical-heading-destinations.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    assert {:ok, ast} =
+             RelayMark.parse_document(fixture["source"], namespace: "static-null-heading")
+
+    ast =
+      put_in(
+        ast,
+        ["blocks", Access.at(fixture["explicit_heading_index"]), "props", "headingId"],
+        fixture["explicit_heading_id"]
+      )
+
+    assert {:ok, html} = RelayMark.render_document(ast)
+
+    assert Regex.scan(~r/<h[1-6] id="([^"]+)"/, html) |> Enum.map(&Enum.at(&1, 1)) ==
+             fixture["heading_destinations"]
+
+    refute html =~ ~s|id="chapter-private-label|
+    assert html =~ "&quot;headingId&quot;:null"
+    assert get_in(ast, ["blocks", Access.at(1), "props", "headingId"]) == nil
+  end
+
   test "historical one-line DataView preserves exact props and code while malformed declarations refuse" do
     line =
       ~s|@DataView(source: "pulse.streak", projection: "calendar", filter: {basis: "work"}, limit: 30, title: "Retained Ω")|

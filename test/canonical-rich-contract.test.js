@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { proseMirrorToRelayMark, relayMarkToProseMirror } from '../src/document-adapter.js';
 import { validateDocument } from '../src/validator.js';
+import { createCanonicalEditorSchema } from '../src/editor-model.js';
+import { readFileSync } from 'node:fs';
 const id = n => `b000000000000400080000000000000${String(n).padStart(2,'0')}`;
 const label = {type:'questionLabel',attrs:{relaymarkId:id(2)},content:[{type:'text',text:'Choose ',marks:[{type:'bold'}]},{type:'text',text:'a plan'}]};
 const question = {type:'questionBlock',attrs:{relaymarkId:id(1),id:'question-existing',type:'multiple_choice',required:true,points:3,min:null,max:null,settings:{randomize:false}},content:[label,
@@ -39,4 +41,37 @@ test('authored image dimensions survive rich conversion without temporary media'
 test('data view declarations reject nested predicate objects before host resolution',()=>{
  const node={type:'relayDataView',attrs:{relaymarkId:id(8),source:'paper.related_tasks',projection:'table',filter:{sql:{nested:'1'}}}};
  assert.throws(()=>proseMirrorToRelayMark({type:'doc',content:[node]}),/filter/);
+});
+
+
+// Named real fault: maintained Node.toJSON omits content for legitimate empty
+// FileRef nodes, so authored insertion/removal fails before body admission.
+test('maintained PM empty reference JSON preserves File and source originals without weakening AST content',()=>{
+ const schema=createCanonicalEditorSchema();
+ const cases=[
+  {name:'relayFile',type:'relay.file_ref',props:{id:'11111111-1111-4111-8111-111111111111',uri:'/m/11111111-1111-4111-8111-111111111111',label:'Care Ω.pdf',scope:'private'}},
+  {name:'relayNote',type:'relay.note_ref',props:{document:'11111111-1111-4111-8111-111111111111',label:'Care notes',scope:'private'}},
+  {name:'relayUrl',type:'relay.url_ref',props:{url:'https://example.com/care',label:'Source',scope:'private'}}
+ ];
+ for(const [index,item]of cases.entries()){
+  const expected={type:'relaymark.document',blocks:[{id:id(60+index),type:item.type,props:item.props,content:[]}]};
+  const native=schema.nodeFromJSON(relayMarkToProseMirror(expected));native.check();
+  const actual=native.toJSON();
+  assert.equal(Object.hasOwn(actual.content[0],'content'),false,'actual maintained empty node JSON');
+  assert.deepEqual(proseMirrorToRelayMark(actual),expected);
+  assert.deepEqual(schema.nodeFromJSON(relayMarkToProseMirror(proseMirrorToRelayMark(actual))).toJSON(),actual);
+  for(const malformed of [null,{},'hidden']){
+   const input=structuredClone(actual);input.content[0].content=malformed;
+   assert.throws(()=>proseMirrorToRelayMark(input),/requires an array/);
+  }
+  const missingAST=structuredClone(expected);delete missingAST.blocks[0].content;
+  assert.throws(()=>relayMarkToProseMirror(missingAST),/requires an array/);
+ }
+ const controls=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/paper-controls-v3-draft.json',import.meta.url)));
+ const controlsJSON=schema.nodeFromJSON(controls.normalized).toJSON();
+ assert.deepEqual(proseMirrorToRelayMark(controlsJSON),controls.expected_ast);
+ const emptyBundle={type:'doc',content:[{type:'relaySourceBundle',attrs:{relaymarkId:id(65),id:'care-sources',scope:'private'}}]};
+ assert.throws(()=>proseMirrorToRelayMark(emptyBundle),/at least 1 children/);
+ const unknown={type:'doc',content:[{type:'relayUnknown',attrs:{relaymarkId:id(66)}}]};
+ assert.throws(()=>proseMirrorToRelayMark(unknown));
 });

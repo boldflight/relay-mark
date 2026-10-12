@@ -77,7 +77,10 @@ defmodule RelayMark.DocumentXML do
   @atom_names ~w(horizontalRule image videoEmbed relayEntityReference agentSuggestion relayDataView relayButton relayAnchor relayConnection)
   @question_types ~w(short_text long_text email phone number multiple_choice checkboxes dropdown linear_scale date file_upload page_break single_select multi_select entity_ref file slot_picker hidden_field calculated_field video_question video_response payment payment_block lightning_payment)
 
-  def from_document(document) when is_map(document) do
+  @doc "Prepares canonical XML and its strictly validated semantic inverse in one invocation."
+  def project_document(document), do: prepare_document(document)
+
+  defp prepare_document(document) when is_map(document) do
     result(fn ->
       only!(document, ~w(type blocks) ++ @metadata)
       valid_document!(document)
@@ -91,16 +94,19 @@ defmodule RelayMark.DocumentXML do
 
       snapshot = if metadata == %{}, do: snapshot, else: Map.put(snapshot, "metadata", metadata)
       # Strict inverse validates the rich grammar before any host installs it.
-      decode_snapshot!(snapshot)
-      snapshot
+      {snapshot, decode_snapshot!(snapshot)}
     end)
   end
 
-  def from_document(_), do: error(:invalid_document)
+  defp prepare_document(_), do: error(:invalid_document)
+
+  def from_document(document) do
+    with {:ok, {snapshot, _normalized}} <- prepare_document(document), do: {:ok, snapshot}
+  end
 
   @doc "Normalize semantic text segmentation through the canonical XML/mark owner, preserving identities and metadata."
   def normalize_document(document) do
-    with {:ok, snapshot} <- from_document(document), do: to_document(snapshot)
+    with {:ok, {_snapshot, normalized}} <- prepare_document(document), do: {:ok, normalized}
   end
 
   def to_document(snapshot) when is_map(snapshot),

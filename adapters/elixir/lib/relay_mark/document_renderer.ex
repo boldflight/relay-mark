@@ -28,11 +28,70 @@ defmodule RelayMark.DocumentRenderer do
   ]
   def render(document) do
     with {:ok, snapshot} <- RelayMark.DocumentXML.from_document(document) do
-      {:ok, Enum.map_join(snapshot["children"], &render_node/1)}
+      {:ok, render_snapshot(snapshot)}
     end
   end
 
-  defp render_node(%{"kind" => "text", "delta" => delta}) do
+  @doc "Derives readable source and safe HTML from one strictly prepared document."
+  def project(document),
+    do: RelayMark.DocumentSource.project_with_render(document, &render_snapshot/1)
+
+  defp render_snapshot(snapshot) do
+    destinations = heading_destinations(snapshot["children"])
+    Enum.map_join(snapshot["children"], &render_node(&1, destinations))
+  end
+
+  # Same canonical authored convention as paperDocumentDestinations. XML
+  # embeds/hydrated reference labels never contribute to source destination names.
+  defp heading_destinations(children) do
+    nodes = authored_elements(children)
+
+    used =
+      for n <- nodes, n["name"] == "relayAnchor", into: MapSet.new(), do: n["attributes"]["name"]
+
+    {names, _} =
+      Enum.reduce(nodes, {%{}, used}, fn n, {names, used} ->
+        if n["name"] == "heading" do
+          a = n["attributes"]
+          base = authored_text(n) |> String.trim() |> String.downcase() |> String.normalize(:nfkd)
+
+          base =
+            base
+            |> String.replace(~r/[\x{0300}-\x{036f}]/u, "")
+            |> String.replace(~r/[^a-z0-9_-]+/, "-")
+            |> String.trim("-")
+            |> String.slice(0, 110)
+
+          identity = a["headingId"] || if(base == "", do: "section", else: base)
+          name = unused_destination(identity, used, 1)
+          {Map.put(names, a["relaymarkId"], name), MapSet.put(used, name)}
+        else
+          {names, used}
+        end
+      end)
+
+    names
+  end
+
+  defp authored_elements(children),
+    do:
+      Enum.flat_map(children, fn
+        %{"kind" => "element"} = n -> [n | authored_elements(n["children"] || [])]
+        _ -> []
+      end)
+
+  defp authored_text(%{"kind" => "text", "delta" => delta}),
+    do:
+      Enum.map_join(delta, fn run -> if is_binary(run["insert"]), do: run["insert"], else: "" end)
+
+  defp authored_text(n), do: Enum.map_join(n["children"] || [], &authored_text/1)
+
+  defp unused_destination(identity, used, suffix) do
+    name = if suffix == 1, do: identity, else: identity <> "-" <> Integer.to_string(suffix)
+    if MapSet.member?(used, name), do: unused_destination(identity, used, suffix + 1), else: name
+  end
+
+  defp render_node(%{"kind" => "text", "delta" => delta}, _destinations) do
     Enum.map_join(delta, fn run ->
       attrs = run["attributes"] || %{}
       text = escape(run["insert"])
@@ -56,9 +115,9 @@ defmodule RelayMark.DocumentRenderer do
     end)
   end
 
-  defp render_node(%{"kind" => "element", "name" => name} = n) do
+  defp render_node(%{"kind" => "element", "name" => name} = n, destinations) do
     a = n["attributes"] || %{}
-    children = Enum.map_join(n["children"] || [], &render_node/1)
+    children = Enum.map_join(n["children"] || [], &render_node(&1, destinations))
 
     if type = RelayMark.DocumentDirectives.type(name) do
       tag(
@@ -78,7 +137,13 @@ defmodule RelayMark.DocumentRenderer do
           "<hr>"
 
         "heading" ->
-          tag("h#{a["level"]}", [{"id", a["headingId"]}], children)
+          destination = Map.fetch!(destinations, a["relaymarkId"])
+
+          tag(
+            "h#{a["level"]}",
+            [{"id", destination}, {"data-relay-heading-id", destination}, authored(a)],
+            children
+          )
 
         "codeBlock" ->
           tag("pre", [], tag("code", [{"data-language", a["language"]}], children))

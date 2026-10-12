@@ -76,7 +76,7 @@ function mapBlock(node, seen, calloutDepth) {
   if(shape){
     checkNode(node,shape.name,seen,Object.keys(shape.attributes));
     const props=authoredDirectiveProps(shape,node.attrs);
-    const content=children(node,shape.name,shape.minimum_children).map(child=>mapBlock(child,seen,calloutDepth));
+    const content=(shape.minimum_children===0?inlineChildren(node,shape.name):children(node,shape.name,shape.minimum_children)).map(child=>mapBlock(child,seen,calloutDepth));
     if(content.some(child=>!shape.allowed_children.includes(child.type)))throw new TypeError('Unsupported authored directive child');
     return {id:node.attrs.relaymarkId,type:shape.type,props,content};
   }
