@@ -18,13 +18,13 @@ function client(){const context={crypto:globalThis.crypto,TextEncoder,TextDecode
 const a=client(),b=client(),plain=a('snapshot')
 function structural(command,input,kind,reference){
  const result=a(command,input),update=Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))
- steps.push({kind:'placement',update:[...update],trust:'local',receipt:{version:1,...binding,operation_id:input.operation_id,
+ steps.push({kind:'placement',update:[...update],trust:'local',receipt:{contract_version:1,kind:'placement_receipt',...binding,operation_id:input.operation_id,
   update_sha256:placementUpdateHash(update),operation:{kind,reference},copies:result.lineage.copies}})
  Y.applyUpdate(doc,update);b('apply',[...update])
 }
 structural('replaceProseWithLineage',{start:2,end:2,text:'\n',operation_id:id(1)},'replace_prose',null)
 const ranges=[{path:[0,0],index:0,length:2},{path:[1,0],index:0,length:3}]
-const selected={version:1,runs:ranges.flatMap(r=>captureTextItems(doc.getXmlFragment('default'),r).runs)}
+const selected={runs:ranges.flatMap(r=>captureTextItems(doc.getXmlFragment('default'),r).runs)}
 const update=Y.mergeUpdates(b('nativeFormatting',{kind:'formatText',ranges,attributes:{bold:{}},operation_id:id(2)}).map(u=>Uint8Array.from(u)))
 steps.push({kind:'format',update:[...update],event:captureHistoryFormatEvent(doc,update,{operation_id:id(2),mark:'bold',text_items:selected}),operation:null})
 Y.applyUpdate(doc,update);a('apply',[...update])

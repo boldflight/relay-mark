@@ -66,7 +66,8 @@ test('caller-owned preflight rejects a surrogate-splitting operation without tou
 test('Elixir distribution contains exact shared modules and the same host Yjs patch', () => {
   for (const name of ['text-items.js', 'prose-operation.js', 'prose-lineage.js', 'history-lineage.js']) {
     assert.deepEqual(readFileSync(new URL(`../adapters/elixir/priv/collaboration/${name}`, import.meta.url)),
-      readFileSync(new URL(`../adapters/collaboration/${name}`, import.meta.url)))
+      Buffer.from(readFileSync(new URL(`../adapters/collaboration/${name}`, import.meta.url), 'utf8')
+        .replaceAll('../../src/document-inline.js', './document-inline.js')))
   }
   assert.deepEqual(readFileSync(new URL('../adapters/elixir/priv/collaboration/yjs-history-hook.mjs', import.meta.url)),
     readFileSync(new URL('../scripts/yjs-history-hook.mjs', import.meta.url)))

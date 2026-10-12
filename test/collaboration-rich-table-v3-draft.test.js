@@ -82,7 +82,7 @@ test('table cell paragraphs use the same bounded inline grammar as ordinary para
       target: '_blank', rel: 'noopener noreferrer nofollow', class: null, title: null,
     } }] },
     { type: 'relayTag', attrs: { id: '12345678-1234-4234-8234-123456789abc',
-      name: 'planning', color: null,
+      name: 'planning',
       source: '[[Tag: 12345678-1234-4234-8234-123456789abc | #planning]]' } },
   ];
   const ast = tableProseMirrorToRelayMark(original);

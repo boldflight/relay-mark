@@ -6,7 +6,7 @@ import {runInNewContext} from 'node:vm';
 import * as Runtime from '../adapters/collaboration/content-edit-mutation.js';
 import * as Y from 'yjs';
 import {Transform} from 'prosemirror-transform';
-import {initProseMirrorDoc,updateYFragment,prosemirrorToYXmlFragment} from '@tiptap/y-tiptap';
+import {initProseMirrorDoc,updateYFragment,prosemirrorToYXmlFragment} from './helpers/canonical-binding.js';
 import {createCanonicalEditorSchema} from '../src/editor-model.js';
 import {createContentEditWrite,buildContentEditWitness} from '../src/content-edit.js';
 import {bindOwnedHistoryOwner,bindOwnedCommandGroup,readOwnedCommandGroup} from '../adapters/collaboration/owned-command-group.js';

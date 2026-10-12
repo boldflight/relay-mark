@@ -1,8 +1,9 @@
+import {currentOperationSeed} from './helpers/current-operation-seed.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as Y from 'yjs';
-import {initProseMirrorDoc,prosemirrorToYXmlFragment} from '@tiptap/y-tiptap';
+import {initProseMirrorDoc,prosemirrorToYXmlFragment} from './helpers/canonical-binding.js';
 import * as Runtime from '../src/content-edit.js';
 import {produceDocumentPatch} from '../src/document-patch.js';
 import {parseDocument} from '../src/document-source.js';
@@ -10,8 +11,8 @@ import {captureContentEditSnapshot} from '../adapters/collaboration/content-edit
 import {relayMarkToProseMirror,proseMirrorToRelayMark} from '../src/document-adapter.js';
 const fixture=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-typing-mutation.json',import.meta.url)));
 const metadata=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-metadata-history.json',import.meta.url))).normal;
-const args=f=>({state_base64:f.sender_state_base64,writer_client:818,transaction_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',owner_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'});
-function document(f){const d=new Y.Doc({gc:false});try{Y.applyUpdate(d,new Uint8Array(Buffer.from(f.sender_state_base64,'base64')));return proseMirrorToRelayMark(initProseMirrorDoc(d.getXmlFragment('default'),Runtime.createCanonicalEditorSchema()).doc.toJSON());}finally{d.destroy();}}
+const args=f=>({state_base64:currentOperationSeed(f.sender_state_base64),writer_client:818,transaction_id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',owner_id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'});
+function document(f){const d=new Y.Doc({gc:false});try{Y.applyUpdate(d,new Uint8Array(Buffer.from(currentOperationSeed(f.sender_state_base64),'base64')));return proseMirrorToRelayMark(initProseMirrorDoc(d.getXmlFragment('default'),Runtime.createCanonicalEditorSchema()).doc.toJSON());}finally{d.destroy();}}
 test('headless reviewed append preserves existing rich widgets, identity and metadata with one actual command',()=>{
  const original=document(metadata),target=structuredClone(original);
  target.blocks.push({id:'b88888888888848888888888888888888',type:'paragraph',content:[{type:'strong',content:[{type:'text',text:'Reviewed 🌍'}]}]});

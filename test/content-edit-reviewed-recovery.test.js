@@ -31,10 +31,10 @@ test('actual native foreign generated recovery accounts18 imported units without
 
 import {parseDocument} from '../src/document-source.js';
 import {relayMarkToProseMirror,proseMirrorToRelayMark} from '../src/document-adapter.js';
-import {prosemirrorToYXmlFragment,initProseMirrorDoc,updateYFragment} from '@tiptap/y-tiptap';
+import {prosemirrorToYXmlFragment,initProseMirrorDoc,updateYFragment} from './helpers/canonical-binding.js';
 import {Step,Transform,DocAttrStep} from 'prosemirror-transform';
 import {EditorState} from 'prosemirror-state';
-import {ProsemirrorBinding} from '@tiptap/y-tiptap';
+import {ProsemirrorBinding} from './helpers/canonical-binding.js';
 import {bindOwnedHistoryOwner,bindOwnedCommandGroup,readOwnedCommandGroup,bindOwnedCommandHistory} from '../adapters/collaboration/owned-command-group.js';
 import {protectOwnedHistoryBranches} from '../adapters/collaboration/owned-history-branches.js';
 import {captureOwnedHistoryObservation,finishOwnedHistoryObservation} from '../adapters/collaboration/content-edit-mutation.js';

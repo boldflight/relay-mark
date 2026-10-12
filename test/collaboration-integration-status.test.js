@@ -44,7 +44,7 @@ test('delete-only missing dependencies are incomplete even though the state vect
   assert.deepEqual(restored('integrationStatus'), call('integrationStatus'))
   for (const r of [call, restored]) {
     r('apply', [...s.base]); assert.deepEqual(r('integrationStatus'), complete)
-    assert.deepEqual(r('captureTextItems', { path: [0], index: 0, length: 0 }), { version: 1, runs: [] })
+    assert.deepEqual(r('captureTextItems', { path: [0], index: 0, length: 0 }), { runs: [] })
     assert.throws(() => r('captureTextItems', { path: [0], index: 0, length: 1 }))
   }
   s.doc.destroy()

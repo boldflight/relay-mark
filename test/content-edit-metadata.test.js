@@ -1,10 +1,11 @@
+import {currentOperationSeed} from './helpers/current-operation-seed.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import * as Y from 'yjs';
 import {Step} from 'prosemirror-transform';
 import {EditorState} from 'prosemirror-state';
-import {initProseMirrorDoc,updateYFragment,ProsemirrorBinding} from '@tiptap/y-tiptap';
+import {initProseMirrorDoc,updateYFragment,ProsemirrorBinding} from './helpers/canonical-binding.js';
 import {createCanonicalEditorSchema,applyDocumentContentEdit,buildContentEditWitness,buildOwnedHistoryWitness} from '../src/content-edit.js';
 import {proseMirrorToRelayMark} from '../src/document-adapter.js';
 import {captureContentEditSnapshot,captureContentEditFootprint} from '../adapters/collaboration/content-edit-observer.js';
@@ -13,7 +14,7 @@ import {bindOwnedHistoryOwner,bindOwnedCommandGroup,readOwnedCommandGroup,bindOw
 import {protectOwnedHistoryBranches} from '../adapters/collaboration/owned-history-branches.js';
 const schema=createCanonicalEditorSchema(),ownerID='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',commandID='11111111-1111-4111-8111-111111111111';
 const enc=b=>Buffer.from(b).toString('base64'),dec=b=>new Uint8Array(Buffer.from(b,'base64'));
-const base=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-typing-mutation.json',import.meta.url))).sender_state_base64;
+const base=currentOperationSeed(JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-typing-mutation.json',import.meta.url))).sender_state_base64);
 const metadata={frontmatter:{title:'Exact 🌍 recovery'},annotations:[],resources:[],meta:{retained:'original'}};
 const steps=[{stepType:'replace',from:2,to:2,slice:{content:[{type:'text',text:'🚀',marks:[{type:'bold'}]}]}},{stepType:'docAttr',attr:'relaymark',value:metadata}];
 function before(doc){return {state:enc(Y.encodeStateAsUpdate(doc)),snapshot:enc(Y.encodeSnapshot(Y.snapshot(doc))),identity:captureContentEditSnapshot(doc.getXmlFragment('default')),clocks:captureContentEditFootprint(doc,new Uint8Array([0,0])).state_vector};}

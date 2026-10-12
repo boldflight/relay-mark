@@ -1,0 +1,645 @@
+{
+  "bundle_sha256": "32e8a7d7eeed8c0d6319280ab23a52ef338f22b05c8274c718eab64e2e1a0b3c",
+  "binding": {
+    "document_id": "91000000-0000-4000-8000-000000000099",
+    "incarnation": "concurrent-inverses"
+  },
+  "baseline": [
+    1,
+    3,
+    240,
+    195,
+    235,
+    200,
+    3,
+    0,
+    7,
+    1,
+    7,
+    100,
+    101,
+    102,
+    97,
+    117,
+    108,
+    116,
+    3,
+    9,
+    112,
+    97,
+    114,
+    97,
+    103,
+    114,
+    97,
+    112,
+    104,
+    7,
+    0,
+    240,
+    195,
+    235,
+    200,
+    3,
+    0,
+    6,
+    4,
+    0,
+    240,
+    195,
+    235,
+    200,
+    3,
+    1,
+    5,
+    72,
+    101,
+    108,
+    108,
+    111,
+    0
+  ],
+  "records": {
+    "add": {
+      "kind": "format",
+      "update": [
+        1,
+        2,
+        215,
+        241,
+        154,
+        199,
+        14,
+        0,
+        70,
+        240,
+        195,
+        235,
+        200,
+        3,
+        2,
+        4,
+        98,
+        111,
+        108,
+        100,
+        2,
+        123,
+        125,
+        134,
+        240,
+        195,
+        235,
+        200,
+        3,
+        6,
+        4,
+        98,
+        111,
+        108,
+        100,
+        4,
+        110,
+        117,
+        108,
+        108,
+        0
+      ],
+      "event": {
+        "contract_version": 1,
+        "kind": "format_event",
+        "operation_id": "91000000-0000-4000-8000-000000000001",
+        "update_sha256": "028ca27b0e5aa3baf12d960a5891cfedaf7aded39880068cb62ed8527da8b68d",
+        "mark": "bold",
+        "text_items": {
+          "runs": [
+            {
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              },
+              "item": {
+                "client": 958063088,
+                "clock": 2
+              },
+              "count": 5
+            }
+          ]
+        },
+        "inserted_markers": [
+          {
+            "client": 3907434711,
+            "clock": 0
+          },
+          {
+            "client": 3907434711,
+            "clock": 1
+          }
+        ],
+        "deleted_markers": [],
+        "changes": [
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 2
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 3
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 4
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 5
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 6
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          }
+        ]
+      },
+      "operation": null
+    },
+    "clear": {
+      "kind": "format",
+      "update": [
+        0,
+        1,
+        215,
+        241,
+        154,
+        199,
+        14,
+        1,
+        0,
+        2
+      ],
+      "event": {
+        "contract_version": 1,
+        "kind": "format_event",
+        "operation_id": "91000000-0000-4000-8000-000000000002",
+        "update_sha256": "c676e35076b53899b71e94db1d1e8ca6f9e272dfc0f36ab710045dedf8f63bdd",
+        "mark": "bold",
+        "text_items": {
+          "runs": [
+            {
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              },
+              "item": {
+                "client": 958063088,
+                "clock": 2
+              },
+              "count": 5
+            }
+          ]
+        },
+        "inserted_markers": [],
+        "deleted_markers": [
+          {
+            "client": 3907434711,
+            "clock": 0
+          },
+          {
+            "client": 3907434711,
+            "clock": 1
+          }
+        ],
+        "changes": [
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 2
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            },
+            "after": {
+              "marker": null,
+              "enabled": false
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 3
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            },
+            "after": {
+              "marker": null,
+              "enabled": false
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 4
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            },
+            "after": {
+              "marker": null,
+              "enabled": false
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 5
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            },
+            "after": {
+              "marker": null,
+              "enabled": false
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 6
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": {
+                "client": 3907434711,
+                "clock": 0
+              },
+              "enabled": true
+            },
+            "after": {
+              "marker": null,
+              "enabled": false
+            }
+          }
+        ]
+      },
+      "operation": null
+    },
+    "aUndo": {
+      "kind": "format_noop",
+      "event": {
+        "version": 1,
+        "operation_id": "91000000-0000-4000-8000-000000000003",
+        "mark": "bold"
+      },
+      "operation": {
+        "kind": "undo",
+        "reference": "91000000-0000-4000-8000-000000000001"
+      }
+    },
+    "bUndo": {
+      "kind": "format",
+      "update": [
+        1,
+        2,
+        194,
+        167,
+        213,
+        131,
+        5,
+        0,
+        70,
+        215,
+        241,
+        154,
+        199,
+        14,
+        0,
+        4,
+        98,
+        111,
+        108,
+        100,
+        2,
+        123,
+        125,
+        198,
+        240,
+        195,
+        235,
+        200,
+        3,
+        6,
+        215,
+        241,
+        154,
+        199,
+        14,
+        1,
+        4,
+        98,
+        111,
+        108,
+        100,
+        4,
+        110,
+        117,
+        108,
+        108,
+        0
+      ],
+      "event": {
+        "contract_version": 1,
+        "kind": "format_event",
+        "operation_id": "91000000-0000-4000-8000-000000000004",
+        "update_sha256": "dcb65c1bc574b965d64360d015b516034afedc04c2c91eb859c98dc64a5b6b04",
+        "mark": "bold",
+        "text_items": {
+          "runs": [
+            {
+              "item": {
+                "client": 958063088,
+                "clock": 2
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              },
+              "count": 5
+            }
+          ]
+        },
+        "inserted_markers": [
+          {
+            "client": 1349866434,
+            "clock": 0
+          },
+          {
+            "client": 1349866434,
+            "clock": 1
+          }
+        ],
+        "deleted_markers": [],
+        "changes": [
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 2
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 1349866434,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 3
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 1349866434,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 4
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 1349866434,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 5
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 1349866434,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          },
+          {
+            "unit": {
+              "item": {
+                "client": 958063088,
+                "clock": 6
+              },
+              "type": {
+                "client": 958063088,
+                "clock": 1
+              }
+            },
+            "before": {
+              "marker": null,
+              "enabled": false
+            },
+            "after": {
+              "marker": {
+                "client": 1349866434,
+                "clock": 0
+              },
+              "enabled": true
+            }
+          }
+        ]
+      },
+      "operation": {
+        "kind": "undo",
+        "reference": "91000000-0000-4000-8000-000000000002"
+      }
+    }
+  }
+}

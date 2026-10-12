@@ -22,7 +22,7 @@ test('direct JS cannot mutate retained local proof candidate or exported graph b
  call('apply',[...Y.encodeStateAsUpdate(original)])
  const result=call('replaceProseWithLineage',{start:2,end:2,text:'\n',operation_id:id(1)})
  const update=[...Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))], binding={document_id:id(2),incarnation:'one'}
- const receipt={version:1,...binding,operation_id:id(1),operation:{kind:'replace_prose',reference:null},
+ const receipt={contract_version:1,kind:'placement_receipt',...binding,operation_id:id(1),operation:{kind:'replace_prose',reference:null},
   update_sha256:placementUpdateHash(Uint8Array.from(update)),copies:JSON.parse(JSON.stringify(result.lineage.copies))}
  result.lineage.copies.length=0
  assert.throws(()=>call('preparePlacementReceipt',{expected_binding:binding,trust:'local',update,receipt:{...receipt,copies:[]}}),/runtime-proven/)

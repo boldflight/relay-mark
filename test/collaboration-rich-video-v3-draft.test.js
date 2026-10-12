@@ -8,6 +8,9 @@ import { validateDocument } from '../src/validator.js';
 import { validateJSONSchema } from '../src/json-schema.js';
 
 const fixture = JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/rich-video-v3-draft.json', import.meta.url)));
+// The immutable draft's raw portable shape has only durable attributes. Its
+// historical normalized shape contains hydration fields rejected today.
+const currentDocument = fixture.raw;
 const schemaURL = new URL('../spec/relaymark/schemas/relaymark-document.schema.json', import.meta.url);
 const schema = JSON.parse(readFileSync(schemaURL));
 
@@ -20,16 +23,17 @@ test('TipTap/Yjs video preserves only its durable ID in the portable AST', () =>
     assert.equal(xml[1].getAttribute('videoId'), fixture.normalized.content[1].attrs.videoId);
     assert.equal(xml[1].getAttribute('source'), 'mux');
     assert.equal(xml[1].getAttribute('status'), 'ready');
-    assert.deepEqual(proseMirrorToRelayMark(fixture.normalized), fixture.expected_ast);
+    assert.throws(() => proseMirrorToRelayMark(fixture.normalized), /Video|Unsupported/);
+    assert.deepEqual(proseMirrorToRelayMark(currentDocument), fixture.expected_ast);
     assert.deepEqual(validateDocument(fixture.expected_ast), []);
     assert.deepEqual(validateJSONSchema(fixture.expected_ast, schema, fileURLToPath(schemaURL)), []);
-    assert.deepEqual(relayMarkToProseMirror(fixture.expected_ast), fixture.normalized);
+    assert.deepEqual(relayMarkToProseMirror(fixture.expected_ast), currentDocument);
   } finally { doc.destroy(); }
 });
 
 test('v3 video rejects hydrated or malformed source state', () => {
   const rejectNode = (edit, reason) => {
-    const document = structuredClone(fixture.normalized);
+    const document = structuredClone(currentDocument);
     edit(document.content[1]);
     assert.throws(() => proseMirrorToRelayMark(document), reason);
   };
@@ -37,7 +41,7 @@ test('v3 video rejects hydrated or malformed source state', () => {
     ['playbackId', 'mux-playback'], ['title', 'Hydrated title'], ['source', 'youtube'],
     ['thumbnailUrl', 'https://example.org/preview.jpg'], ['status', 'preparing'],
     ['youtubeId', 'external'], ['uploadPercent', 50]
-  ]) rejectNode(video => { video.attrs[key] = value; }, /Video/);
+  ]) rejectNode(video => { video.attrs[key] = value; }, /Video|Unsupported/);
   for (const value of ['11111111-1111-4111-8111-11111111111A', '../private', null]) {
     rejectNode(video => { video.attrs.videoId = value; }, /Video ID/);
   }

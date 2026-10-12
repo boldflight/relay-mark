@@ -1,0 +1,343 @@
+{
+  "version": 1,
+  "replay_json": "{\"version\":1,\"scope_token\":\"qualified-native-owner\",\"binding\":{\"document_id\":\"71000000-0000-4000-8000-000000000090\",\"incarnation\":\"native-fixture\"},\"baseline\":[1,3,250,188,249,226,15,0,7,1,7,100,101,102,97,117,108,116,3,9,112,97,114,97,103,114,97,112,104,7,0,250,188,249,226,15,0,6,4,0,250,188,249,226,15,1,5,72,101,108,108,111,0],\"steps\":[{\"kind\":\"placement\",\"update\":[1,3,202,209,184,254,2,0,135,250,188,249,226,15,0,3,9,112,97,114,97,103,114,97,112,104,7,0,202,209,184,254,2,0,6,4,0,202,209,184,254,2,1,3,108,108,111,1,250,188,249,226,15,1,4,3],\"trust\":\"local\",\"receipt\":{\"contract_version\":1,\"kind\":\"placement_receipt\",\"document_id\":\"71000000-0000-4000-8000-000000000090\",\"incarnation\":\"native-fixture\",\"operation_id\":\"71000000-0000-4000-8000-000000000001\",\"update_sha256\":\"c85351d0e6c1c164428494bd2c837f8f5c30ef88caa88e241cff3c2281dc68c6\",\"operation\":{\"kind\":\"replace_prose\",\"reference\":null},\"copies\":[{\"source\":{\"runs\":[{\"type\":{\"client\":4234043002,\"clock\":1},\"item\":{\"client\":4234043002,\"clock\":4},\"count\":3}]},\"destination\":{\"runs\":[{\"type\":{\"client\":802040010,\"clock\":1},\"item\":{\"client\":802040010,\"clock\":2},\"count\":3}]}}]}},{\"kind\":\"format\",\"update\":[1,4,161,227,186,165,10,0,70,250,188,249,226,15,2,4,98,111,108,100,2,123,125,134,250,188,249,226,15,6,4,98,111,108,100,4,110,117,108,108,70,202,209,184,254,2,2,4,98,111,108,100,2,123,125,134,202,209,184,254,2,4,4,98,111,108,100,4,110,117,108,108,0],\"event\":{\"contract_version\":1,\"kind\":\"format_event\",\"operation_id\":\"71000000-0000-4000-8000-000000000002\",\"update_sha256\":\"c3a6d511d57e4cd74ef7f45c1494f0b47b6293bed38f7e9ca80a7aa8ef0f3909\",\"mark\":\"bold\",\"text_items\":{\"runs\":[{\"type\":{\"client\":4234043002,\"clock\":1},\"item\":{\"client\":4234043002,\"clock\":2},\"count\":2},{\"type\":{\"client\":802040010,\"clock\":1},\"item\":{\"client\":802040010,\"clock\":2},\"count\":3}]},\"inserted_markers\":[{\"client\":2762912161,\"clock\":0},{\"client\":2762912161,\"clock\":1},{\"client\":2762912161,\"clock\":2},{\"client\":2762912161,\"clock\":3}],\"deleted_markers\":[],\"changes\":[{\"unit\":{\"item\":{\"client\":4234043002,\"clock\":2},\"type\":{\"client\":4234043002,\"clock\":1}},\"before\":{\"marker\":null,\"enabled\":false},\"after\":{\"marker\":{\"client\":2762912161,\"clock\":0},\"enabled\":true}},{\"unit\":{\"item\":{\"client\":4234043002,\"clock\":3},\"type\":{\"client\":4234043002,\"clock\":1}},\"before\":{\"marker\":null,\"enabled\":false},\"after\":{\"marker\":{\"client\":2762912161,\"clock\":0},\"enabled\":true}},{\"unit\":{\"item\":{\"client\":802040010,\"clock\":2},\"type\":{\"client\":802040010,\"clock\":1}},\"before\":{\"marker\":null,\"enabled\":false},\"after\":{\"marker\":{\"client\":2762912161,\"clock\":2},\"enabled\":true}},{\"unit\":{\"item\":{\"client\":802040010,\"clock\":3},\"type\":{\"client\":802040010,\"clock\":1}},\"before\":{\"marker\":null,\"enabled\":false},\"after\":{\"marker\":{\"client\":2762912161,\"clock\":2},\"enabled\":true}},{\"unit\":{\"item\":{\"client\":802040010,\"clock\":4},\"type\":{\"client\":802040010,\"clock\":1}},\"before\":{\"marker\":null,\"enabled\":false},\"after\":{\"marker\":{\"client\":2762912161,\"clock\":2},\"enabled\":true}}]},\"operation\":null},{\"kind\":\"placement\",\"update\":[1,1,202,209,184,254,2,5,196,250,188,249,226,15,3,250,188,249,226,15,4,3,108,108,111,2,161,227,186,165,10,1,2,2,202,209,184,254,2,1,0,5],\"trust\":\"local\",\"receipt\":{\"contract_version\":1,\"kind\":\"placement_receipt\",\"document_id\":\"71000000-0000-4000-8000-000000000090\",\"incarnation\":\"native-fixture\",\"operation_id\":\"71000000-0000-4000-8000-000000000003\",\"update_sha256\":\"59396047c4a5d064976f043a49f95349246e46f4dfcfae3a34e6771f761bf5e4\",\"operation\":{\"kind\":\"undo\",\"reference\":\"71000000-0000-4000-8000-000000000001\"},\"copies\":[{\"source\":{\"runs\":[{\"item\":{\"client\":4234043002,\"clock\":4},\"type\":{\"client\":4234043002,\"clock\":1},\"count\":3}]},\"destination\":{\"runs\":[{\"item\":{\"client\":802040010,\"clock\":5},\"type\":{\"client\":4234043002,\"clock\":1},\"count\":3}]}}]}}]}",
+  "expected": {
+    "scope_token": "qualified-native-owner",
+    "binding": {
+      "document_id": "71000000-0000-4000-8000-000000000090",
+      "incarnation": "native-fixture"
+    },
+    "replay_sha256": "9b5ef099e75d159e0be7a1d9363511e4aa74ce02c79bbfc83ca4cb23810fbe38",
+    "cut": "7162a884b3758a02697f5d1a37d3d00134750d183e705accfcad128335ffca2d"
+  },
+  "owner_snapshot": {
+    "version": 1,
+    "yjs_version": "13.6.33",
+    "hook_version": 1,
+    "scope_token": "qualified-native-owner",
+    "client_id": 2762912161,
+    "state_update": [
+      3,
+      4,
+      250,
+      188,
+      249,
+      226,
+      15,
+      0,
+      7,
+      1,
+      7,
+      100,
+      101,
+      102,
+      97,
+      117,
+      108,
+      116,
+      3,
+      9,
+      112,
+      97,
+      114,
+      97,
+      103,
+      114,
+      97,
+      112,
+      104,
+      7,
+      0,
+      250,
+      188,
+      249,
+      226,
+      15,
+      0,
+      6,
+      4,
+      0,
+      250,
+      188,
+      249,
+      226,
+      15,
+      1,
+      2,
+      72,
+      101,
+      129,
+      250,
+      188,
+      249,
+      226,
+      15,
+      3,
+      3,
+      4,
+      161,
+      227,
+      186,
+      165,
+      10,
+      0,
+      70,
+      250,
+      188,
+      249,
+      226,
+      15,
+      2,
+      4,
+      98,
+      111,
+      108,
+      100,
+      2,
+      123,
+      125,
+      134,
+      250,
+      188,
+      249,
+      226,
+      15,
+      6,
+      4,
+      98,
+      111,
+      108,
+      100,
+      4,
+      110,
+      117,
+      108,
+      108,
+      65,
+      202,
+      209,
+      184,
+      254,
+      2,
+      2,
+      1,
+      129,
+      202,
+      209,
+      184,
+      254,
+      2,
+      4,
+      1,
+      4,
+      202,
+      209,
+      184,
+      254,
+      2,
+      0,
+      135,
+      250,
+      188,
+      249,
+      226,
+      15,
+      0,
+      3,
+      9,
+      112,
+      97,
+      114,
+      97,
+      103,
+      114,
+      97,
+      112,
+      104,
+      7,
+      0,
+      202,
+      209,
+      184,
+      254,
+      2,
+      0,
+      6,
+      4,
+      0,
+      202,
+      209,
+      184,
+      254,
+      2,
+      1,
+      3,
+      108,
+      108,
+      111,
+      196,
+      250,
+      188,
+      249,
+      226,
+      15,
+      3,
+      250,
+      188,
+      249,
+      226,
+      15,
+      4,
+      3,
+      108,
+      108,
+      111,
+      3,
+      250,
+      188,
+      249,
+      226,
+      15,
+      1,
+      4,
+      3,
+      161,
+      227,
+      186,
+      165,
+      10,
+      1,
+      2,
+      2,
+      202,
+      209,
+      184,
+      254,
+      2,
+      1,
+      0,
+      5
+    ],
+    "state_vector": [
+      3,
+      250,
+      188,
+      249,
+      226,
+      15,
+      7,
+      161,
+      227,
+      186,
+      165,
+      10,
+      4,
+      202,
+      209,
+      184,
+      254,
+      2,
+      8
+    ],
+    "undo": [
+      {
+        "insertions": [
+          {
+            "client": 2762912161,
+            "ranges": [
+              {
+                "clock": 0,
+                "len": 4
+              }
+            ]
+          }
+        ],
+        "deletions": [],
+        "operation_id": "71000000-0000-4000-8000-000000000002",
+        "counterparts": [],
+        "inserted_text_items": {
+          "runs": []
+        },
+        "formatting_mark": "bold",
+        "formatting_text_items": {
+          "runs": [
+            {
+              "type": {
+                "client": 4234043002,
+                "clock": 1
+              },
+              "item": {
+                "client": 4234043002,
+                "clock": 2
+              },
+              "count": 2
+            },
+            {
+              "type": {
+                "client": 802040010,
+                "clock": 1
+              },
+              "item": {
+                "client": 802040010,
+                "clock": 2
+              },
+              "count": 3
+            }
+          ]
+        }
+      }
+    ],
+    "redo": [],
+    "redone": [],
+    "retained": []
+  },
+  "transaction_ids": [
+    "71000000-0000-4000-8000-000000000002"
+  ],
+  "reference_id": "71000000-0000-4000-8000-000000000002",
+  "undo_id": "71000000-0000-4000-8000-000000000004",
+  "redo_id": "71000000-0000-4000-8000-000000000005",
+  "plain_snapshot": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "paragraph",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "text",
+            "delta": [
+              {
+                "insert": "Hello"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "bold_snapshot": {
+    "kind": "fragment",
+    "children": [
+      {
+        "kind": "element",
+        "name": "paragraph",
+        "attributes": {},
+        "children": [
+          {
+            "kind": "text",
+            "delta": [
+              {
+                "insert": "Hello",
+                "attributes": {
+                  "bold": {}
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

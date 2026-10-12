@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
 import * as Y from 'yjs';
-import {prosemirrorToYXmlFragment,initProseMirrorDoc,updateYFragment} from '@tiptap/y-tiptap';
+import {prosemirrorToYXmlFragment,initProseMirrorDoc,updateYFragment} from './helpers/canonical-binding.js';
 import {Step} from 'prosemirror-transform';
 import {parseDocument} from '../src/document-source.js';import {relayMarkToProseMirror} from '../src/document-adapter.js';
 import {buildContentEditWitness,prepareContentEditWitness,createCanonicalEditorSchema,createContentEditWrite,replayContentEditMutation} from '../src/content-edit.js';

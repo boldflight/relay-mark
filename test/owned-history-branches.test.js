@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import * as Y from 'yjs';
-import {initProseMirrorDoc,updateYFragment} from '@tiptap/y-tiptap';
+import {initProseMirrorDoc,updateYFragment} from './helpers/canonical-binding.js';
 import {createCanonicalEditorSchema} from '../src/editor-model.js';
 import {captureOwnedHistoryObservation,finishOwnedHistoryObservation} from '../adapters/collaboration/content-edit-mutation.js';
 import {protectOwnedHistoryBranches} from '../adapters/collaboration/owned-history-branches.js';

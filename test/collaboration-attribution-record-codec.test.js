@@ -6,7 +6,7 @@ import * as Y from 'yjs'
 import {packAttributionRecord,unpackAttributionRecord,packAttributionMetadata,unpackAttributionMetadata} from '../adapters/collaboration/attribution-record-codec.js'
 import {placementUpdateHash} from '../adapters/collaboration/placement-lineage.js'
 import {replayFormatAttribution} from '../adapters/collaboration/format-attribution-replay.js'
-const fixture=JSON.parse(readFileSync(new URL('../adapters/swift/Tests/RelayMarkCollaborationTests/Fixtures/attributed-history-v1.json',import.meta.url),'utf8'))
+const fixture=JSON.parse(readFileSync(new URL('./fixtures/attributed-history-current.json',import.meta.url),'utf8'))
 const recipe=JSON.parse(fixture.replay_json)
 const expected=packed=>({sidecar_sha256:packed.sidecar_sha256,operation_id:packed.operation_id})
 const clone=x=>JSON.parse(JSON.stringify(x))
@@ -52,7 +52,7 @@ test('large actual Yjs payload is absent from sidecar while Unicode and property
  const doc=new Y.Doc(),p=new Y.XmlElement('paragraph'),t=new Y.XmlText();p.insert(0,[t]);doc.getXmlFragment('default').insert(0,[p]);t.insert(0,'hello 🌍 '.repeat(10000))
  try{
   const update=[...Y.encodeStateAsUpdate(doc)]
-  const receipt={version:1,document_id:'73000000-0000-4000-8000-000000000090',incarnation:'日本 🌍',operation_id:'73000000-0000-4000-8000-000000000001',update_sha256:placementUpdateHash(Uint8Array.from(update)),operation:{kind:'replace_prose',reference:null},copies:[]}
+  const receipt={contract_version:1,kind:'placement_receipt',document_id:'73000000-0000-4000-8000-000000000090',incarnation:'日本 🌍',operation_id:'73000000-0000-4000-8000-000000000001',update_sha256:placementUpdateHash(Uint8Array.from(update)),operation:{kind:'replace_prose',reference:null},copies:[]}
   const recordJSON=JSON.stringify({trust:'local',update,receipt,kind:'placement'})
   const packed=packAttributionRecord(recordJSON,update)
   assert.ok(packed.sidecar_json.length<recordJSON.length/100)

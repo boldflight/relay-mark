@@ -31,19 +31,19 @@ function setup(bold=false,extra=false,publicBridge=false){
  }
  const a=client(),b=client(),binding={document_id:uuid(90),incarnation:'test'}
  let state=createFormatAttribution(doc),graph=createPlacementState(binding);const ids=[]
- const selection=()=>({version:1,runs:doc.getXmlFragment('default').toArray().flatMap((p,i)=>captureTextItems(doc.getXmlFragment('default'),{path:[i,0],index:0,length:p.get(0).length}).runs)})
+ const selection=()=>({runs:doc.getXmlFragment('default').toArray().flatMap((p,i)=>captureTextItems(doc.getXmlFragment('default'),{path:[i,0],index:0,length:p.get(0).length}).runs)})
  const bytes=result=>Y.mergeUpdates((Array.isArray(result)?result:result.updates).map(u=>Uint8Array.from(u)))
  function apply(update,peer){Y.applyUpdate(doc,update);peer.call('apply',[...update])}
  function structural(owner,peer,command,input,kind,reference){
   const result=owner.call(command,input),update=bytes(result)
-  const receipt={version:1,...binding,operation_id:input.operation_id,update_sha256:placementUpdateHash(update),operation:{kind,reference},copies:result.lineage.copies}
+  const receipt={contract_version:1,kind:'placement_receipt',...binding,operation_id:input.operation_id,update_sha256:placementUpdateHash(update),operation:{kind,reference},copies:result.lineage.copies}
   graph=preparePlacementReceipt(graph,{expected_binding:binding,trust:'local',update:[...update],receipt});ids.push(input.operation_id)
   steps.push({kind:'placement',update:[...update],receipt,trust:'local'})
   state=prepareCopyAttribution(state,{beforeDoc:doc,update,effectiveCopies:placementReceiptCopies(graph,binding,ids,input.operation_id)});apply(update,peer)
  }
  function formatting(owner,peer,value,n,range=null){
   const ranges=range?(Array.isArray(range)?range:[range]).map(r=>({path:[0,0],...r})):doc.getXmlFragment('default').toArray().map((p,i)=>({path:[i,0],index:0,length:p.get(0).length}))
-  const selected={version:1,runs:ranges.flatMap(r=>captureTextItems(doc.getXmlFragment('default'),r).runs)}
+  const selected={runs:ranges.flatMap(r=>captureTextItems(doc.getXmlFragment('default'),r).runs)}
   const update=bytes(owner.call('nativeFormatting',{kind:'formatText',ranges,attributes:{bold:value},operation_id:uuid(n)}))
   const event=captureHistoryFormatEvent(doc,update,{operation_id:uuid(n),mark:'bold',text_items:selected})
   state=prepareFormatAttribution(state,{beforeDoc:doc,update,event});steps.push({kind:'format',update:[...update],event,operation:null});apply(update,peer)
@@ -62,7 +62,7 @@ function setup(bold=false,extra=false,publicBridge=false){
    }
    state=restored.state;graph=restored.placementState;ids.splice(0,ids.length,...restored.placementReceiptIDs)
   },
-  inverse(owner,peer,n,newID,redo=false){const p=plan(n);owner.plan(p);const selected={version:1,runs:p.targets.map(t=>({...t.unit,count:1}))}
+  inverse(owner,peer,n,newID,redo=false){const p=plan(n);owner.plan(p);const selected={runs:p.targets.map(t=>({...t.unit,count:1}))}
    try {const saved=checkpoint(),result=publicBridge?owner.call(redo?'redoWithAttributedEvidence':'undoWithAttributedEvidence',{operation_id:uuid(newID),reference_id:uuid(n),replay_json:saved.replayJSON,expected:saved.expected}):owner.call(redo?'redoWithEvidence':'undoWithEvidence',{operation_id:uuid(newID)}),update=bytes(result)
     const event=captureHistoryFormatEvent(doc,update,{operation_id:uuid(newID),mark:'bold',text_items:selected}),operation={kind:redo?'redo':'undo',reference:uuid(n)}
     state=prepareFormatAttribution(state,{beforeDoc:doc,update,event,operation,resolveSuccessor:successor(n)});steps.push({kind:'format',update:[...update],event,operation});apply(update,peer);

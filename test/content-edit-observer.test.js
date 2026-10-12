@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import * as Y from 'yjs';
-import {Step} from 'prosemirror-transform';import {initProseMirrorDoc,updateYFragment} from '@tiptap/y-tiptap';
+import {Step} from 'prosemirror-transform';import {initProseMirrorDoc,updateYFragment} from './helpers/canonical-binding.js';
 import {parseDocument,documentToSnapshot} from '../src/document-source.js';import {createCanonicalEditorSchema} from '../src/editor-model.js';
 import {node} from '../adapters/collaboration/prose-operation.js';import {captureContentEditSnapshot} from '../adapters/collaboration/content-edit-observer.js';
 import {cloneCanonicalJSON} from '../src/canonical-json.js';

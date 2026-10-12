@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs'
 import * as Y from 'yjs'
 import {createFormatAttribution,prepareFormatAttribution,prepareNoEffectFormatAttribution,prepareCopyAttribution,prepareFormatInverseReconciliation,queryFormatInverse} from '../adapters/collaboration/format-attribution.js'
 import {formatAttributionCut} from '../adapters/collaboration/format-attribution-cut.js'
-const fixture=JSON.parse(readFileSync(new URL('./fixtures/concurrent-format-inverses.json',import.meta.url),'utf8'))
+const fixture=JSON.parse(readFileSync(new URL('./fixtures/concurrent-format-inverses-current.json',import.meta.url),'utf8'))
 const resolveSuccessor=u=>u
 function setup(){
  const doc=new Y.Doc({gc:false});Y.applyUpdate(doc,Uint8Array.from(fixture.baseline));let state=createFormatAttribution(doc)
@@ -104,7 +104,7 @@ test('actual original owners apply correction remotely and retain their manager 
    const operationID='91000000-0000-4000-8000-000000000005'
    const redo=a.call('redoWithEvidence',{operation_id:operationID});a.plan(null)
    const update=Y.mergeUpdates(redo.updates.map(u=>Uint8Array.from(u)))
-   const event=captureHistoryFormatEvent(doc,update,{operation_id:operationID,mark:'bold',text_items:{version:1,runs:plan.targets.map(t=>({...t.unit,count:1}))}})
+   const event=captureHistoryFormatEvent(doc,update,{operation_id:operationID,mark:'bold',text_items:{runs:plan.targets.map(t=>({...t.unit,count:1}))}})
    state=prepareFormatAttribution(state,{beforeDoc:doc,update,event,operation:{kind:'redo',reference:ids.aUndo.event.operation_id},resolveSuccessor})
    Y.applyUpdate(doc,update);b.call('apply',[...update])
    assert.deepEqual(doc.getXmlFragment('default').get(0).get(0).toDelta(),[{insert:'Hello',attributes:{bold:{}}}])

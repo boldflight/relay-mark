@@ -99,8 +99,10 @@ defmodule RelayMark.ContentEditTest do
              RelayMark.ContentEdit.prepare_witness(runtime, omitted["evidence"])
   end
 
-  test "maintained runtime interrupts runaway evaluation and remains usable" do
-    assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime(timeout: 100)
+  test "QuickJS execution interrupts runaway evaluation at 100ms and remains usable" do
+    # Canonical bundle initialization is covered above at the production budget.
+    # Isolate the interpreter's execution budget from loading that bundle.
+    assert {:ok, runtime} = Quicksand.start(timeout: 100)
     on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
     assert {:error, "timeout"} = Quicksand.eval(runtime, "while(true) {}")
     assert {:ok, 42} = Quicksand.eval(runtime, "42")

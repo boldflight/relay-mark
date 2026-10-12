@@ -57,7 +57,7 @@ test('actual split and restored-tail copies transfer peer format tokens through 
  const key=u=>JSON.stringify([u.item.client,u.item.clock,u.type.client,u.type.clock])
  function copy(result,n,kind,reference){
   const update=Y.mergeUpdates(result.updates.map(u=>Uint8Array.from(u)))
-  graph=preparePlacementReceipt(graph,{expected_binding:binding,trust:'local',update:[...update],receipt:{version:1,...binding,operation_id:id(n),update_sha256:placementUpdateHash(update),operation:{kind,reference},copies:result.lineage.copies}});ids.push(id(n))
+  graph=preparePlacementReceipt(graph,{expected_binding:binding,trust:'local',update:[...update],receipt:{contract_version:1,kind:'placement_receipt',...binding,operation_id:id(n),update_sha256:placementUpdateHash(update),operation:{kind,reference},copies:result.lineage.copies}});ids.push(id(n))
   const pairs=placementReceiptCopies(graph,binding,ids,id(n))
   const before=Y.encodeStateAsUpdate(doc)
   const next=prepareCopyAttribution(state,{beforeDoc:doc,update,effectiveCopies:pairs})
@@ -66,7 +66,7 @@ test('actual split and restored-tail copies transfer peer format tokens through 
  copy(call('replaceProseWithLineage',{start:2,end:2,text:'\n',operation_id:id(10)}),10,'replace_prose',null)
  const producer=fork(doc),updates=[];producer.on('update',u=>updates.push(u))
  producer.transact(()=>{for(const p of producer.getXmlFragment('default').toArray())p.get(0).format(0,p.get(0).length,{bold:{}})})
- const update=Y.mergeUpdates(updates),selection={version:1,runs:[0,1].flatMap(i=>captureTextItems(doc.getXmlFragment('default'),{path:[i,0],index:0,length:doc.getXmlFragment('default').get(i).get(0).length}).runs)}
+ const update=Y.mergeUpdates(updates),selection={runs:[0,1].flatMap(i=>captureTextItems(doc.getXmlFragment('default'),{path:[i,0],index:0,length:doc.getXmlFragment('default').get(i).get(0).length}).runs)}
  state=prepareFormatAttribution(state,{beforeDoc:doc,update,event:captureHistoryFormatEvent(doc,update,{operation_id:id(11),mark:'bold',text_items:selection})});Y.applyUpdate(doc,update);call('apply',[...update])
  copy(call('undoWithEvidence',{operation_id:id(12)}),12,'undo',id(10))
  const projection=resolvePlacementUnits(graph,binding,ids,selection),successors=new Map(projection.map(p=>[key(p.source),p.destination]))
@@ -153,7 +153,7 @@ test('partial inverse retains full logical scope for redo after a masking contri
  changed(0,4,{},60)
  const peer=fork(doc),updates=[];peer.on('update',u=>updates.push(u))
  peer.transact(()=>{peer.getXmlFragment('default').get(0).get(0).format(0,2,{bold:null});peer.getXmlFragment('default').get(0).get(0).format(4,1,{bold:null})})
- const update=Y.mergeUpdates(updates),root=doc.getXmlFragment('default'),text_items={version:1,runs:[...captureTextItems(root,{path:[0,0],index:0,length:2}).runs,...captureTextItems(root,{path:[0,0],index:4,length:1}).runs]}
+ const update=Y.mergeUpdates(updates),root=doc.getXmlFragment('default'),text_items={runs:[...captureTextItems(root,{path:[0,0],index:0,length:2}).runs,...captureTextItems(root,{path:[0,0],index:4,length:1}).runs]}
  state=prepareFormatAttribution(state,{beforeDoc:doc,update,event:captureHistoryFormatEvent(doc,update,{operation_id:id(61),mark:'bold',text_items})});Y.applyUpdate(doc,update)
  changed(2,2,null,62,{kind:'undo',reference:id(60)})
  assert.equal(query(state,61).targets.length,1,'B undo must affect only independent final o')
@@ -174,7 +174,7 @@ test('same-value logical ownership survives partial undo and redo until the cont
   const peer=fork(doc),updates=[];peer.on('update',u=>updates.push(u))
   peer.transact(()=>{for(const index of positions)peer.getXmlFragment('default').get(0).get(0).format(index,1,{bold:enabled?{}:null})})
   const update=Y.mergeUpdates(updates),root=doc.getXmlFragment('default')
-  const text_items={version:1,runs:selectedPositions.flatMap(index=>captureTextItems(root,{path:[0,0],index,length:1}).runs)}
+  const text_items={runs:selectedPositions.flatMap(index=>captureTextItems(root,{path:[0,0],index,length:1}).runs)}
   const event=captureHistoryFormatEvent(doc,update,{operation_id:id(n),mark:'bold',text_items})
   state=prepareFormatAttribution(state,{beforeDoc:doc,update,event,operation,resolveSuccessor:u=>u})
   Y.applyUpdate(doc,update);peer.destroy();return event

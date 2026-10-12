@@ -1,10 +1,11 @@
+import {currentOperationSeed} from './helpers/current-operation-seed.js';
 import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import * as Y from 'yjs';
 import {replayContentEditMutation} from '../adapters/collaboration/content-edit-mutation.js';
 import {captureContentEditFootprint} from '../adapters/collaboration/content-edit-observer.js';
 import {bindOwnedHistoryOwner,bindOwnedCommandGroup} from '../adapters/collaboration/owned-command-group.js';
 const ownerID='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const first='11111111-1111-4111-8111-111111111111',second='22222222-2222-4222-8222-222222222222',undoID='33333333-3333-4333-8333-333333333333';
-const base=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-typing-mutation.json',import.meta.url))).sender_state_base64;
+const base=currentOperationSeed(JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-typing-mutation.json',import.meta.url))).sender_state_base64);
 const enc=b=>Buffer.from(b).toString('base64'),dec=b=>new Uint8Array(Buffer.from(b,'base64'));
 function scenario(tamper=false,marked=false){const doc=new Y.Doc({gc:false}),origin={},receipts=[],transport={receipts:[]};Y.applyUpdate(doc,dec(base));const root=doc.getXmlFragment('default'),manager=new Y.UndoManager(root,{trackedOrigins:new Set([origin]),captureTimeout:Infinity});bindOwnedHistoryOwner(manager,ownerID);let id,created;
  const bind=e=>{if(manager.undoing||manager.redoing)created=e.stackItem;else bindOwnedCommandGroup(manager,e,id)};manager.on('stack-item-added',bind);manager.on('stack-item-updated',bind);manager.on('stack-item-popped',e=>created.meta.set('relaymark:operation_ids',e.stackItem.meta.get('relaymark:operation_ids')));doc.clientID=101;
@@ -26,7 +27,7 @@ test('hidden metadata allocation/deletion cannot accompany an otherwise exact ow
 test('actual formatting markers remain owned through grouped mark undo/redo with peer edits',()=>{const {undo,redo}=scenario(false,true);for(const evidence of[undo,redo])assert.equal(replayContentEditMutation(evidence).owned_history_correspondence,true);assert.deepEqual(replayContentEditMutation(redo).restored_copies,[{source:{runs:[{type:{client:101,clock:1},item:{client:101,clock:47},count:2}]},destination:{runs:[{type:{client:101,clock:1},item:{client:101,clock:51},count:2}]}}])});
 
 test('actual Enter relocated generated suffix restores original item ancestry through maintained undo and redo',async()=>{
- const {Step}=await import('prosemirror-transform'),{initProseMirrorDoc}=await import('@tiptap/y-tiptap'),{createCanonicalEditorSchema}=await import('../src/editor-model.js'),schema=createCanonicalEditorSchema();
+ const {Step}=await import('prosemirror-transform'),{initProseMirrorDoc}=await import('./helpers/canonical-binding.js'),{createCanonicalEditorSchema}=await import('../src/editor-model.js'),schema=createCanonicalEditorSchema();
  const fixture=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-enter-owned-history.json',import.meta.url))),doc=new Y.Doc({gc:false});Y.applyUpdate(doc,dec(fixture.initial_state_base64));const root=doc.getXmlFragment('default'),origin={},manager=new Y.UndoManager(root,{trackedOrigins:new Set([origin]),captureTimeout:Infinity});bindOwnedHistoryOwner(manager,ownerID);let created;manager.on('stack-item-added',e=>{if(manager.undoing||manager.redoing)created=e.stackItem;else bindOwnedCommandGroup(manager,e,first)});manager.on('stack-item-popped',e=>created.meta.set('relaymark:operation_ids',e.stackItem.meta.get('relaymark:operation_ids')));
  let pm=initProseMirrorDoc(root,schema).doc;const inverseSteps=[];for(const json of fixture.operation.steps){const step=Step.fromJSON(schema,json);inverseSteps.unshift(step.invert(pm).toJSON());pm=step.apply(pm).doc}
  const initialSnapshot=enc(Y.encodeSnapshot(Y.snapshot(doc)));const operation={...fixture.operation,group:{owner_id:ownerID,reference:first,operation_ids:[first]}};Y.applyUpdate(doc,dec(fixture.update_base64),origin);doc.clientID=101;

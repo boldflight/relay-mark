@@ -73,7 +73,7 @@ test('empty multiline paste creates real leaves in one undo item without text ad
   const before = call('snapshot')
   const result = call('nativeParagraphPaste', { index: 0, endUTF16: 18, text: '\n\n' })
   assert.equal(result.updates.length, 1)
-  assert.deepEqual(JSON.parse(new TextDecoder().decode(Uint8Array.from(result.insertedTextItems))), { version: 1, runs: [] })
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(Uint8Array.from(result.insertedTextItems))), { runs: [] })
   assert.equal(call('snapshot').children.length, 4)
   assert.equal(call('undoWithFormattingEvidence').formattingMark, null)
   assert.deepEqual(call('snapshot'), before)
