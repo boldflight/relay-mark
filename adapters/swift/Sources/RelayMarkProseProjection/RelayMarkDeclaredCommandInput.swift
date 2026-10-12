@@ -36,8 +36,8 @@ public enum RelayMarkDeclaredCommandInput: Codable, Equatable, Sendable {
     }
 
     public func validate() throws {
-        func validateFields(_ fields: [String: RelayMarkValue]) throws {
-            guard fields.keys.allSatisfy({ !$0.isEmpty && $0 != "id" && $0 != "relaymarkId" }) else { throw Failure.invalidOriginal }
+        func validateFields(_ fields: [String: RelayMarkValue], sourceBundleProperties: Bool = false) throws {
+            guard fields.keys.allSatisfy({ !$0.isEmpty && ($0 != "id" || sourceBundleProperties) && $0 != "relaymarkId" }) else { throw Failure.invalidOriginal }
             // The maintained portable codec rejects nonfinite/non-JSON values.
             _ = try JSONEncoder().encode(RelayMarkValue.object(fields))
         }
@@ -50,7 +50,10 @@ public enum RelayMarkDeclaredCommandInput: Codable, Equatable, Sendable {
                 !fields.isEmpty || !settingFields.isEmpty,
                 nodeName == "questionBlock" || settingFields.isEmpty,
                 nodeName != "questionBlock" || fields["settings"] == nil else { throw Failure.invalidOriginal }
-            try validateFields(fields); try validateFields(settingFields)
+            // SourceBundle props.id is its authored evidence-reference key,
+            // distinct from the immutable AST identity (relaymarkId).
+            try validateFields(fields, sourceBundleProperties: nodeName == "relaySourceBundle")
+            try validateFields(settingFields)
         case .paperControl(let nodeName, let fields):
             guard !fields.isEmpty, Set(fields.keys).isSubset(of: Set(try RelayMarkPaperControlContract.authoredFieldNames(nodeName: nodeName))) else { throw Failure.invalidOriginal }
         case .image(let source, let alt):
