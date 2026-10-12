@@ -4,6 +4,25 @@ import RelayMarkSwift
 /// Authored widget insertion and settings use the same canonical document grammar and Yrs transaction owner.
 /// Domain publication, answers and permission changes remain host actions.
 @MainActor public enum RelayMarkNativeWidgetMutation {
+    /// New authored widgets fit at the actual rich selection through the same
+    /// canonical AST and maintained block-position owner; no root-edge inference.
+    public static func insert(document: RelayMarkNativeDocument, range: NSRange,
+                              authoredBlock: Data, expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
+        guard try document.snapshot() == expectedSnapshot,
+              let block = try JSONSerialization.jsonObject(with: authoredBlock) as? [String: Any],
+              let type = block["type"] as? String, type.hasPrefix("relay."),
+              var ast = try JSONSerialization.jsonObject(with: document.authoredDocument()) as? [String: Any]
+        else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        ast["blocks"] = [block]
+        let snapshot = try RelayMarkSourceCodec.documentToSnapshot(JSONSerialization.data(withJSONObject: ast))
+        guard let tree = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
+        else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let bridge = try PMYXmlBridge.canonical(), incoming = try bridge.document(fromSnapshot: tree)
+        guard incoming.childCount == 1 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        return try RelayMarkNativeRichEditing.insertBlock(document: document, range: range,
+            block: incoming.child(0).json(), placement: .replaceSelection, expectedSnapshot: expectedSnapshot)
+    }
+
     public static func insert(document: RelayMarkNativeDocument,parentPath: [Int],at index: Int,
                               authoredBlock: Data,expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
         guard try document.snapshot()==expectedSnapshot,let block=try JSONSerialization.jsonObject(with:authoredBlock) as? [String:Any],
@@ -79,6 +98,62 @@ import RelayMarkSwift
         guard parentPath.isEmpty || parentID != nil else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
         return try RelayMarkNativeRichEditing.moveWidget(document: document, tree: tree,
             parentID: parentID, index: index, direction: direction)
+    }
+
+    /// Wrap genuine contiguous authored children; required references are never fabricated.
+    public static func wrapSourceBundle(document: RelayMarkNativeDocument, paths: [[Int]],
+                                        id: String, props: Data,
+                                        expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
+        guard try document.snapshot() == expectedSnapshot, !paths.isEmpty,
+              let first = paths.first, !first.isEmpty, let index = first.last, index >= 0,
+              paths.enumerated().allSatisfy({ offset, path in
+                  path.dropLast().elementsEqual(first.dropLast()) && path.last.map { $0 >= index && $0 - index == offset } == true
+              }),
+              let fields = try JSONSerialization.jsonObject(with: props) as? [String: Any],
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              var ast = try JSONSerialization.jsonObject(with: document.authoredDocument()) as? [String: Any]
+        else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let parentPath = Array(first.dropLast())
+        let parent = try RelayMarkNativeRichXML.node(at: parentPath, in: tree)
+        let parentID: String?
+        if parentPath.isEmpty { parentID = nil }
+        else {
+            parentID = (parent["attributes"] as? [String: Any])?["relaymarkId"] as? String
+            guard parentID != nil else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        }
+        func wrap(_ children: inout [[String: Any]]) throws {
+            guard index <= children.count, paths.count <= children.count - index else {
+                throw RelayMarkNativeDocument.Failure.invalidTextPath
+            }
+            let retained = Array(children[index..<(index + paths.count)])
+            let wrapper: [String: Any] = ["id": id, "type": "relay.source_bundle", "props": fields, "content": retained]
+            children.replaceSubrange(index..<(index + paths.count), with: [wrapper])
+        }
+        guard var blocks = ast["blocks"] as? [[String: Any]] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        if let parentID {
+            func visit(_ node: inout [String: Any]) throws -> Bool {
+                if node["id"] as? String == parentID {
+                    guard var children = node["content"] as? [[String: Any]] else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+                    try wrap(&children); node["content"] = children; return true
+                }
+                guard var children = node["content"] as? [[String: Any]] else { return false }
+                for position in children.indices where try visit(&children[position]) { node["content"] = children; return true }
+                return false
+            }
+            var found = false
+            for position in blocks.indices where try visit(&blocks[position]) { found = true; break }
+            guard found else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        } else { try wrap(&blocks) }
+        ast["blocks"] = blocks
+        // Complete AST validation enforces required props and actual reference-child grammar.
+        let encoded = try RelayMarkSourceCodec.documentToSnapshot(JSONSerialization.data(withJSONObject: ast))
+        guard let candidate = try JSONSerialization.jsonObject(with: encoded) as? [String: Any] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return try RelayMarkNativeRichEditing.wrapWidgets(document: document, tree: tree,
+            candidate: candidate, parentID: parentID, index: index, count: paths.count, wrapperID: id)
     }
 
     public struct AttributeUpdate: Sendable {

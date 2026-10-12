@@ -582,6 +582,32 @@ public enum RelayMarkNativeRichEditing {
         return try change(transform, source: source, bridge: bridge, document: document)
     }
 
+    /// Actual retained children travel as the maintained ReplaceAroundStep gap.
+    static func wrapWidgets(document: RelayMarkNativeDocument, tree: [String: Any],
+                            candidate: [String: Any], parentID: String?, index: Int,
+                            count: Int, wrapperID: String) throws -> Change {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let prospective = try bridge.document(fromSnapshot: candidate)
+        let parent = try identifiedNode(parentID, in: source)
+        let destination = try identifiedNode(parentID, in: prospective)
+        guard count > 0, index >= 0, index <= parent.node.childCount, count <= parent.node.childCount - index,
+              destination.node.childCount == parent.node.childCount - count + 1,
+              index < destination.node.childCount else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        let wrapper = destination.node.child(index)
+        let retained = PMFragment.fromArray(Array(parent.node.content.children[index..<(index + count)]))
+        guard wrapper.type.name == "relaySourceBundle", wrapper.attrs["relaymarkId"] as? String == wrapperID,
+              wrapper.content.eq(retained) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        let from = parent.position + (parentID == nil ? 0 : 1)
+            + parent.node.content.children.prefix(index).reduce(0) { $0 + $1.nodeSize }
+        let to = from + retained.size
+        let shell = try wrapper.type.create(wrapper.attrs)
+        var transform = PMTransform(source)
+        try transform.step(.replaceAround(from: from, to: to, gapFrom: from, gapTo: to,
+            slice: PMSlice(PMFragment.from(shell), openStart: 0, openEnd: 0), insert: 1, structure: true))
+        guard transform.doc.eq(prospective) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        return try change(transform, source: source, bridge: bridge, document: document)
+    }
+
     /// Delete the exact retained node, then decode its insertion through the
     /// canonical serialized Step owner used by maintained mutation replay.
     static func moveWidget(document: RelayMarkNativeDocument, tree: [String: Any],

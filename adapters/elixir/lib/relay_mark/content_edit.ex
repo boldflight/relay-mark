@@ -50,6 +50,12 @@ defmodule RelayMark.ContentEdit do
 
   def build_witness(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Allocate colliding imported Anchor names as actual maintained Steps while retaining all target destinations. No donor authority is issued."
+  def plan_reviewed_anchor_allocation(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "planReviewedAnchorAllocation", [input])
+
+  def plan_reviewed_anchor_allocation(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Plan original-ordinal imported heading/link repairs as actual maintained Steps. No donor or receipt authority is issued."
   def plan_reviewed_heading_navigation(runtime, input) when is_map(input),
     do: execute_arguments(runtime, "planReviewedHeadingNavigation", [input])
@@ -86,17 +92,35 @@ defmodule RelayMark.ContentEdit do
 
   def replay_mutation(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Imports retained inert HTML through the maintained DOM and canonical editor grammar."
+  def import_document_html(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "importDocumentHTML", [input])
+
+  def import_document_html(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Produce one actual DOM-free maintained command from host-admitted retained state and trusted server command/manager identities. The host still authorizes and independently admits the original returned update."
   def produce(runtime, input) when is_map(input),
     do: execute_arguments(runtime, "produceContentEdit", [input])
 
   def produce(_, _), do: {:error, :invalid_content_edit}
 
+  @doc "Produce one actual maintained undo/redo from host-authenticated original owner receipts or checkpoint."
+  def produce_owned_history(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "produceOwnedHistory", [input])
+
+  def produce_owned_history(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Plan a complete canonical authored target through the same maintained command producer."
   def produce_document_patch(runtime, input) when is_map(input),
     do: execute_arguments(runtime, "produceDocumentPatch", [input])
 
   def produce_document_patch(_, _), do: {:error, :invalid_content_edit}
+
+  @doc "Plan one exact authored-text replacement as maintained Steps over canonical rich AST."
+  def prepare_document_text_replacement(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "prepareDocumentTextReplacement", [input])
+
+  def prepare_document_text_replacement(_, _), do: {:error, :invalid_content_edit}
 
   @doc "Read-only dependency planning across an authenticated complete actor/owner cut. The host authenticates original reviewed associations and the whole checkpoint sidecar; the plan grants no source or erasure authority."
   def plan_reviewed_recovery_retirement(runtime, input) when is_map(input),
@@ -109,6 +133,30 @@ defmodule RelayMark.ContentEdit do
     do: execute_arguments(runtime, "retireOwnedHistoryCheckpoint", [input])
 
   def retire_owned_history(_, _), do: {:error, :invalid_content_edit}
+
+  @doc """
+  Verifies or derives a finite physical/history cut through the maintained owner.
+
+  Supply exactly the conversion update/destination state pair, or `writer_client`
+  alone. The writer must be a fresh uint32 absent from the complete original
+  client roster; null is allowed only for a proved zero-effect transform. Original
+  basis, receipts and owner/cohort requirements are unchanged. Derivation adds
+  the independently verified `conversion_update_base64` to the existing result.
+
+  Reviewed cohorts use the same privately recognized aggregate/per-field input
+  and exact Video/Slot plans; the Video array may be empty. Internal conditional
+  field/option relations affect capability closure only, never typed ancestry.
+  Option predecessors validate placement without becoming capability sources.
+
+  The host authenticates the complete original inventory and consumes the actual
+  state and manager result. No receipt, source authority, installation permission
+  or live historical codec fallback is supplied. Prior physical-cut/terminal
+  continuity and actual host installation require separate qualification.
+  """
+  def prepare_aggregate_settings_history_cut(runtime, input) when is_map(input),
+    do: execute_arguments(runtime, "prepareAggregateSettingsHistoryCut", [input])
+
+  def prepare_aggregate_settings_history_cut(_, _), do: {:error, :invalid_content_edit}
 
   @doc "Checkpoint the actual maintained owner after trusted chronological command replay. The host owns scoped checkpoint persistence, coverage and immutable receipt authentication. No raw update archive is returned."
   def checkpoint_owned_history(runtime, input) when is_map(input),
@@ -156,6 +204,10 @@ defmodule RelayMark.ContentEdit do
           ] ++ if(is_nil(regional_contexts), do: [], else: [regional_contexts])
         )
 
+  @doc "Subtract authenticated erasure summary intervals from one bounded candidate selector. No admission or ancestry authority is granted."
+  def subtract_source_selectors(runtime, candidates, excluded),
+    do: execute_source_arguments(runtime, "subtractSourceSelectors", [candidates, excluded])
+
   @doc "Partition recomputed imported destinations using separately authenticated human/generated subsets. Unproven remainder is unknown; inputs confer no authority."
   def partition_reviewed_recovery_destinations(runtime, input),
     do: execute_source_arguments(runtime, "partitionReviewedRecoveryDestinations", [input])
@@ -164,13 +216,19 @@ defmodule RelayMark.ContentEdit do
   def source_selector_windows(runtime, snapshot),
     do: execute_arguments(runtime, "sourceSelectorWindows", [snapshot])
 
+  @doc "Read original finite archive candidate windows; the host authenticates the file and every source claim."
+  def reviewed_recovery_archive_source_windows(runtime, evidence) when is_map(evidence),
+    do: execute_arguments(runtime, "reviewedRecoveryArchiveSourceWindows", [evidence])
+
+  def reviewed_recovery_archive_source_windows(_, _), do: {:error, :invalid_content_edit}
+
   @doc "Resolve validated current visible source ranges in document order."
   def resolve_text_items(runtime, snapshot, selector),
     do: execute_arguments(runtime, "resolveContentEditTextItems", [snapshot, selector])
 
   # Source errors are explicit portable codes. Exception text is never parsed.
   defp execute_source_arguments(runtime, function, values) do
-    with {:ok, arguments} <- Jason.encode(values) do
+    with {:ok, arguments} <- encode_arguments(values) do
       code =
         "(()=>{try{return {value:RelayMarkContentEditRuntime." <>
           function <>
@@ -200,7 +258,7 @@ defmodule RelayMark.ContentEdit do
   end
 
   defp execute_arguments(runtime, function, values) do
-    with {:ok, arguments} <- Jason.encode(values) do
+    with {:ok, arguments} <- encode_arguments(values) do
       code = "RelayMarkContentEditRuntime." <> function <> "(..." <> arguments <> ")"
 
       case Quicksand.eval(runtime, code) do
@@ -213,12 +271,25 @@ defmodule RelayMark.ContentEdit do
     end
   end
 
+  # Preserve JSON own keys rather than interpreting objects as JS literals.
+  # Both facade paths keep their existing classification/resource boundaries.
+  defp encode_arguments(values) do
+    with {:ok, arguments} <- Jason.encode(values),
+         {:ok, quoted} <- Jason.encode(arguments) do
+      {:ok, "JSON.parse(" <> quoted <> ")"}
+    end
+  end
+
   defp execute(runtime, function, document, operation)
        when is_map(document) and is_map(operation) do
     execute_arguments(runtime, function, [document, operation])
   end
 
   defp execute(_runtime, _function, _document, _operation), do: {:error, :invalid_content_edit}
+
+  @doc "Exact maintained interpreter bytes used to qualify finite conversion receipts."
+  def runtime_digest,
+    do: Base.encode16(:crypto.hash(:sha256, File.read!(bundle_path())), case: :lower)
 
   defp bundle_path do
     Path.join(:code.priv_dir(:relay_mark_elixir), "collaboration/content-edit-runtime.js")

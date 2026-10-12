@@ -1122,7 +1122,11 @@ defmodule RelayMark.DocumentSource do
         "relay.data_view" -> "DataView"
         "relay.video_embed" -> "VideoEmbed"
         "relay.file_ref" -> "FileRef"
-        _ -> fail(:markdown_projection)
+        _ ->
+          case RelayMark.DocumentDirectives.spec(type) do
+            %{"name" => name} when is_binary(name) -> name
+            _ -> fail(:markdown_projection)
+          end
       end
 
     children =

@@ -64,6 +64,26 @@ public enum RelayMarkContentEditCodec {
     public static func planClipboardHeadingNavigation(_ evidence: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planClipboardHeadingNavigation", arguments: [JSONSerialization.jsonObject(with: evidence)])
     }
+    /// Exact ordered new images after maintained fitting; call-local source only.
+    public static func validateMediaInsertion(beforeSnapshot: Data, steps: Data, witness: Data,
+        kind: String, expectedSources: [String]) throws {
+        let result = try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
+            operation: "validateMediaInsertion", arguments: [JSONSerialization.jsonObject(with: beforeSnapshot),
+                JSONSerialization.jsonObject(with: steps), JSONSerialization.jsonObject(with: witness), kind, expectedSources])
+        guard try JSONSerialization.jsonObject(with: result, options: [.fragmentsAllowed]) as? Bool == true else {
+            throw RelayMarkSourceCodec.Failure.invalidInput
+        }
+    }
+
+    public static func validateImageInsertion(beforeSnapshot: Data, steps: Data, witness: Data,
+                                               expectedSources: [String]) throws {
+        let result = try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
+            operation: "validateImageInsertion", arguments: [JSONSerialization.jsonObject(with: beforeSnapshot),
+                JSONSerialization.jsonObject(with: steps), JSONSerialization.jsonObject(with: witness), expectedSources])
+        guard try JSONSerialization.jsonObject(with: result, options: [.fragmentsAllowed]) as? Bool == true else {
+            throw RelayMarkSourceCodec.Failure.invalidInput
+        }
+    }
     public static func prepareWrite(before: Data, steps: Data, after: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"prepareContentEditWrite",arguments:[JSONSerialization.jsonObject(with:before),JSONSerialization.jsonObject(with:steps),JSONSerialization.jsonObject(with:after)])
     }

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.6.2
+
+- Ships the approved canonical contract 1 document adapter and bundled collaboration
+  resources. Hosts must convert retained prerelease documents before admitting them;
+  the package version does not choose the stored document contract.
+- Adds canonical HTML import and Data View projection through the shared document
+  model, preserving document meaning and host-owned authorization boundaries.
+- Includes the current rich content-edit and SourceBundle serialization fixes.
+
 ## 0.6.1
 
 - Exposes `RelayMark.project_manifest/2` as the canonical public manifest

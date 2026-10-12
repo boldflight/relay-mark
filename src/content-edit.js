@@ -256,3 +256,36 @@ export {reviewedRecoverySourceSelection,mapReviewedRecoverySelection} from "./co
 export function prepareRetainedReviewedRecoveryWitness(evidence){return prepareRetainedRecovery(evidence,applyContentEdit);}
 
 export {planClipboardHeadingNavigation,planClipboardAnchorAllocation,planReviewedHeadingNavigation,planReviewedAnchorAllocation,readContentEditSnapshotDocument,readReviewedRecoveryArchiveDocument,reviewedRecoveryArchiveSourceWindows,contentEditSnapshotToPortableSnapshot} from './content-edit-witness.js';
+
+/** Call-local exact native image-roster correspondence. The host supplies its
+ * captured portable before-snapshot, never a grant. Replay and fitted/copy range
+ * geometry remain owned by the same maintained command interpreter. */
+export function validateImageInsertion(beforeSnapshot, steps, witness, expectedSources) {
+ return validateMediaInsertion(beforeSnapshot,steps,witness,'image',expectedSources);
+}
+
+export function validateMediaInsertion(beforeSnapshot, steps, witness, kind, expectedSources) {
+ const minimum=kind==='image'?2:(kind==='video'||kind==='file')?1:0;
+ const validIdentity=kind==='image'?/^\/m\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i:/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+ if(!minimum||!Array.isArray(expectedSources)||expectedSources.length<minimum||expectedSources.length>4096||
+    expectedSources.some(src=>typeof src!=='string'||!validIdentity.test(src))||
+    !witness||witness.operation?.kind!=='content_edit'||
+    stableStringify(witness.operation.steps)!==stableStringify(steps))throw TypeError('Image insertion command mismatch');
+ const before=snapshotToDocumentWithProseMirror(beforeSnapshot).prosemirror;
+ const actual=applyContentEdit(before,{kind:'content_edit',steps});
+ if(stableStringify(actual.document)!==stableStringify(witness.document)||
+    stableStringify(actual.step_maps)!==stableStringify(witness.step_maps)||
+    stableStringify(actual.inserted_ranges)!==stableStringify(witness.inserted_ranges)||
+    stableStringify(actual.retained_ranges)!==stableStringify(witness.retained_ranges))throw TypeError('Image insertion witness mismatch');
+ const document=schema.nodeFromJSON(actual.document), sources=[];
+ document.descendants((node,position)=>{
+  if(node.type.name!==(kind==='image'?'image':kind==='file'?'relayFile':'videoEmbed'))return;
+  const contained=r=>position>=r.destination_from&&position+node.nodeSize<=r.destination_from+r.length;
+  if(actual.retained_ranges.some(contained)||actual.copied_subtree_ranges.some(contained))return;
+  if(!actual.inserted_ranges.some(contained))throw TypeError('Unmapped image insertion');
+  if(kind==='file'&&(node.attrs.uri!=='/m/'+node.attrs.id||node.attrs.scope!=='private'))throw TypeError('File insertion identity mismatch');
+  sources.push(kind==='image'?node.attrs.src:kind==='file'?node.attrs.id:node.attrs.videoId);
+ });
+ if(stableStringify(sources)!==stableStringify(expectedSources))throw TypeError('Image insertion original roster mismatch');
+ return true;
+}

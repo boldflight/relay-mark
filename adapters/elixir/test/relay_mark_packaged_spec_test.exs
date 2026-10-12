@@ -5,6 +5,8 @@ defmodule RelayMark.PackagedSpecTest do
   @packaged_root Path.expand("../priv/relaymark", __DIR__)
   @schema_files ~w(
     contract.json
+    editor-schema.json
+    xml-attribute-encoding.json
     schemas/relaymark-diagnostic.schema.json
     schemas/relaymark-document.schema.json
     schemas/relaymark-layer-composition.schema.json
@@ -22,11 +24,30 @@ defmodule RelayMark.PackagedSpecTest do
 
     assert packaged_relative_paths() == Enum.sort(relative_paths)
 
-    for relative_path <- relative_paths do
+    for relative_path <- relative_paths -- ["contract.json"] do
       assert File.read!(Path.join(@packaged_root, relative_path)) ==
                File.read!(Path.join(@canonical_root, relative_path)),
              "#{relative_path} must be refreshed from the canonical RelayMark spec"
     end
+  end
+
+  test "packaged contract includes the canonical physical schema digest" do
+    read = fn name ->
+      @canonical_root |> Path.join(name) |> File.read!() |> Jason.decode!()
+    end
+
+    physical = %{
+      "editor_schema" => read.("editor-schema.json"),
+      "xml_attribute_encoding" => read.("xml-attribute-encoding.json")
+    }
+
+    digest =
+      :crypto.hash(:sha256, RelayMark.CanonicalJSON.encode(physical))
+      |> Base.encode16(case: :lower)
+
+    expected = Map.put(read.("contract.json"), "schema_hash", digest)
+    actual = @packaged_root |> Path.join("contract.json") |> File.read!() |> Jason.decode!()
+    assert actual == expected
   end
 
   test "Hex package ships the canonical pure text-item adapter" do
