@@ -545,7 +545,7 @@ public enum RelayMarkNativeRichEditing {
         }
         guard pmCompareDeep(transform.doc.json(), expected) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let (update, updated, beforeSnapshot, witnessedSteps) = try commit(transform, source: source, bridge: bridge, document: document, preferredIDs: result["retained_ids"] as? [String: Int] ?? [:])
-        let caret = (finalSelection["head"] as? Int).flatMap { caret($0, in: updated) }
+        let caret = (finalSelection["head"] as? Int).flatMap { Self.caret($0, in: updated) }
         let id = caret.flatMap { value -> String? in
             var node = updated
             for index in value.blockPath { guard index < node.childCount else { return nil }; node = node.child(index) }
