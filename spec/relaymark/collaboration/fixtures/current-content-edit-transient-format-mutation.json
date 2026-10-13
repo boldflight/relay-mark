@@ -1,0 +1,178 @@
+{
+  "description": "Current canonical physical seed; independently emitted Yjs XML transient-format command",
+  "sender_state_base64": "AgOg8vv/DwCoZSwBeKhlGwF4qGUlAXgjZQAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHAGUABgQAZQEGQfCfjI1aKABlAAtyZWxheW1hcmtJZAF3IWIyZTg3NWI4MjlhOGQ0NDlkOGFkZDhmNGRmZjQxMmJjY4dlAAMNcXVlc3Rpb25CbG9jawcAZQcDDXF1ZXN0aW9uTGFiZWwHAGUIBgYAZQkEYm9sZAJ7fYRlCgZDaG9vc2WGZRAEYm9sZARudWxsKABlCAtyZWxheW1hcmtJZAF3IWJiODE4OTJlZWY4OTQ0YjQ0OGFhM2Q2ZDZiNDUzNzhjYodlCAMOcXVlc3Rpb25PcHRpb24HAGUTBgQAZRQDT25lKABlEwtyZWxheW1hcmtJZAF3IWIzNzdhOTI0NWEyYTc0MGU4ODE1NTU4NTcwMDI1N2Y2ZigAZRMHY29ycmVjdAF5KABlEwZwb2ludHMBfigAZRMIc2V0dGluZ3MBdgAoAGUTAmlkAXcDb25lh2UTAw5xdWVzdGlvbk9wdGlvbgcAZR0GBABlHgNUd28oAGUdC3JlbGF5bWFya0lkAXchYmJlMjAyNjAxODQzZDQxZDA4NzJlZDk1ZWFhMjUwZDNjKABlHQdjb3JyZWN0AXkoAGUdBnBvaW50cwF+KABlHQhzZXR0aW5ncwF2ACgAZR0CaWQBdwN0d28oAGUHC3JlbGF5bWFya0lkAXchYmM3YmNlOGZlZWRiOTQ5YzU4ZTIzYmEwMWJhNGJmY2YxKABlBwhyZXF1aXJlZAF5KABlBwZwb2ludHMBfigAZQcDbWluAX4oAGUHA21heAF+KABlBwhzZXR0aW5ncwF2ACgAZQcCaWQBdwVxLW9uZSgAZQcEdHlwZQF3D211bHRpcGxlX2Nob2ljZQFlAxoCJAIpBA==",
+  "current_state_base64": "AgOg8vv/DwCoZSwBeKhlGwF4qGUlAXgjZQAHAQdkZWZhdWx0AwlwYXJhZ3JhcGgHAGUABgQAZQEGQfCfjI1aKABlAAtyZWxheW1hcmtJZAF3IWIyZTg3NWI4MjlhOGQ0NDlkOGFkZDhmNGRmZjQxMmJjY4dlAAMNcXVlc3Rpb25CbG9jawcAZQcDDXF1ZXN0aW9uTGFiZWwHAGUIBgYAZQkEYm9sZAJ7fYRlCgZDaG9vc2WGZRAEYm9sZARudWxsKABlCAtyZWxheW1hcmtJZAF3IWJiODE4OTJlZWY4OTQ0YjQ0OGFhM2Q2ZDZiNDUzNzhjYodlCAMOcXVlc3Rpb25PcHRpb24HAGUTBgQAZRQDT25lKABlEwtyZWxheW1hcmtJZAF3IWIzNzdhOTI0NWEyYTc0MGU4ODE1NTU4NTcwMDI1N2Y2ZigAZRMHY29ycmVjdAF5KABlEwZwb2ludHMBfigAZRMIc2V0dGluZ3MBdgAoAGUTAmlkAXcDb25lh2UTAw5xdWVzdGlvbk9wdGlvbgcAZR0GBABlHgNUd28oAGUdC3JlbGF5bWFya0lkAXchYmJlMjAyNjAxODQzZDQxZDA4NzJlZDk1ZWFhMjUwZDNjKABlHQdjb3JyZWN0AXkoAGUdBnBvaW50cwF+KABlHQhzZXR0aW5ncwF2ACgAZR0CaWQBdwN0d28oAGUHC3JlbGF5bWFya0lkAXchYmM3YmNlOGZlZWRiOTQ5YzU4ZTIzYmEwMWJhNGJmY2YxKABlBwhyZXF1aXJlZAF5KABlBwZwb2ludHMBfigAZQcDbWluAX4oAGUHA21heAF+KABlBwhzZXR0aW5ncwF2ACgAZQcCaWQBdwVxLW9uZSgAZQcEdHlwZQF3D211bHRpcGxlX2Nob2ljZQFlAxoCJAIpBA==",
+  "writer_client": 101,
+  "operation": {
+    "kind": "content_edit",
+    "steps": [
+      {
+        "stepType": "replace",
+        "from": 2,
+        "to": 2,
+        "slice": {
+          "content": [
+            {
+              "type": "text",
+              "text": "X"
+            }
+          ]
+        }
+      }
+    ],
+    "copies": []
+  },
+  "footprint": {
+    "state_vector": [
+      {
+        "client": 101,
+        "clock": 50
+      },
+      {
+        "client": 4294900000,
+        "clock": 3
+      }
+    ],
+    "structs": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 47
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 2
+        },
+        "right_origin": {
+          "client": 101,
+          "clock": 3
+        },
+        "content": {
+          "kind": "string",
+          "text": "X"
+        },
+        "deleted": false
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 48
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "origin": null,
+        "right_origin": {
+          "client": 101,
+          "clock": 2
+        },
+        "content": {
+          "kind": "format",
+          "key": "bold",
+          "value": {}
+        },
+        "deleted": true
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 49
+        },
+        "count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "origin": {
+          "client": 101,
+          "clock": 2
+        },
+        "right_origin": {
+          "client": 101,
+          "clock": 47
+        },
+        "content": {
+          "kind": "format",
+          "key": "bold",
+          "value": null
+        },
+        "deleted": true
+      }
+    ],
+    "declared_deletes": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 48
+        },
+        "count": 2
+      }
+    ],
+    "deleted_items": [
+      {
+        "item": {
+          "client": 101,
+          "clock": 48
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 48
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "content": {
+          "kind": "format",
+          "key": "bold",
+          "value": {}
+        }
+      },
+      {
+        "item": {
+          "client": 101,
+          "clock": 49
+        },
+        "count": 1,
+        "stored_item": {
+          "client": 101,
+          "clock": 49
+        },
+        "stored_count": 1,
+        "parent": {
+          "type": {
+            "client": 101,
+            "clock": 1
+          }
+        },
+        "key": null,
+        "content": {
+          "kind": "format",
+          "key": "bold",
+          "value": null
+        }
+      }
+    ]
+  }
+}

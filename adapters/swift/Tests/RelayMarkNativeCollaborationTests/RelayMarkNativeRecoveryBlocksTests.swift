@@ -6,6 +6,34 @@ import RelayMarkCollaboration
 
 @MainActor
 final class RelayMarkNativeRecoveryBlocksTests: XCTestCase {
+    func testCurrentReviewedRecoveryFixturePreservesRichAuthoredMeaning() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let old = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent(
+            "spec/relaymark/collaboration/fixtures/content-edit-native-reviewed-recovery.json"))) as? [String: Any])
+        let ast = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(old["original_authored_ast_base64"] as? String)))
+        let source = RelayMarkNativeDocument(), target = RelayMarkNativeDocument()
+        _ = try source.initializeDocument(authoredAST: ast)
+        _ = try target.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(
+            "Current peer content", namespace: "current-native-reviewed-target"))
+        let before = try target.encodeUpdate(), original = try source.encodeUpdate()
+        let change = try target.appendRecoveredRichBlocks(from: source.snapshot(), indices: [0, 1], expectedSnapshot: target.snapshot())
+        XCTAssertEqual(try String(target.richProseProjection().text.characters), "Current peer content\nA🚀🌍Z\nChoose\nOne\nTwo")
+        let peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(before); try peer.applyUpdate(change.update)
+        XCTAssertEqual(try peer.authoredDocument(), try target.authoredDocument())
+        _ = try target.undo()
+        XCTAssertEqual(try String(target.richProseProjection().text.characters), "Current peer content")
+        if let output = ProcessInfo.processInfo.environment["RELAY_CURRENT_REVIEWED_FIXTURE_OUTPUT"] {
+            let carrier = try JSONSerialization.data(withJSONObject: ["nativeContentEdit": ["steps": change.steps.base64EncodedString()]])
+            let fixture: [String: Any] = ["fixture_kind": "current_native_reviewed_append", "known_human_units": 2,
+                "original_authored_ast_base64": ast.base64EncodedString(), "original_document_base64": original.base64EncodedString(),
+                "target_before_base64": before.base64EncodedString(), "update_base64": change.update.base64EncodedString(),
+                "native_transaction_base64": carrier.base64EncodedString()]
+            try JSONSerialization.data(withJSONObject: fixture, options: [.sortedKeys, .prettyPrinted]).write(to: URL(fileURLWithPath: output))
+        }
+    }
+
     private func fixture(_ name: String) throws -> RelayMarkNativeDocument {
         let url = try XCTUnwrap(Bundle.module.url(forResource: name, withExtension: "json"))
         let receipt = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])

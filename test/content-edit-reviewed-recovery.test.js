@@ -5,7 +5,7 @@ import {runInNewContext} from 'node:vm';
 import * as Y from 'yjs';
 import * as ContentEdit from '../src/content-edit.js';
 import {captureContentEditSnapshot,captureContentEditFootprint} from '../adapters/collaboration/content-edit-observer.js';
-const fixture=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-native-reviewed-recovery.json',import.meta.url)));
+const fixture=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/current-content-edit-native-reviewed-recovery.json',import.meta.url)));
 const decode=value=>new Uint8Array(Buffer.from(value,'base64'));
 const json=value=>JSON.parse(Buffer.from(value,'base64').toString());
 function actualEvidence(){

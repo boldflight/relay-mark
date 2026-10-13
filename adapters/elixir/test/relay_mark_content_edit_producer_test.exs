@@ -40,7 +40,8 @@ defmodule RelayMark.ContentEditProducerTest do
   end
 
   test "shipped reviewed target planner preserves rich form identities while appending prose and metadata" do
-    fixture = File.read!(Path.join(@root, "content-edit-typing-mutation.json")) |> Jason.decode!()
+    fixture =
+      File.read!(Path.join(@root, "current-content-edit-typing-mutation.json")) |> Jason.decode!()
 
     target = %{
       "type" => "relaymark.document",

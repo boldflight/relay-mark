@@ -41,7 +41,7 @@ test('same-account manager Enter undo/redo preserves a later independently owned
 });
 
 test('pure-delete owned inverse cannot infer manager scope from fresh writer IDs', () => {
-  const f = load('content-edit-two-manager-delete.json'), result = replayContentEditMutation(f.proof);
+  const f = load('current-content-edit-two-manager-delete.json'), result = replayContentEditMutation(f.proof);
   assert.equal(f.proof.writer_client, null);
   assert.equal(result.complete_mutation_correspondence, true);
   assert.equal(result.owned_history_correspondence, true);
@@ -56,7 +56,7 @@ test('pure-delete owned inverse cannot infer manager scope from fresh writer IDs
 });
 
  test('retained manager reconnect uses one owner across new groups and cannot undo an older group out of order',()=>{
- const f=load('content-edit-reconnect-groups.json'),first=f.operations[0],second=f.operations[1];
+ const f=load('current-content-edit-reconnect-groups.json'),first=f.operations[0],second=f.operations[1];
  assert.notEqual(first.origin,second.origin);
  assert.equal(first.content_edit.group.owner_id,second.content_edit.group.owner_id);
  assert.notEqual(first.content_edit.group.reference,second.content_edit.group.reference);

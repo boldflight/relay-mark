@@ -62,10 +62,22 @@ test('one retained rich source can be duplicated twice only onto exact fresh Sli
 test('actual semantic input cannot silently borrow generated or peer retained identities',async()=>{
  const {readFileSync}=await import('node:fs'),{buildContentEditWitness}=await import('../src/content-edit.js'),{captureContentEditSnapshot,captureContentEditFootprint}=await import('../adapters/collaboration/content-edit-observer.js');
  for(const name of ['repeated-human-input','repeated-peer-input']){
-  const fixture=JSON.parse(readFileSync(new URL(`../spec/relaymark/collaboration/fixtures/content-edit-${name}.json`,import.meta.url)));
-  assert.throws(()=>buildContentEditWitness(fixture.evidence),/inserted text reused retained identity/);
+  const fixture=JSON.parse(readFileSync(new URL(`../spec/relaymark/collaboration/fixtures/current-content-edit-${name}.json`,import.meta.url)));
+  const {initProseMirrorDoc,updateYFragment}=await import('./helpers/canonical-binding.js');
+  const {createCanonicalEditorSchema}=await import('../src/editor-model.js'),{Step}=await import('prosemirror-transform');
+  const doc=new Y.Doc({gc:false});Y.applyUpdate(doc,Buffer.from(fixture.sender_state_base64,'base64'));doc.clientID=101;
+  const root=doc.getXmlFragment('default'),schema=createCanonicalEditorSchema(),initialized=initProseMirrorDoc(root,schema);
+  const before=captureContentEditSnapshot(root),vector=Y.encodeStateVector(doc),clocks=captureContentEditFootprint(doc,Uint8Array.of(0,0)).state_vector;
+  const operation=fixture.evidence.operation;let target=initialized.doc;
+  for(const step of operation.steps)target=Step.fromJSON(schema,step).apply(target).doc;
+  // Deliberately omit the explicit command write: the value-only community
+  // binding reproduces the attribution fault against a current physical seed.
+  updateYFragment(doc,root,target,initialized.meta);
+  const after=captureContentEditSnapshot(root),footprint=captureContentEditFootprint(doc,Y.encodeStateAsUpdate(doc,vector));
+  assert.throws(()=>buildContentEditWitness({sender_before_snapshot:before,sender_after_snapshot:after,before_snapshot:before,after_snapshot:after,before_state_vector:clocks,operation,footprint}),/inserted text reused retained identity/);
+  doc.destroy();
  }
- const fixture=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-identical-human-replacement.json',import.meta.url))),doc=new Y.Doc({gc:false});Y.applyUpdate(doc,new Uint8Array(Buffer.from(fixture.sender_state_base64,'base64')));
+ const fixture=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/current-content-edit-identical-human-replacement.json',import.meta.url))),doc=new Y.Doc({gc:false});Y.applyUpdate(doc,new Uint8Array(Buffer.from(fixture.sender_state_base64,'base64')));
  const snapshot=captureContentEditSnapshot(doc.getXmlFragment('default')),footprint=captureContentEditFootprint(doc,new Uint8Array([0,0]));
  assert.throws(()=>buildContentEditWitness({sender_before_snapshot:snapshot,sender_after_snapshot:snapshot,before_snapshot:snapshot,after_snapshot:snapshot,before_state_vector:footprint.state_vector,operation:fixture.operation,footprint}),/inserted text reused retained identity/);doc.destroy();
 });

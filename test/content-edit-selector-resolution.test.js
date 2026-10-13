@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {resolveContentEditTextItems,sourceSelectorWindows,validateSourceReadSelector} from '../src/content-edit.js';
-const fixture=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-repeated-peer-input.json',import.meta.url)));
+const fixture=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/current-content-edit-repeated-peer-input.json',import.meta.url)));
 const snapshot=fixture.evidence.sender_before_snapshot;
 const type={client:101,clock:1};
 test('current rich source fragments follow document order and retain selected gaps, full attributes and UTF16 identities',()=>{

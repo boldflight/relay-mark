@@ -4,7 +4,12 @@ defmodule RelayMark.ContentEditMutationTest do
   for name <- ~w(enter peer typing mark widget delete redundant) do
     test "actual #{name} command retains complete maintained allocation and deletion correspondence" do
       evidence =
-        File.read!(Path.join(@root, "content-edit-#{unquote(name)}-mutation.json"))
+        File.read!(
+          Path.join(
+            @root,
+            "#{if unquote(name) in ~w(enter peer), do: "", else: "current-"}content-edit-#{unquote(name)}-mutation.json"
+          )
+        )
         |> Jason.decode!()
         |> Map.delete("description")
 
@@ -27,7 +32,12 @@ defmodule RelayMark.ContentEditMutationTest do
   for name <- ~w(transient-format transient-metadata) do
     test "hidden #{name} mutation is not an executed command consequence" do
       evidence =
-        File.read!(Path.join(@root, "content-edit-#{unquote(name)}-mutation.json"))
+        File.read!(
+          Path.join(
+            @root,
+            "#{if unquote(name) in ~w(enter peer), do: "", else: "current-"}content-edit-#{unquote(name)}-mutation.json"
+          )
+        )
         |> Jason.decode!()
         |> Map.delete("description")
 
@@ -41,7 +51,8 @@ defmodule RelayMark.ContentEditMutationTest do
 
   test "actual maintained marked owner group restores through undo and redo with peer choice retained" do
     fixture =
-      File.read!(Path.join(@root, "content-edit-owned-mark-history.json")) |> Jason.decode!()
+      File.read!(Path.join(@root, "current-content-edit-owned-mark-history.json"))
+      |> Jason.decode!()
 
     assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
     on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)
@@ -78,7 +89,8 @@ defmodule RelayMark.ContentEditMutationTest do
 
   test "authored body and doc metadata share exact maintained replay and peer-preserving owned inverse" do
     fixture =
-      File.read!(Path.join(@root, "content-edit-metadata-history.json")) |> Jason.decode!()
+      File.read!(Path.join(@root, "current-content-edit-metadata-history.json"))
+      |> Jason.decode!()
 
     assert {:ok, runtime} = RelayMark.ContentEdit.start_runtime()
     on_exit(fn -> RelayMark.ContentEdit.stop_runtime(runtime) end)

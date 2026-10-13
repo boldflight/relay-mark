@@ -34,7 +34,7 @@ test('checkpoint of real undo preserves redone edges through cold redo without a
 });
 
 test('typing capture continues across checkpoint and genuine marked group suffix while omitting later owned commands refuses',()=>{
- const f=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-owned-mark-history.json',import.meta.url))),undo=knownOwner(f.undo);
+ const f=JSON.parse(fs.readFileSync(new URL('../spec/relaymark/collaboration/fixtures/current-content-edit-owned-mark-history.json',import.meta.url))),undo=knownOwner(f.undo);
  const first=undo.receipts[0],cut=new Y.Doc({gc:false});Y.applyUpdate(cut,dec(first.sender_state_base64));cut.getXmlFragment('default');Y.applyUpdate(cut,dec(first.update_base64));
  const checkpoint=Runtime.createOwnedHistoryCheckpoint({initial_state_base64:undo.initial_state_base64,receipts:[first],current_state_base64:enc(Y.encodeStateAsUpdate(cut)),owner_id:ownerID});
  const {initial_state_base64,receipts,...evidence}=undo;

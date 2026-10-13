@@ -57,5 +57,5 @@ test('same maintained manager undoes body and authored fields while retaining pe
   assert.equal(result.owned_history_correspondence,true);assert.deepEqual(result.text_items,{runs:[]});assert.deepEqual(doc.getMap('relaymark').get('frontmatter'),{title:'Peer keeps 🌍 title'});assert.equal(doc.getXmlFragment('default').get(1).get(1).get(0).toString(),'One<italic> peer</italic>');
   receipts.push({transaction_id:index?'33333333-3333-4333-8333-333333333333':'22222222-2222-4222-8222-222222222222',sender_state_base64:prior.state,update_base64:enc(inverseBytes),operation});
  }
- if(process.env.RELAYMARK_WRITE_METADATA_FIXTURE)fs.writeFileSync(new URL('../spec/relaymark/collaboration/fixtures/content-edit-metadata-history.json',import.meta.url),JSON.stringify(fixture,null,2)+'\n');manager.destroy();peer.destroy();doc.destroy();
+ if(process.env.RELAYMARK_WRITE_METADATA_FIXTURE)fs.writeFileSync(new URL('../spec/relaymark/collaboration/fixtures/current-content-edit-metadata-history.json',import.meta.url),JSON.stringify(fixture,null,2)+'\n');manager.destroy();peer.destroy();doc.destroy();
 });

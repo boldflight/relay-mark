@@ -6,7 +6,7 @@ import * as Runtime from '../src/content-edit.js';
 import {captureContentEditFootprint} from '../adapters/collaboration/content-edit-observer.js';
 const directory=new URL('../spec/relaymark/collaboration/fixtures/',import.meta.url);
 const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',ownerID='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const fixture=name=>JSON.parse(fs.readFileSync(new URL(`content-edit-${name}-mutation.json`,directory)));
+const fixture=name=>JSON.parse(fs.readFileSync(new URL(`${name === "enter" ? "" : "current-"}content-edit-${name}-mutation.json`,directory)));
 const input=f=>({state_base64:f.sender_state_base64,writer_client:f.writer_client,transaction_id:id,owner_id:ownerID,steps:f.operation.steps});
 const bytes=s=>Uint8Array.from(Buffer.from(s,'base64'));
 for(const name of ['typing','mark','widget','enter','delete'])test(`DOM-free ${name} produces actual canonical update and independently verified source evidence`,()=>{
@@ -35,7 +35,7 @@ test('producer refuses malformed writer, forged command owner, unknown steps and
 });
 
 test('reviewed full metadata and Unicode edit share one command and preserve exact authored envelope',()=>{
- const f=JSON.parse(fs.readFileSync(new URL('content-edit-metadata-history.json',directory))).normal;
+ const f=JSON.parse(fs.readFileSync(new URL('current-content-edit-metadata-history.json',directory))).normal;
  const result=Runtime.produceContentEdit(input(f));
  assert.deepEqual(result.authored_document.frontmatter,{title:'Exact 🌍 recovery'});
  assert.deepEqual(result.authored_document.annotations,[]);

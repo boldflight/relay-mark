@@ -5,7 +5,7 @@ import RelayMarkSwift
 struct RelayMarkNativeCanonicalMetadataTests {
  @Test @MainActor func actualRepeatedAndIdenticalHumanTextRetainsCanonicalSourceIdentity() throws {
   let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/content-edit-identical-human-replacement.json"))) as! [String:Any]
+  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/current-content-edit-identical-human-replacement.json"))) as! [String:Any]
   for length in [0,2] {
    let document=RelayMarkNativeDocument()
    try document.applyUpdate(Data(base64Encoded:fixture["sender_state_base64"] as! String)!)
@@ -20,7 +20,7 @@ struct RelayMarkNativeCanonicalMetadataTests {
  }
  @Test func currentSourceSelectorUsesSharedRichIdentityResolver() throws {
   let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/content-edit-repeated-peer-input.json"))) as! [String:Any]
+  let fixture=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/current-content-edit-repeated-peer-input.json"))) as! [String:Any]
   let snapshot=(fixture["evidence"] as! [String:Any])["sender_before_snapshot"]!
   let selector=Data(#"{"runs":[{"type":{"client":101,"clock":1},"item":{"client":303,"clock":0},"count":2},{"type":{"client":101,"clock":1},"item":{"client":101,"clock":2},"count":1}]}"#.utf8)
   let output=try RelayMarkSourceCodec.resolveTextItems(identitySnapshot:JSONSerialization.data(withJSONObject:snapshot),selector:selector)
