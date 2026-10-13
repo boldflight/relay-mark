@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.6.3
+
+- Restores the canonical fieldwise settings codec and finite
+  `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1` entry point that
+  were omitted from the 0.6.2 Elixir adapter integration. The existing packaged
+  policy remains authoritative across JavaScript, Swift and Elixir.
+- Current XML projections emit and require canonical physical settings. Detached
+  legacy previews return a validated conversion plan; canonical previews remain
+  unchanged, and mixed or malformed inputs return no partial result. Hosts retain
+  authority over original bytes, physical history cuts and live installation.
+
 ## 0.6.2
 
 - Ships the approved canonical contract 1 document adapter and bundled collaboration

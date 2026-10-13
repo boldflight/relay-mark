@@ -5,6 +5,13 @@ defmodule RelayMark.DocumentXML do
   `children` in `default` and optional authored `metadata` in the `relaymark` map.
   This module never changes a live document or authorizes domain actions.
   """
+  @encoding_path Path.expand("../../priv/relaymark/xml-attribute-encoding.json", __DIR__)
+  @external_resource @encoding_path
+  @encoding @encoding_path |> File.read!() |> Jason.decode!()
+  @settings_nodes @encoding["nodes"]
+  @settings_prefix @encoding["field_prefix"]
+  @settings_attribute @encoding["logical_attribute"]
+  @settings_presence @encoding["presence"]
   @ids ~r/^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/
   @uuid ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
   @metadata ~w(frontmatter annotations resources meta)
@@ -113,6 +120,93 @@ defmodule RelayMark.DocumentXML do
     do: result(fn -> decode_snapshot!(snapshot) end)
 
   def to_document(_), do: error(:invalid_snapshot)
+
+  @doc "Finite original snapshot conversion; canonical geometry is retained without a physical cut. No live admission or undo-history authority."
+  def import_aggregate_settings_snapshot(snapshot) do
+    result(fn ->
+      only!(snapshot, ~w(kind children metadata))
+      require!(snapshot["kind"] == "fragment", :root)
+
+      {children, {changes, _encoding}} =
+        convert_aggregate_nodes!(list!(snapshot["children"]), [], 0, nil)
+
+      normalized = Map.put(snapshot, "children", children)
+
+      %{
+        "snapshot" => normalized,
+        "document" => decode_snapshot!(normalized),
+        "normalizations" => changes,
+        "requires_physical_history_cut" => changes != []
+      }
+    end)
+  end
+
+  defp convert_aggregate_nodes!(nodes, path, depth, encoding) do
+    require!(depth <= 64, :depth_limit)
+
+    Enum.map_reduce(Enum.with_index(nodes), {[], encoding}, fn {node, index},
+                                                               {changes, encoding} ->
+      if node["kind"] == "text" do
+        {node, {changes, encoding}}
+      else
+        require!(node["kind"] == "element", :element_required)
+        current_path = path ++ [index]
+
+        {attributes, own, encoding} =
+          if node["name"] in @settings_nodes do
+            original = attrs(node)
+            current = original[@settings_attribute] == @settings_presence
+            kind = if current, do: :canonical, else: :aggregate
+            require!(is_nil(encoding) or encoding == kind, :mixed_settings_encoding)
+
+            if current do
+              _ = decode_attributes!(node["name"], original)
+              {original, [], kind}
+            else
+              require!(is_map(original[@settings_attribute]), :aggregate_settings_required)
+
+              require!(
+                not Enum.any?(Map.keys(original), &String.starts_with?(&1, @settings_prefix)),
+                :mixed_settings_encoding
+              )
+
+              converted = encode_attributes!(node["name"], original)
+
+              set = %{
+                "path" => current_path,
+                "operation" => "set_attribute",
+                "name" => @settings_attribute,
+                "before" => original[@settings_attribute],
+                "value" => @settings_presence
+              }
+
+              added =
+                converted
+                |> Enum.filter(fn {key, _} -> String.starts_with?(key, @settings_prefix) end)
+                |> Enum.sort()
+                |> Enum.map(fn {key, value} ->
+                  %{
+                    "path" => current_path,
+                    "operation" => "add_attribute",
+                    "name" => key,
+                    "value" => value
+                  }
+                end)
+
+              {converted, [set | added], kind}
+            end
+          else
+            {attrs(node), [], encoding}
+          end
+
+        {children, {nested, encoding}} =
+          convert_aggregate_nodes!(list!(node["children"]), current_path, depth + 1, encoding)
+
+        {node |> Map.put("attributes", attributes) |> Map.put("children", children),
+         {changes ++ own ++ nested, encoding}}
+      end
+    end)
+  end
 
   @doc "Finite identity-only historical XML import; caller applies the returned attributes to its existing CRDT owner."
   def import_snapshot(snapshot, options \\ []) do
@@ -369,6 +463,66 @@ defmodule RelayMark.DocumentXML do
     node["attributes"]
   end
 
+  defp settings_field!(key) do
+    require!(is_binary(key) and String.valid?(key), :settings_key)
+    @settings_prefix <> Base.url_encode64(key, padding: false)
+  end
+
+  defp settings_key!(field) do
+    encoded = String.replace_prefix(field, @settings_prefix, "")
+
+    key =
+      case Base.url_decode64(encoded, padding: false) do
+        {:ok, key} -> key
+        :error -> require!(false, :settings_key)
+      end
+
+    require!(String.valid?(key) and settings_field!(key) == field, :settings_key)
+    key
+  end
+
+  defp encode_attributes!(name, attributes) when name in @settings_nodes do
+    require!(
+      not Enum.any?(Map.keys(attributes), &String.starts_with?(&1, @settings_prefix)),
+      :mixed_settings_encoding
+    )
+
+    settings = Map.get(attributes, @settings_attribute, %{})
+    require!(is_map(settings), :form_settings)
+    validate_json!(settings, 0)
+
+    Enum.reduce(settings, Map.put(attributes, @settings_attribute, @settings_presence), fn {key,
+                                                                                            value},
+                                                                                           encoded ->
+      Map.put(encoded, settings_field!(key), value)
+    end)
+  end
+
+  defp encode_attributes!(name, attributes) do
+    decode_attributes!(name, attributes)
+  end
+
+  defp decode_attributes!(name, attributes) when name in @settings_nodes do
+    require!(attributes[@settings_attribute] == @settings_presence, :settings_encoding)
+
+    {fields, plain} =
+      Enum.split_with(attributes, fn {key, _} -> String.starts_with?(key, @settings_prefix) end)
+
+    settings = Map.new(fields, fn {key, value} -> {settings_key!(key), value} end)
+    validate_json!(settings, 0)
+    plain |> Map.new() |> Map.put(@settings_attribute, settings)
+  end
+
+  defp decode_attributes!(_name, attributes) do
+    require!(
+      not Map.has_key?(attributes, @settings_attribute) and
+        not Enum.any?(Map.keys(attributes), &String.starts_with?(&1, @settings_prefix)),
+      :unrelated_settings
+    )
+
+    attributes
+  end
+
   defp content(node), do: Map.get(node, "content", []) |> list!()
 
   defp element(name, attributes, children),
@@ -445,7 +599,7 @@ defmodule RelayMark.DocumentXML do
           Enum.map(content(block), &encode_block/1)
       end
 
-    element(name, properties, children)
+    element(name, encode_attributes!(name, properties), children)
   end
 
   defp descendant_blocks(nodes, depth) do
@@ -465,7 +619,7 @@ defmodule RelayMark.DocumentXML do
     require!(node["kind"] == "element", :element_required)
     name = node["name"]
     require!(Map.has_key?(@fields, name), {:unknown_node, name})
-    attributes = attrs(node) |> normalize_structural_numbers()
+    attributes = decode_attributes!(name, attrs(node)) |> normalize_structural_numbers()
     only!(attributes, ["relaymarkId" | @fields[name]])
     children = Map.fetch!(node, "children") |> list!()
     id = attributes["relaymarkId"]
