@@ -8,6 +8,16 @@ public final class RelayMarkCollaborationDocument {
     public enum Failure: Error, Equatable { case runtime(String) }
     private let context: JSContext
 
+    static let randomValuesBootstrap = """
+    globalThis.crypto = { getRandomValues(a) {
+      // lib0 requests Uint32Array values; entropy must cover bytes, not elements.
+      const bytes = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+      if (bytes.length > 65536) throw new RangeError('Random request exceeds 65536 bytes');
+      bytes.set(relayRandom(bytes.length));
+      return a;
+    } };
+    """
+
     public init() throws {
         guard let context = JSContext(),
               let url = Bundle.module.url(forResource: "yjs-runtime", withExtension: "js") else {
@@ -23,8 +33,8 @@ public final class RelayMarkCollaborationDocument {
         context.setObject(random, forKeyedSubscript: "relayRandom" as NSString)
         context.setObject(encode, forKeyedSubscript: "relayUTF8Encode" as NSString)
         context.setObject(decode, forKeyedSubscript: "relayUTF8Decode" as NSString)
+        context.evaluateScript(Self.randomValuesBootstrap)
         context.evaluateScript("""
-        globalThis.crypto = { getRandomValues(a) { a.set(relayRandom(a.length)); return a; } };
         globalThis.TextEncoder = class { encode(s) { return Uint8Array.from(relayUTF8Encode(s)); } };
         globalThis.TextDecoder = class { decode(a) { return relayUTF8Decode(Array.from(a || [])); } };
         globalThis.setTimeout = () => 0;

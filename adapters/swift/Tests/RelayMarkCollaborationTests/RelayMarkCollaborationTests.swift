@@ -1,9 +1,26 @@
 import Foundation
+import JavaScriptCore
 import Testing
 @testable import RelayMarkCollaboration
 
 @MainActor
 struct RelayMarkCollaborationTests {
+    @Test func randomValuesFillsEveryByteOfTypedArrayView() throws {
+        let context = try #require(JSContext())
+        context.evaluateScript("globalThis.relayRandom = count => Array.from({length:count}, (_,i) => i+1)")
+        context.evaluateScript(RelayMarkCollaborationDocument.randomValuesBootstrap)
+        let result = context.evaluateScript("""
+        (() => {
+          const backing = new Uint8Array(16); backing.fill(99);
+          const view = new Uint32Array(backing.buffer, 4, 2);
+          const returned = crypto.getRandomValues(view);
+          return JSON.stringify({same:returned===view,bytes:Array.from(backing)});
+        })()
+        """)
+        let value = try #require(result?.toString())
+        #expect(value == "{\"same\":true,\"bytes\":[99,99,99,99,1,2,3,4,5,6,7,8,99,99,99,99]}")
+    }
+
     private func seed(_ doc: RelayMarkCollaborationDocument) throws {
         _ = try doc.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"paragraph","attributes":{},"children":[{"kind":"text","delta":[{"insert":"Hello 🌍","attributes":{"bold":{},"link":{"href":"relay:entity/123"}}}]}]}]}"#.utf8))
     }
@@ -211,7 +228,8 @@ struct RelayMarkCollaborationTests {
         #expect(collaborators.count == 1)
         #expect(collaborators.first?.name == "Browser")
         #expect(collaborators.first?.userID == nil)
-        #expect(try doc.resolve(anchor: collaborators[0].anchor!)?.index == 6)
+        let collaborator = try #require(collaborators.first)
+        #expect(try doc.resolve(anchor: #require(collaborator.anchor))?.index == 6)
         #expect(try doc.encodeUpdate() == before)
         try doc.removePresence(origin: "browser-socket")
         #expect(try doc.collaborators().isEmpty)
