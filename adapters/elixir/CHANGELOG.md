@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 0.6.4
+
+- Loads directive definitions from installed application resources, so source
+  imports work when the release no longer contains its compilation checkout.
+- Preserves empty and nonparagraph-first CommonMark list items by adding a
+  deterministic leading paragraph without changing existing child identities.
+- Preserves marked ordinary wiki text and text on either side of a hard break;
+  reference atoms retain identity while surrounding text keeps its marks.
+- Applies registered defaults to directives with no explicit attribute list.
+- Keeps canonical contract 1 unchanged and adds shared source-import fixtures
+  plus an isolated runtime-resource regression.
+
 ## 0.6.3
 
 - Restores the canonical fieldwise settings codec and finite

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Normalizes valid empty and nonparagraph-first CommonMark list items into the
+  existing paragraph-first editor grammar without dropping source blocks or
+  changing their IDs; preserves marked text surrounding hard breaks.
+- Adds shared JavaScript/Elixir source-compatibility fixtures. Canonical contract
+  1 and the Swift document model remain unchanged.
+
 - Clarifies the cross-platform boundary: Agent Paper is the editable RelayMark
   document surface, while entity/page chrome and collection engines belong to
   hosts.

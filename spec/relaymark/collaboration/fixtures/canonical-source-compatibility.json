@@ -1,0 +1,159 @@
+{
+  "namespace": "canonical-source-compatibility",
+  "source": "- \n\n- # Heading\n\n  Body\n\n**[[Retained label]]**\n\n**Before  \nAfter**\n\n@Callout {\nRetained body.\n}\n\n**Before [[Note: 530dd8cb-3f36-47e1-925d-7969cd81aa67 | Kept note]] after**\n",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "b6c88c0c886c54aab887be35e44c51499",
+        "type": "list",
+        "props": {
+          "kind": "bullet"
+        },
+        "content": [
+          {
+            "id": "b29a6d85e6e554c898b9828cc45c4f1b7",
+            "type": "list_item",
+            "content": [
+              {
+                "id": "ba995b82abbc24ed6827c1f638706cf41",
+                "type": "paragraph",
+                "content": []
+              }
+            ]
+          },
+          {
+            "id": "b8c844c7a630040428827a932bdf440de",
+            "type": "list_item",
+            "content": [
+              {
+                "id": "b21b53501a582443f8e837f70f47e9baf",
+                "type": "paragraph",
+                "content": []
+              },
+              {
+                "id": "b21a90542ce4440148c360f31ae905fea",
+                "type": "heading",
+                "props": {
+                  "level": 1,
+                  "headingId": null
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Heading"
+                  }
+                ]
+              },
+              {
+                "id": "bb546132feb7042948a5987fbd40277aa",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Body"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "beb64796e71f040578570320c8259a500",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "[[Retained label]]"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b6f0294af812b4d058518837f99dd6d06",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "Before"
+              }
+            ]
+          },
+          {
+            "type": "hard_break"
+          },
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "After"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b304c0ed609c347a88c608216e4e35384",
+        "type": "relay.callout",
+        "props": {
+          "tone": "neutral",
+          "emphasis": "soft"
+        },
+        "content": [
+          {
+            "id": "bf3dac83c609f4fb38c26825df0667be4",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Retained body."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b40150219ef29401787e510d982081d28",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "Before "
+              }
+            ]
+          },
+          {
+            "type": "relay.entity_ref",
+            "id": "530dd8cb-3f36-47e1-925d-7969cd81aa67",
+            "label": "Kept note",
+            "props": {
+              "entityType": "Note",
+              "source": "[[Note: 530dd8cb-3f36-47e1-925d-7969cd81aa67 | Kept note]]"
+            }
+          },
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": " after"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

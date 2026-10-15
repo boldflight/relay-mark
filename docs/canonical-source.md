@@ -20,6 +20,17 @@ structural path. Retrying must retain that namespace or the already parsed AST.
 Importing changed source is an explicit replacement operation; ordinary editor
 changes use incremental community CRDT operations and never run an initializer.
 
+CommonMark import normalizes only the representation needed by the existing
+editor grammar. Empty list items and items beginning with another block receive
+an empty leading paragraph with an identity derived from the item path plus
+`leading-paragraph`; existing children keep their identities and order. Source
+marks apply to text runs, while hard breaks and canonical reference/tag atoms
+remain unmarked. Reference UUID, type, label and source stay unchanged, and
+marked ordinary wiki text stays literal marked text. Surrounding text retains
+its marks. The caller retains the original source as conversion evidence; this
+normalization grants no reference access and does not relax canonical AST rules.
+Registered directives may omit attributes and use registry-declared defaults.
+
 Readable Markdown is a derived human/search/export projection. It is not a
 second writable body and is not roundtrip evidence: Markdown cannot express all
 rich identities, merged table geometry or host widget settings. Authored HTML

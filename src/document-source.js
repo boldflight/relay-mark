@@ -199,7 +199,7 @@ function markdownBlocks(tokens,ns,prefix){let at=0;
    case 'bullet_list_open':case 'ordered_list_open':{const children=sequence(t.type.replace('_open','_close'),p);let task=false;for(const item of children){const first=item.content[0]?.content[0];const m=first?.type==='text'?first.text.match(/^\[([ xX])\]\s+/):null;if(m){task=true;item.type='task_item';item.props={checked:m[1].toLowerCase()==='x',entityId:null};first.text=first.text.slice(m[0].length);if(!first.text)item.content[0].content.shift();}}
     if(task)for(const item of children){item.type='task_item';item.props??={checked:false,entityId:null};linkedTask(item);}
     n=block(ns,p,task?'task_list':'list',children,task?undefined:{kind:t.type==='ordered_list_open'?'ordered':'bullet',...(t.type==='ordered_list_open'?{start:Number(t.attrGet('start')||1)}:{})});break;}
-   case 'list_item_open':n=block(ns,p,'list_item',sequence('list_item_close',p));break;
+   case 'list_item_open':{const content=sequence('list_item_close',p);if(content[0]?.type!=='paragraph')content.unshift(block(ns,[...p,'leading-paragraph'],'paragraph'));n=block(ns,p,'list_item',content);break;}
    case 'fence':case 'code_block':if(t.info.startsWith('relaymark-ast'))throw new TypeError('Mixed exact source');n=block(ns,p,'code',t.content?[{type:'text',text:t.content}]:[],{language:t.info||null});break;
    case 'html_block':n=block(ns,p,'paragraph',[{type:'text',text:t.content}]);break;
    case 'hr':n=block(ns,p,'horizontal_rule');break;
@@ -241,8 +241,8 @@ function inertInlineTokens(tokens){const output=[];for(let i=0;i<tokens.length;i
  }return output;}
 function inline(tokens){const output=[],marks=[];for(const t of inertInlineTokens(tokens)){if(t.nesting){const types={strong:'bold',em:'italic',s:'strike',link:'link'};const key=t.type.replace(/_(open|close)$/,'');const mark=types[key];if(!mark)throw new TypeError('Unsupported inline '+t.type);if(t.nesting===1)marks.push(mark==='link'?{type:'link',attrs:linkAttributes(t.attrGet('href'),{title:t.attrGet('title')})}:{type:mark});else marks.pop();continue;}
  if(t.type==='html_inline'&&/^<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->$/u.test(t.content)){const previous=output.at(-1);if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)output.pop();}continue;}
- if(t.type==='relay_atom'){if(marks.length)throw new TypeError('Marked reference');output.push(t.meta);continue;}
- if(t.type==='hardbreak'){if(marks.length)throw new TypeError('Marked hard break');output.push({type:'hard_break'});continue;}
+ if(t.type==='relay_atom'){output.push(t.meta);continue;}
+ if(t.type==='hardbreak'){output.push({type:'hard_break'});continue;}
  if(t.type==='code_inline'){output.push(mapInline({type:'text',text:t.content,marks:[{type:'code'}]}));continue;}
  if(!['text','softbreak','html_inline'].includes(t.type))throw new TypeError('Unsupported CommonMark inline '+t.type);
  const text=(t.type==='softbreak'?'\n':t.content).replace(/ ?<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->/gu,'');

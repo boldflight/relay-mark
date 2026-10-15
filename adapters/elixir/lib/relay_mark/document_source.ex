@@ -14,7 +14,6 @@ defmodule RelayMark.DocumentSource do
     ]
   ]
   @marks ~w(link strong code_span emphasis strikethrough underline highlight superscript subscript)
-  @directives Path.expand("../../priv/relaymark/directives", __DIR__)
   def parse(source, options \\ [])
 
   def parse(source, options) when is_binary(source) do
@@ -359,6 +358,13 @@ defmodule RelayMark.DocumentSource do
       Enum.with_index(n.nodes)
       |> Enum.map(fn {item, i} ->
         content = convert_children(item.nodes, ns, path ++ [i])
+        # CommonMark permits empty/nonparagraph-first items; the editor grammar
+        # requires paragraph block*. Preserve existing children and their IDs.
+        content =
+          case content do
+            [%{"type" => "paragraph"} | _] -> content
+            _ -> [block(ns, path ++ [i, "leading-paragraph"], "paragraph", [], nil) | content]
+          end
 
         if task do
           {content, entity_id} = linked_task(content)
@@ -570,6 +576,13 @@ defmodule RelayMark.DocumentSource do
     end
   end
 
+  defp inline_node(%MDEx.WikiLink{} = node, marks) do
+    case inline_node(node, []) do
+      [%{"type" => "text"} = literal] -> [wrap(literal, marks)]
+      [atom] -> [atom]
+    end
+  end
+
   defp inline_node(%MDEx.HtmlInline{literal: literal}, marks) do
     if recovery_marker?(literal),
       do: [],
@@ -579,7 +592,7 @@ defmodule RelayMark.DocumentSource do
   defp inline_node(%MDEx.SoftBreak{}, marks),
     do: [wrap(%{"type" => "text", "text" => "\n"}, marks)]
 
-  defp inline_node(%MDEx.LineBreak{}, []), do: [%{"type" => "hard_break"}]
+  defp inline_node(%MDEx.LineBreak{}, _marks), do: [%{"type" => "hard_break"}]
 
   defp inline_node(%MDEx.Code{literal: text}, _),
     do: [wrap(%{"type" => "text", "text" => text}, [{"code_span", nil}])]
@@ -874,10 +887,16 @@ defmodule RelayMark.DocumentSource do
       |> String.replace("&amp;", "&")
 
   defp directive(header, body, ns, path) do
-    [_, name, raw] = Regex.run(~r/^@([A-Z][A-Za-z0-9]*)(?:\((.*)\))?\s*\{\s*$/, header)
+    {name, raw} =
+      case Regex.run(~r/^@([A-Z][A-Za-z0-9]*)(?:\((.*)\))?\s*\{\s*$/, header) do
+        [_, name, raw] -> {name, raw}
+        [_, name] -> {name, ""}
+      end
 
     spec =
-      Path.wildcard(Path.join(@directives, "*.json"))
+      Path.wildcard(
+        Path.join(Application.app_dir(:relay_mark_elixir, "priv/relaymark/directives"), "*.json")
+      )
       |> Enum.map(fn p -> p |> File.read!() |> Jason.decode!() end)
       |> Enum.find(&(&1["name"] == name))
 
@@ -1116,12 +1135,24 @@ defmodule RelayMark.DocumentSource do
   defp markdown(%{"type" => type} = n) do
     label =
       case type do
-        "relay.callout" -> "Callout"
-        "relay.form_question" -> "FormQuestion"
-        "relay.agent_suggestion" -> "AgentSuggestion"
-        "relay.data_view" -> "DataView"
-        "relay.video_embed" -> "VideoEmbed"
-        "relay.file_ref" -> "FileRef"
+        "relay.callout" ->
+          "Callout"
+
+        "relay.form_question" ->
+          "FormQuestion"
+
+        "relay.agent_suggestion" ->
+          "AgentSuggestion"
+
+        "relay.data_view" ->
+          "DataView"
+
+        "relay.video_embed" ->
+          "VideoEmbed"
+
+        "relay.file_ref" ->
+          "FileRef"
+
         _ ->
           case RelayMark.DocumentDirectives.spec(type) do
             %{"name" => name} when is_binary(name) -> name
