@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import RelayMarkSwift
 @testable import RelayMarkNativeCollaboration
 
 @MainActor
@@ -41,6 +42,36 @@ final class RelayMarkNativeRichEditingTests: XCTestCase {
 
     private func tree(_ document: RelayMarkNativeDocument) throws -> [String: Any] {
         try XCTUnwrap(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any])
+    }
+
+    func testFormattingAcrossHardBreakKeepsCanonicalBreakAndPeerUndo() throws {
+        let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(
+            "left  \nright\n\n---\n\ntail", namespace: "native-format-break"))
+        try peer.applyUpdate(document.encodeUpdate())
+        let original = try document.authoredDocument()
+        let projection = try document.richProseProjection()
+        let effect = try XCTUnwrap(RelayMarkNativeRichEditing.format(document: document,
+            range: NSRange(location: 0, length: String(projection.text.characters).utf16.count),
+            mark: "bold", enabled: true, expectedSnapshot: document.snapshot()))
+        try peer.applyUpdate(effect.update)
+        func markedText(_ value: Any) -> Any {
+            if let node = value as? [String: Any] {
+                if node["type"] as? String == "text" { return ["type": "strong", "content": [node]] }
+                return node.mapValues(markedText)
+            }
+            if let array = value as? [Any] { return array.map(markedText) }
+            return value
+        }
+        let expected = try JSONSerialization.data(withJSONObject:
+            markedText(JSONSerialization.jsonObject(with: original)), options: [.sortedKeys])
+        XCTAssertEqual(try canonical(JSONSerialization.jsonObject(with: document.authoredDocument())),
+            try canonical(JSONSerialization.jsonObject(with: expected)))
+        XCTAssertEqual(try peer.authoredDocument(), try document.authoredDocument())
+        let undo = try XCTUnwrap(document.undo())
+        try peer.applyUpdate(undo)
+        XCTAssertEqual(try document.authoredDocument(), original)
+        XCTAssertEqual(try peer.authoredDocument(), original)
     }
 
     func testEmbeddedSchemaIsTheCanonicalSharedSchema() throws {

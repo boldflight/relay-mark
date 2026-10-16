@@ -512,10 +512,23 @@ public enum RelayMarkNativeRichEditing {
         let projection = try document.richProseProjection()
         let from = try position(range.location, projection: projection, doc: doc)
         let to = try position(NSMaxRange(range), projection: projection, doc: doc)
+        // Portable hard breaks carry no marks. Keep the maintained PM mark
+        // commands unchanged, but exclude break positions from this native
+        // command's selection, including selections spanning multiple blocks.
+        var intervals: [(Int, Int)] = [], start = from
+        doc.content.nodesBetween(from, to, { node, position, _, _ in
+            guard node.type.name == "hardBreak" else { return true }
+            if start < position { intervals.append((start, min(position, to))) }
+            start = max(start, position + node.nodeSize)
+            return false
+        }, parent: doc)
+        if start < to { intervals.append((start, to)) }
         var transform = PMTransform(doc)
-        if enabled { try transform.addMark(from, to, type.create(attributes)) }
-        else if attributes.isEmpty { try transform.removeMark(from, to, type: type) }
-        else { try transform.removeMark(from, to, mark: type.create(attributes)) }
+        for (lower, upper) in intervals {
+            if enabled { try transform.addMark(lower, upper, type.create(attributes)) }
+            else if attributes.isEmpty { try transform.removeMark(lower, upper, type: type) }
+            else { try transform.removeMark(lower, upper, mark: type.create(attributes)) }
+        }
         guard !transform.steps.isEmpty else { return nil }
         return try change(transform, source: doc, bridge: bridge, document: document)
     }
