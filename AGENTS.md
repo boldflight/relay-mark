@@ -23,3 +23,9 @@ Use primary `main` for routine work/releases and registered sibling `relay-mark-
 ## Offline multiplayer branch scope
 
 For offline collaboration work on this branch, start with [docs/OFFLINE_MULTIPLAYER.md](docs/OFFLINE_MULTIPLAYER.md). The September 14 user-approved community-first direction supersedes historical custom-history implementation plans. Research and integrate maintained community components before adding custom infrastructure. Preserve authorization and stored work; do not make experimental provenance or persistent-undo machinery a prerequisite for ordinary collaborative prose.
+
+## Agent commits and pushes
+
+- Agents may push their own reviewed work without asking for routine push approval. Batch coherent changes at natural checkpoints rather than pushing every commit. Before pushing, inspect the outgoing diff and intended remote/branch, run `git diff --check` and the basic checks relevant to the changes, and preserve repository release gates and other contributors' work.
+- Correct mistakes locally before pushing; amending an unpublished commit is fine. Once a commit has been pushed, do not amend, rebase or force-push it. Make a new corrective commit instead.
+- Push permission does not replace required release, deployment or package-publication checks or any explicit task-specific restriction.
