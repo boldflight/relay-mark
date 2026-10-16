@@ -12,6 +12,7 @@ export function encodeDocumentAttributes(name,attributes){return canonicalAttrib
 export function decodeDocumentAttributes(name,attributes){return canonicalAttributeCodec.decode(name,attributes);}
 export {xmlAttributeEncodingPolicy} from './document-attribute-policy.js';
 export {importAggregateSettingsSnapshot} from './document-snapshot.js';
+import {snapshotToDocumentWithProseMirror} from './document-snapshot.js';
 import {proseMirrorToRelayMark,relayMarkToProseMirror,assertAuthoredMetadata} from './document-adapter.js';
 import {stableStringify} from './canonical-json.js';
 import {validateOwnedCommandGroup,validateOwnedHistory} from './owned-command-group.js';
@@ -273,8 +274,8 @@ export function validateMediaInsertion(beforeSnapshot, steps, witness, kind, exp
     stableStringify(witness.operation.steps)!==stableStringify(steps))throw TypeError('Image insertion command mismatch');
  const before=snapshotToDocumentWithProseMirror(beforeSnapshot).prosemirror;
  const actual=applyContentEdit(before,{kind:'content_edit',steps});
+ // The canonical witness exposes document/ranges; StepMaps are recomputed here, not serialized in that witness.
  if(stableStringify(actual.document)!==stableStringify(witness.document)||
-    stableStringify(actual.step_maps)!==stableStringify(witness.step_maps)||
     stableStringify(actual.inserted_ranges)!==stableStringify(witness.inserted_ranges)||
     stableStringify(actual.retained_ranges)!==stableStringify(witness.retained_ranges))throw TypeError('Image insertion witness mismatch');
  const document=schema.nodeFromJSON(actual.document), sources=[];

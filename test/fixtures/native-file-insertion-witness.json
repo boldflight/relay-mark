@@ -1,0 +1,540 @@
+{
+  "before": {
+    "children": [
+      {
+        "attributes": {
+          "relaymarkId": "b400d08ea38cc481f8f117b20d05a94bb"
+        },
+        "children": [
+          {
+            "delta": [
+              {
+                "insert": "Original caret."
+              }
+            ],
+            "kind": "text"
+          }
+        ],
+        "kind": "element",
+        "name": "paragraph"
+      }
+    ],
+    "kind": "fragment"
+  },
+  "kind": "file",
+  "sources": [
+    "00000000-0000-4000-8000-000000000067"
+  ],
+  "steps": [
+    {
+      "from": 4,
+      "slice": {
+        "content": [
+          {
+            "attrs": {
+              "relaymarkId": "b400d08ea38cc481f8f117b20d05a94bb"
+            },
+            "type": "paragraph"
+          },
+          {
+            "attrs": {
+              "id": "00000000-0000-4000-8000-000000000067",
+              "label": "Original.txt",
+              "relaymarkId": "bd5a6d43aa34a4f9a9cc5d23738eb85e3",
+              "scope": "private",
+              "uri": "/m/00000000-0000-4000-8000-000000000067"
+            },
+            "type": "relayFile"
+          },
+          {
+            "attrs": {
+              "relaymarkId": "b400d08ea38cc481f8f117b20d05a94bb"
+            },
+            "type": "paragraph"
+          }
+        ],
+        "openEnd": 1,
+        "openStart": 1
+      },
+      "stepType": "replace",
+      "to": 4
+    },
+    {
+      "attr": "relaymarkId",
+      "pos": 7,
+      "stepType": "attr",
+      "value": "b03e78d4666a54a6585fa16dbc9ea01e4"
+    }
+  ],
+  "witness": {
+    "authored_document": {
+      "blocks": [
+        {
+          "content": [
+            {
+              "text": "Ori",
+              "type": "text"
+            }
+          ],
+          "id": "b400d08ea38cc481f8f117b20d05a94bb",
+          "type": "paragraph"
+        },
+        {
+          "content": [],
+          "id": "bd5a6d43aa34a4f9a9cc5d23738eb85e3",
+          "props": {
+            "id": "00000000-0000-4000-8000-000000000067",
+            "label": "Original.txt",
+            "scope": "private",
+            "uri": "/m/00000000-0000-4000-8000-000000000067"
+          },
+          "type": "relay.file_ref"
+        },
+        {
+          "content": [
+            {
+              "text": "ginal caret.",
+              "type": "text"
+            }
+          ],
+          "id": "b03e78d4666a54a6585fa16dbc9ea01e4",
+          "type": "paragraph"
+        }
+      ],
+      "type": "relaymark.document"
+    },
+    "document": {
+      "attrs": {
+        "relaymark": {}
+      },
+      "content": [
+        {
+          "attrs": {
+            "relaymarkId": "b400d08ea38cc481f8f117b20d05a94bb"
+          },
+          "content": [
+            {
+              "text": "Ori",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        },
+        {
+          "attrs": {
+            "id": "00000000-0000-4000-8000-000000000067",
+            "label": "Original.txt",
+            "relaymarkId": "bd5a6d43aa34a4f9a9cc5d23738eb85e3",
+            "scope": "private",
+            "uri": "/m/00000000-0000-4000-8000-000000000067"
+          },
+          "type": "relayFile"
+        },
+        {
+          "attrs": {
+            "relaymarkId": "b03e78d4666a54a6585fa16dbc9ea01e4"
+          },
+          "content": [
+            {
+              "text": "ginal caret.",
+              "type": "text"
+            }
+          ],
+          "type": "paragraph"
+        }
+      ],
+      "type": "doc"
+    },
+    "fresh_items": {
+      "runs": [
+        {
+          "count": 12,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 26
+          },
+          "type": {
+            "client": 3474928504114609,
+            "clock": 25
+          }
+        }
+      ]
+    },
+    "inserted_ranges": [
+      {
+        "destination_from": 4,
+        "length": 4
+      }
+    ],
+    "operation": {
+      "copies": [
+        {
+          "destination": {
+            "runs": [
+              {
+                "count": 12,
+                "item": {
+                  "client": 3474928504114609,
+                  "clock": 26
+                },
+                "type": {
+                  "client": 3474928504114609,
+                  "clock": 25
+                }
+              }
+            ]
+          },
+          "source": {
+            "runs": [
+              {
+                "count": 12,
+                "item": {
+                  "client": 3474928504114609,
+                  "clock": 6
+                },
+                "type": {
+                  "client": 3474928504114609,
+                  "clock": 2
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "kind": "content_edit",
+      "steps": [
+        {
+          "from": 4,
+          "slice": {
+            "content": [
+              {
+                "attrs": {
+                  "relaymarkId": "b400d08ea38cc481f8f117b20d05a94bb"
+                },
+                "type": "paragraph"
+              },
+              {
+                "attrs": {
+                  "id": "00000000-0000-4000-8000-000000000067",
+                  "label": "Original.txt",
+                  "relaymarkId": "bd5a6d43aa34a4f9a9cc5d23738eb85e3",
+                  "scope": "private",
+                  "uri": "/m/00000000-0000-4000-8000-000000000067"
+                },
+                "type": "relayFile"
+              },
+              {
+                "attrs": {
+                  "relaymarkId": "b400d08ea38cc481f8f117b20d05a94bb"
+                },
+                "type": "paragraph"
+              }
+            ],
+            "openEnd": 1,
+            "openStart": 1
+          },
+          "stepType": "replace",
+          "to": 4
+        },
+        {
+          "attr": "relaymarkId",
+          "pos": 7,
+          "stepType": "attr",
+          "value": "b03e78d4666a54a6585fa16dbc9ea01e4"
+        }
+      ]
+    },
+    "proven_copies": [
+      {
+        "destination": {
+          "runs": [
+            {
+              "count": 12,
+              "item": {
+                "client": 3474928504114609,
+                "clock": 26
+              },
+              "type": {
+                "client": 3474928504114609,
+                "clock": 25
+              }
+            }
+          ]
+        },
+        "source": {
+          "runs": [
+            {
+              "count": 12,
+              "item": {
+                "client": 3474928504114609,
+                "clock": 6
+              },
+              "type": {
+                "client": 3474928504114609,
+                "clock": 2
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "requires_mutation_correspondence": true,
+    "retained_ranges": [
+      {
+        "destination_from": 0,
+        "length": 4,
+        "source_from": 0
+      },
+      {
+        "destination_from": 8,
+        "length": 13,
+        "source_from": 4
+      }
+    ],
+    "text_items": {
+      "runs": []
+    },
+    "unproven_mutations": {
+      "declared_deletes": [
+        {
+          "count": 12,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 6
+          }
+        }
+      ],
+      "deleted_items": [
+        {
+          "content": {
+            "kind": "string",
+            "text": "ginal caret."
+          },
+          "count": 12,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 6
+          },
+          "key": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 2
+            }
+          },
+          "stored_count": 12,
+          "stored_item": {
+            "client": 3474928504114609,
+            "clock": 6
+          }
+        }
+      ],
+      "structs": [
+        {
+          "content": {
+            "kind": "type",
+            "name": "relayFile",
+            "type_kind": "xml_element"
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 18
+          },
+          "key": null,
+          "origin": {
+            "client": 3474928504114609,
+            "clock": 0
+          },
+          "parent": {
+            "root": "default"
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "bd5a6d43aa34a4f9a9cc5d23738eb85e3"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 19
+          },
+          "key": "relaymarkId",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 18
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "00000000-0000-4000-8000-000000000067"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 20
+          },
+          "key": "id",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 18
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "/m/00000000-0000-4000-8000-000000000067"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 21
+          },
+          "key": "uri",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 18
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "Original.txt"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 22
+          },
+          "key": "label",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 18
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "private"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 23
+          },
+          "key": "scope",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 18
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "type",
+            "name": "paragraph",
+            "type_kind": "xml_element"
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 24
+          },
+          "key": null,
+          "origin": {
+            "client": 3474928504114609,
+            "clock": 18
+          },
+          "parent": {
+            "root": "default"
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "type",
+            "name": null,
+            "type_kind": "xml_text"
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 25
+          },
+          "key": null,
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 24
+            }
+          },
+          "right_origin": null
+        },
+        {
+          "content": {
+            "kind": "any",
+            "values": [
+              "b03e78d4666a54a6585fa16dbc9ea01e4"
+            ]
+          },
+          "count": 1,
+          "deleted": false,
+          "item": {
+            "client": 3474928504114609,
+            "clock": 38
+          },
+          "key": "relaymarkId",
+          "origin": null,
+          "parent": {
+            "type": {
+              "client": 3474928504114609,
+              "clock": 24
+            }
+          },
+          "right_origin": null
+        }
+      ]
+    }
+  }
+}
