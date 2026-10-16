@@ -1,6 +1,34 @@
 defmodule RelayMark.DocumentSourceTest do
   use ExUnit.Case, async: true
 
+  test "retained empty callout source preserves insertion-time history with one canonical body" do
+    fixture =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/canonical-empty-callout-source.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
+    for %{"source" => source, "expected_ast" => expected} <- fixture["cases"] do
+      assert {:ok, result} = RelayMark.import_source(source, namespace: fixture["namespace"])
+      assert result.document == expected
+      [callout] = result.document["blocks"]
+      assert {:ok, ^result} = RelayMark.import_source(source, namespace: "empty-callout-history")
+      assert {:ok, source} = RelayMark.serialize_document(result.document)
+      assert {:ok, document} = RelayMark.parse_document(source)
+      assert document == result.document
+
+      assert {:ok, %{document: ^document}} =
+               RelayMark.import_document(document, namespace: "empty-callout-history")
+
+      invalid =
+        put_in(document, ["blocks", Access.at(0), "content"], Enum.drop(callout["content"], -1))
+
+      assert {:error, _} = RelayMark.serialize_document(invalid)
+    end
+  end
+
   @tag :canonical_directive_names
   test "authored video Markdown uses its registered directive and reparses without losing media identity" do
     source = ~s|@VideoEmbed(videoId: "530dd8cb-3f36-47e1-925d-7969cd81aa67") {

@@ -16,6 +16,20 @@ struct RelayMarkSourceTests {
     #expect((object["blocks"] as! [[String:Any]]).count == 2)
     #expect(try RelayMarkSourceCodec.renderDocument(imported).contains("<strong>Résumé 世界</strong>"))
   }
+  @Test func retainedEmptyCalloutSourceUsesCanonicalBodyAcrossRuntimes() throws {
+    let root = URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    let data = try Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-empty-callout-source.json"))
+    let fixture = try JSONSerialization.jsonObject(with:data) as! [String:Any]
+    for item in fixture["cases"] as! [[String:Any]] {
+      let source = item["source"] as! String
+      let imported = try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.importSource(source,namespace:fixture["namespace"] as! String)) as! [String:Any]
+      #expect(imported["document"] as? NSDictionary == item["expected_ast"] as? NSDictionary)
+      let document = try JSONSerialization.data(withJSONObject:imported["document"]!)
+      let exact = try RelayMarkSourceCodec.serializeDocument(document)
+      #expect(try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.parseDocument(exact, namespace: "empty-callout-roundtrip")) as? NSDictionary == item["expected_ast"] as? NSDictionary)
+    }
+  }
+
   @Test func historicalExactSourceUsesFiniteSharedMigrationWithoutLiveCompatibility() throws {
     let source="```relaymark-ast\n{\"type\":\"relaymark.document\",\"version\":1,\"blocks\":[{\"id\":\"old-note\",\"type\":\"paragraph\",\"content\":[{\"type\":\"strong\",\"content\":[{\"type\":\"text\",\"text\":\"Résumé 🌍\"}]}]}]}\n```\n"
     #expect(throws:(any Error).self){try RelayMarkSourceCodec.parseDocument(source,namespace:"historical-source")}

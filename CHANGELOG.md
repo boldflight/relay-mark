@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Preserves insertion-time empty callout source in retained revisions by creating
+  one deterministic empty body paragraph across JavaScript, Elixir and Swift.
+  Existing callout appearance/title and strict AST/XML validation remain intact.
+
 - Normalizes valid empty and nonparagraph-first CommonMark list items into the
   existing paragraph-first editor grammar without dropping source blocks or
   changing their IDs; preserves marked text surrounding hard breaks.

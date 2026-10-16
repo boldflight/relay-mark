@@ -914,6 +914,13 @@ defmodule RelayMark.DocumentSource do
     {props, children} =
       case type do
         "relay.callout" ->
+          # Retained source can capture insertion before the first body text.
+          # Materialize the canonical empty body; AST/XML admission stays strict.
+          children =
+            if children == [],
+              do: [block(ns, path ++ [0, 0], "paragraph", [], nil)],
+              else: children
+
           {title, props} = Map.pop(props, "title")
 
           if title,

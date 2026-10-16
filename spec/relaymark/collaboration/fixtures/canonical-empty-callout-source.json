@@ -1,0 +1,70 @@
+{
+  "namespace": "empty-callout-history",
+  "cases": [
+    {
+      "source": "@Callout(tone: \"info\", emphasis: \"soft\") {\n\n}\n",
+      "expected_ast": {
+        "type": "relaymark.document",
+        "blocks": [
+          {
+            "id": "bc5c13bf1374044ff86245c15fe92b1a0",
+            "type": "relay.callout",
+            "props": {
+              "tone": "info",
+              "emphasis": "soft"
+            },
+            "content": [
+              {
+                "id": "b08ef5a4ee8f045e08dc3196c277fb57a",
+                "type": "paragraph",
+                "content": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "source": "@Callout(tone: \"info\", emphasis: \"soft\", title: \"Retained **title**\") {\n\n}\n",
+      "expected_ast": {
+        "type": "relaymark.document",
+        "blocks": [
+          {
+            "id": "bc5c13bf1374044ff86245c15fe92b1a0",
+            "type": "relay.callout",
+            "props": {
+              "tone": "info",
+              "emphasis": "soft"
+            },
+            "content": [
+              {
+                "id": "b10beb1ffa58a4372815e5d891072f50b",
+                "type": "relay.callout_title",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Retained "
+                  },
+                  {
+                    "type": "strong",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "title"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "b08ef5a4ee8f045e08dc3196c277fb57a",
+                "type": "paragraph",
+                "content": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

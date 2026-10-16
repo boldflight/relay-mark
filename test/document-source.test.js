@@ -316,3 +316,16 @@ test('historical one-line DataView imports exact bound props; code stays literal
  assert.deepEqual(parseDocument(serializeDocument(ast)),ast);
  for(const bad of ['@DataView(source: "pulse.streak")','@DataView(source: "https://example.test", projection: "calendar")','@DataView(source: "pulse.streak", projection: "sql")','@DataView(source: "pulse.streak", source: "pulse.work", projection: "calendar")','@DataView(source: "pulse.streak", projection: "calendar", filter: {basis: {query: "sql"}})','@DataView(source: "pulse.streak", projection: "calendar", limit: 0)'])assert.throws(()=>parseDocument(bad));
 });
+
+test('retained empty callout source preserves insertion-time history with one canonical body',()=>{
+ const fixture=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-empty-callout-source.json',import.meta.url)));
+ for(const {source,expected_ast} of fixture.cases){
+  const result=importDocumentSource(source,{namespace:fixture.namespace});
+  assert.deepEqual(result.document,expected_ast);
+  assert.deepEqual(importDocumentSource(source,{namespace:'empty-callout-history'}),result);
+  assert.deepEqual(parseDocument(serializeDocument(result.document)),result.document);
+  assert.deepEqual(importDocument(result.document,{namespace:'empty-callout-history'}).document,result.document);
+  const invalid=structuredClone(result.document);invalid.blocks[0].content=invalid.blocks[0].content.slice(0,-1);
+  assert.throws(()=>serializeDocument(invalid));
+ }
+});

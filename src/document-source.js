@@ -158,7 +158,11 @@ function sourceBlocks(source,ns,prefix){
  if(directive)throw new TypeError('Missing directive closing');flush();
  return segments.flatMap((s,index)=>{const path=[...prefix,index];if(s.kind==='markdown')return markdownBlocks(md.parse(s.source,{}),ns,path);if(s.kind==='historical_question')return [historicalQuestion(s.header,s.source,ns,path)];if(s.kind==='control')return [block(ns,path,'relay.paper_control',[],{control:s.control.control,...s.control.attrs,source:s.control.source})];
   const spec=directiveForName(s.name);if(!spec)throw new TypeError('Unknown directive');const props={...s.attrs};for(const [key,a]of Object.entries(spec.attributes||{}))if(props[key]===undefined&&Object.hasOwn(a,'default'))props[key]=a.default;
-  let content=sourceBlocks(s.source,ns,[...path,0]);if(spec.ast_type==='relay.callout'&&props.title!==undefined){const title=String(props.title);delete props.title;content.unshift(block(ns,[...path,1],'relay.callout_title',inline(md.parseInline(title,{})[0]?.children||[])));}
+  let content=sourceBlocks(s.source,ns,[...path,0]);
+  // Source can retain a callout immediately after insertion, before any body text.
+  // Materialize the canonical empty body without relaxing AST/XML admission.
+  if(spec.ast_type==='relay.callout'&&!content.length)content.push(block(ns,[...path,0,0],'paragraph'));
+  if(spec.ast_type==='relay.callout'&&props.title!==undefined){const title=String(props.title);delete props.title;content.unshift(block(ns,[...path,1],'relay.callout_title',inline(md.parseInline(title,{})[0]?.children||[])));}
   if(['relay.form_option','relay.agent_suggestion'].includes(spec.ast_type)){if(content.length>1||content[0]?.type!=='paragraph')throw new TypeError('Inline directive requires a paragraph');content=content[0]?.content||[];}
   if(spec.ast_type==='relay.entity_reference'){const input={...s.attrs};if(typeof input.id==='string'&&!input.id.startsWith('entity:'))input.id='entity:'+input.id;const body=s.source.startsWith('  ')?s.source.slice(2):s.source;const source=buildBlockEntityReferenceSource(input,body),parsed=parseEntityReferenceSource(source);Object.assign(props,{id:parsed.id,label:parsed.label,projection:parsed.projection,source});content=[];}
   return [block(ns,path,spec.ast_type,content,props)];

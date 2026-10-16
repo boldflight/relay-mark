@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.6.5
+
+- Imports empty Callout source as a canonical callout with one deterministic
+  empty paragraph, preserving its attributes and optional title. This covers
+  retained insertion-time editorial revisions without discarding their source.
+- Keeps canonical contract 1 and strict document/XML admission unchanged.
+
 ## 0.6.4
 
 - Loads directive definitions from installed application resources, so source
