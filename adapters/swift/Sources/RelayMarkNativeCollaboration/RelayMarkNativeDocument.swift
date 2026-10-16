@@ -47,8 +47,11 @@ public final class RelayMarkNativeDocument {
     }
     private var historyCapture: HistoryCapture?
 
-    public init(guid: String = UUID().uuidString, retainDeletedItems: Bool = true, historyOwnerID: UUID = UUID()) {
-        let document = YDocument(guid:guid,retainDeletedItems:retainDeletedItems)
+    public convenience init(guid: String = UUID().uuidString, retainDeletedItems: Bool = true, historyOwnerID: UUID = UUID()) {
+        self.init(document: YDocument(guid: guid, retainDeletedItems: retainDeletedItems), historyOwnerID: historyOwnerID)
+    }
+
+    private init(document: YDocument, historyOwnerID: UUID) {
         let root = document.getOrCreateXmlFragment(named: "default")
         let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
         let origin = Origin(UUID().uuidString)
@@ -216,6 +219,16 @@ public final class RelayMarkNativeDocument {
     }
 
     public var documentGUID: String { document.guid }
+
+    /// Preview only on an independent fork of this retained live owner. The
+    /// archive still passes the ordinary exact document/owner/scope admission.
+    /// Prospective fork edits must not be persisted or delivered to peers.
+    public func forkHistoryState(_ state: Data, scopeToken: String) throws -> RelayMarkNativeDocument {
+        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
+        let fork = RelayMarkNativeDocument(document: try document.forkRetainedHistory(), historyOwnerID: historyOwnerID)
+        try fork.restoreHistoryState(state, scopeToken: scopeToken)
+        return fork
+    }
 
     /// One scoped retained Yrs checkpoint. The host owns authorization and durable storage.
     public func exportHistoryState(scopeToken: String) throws -> Data {

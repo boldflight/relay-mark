@@ -134,6 +134,15 @@ struct RelayMarkNativeCanonicalMetadataTests {
   let remote=try RelayMarkNativeRichTextMutation.replace(document:peer,path:[0,2,0],start:0,end:6,text:"Oslo")
   try first.applyUpdate(remote)
   let archive=try first.exportHistoryState(scopeToken:"account/org/document/incarnation/lane/owner")
+  let beforePreview=try first.encodeUpdate()
+  let preview=try first.forkHistoryState(archive,scopeToken:"account/org/document/incarnation/lane/owner")
+  #expect(throws:(any Error).self) { try first.forkHistoryState(archive,scopeToken:"another-owner") }
+  let foreignOwner=RelayMarkNativeDocument(guid:first.documentGUID,historyOwnerID:UUID())
+  try foreignOwner.applyUpdate(beforePreview)
+  #expect(throws:(any Error).self) { try foreignOwner.forkHistoryState(archive,scopeToken:"account/org/document/incarnation/lane/owner") }
+  #expect(try preview.undo() != nil)
+  #expect(String(try preview.richProseProjection().text.characters)=="Capital?\nParis\nOslo")
+  #expect(try first.encodeUpdate()==beforePreview)
   let reopened=RelayMarkNativeDocument(guid:"document-incarnation",retainDeletedItems:true,historyOwnerID:first.historyOwnerID)
   try reopened.applyUpdate(RelayMarkNativeDocument.historyDocumentState(archive))
   try reopened.restoreHistoryState(archive,scopeToken:"account/org/document/incarnation/lane/owner")
