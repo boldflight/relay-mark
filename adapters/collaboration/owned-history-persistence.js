@@ -1,6 +1,7 @@
 /** Actual maintained browser manager archive. This is local scoped persistence,
  * never server receipt/attribution authority or a second command engine. */
 import * as Y from 'yjs';
+import {canonicalEditorSchema} from '../../src/editor-schema.js';
 import {digest} from 'lib0/hash/sha256';
 import {captureMaintainedHistoryCheckpoint,installMaintainedHistoryCheckpoint} from './content-edit-mutation.js';
 import {readOwnedHistoryOwner,bindOwnedHistoryOwner} from './owned-command-group.js';
@@ -31,7 +32,7 @@ export function restoreOwnedHistoryState(doc,manager,archive,options){
  // manager kept split for redone/retained boundaries. Restore that exact
  // checkpoint on the detached cut before checking the original byte hash.
  const cutManager=new Y.UndoManager([cut.getXmlFragment('default'),cut.getMap('relaymark')]);
- try{bindOwnedHistoryOwner(cutManager,ownerID);installMaintainedHistoryCheckpoint(cut,cutManager,archive.checkpoint,ownerID);if(hash(Y.encodeStateAsUpdate(cut))!==archive.state_sha256)throw TypeError('Local history retained state mismatch');}finally{cutManager.destroy();cut.destroy();}
+ try{bindOwnedHistoryOwner(cutManager,ownerID);installMaintainedHistoryCheckpoint(cut,cutManager,archive.checkpoint,ownerID);if(!matchesOriginalProducerHash(cut,archive))throw TypeError('Local history retained state mismatch');}finally{cutManager.destroy();cut.destroy();}
  const selections={};for(const[name,wire]of [['undo',archive.checkpoint.undo_stack],['redo',archive.checkpoint.redo_stack]]){if(!Array.isArray(archive.selections[name])||archive.selections[name].length!==wire.length)throw TypeError('Local cursor stack mismatch');selections[name]=archive.selections[name].map(value=>cursor(value,doc));if(options.selectionKey===undefined&&selections[name].some(value=>value!==null))throw TypeError('Cursor binding is required');}
  // Admission failure must never partly install stacks/redone sidecars on the
  // live owner. Verify with a detached retained owner, then install exact data.
@@ -40,4 +41,32 @@ export function restoreOwnedHistoryState(doc,manager,archive,options){
  protectOwnedHistoryBranches(manager);installMaintainedHistoryCheckpoint(doc,manager,archive.checkpoint,ownerID);
  for(const name of ['undo','redo'])manager[name+'Stack'].forEach((item,index)=>{if(options.selectionKey!==undefined)item.meta.set(options.selectionKey,selections[name][index]);});
  return{owner_id:ownerID,undo_count:manager.undoStack.length,redo_count:manager.redoStack.length};
+}
+
+// Yrs encodes object keys in sorted order; the maintained ProseMirror binding
+// writes mark.attrs in canonical schema order (including defaults and nulls).
+// Reconstruct that known producer encoding only on a detached candidate. The
+// original archive and exact original byte hash remain the admission authority;
+// unknown/custom/incomplete/nested attributes cannot use this repair.
+function matchesOriginalProducerHash(cut,archive){
+ if(hash(Y.encodeStateAsUpdate(cut))===archive.state_sha256)return true;
+ const candidate=new Y.Doc({gc:false});let manager;
+ try{
+  Y.applyUpdate(candidate,Y.encodeStateAsUpdate(cut));
+  manager=new Y.UndoManager([candidate.getXmlFragment('default'),candidate.getMap('relaymark')]);
+  bindOwnedHistoryOwner(manager,archive.checkpoint.owner_id);
+  installMaintainedHistoryCheckpoint(candidate,manager,archive.checkpoint,archive.checkpoint.owner_id);
+  let changed=false,budget=1_000_000;
+  for(const structs of candidate.store.clients.values())for(const item of structs){
+   if(--budget<0)return false;
+   if(!(item instanceof Y.Item)||!(item.content instanceof Y.ContentFormat)||item.content.value===null||typeof item.content.value!=='object')continue;
+   const content=item.content,definition=canonicalEditorSchema.marks.find(mark=>mark.name===content.key),attrs=definition?.attrs??{};
+   if(!definition||Array.isArray(content.value))return false;
+   const keys=Object.keys(attrs),actual=Object.keys(content.value);
+   if(actual.length!==keys.length||actual.some(key=>!Object.hasOwn(attrs,key))||actual.some(key=>content.value[key]!==null&&typeof content.value[key]!=='string'))return false;
+   const ordered=Object.fromEntries(keys.map(key=>[key,content.value[key]]));
+   if(JSON.stringify(ordered)!==JSON.stringify(content.value)){content.value=ordered;changed=true;}
+  }
+  return changed&&hash(Y.encodeStateAsUpdate(candidate))===archive.state_sha256;
+ }catch{return false;}finally{manager?.destroy();candidate.destroy();}
 }

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.6.6
+
+- Restores canonical marked-paper history after the server codec sorts mark
+  attribute keys. Reconstructs the schema-defined producer encoding on a
+  detached cut and requires the original stored byte hash to match exactly.
+- Preserves original archives, peer prose, CRDT identities and selective
+  Undo/Redo. Unknown, incomplete or nested custom attribute shapes remain
+  retained and refused; corrupt values, hashes and identities still fail.
+- Keeps canonical contract 1 and the physical schema unchanged.
+
 ## 0.6.5
 
 - Imports empty Callout source as a canonical callout with one deterministic

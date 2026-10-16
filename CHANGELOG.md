@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Repairs canonical browser history restoration after Yrs sorts mark attribute
+  keys, reconstructing the known producer encoding against the unchanged
+  original archive hash. The detached repair preserves selective Undo/Redo and
+  rejects unsupported legacy shapes and corrupted content or identity.
+
 - Preserves insertion-time empty callout source in retained revisions by creating
   one deterministic empty body paragraph across JavaScript, Elixir and Swift.
   Existing callout appearance/title and strict AST/XML validation remain intact.
