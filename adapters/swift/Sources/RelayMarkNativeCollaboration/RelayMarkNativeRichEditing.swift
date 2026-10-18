@@ -33,6 +33,8 @@ public enum RelayMarkNativeRichEditing {
         /// For a windowed command, the top-level nodes it rewrote: their range
         /// before and after. A host re-projects just these.
         public internal(set) var topLevel: (before: Range<Int>, after: Range<Int>)?
+        /// For a command on a list's items, the items it rewrote in top-level list `node`.
+        public internal(set) var items: (node: Int, before: Range<Int>, after: Range<Int>)?
         init(update:Data,caret:Caret?,authoredMetadataChanged:Bool=false,storedMarks:Data?=nil,storedTextAttributes:Data?=nil,clipboardFitting:Data?=nil){
             self.update=update;self.caret=caret;self.authoredMetadataChanged=authoredMetadataChanged
             self.storedMarks=storedMarks;self.storedTextAttributes=storedTextAttributes;self.clipboardFitting=clipboardFitting
@@ -56,8 +58,9 @@ public enum RelayMarkNativeRichEditing {
     public static func replace(document: RelayMarkNativeDocument, range: NSRange,
                                runs: [(text: String, attributes: [String: Any])], inheritMarks: Bool = false,
                                paper: RelayMarkCollaborativeProse) throws -> Change {
-        try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks,
-                    scope: scope(document: document, paper: paper, range: range))
+        try windowed(document: document, paper: paper, range: range) { scope in
+            try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks, scope: scope)
+        }
     }
 
     private static func replace(document: RelayMarkNativeDocument, range paperRange: NSRange,
@@ -118,7 +121,7 @@ public enum RelayMarkNativeRichEditing {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document, window: scope.nodes, outside: scope.outside)
+        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document, window: scope.nodes, outside: scope.outside, items: scope.items)
         // deleteSelection places the caret with selectionToInsertionEnd;
         // insertText and replaceRange map the TextSelection head.
         let head: Int?
@@ -307,22 +310,24 @@ public enum RelayMarkNativeRichEditing {
     /// touches. `paper` is the caller's projection of the document as it is now.
     public static func insertDocumentSlice(document: RelayMarkNativeDocument, range: NSRange,
         clipboardSlice: Data, paper: RelayMarkCollaborativeProse) throws -> Change {
-        try insertDocumentSlices(document: document, range: range, clipboardSlices: [clipboardSlice],
-                                 scope: { try windowedPasteScope(document: document, paper: paper, range: range, names: $0) })
+        try windowed(document: document, paper: paper, range: range) { window in
+            try insertDocumentSlices(document: document, range: range, clipboardSlices: [clipboardSlice],
+                                     scope: { try pasteScope(document: document, window: window, names: $0) })
+        }
     }
 
     public static func insertDocumentSlice(document: RelayMarkNativeDocument, range: NSRange,
         clipboardSlices: [Data], paper: RelayMarkCollaborativeProse) throws -> Change {
-        try insertDocumentSlices(document: document, range: range, clipboardSlices: clipboardSlices,
-                                 scope: { try windowedPasteScope(document: document, paper: paper, range: range, names: $0) })
+        try windowed(document: document, paper: paper, range: range) { window in
+            try insertDocumentSlices(document: document, range: range, clipboardSlices: clipboardSlices,
+                                     scope: { try pasteScope(document: document, window: window, names: $0) })
+        }
     }
 
-    /// A window, unless a pasted Anchor name is already used elsewhere in the
+    /// The window, unless a pasted Anchor name is already used elsewhere in the
     /// paper: the maintained allocator then plans against the whole paper.
-    private static func windowedPasteScope(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse,
-                                           range: NSRange, names: Set<String>) throws -> Scope {
-        let window = try scope(document: document, paper: paper, range: range)
-        guard let nodes = window.nodes, !names.contains(where: { paper.anchorUsed($0, outside: nodes) }) else {
+    private static func pasteScope(document: RelayMarkNativeDocument, window: Scope, names: Set<String>) throws -> Scope {
+        guard let outside = window.outside, !names.contains(where: outside.anchor) else {
             return try scope(document: document, expectedSnapshot: document.snapshot())
         }
         return window
@@ -467,7 +472,8 @@ public enum RelayMarkNativeRichEditing {
             document: document, preferredIDs: preferred, preservedHeadingPositions: headings,
             clipboardSlice: slices.count == 1 ? slices[0] : nil,
             clipboardSourceTrace: items.count == 1 ? items[0]["source_trace"] as? [String: Any] : nil,
-            clipboardItems: items.count > 1 ? items : nil, window: scope?.nodes, outside: scope?.outside)
+            clipboardItems: items.count > 1 ? items : nil, window: scope?.nodes, outside: scope?.outside,
+            items: scope?.items)
         let end = transform.steps.last?.ranges.last.map { $0.0 + $0.2 }
         let selected = end.flatMap { try? updated.resolve($0) }.flatMap { PMCommands.near($0) }
         let head: Int?
@@ -494,8 +500,9 @@ public enum RelayMarkNativeRichEditing {
     /// The same command reading and writing only the top-level nodes around `offset`.
     public static func key(_ key: Key, document: RelayMarkNativeDocument, at offset: Int,
                            paper: RelayMarkCollaborativeProse) throws -> Change? {
-        try self.key(key, document: document, at: offset,
-                     scope: scope(document: document, paper: paper, range: NSRange(location: offset, length: 0)))
+        try windowed(document: document, paper: paper, range: NSRange(location: offset, length: 0)) { scope in
+            try self.key(key, document: document, at: offset, scope: scope)
+        }
     }
 
     private static func key(_ key: Key, document: RelayMarkNativeDocument, at paperOffset: Int, scope: Scope) throws -> Change? {
@@ -512,7 +519,7 @@ public enum RelayMarkNativeRichEditing {
             return nil
         }
         guard !result.transform.steps.isEmpty else { return nil }
-        let (update, updated) = try commit(result.transform, source: doc, bridge: bridge, document: document, window: scope.nodes, outside: scope.outside)
+        let (update, updated) = try commit(result.transform, source: doc, bridge: bridge, document: document, window: scope.nodes, outside: scope.outside, items: scope.items)
         guard case .text(let pos) = result.selection else { return scope.paper(Change(update: update, caret: nil), updated: updated) }
         return scope.paper(Change(update: update, caret: caret(pos, in: updated)), updated: updated)
     }
@@ -530,8 +537,9 @@ public enum RelayMarkNativeRichEditing {
     public static func format(document: RelayMarkNativeDocument, range: NSRange,
                               mark: String, attributes: [String: Any] = [:], enabled: Bool,
                               paper: RelayMarkCollaborativeProse) throws -> Change? {
-        try format(document: document, range: range, mark: mark, attributes: attributes, enabled: enabled,
-                   scope: scope(document: document, paper: paper, range: range))
+        try windowed(document: document, paper: paper, range: range) { scope in
+            try format(document: document, range: range, mark: mark, attributes: attributes, enabled: enabled, scope: scope)
+        }
     }
 
     private static func format(document: RelayMarkNativeDocument, range paperRange: NSRange,
@@ -566,7 +574,7 @@ public enum RelayMarkNativeRichEditing {
             else { try transform.removeMark(lower, upper, mark: type.create(attributes)) }
         }
         guard !transform.steps.isEmpty else { return nil }
-        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document, window: scope.nodes, outside: scope.outside)
+        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document, window: scope.nodes, outside: scope.outside, items: scope.items)
         return scope.paper(Change(update: update, caret: nil), updated: updated)
     }
 
@@ -595,7 +603,8 @@ public enum RelayMarkNativeRichEditing {
         }
         guard pmCompareDeep(transform.doc.json(), expected) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let (update, updated) = try commit(transform, source: source, bridge: bridge, document: document,
-            preferredIDs: result["retained_ids"] as? [String: Int] ?? [:], window: scope?.nodes, outside: scope?.outside)
+            preferredIDs: result["retained_ids"] as? [String: Int] ?? [:], window: scope?.nodes, outside: scope?.outside,
+            items: scope?.items)
         let caret = (finalSelection["head"] as? Int).flatMap { Self.caret($0, in: updated) }
         let id = caret.flatMap { value -> String? in
             var node = updated
@@ -810,7 +819,8 @@ public enum RelayMarkNativeRichEditing {
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
                                document: RelayMarkNativeDocument, preferredIDs: [String: Int] = [:],
                                preservedHeadingPositions: Set<Int> = [], clipboardSlice: PMSlice? = nil, clipboardSourceTrace: [String: Any]? = nil, clipboardItems: [[String: Any]]? = nil,
-                               window: Range<Int>? = nil, outside: Reserved? = nil) throws -> (Data, PMNode) {
+                               window: Range<Int>? = nil, outside: Reserved? = nil,
+                               items: (node: Int, window: Range<Int>)? = nil) throws -> (Data, PMNode) {
         var witnessed = transform
         let retainedHeadingPositions = preservedHeadingPositions
         var retainedDestinationNames = Set<String>()
@@ -886,6 +896,13 @@ public enum RelayMarkNativeRichEditing {
             }
         }
         let updated=witnessed.doc
+        // An item window rewrites the list's items only; a change to the list itself runs on the whole list.
+        if items != nil {
+            guard updated.childCount == 1, source.childCount == 1, updated.child(0).type === source.child(0).type,
+                  pmCompareDeep(updated.child(0).attrs, source.child(0).attrs) else {
+                throw RelayMarkNativeDocument.Failure.containerChanged
+            }
+        }
         let steps=try JSONSerialization.data(withJSONObject:witnessed.steps.map { $0.json() },options:[.sortedKeys])
         let prepared=try RelayMarkContentEditCodec.prepareWrite(before:JSONSerialization.data(withJSONObject:source.json()),steps:steps,after:JSONSerialization.data(withJSONObject:updated.json()))
         try bridge.prepareWrite(prepared)
@@ -894,14 +911,15 @@ public enum RelayMarkNativeRichEditing {
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
         // The write is rehearsed on a replica of just the nodes it reads.
         let scratch: RelayMarkNativeDocument
-        if let window { scratch = try document.scratch(topLevel: window) }
+        if let items { scratch = try document.scratch(tree: document.snapshot(items: items.window, ofTopLevel: items.node)) }
+        else if let window { scratch = try document.scratch(topLevel: window) }
         else { scratch = RelayMarkNativeDocument(); try scratch.applyUpdate(document.encodeUpdate()) }
         _ = try scratch.applyProseMirror(updated, source: source, bridge: bridge)
         guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
               try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        return (try document.applyProseMirror(updated, source: source, bridge: bridge, window: window), updated)
+        return (try document.applyProseMirror(updated, source: source, bridge: bridge, window: window, items: items), updated)
     }
 
     /// Identities and destination names a commit must not take.
@@ -921,23 +939,40 @@ public enum RelayMarkNativeRichEditing {
         let offset: Int
         /// Identities and destination names held by nodes outside the window.
         var outside: Reserved? = nil
+        /// An item window: some items of top-level list `node`, the window
+        /// holding that one list with only those items.
+        var items: (node: Int, window: Range<Int>)? = nil
 
         func local(_ value: Int) -> Int { value - offset }
         func local(_ range: NSRange) -> NSRange { NSRange(location: range.location - offset, length: range.length) }
         func local(_ path: [Int]) -> [Int] {
+            if let items {
+                guard path.count >= 2, path[0] == items.node else { return path }
+                return [0, path[1] - items.window.lowerBound] + path.dropFirst(2)
+            }
             guard let nodes, let first = path.first else { return path }
             return [first - nodes.lowerBound] + path.dropFirst()
         }
         func paper(_ caret: Caret?) -> Caret? {
+            if let items, let caret {
+                guard caret.blockPath.count >= 2 else { return nil }
+                return Caret(blockPath: [items.node, caret.blockPath[1] + items.window.lowerBound] + caret.blockPath.dropFirst(2),
+                             offset: caret.offset)
+            }
             guard let nodes, let caret, let first = caret.blockPath.first else { return caret }
             return Caret(blockPath: [first + nodes.lowerBound] + caret.blockPath.dropFirst(), offset: caret.offset)
         }
         func paper(_ change: Change, updated: PMNode) -> Change {
-            guard let nodes else { return change }
+            guard nodes != nil || items != nil else { return change }
             var result = Change(update: change.update, caret: paper(change.caret),
                                 authoredMetadataChanged: change.authoredMetadataChanged, storedMarks: change.storedMarks,
                                 storedTextAttributes: change.storedTextAttributes, clipboardFitting: change.clipboardFitting)
-            result.topLevel = (nodes, nodes.lowerBound..<(nodes.lowerBound + updated.childCount))
+            if let items {
+                let count = updated.childCount == 1 ? updated.child(0).childCount : 0
+                result.items = (items.node, items.window, items.window.lowerBound..<(items.window.lowerBound + count))
+            } else if let nodes {
+                result.topLevel = (nodes, nodes.lowerBound..<(nodes.lowerBound + updated.childCount))
+            }
             return result
         }
     }
@@ -948,6 +983,61 @@ public enum RelayMarkNativeRichEditing {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         return Scope(tree: tree, projection: try document.richProseProjection(), nodes: nil, offset: 0)
+    }
+
+    /// An item window: the touched items of top-level list `node` with one
+    /// neighbour each side, as a fragment holding that list with only them.
+    static func scope(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse,
+                      node: Int, items touched: ClosedRange<Int>) throws -> Scope {
+        guard document.integrationStatus().isComplete, paper.isEditable, paper.topLevelCount == document.topLevelCount,
+              let count = paper.itemCount(ofTopLevel: node), touched.upperBound < count else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let window = max(0, touched.lowerBound - 1)..<min(count, touched.upperBound + 2)
+        let tree = try document.snapshot(items: window, ofTopLevel: node)
+        let data = try JSONSerialization.data(withJSONObject: tree, options: [.sortedKeys])
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: data)
+        let projection = try RelayMarkCollaborativeProse(snapshot: data, dialect: .rich, codecValidated: true)
+        return Scope(tree: tree, projection: projection, nodes: nil, offset: paper.itemStart(window.lowerBound, of: node),
+                     outside: Reserved(paper.outside(items: window, of: node)),
+                     items: (node, window))
+    }
+
+    /// Runs a command on the items it touches when they lie in one top-level
+    /// list, else on its top-level nodes; a command that changes the list
+    /// itself, such as lifting an item out of it, runs again on the whole list.
+    static func windowed<Value>(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse, range: NSRange,
+                                _ run: (Scope) throws -> Value) throws -> Value {
+        guard let first = paper.itemIndex(atUTF16: range.location), let last = paper.itemIndex(atUTF16: NSMaxRange(range)) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        var items: (node: Int, touched: ClosedRange<Int>)?
+        if first.node == last.node, let a = first.item, let b = last.item { items = (first.node, min(a, b)...max(a, b)) }
+        return try windowed(document: document, paper: paper, nodes: min(first.node, last.node)...max(first.node, last.node),
+                            items: items, run)
+    }
+
+    /// The same for commands addressed by XML paths.
+    static func windowed<Value>(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse, paths: [[Int]],
+                                _ run: (Scope) throws -> Value) throws -> Value {
+        guard let firsts = paths.map(\.first) as? [Int], let low = firsts.min(), let high = firsts.max() else {
+            throw RelayMarkNativeDocument.Failure.invalidTextPath
+        }
+        var items: (node: Int, touched: ClosedRange<Int>)?
+        if low == high, paper.itemCount(ofTopLevel: low) != nil, paths.allSatisfy({ $0.count >= 2 }) {
+            let indices = paths.map { $0[1] }
+            items = (low, indices.min()!...indices.max()!)
+        }
+        return try windowed(document: document, paper: paper, nodes: low...high, items: items, run)
+    }
+
+    private static func windowed<Value>(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse,
+                                        nodes: ClosedRange<Int>, items: (node: Int, touched: ClosedRange<Int>)?,
+                                        _ run: (Scope) throws -> Value) throws -> Value {
+        if let items, let scope = try? scope(document: document, paper: paper, node: items.node, items: items.touched) {
+            do { return try run(scope) } catch RelayMarkNativeDocument.Failure.containerChanged {}
+        }
+        return try run(scope(document: document, paper: paper, nodes: nodes))
     }
 
     /// `paper` is the caller's projection of the document as it is now.
@@ -972,8 +1062,7 @@ public enum RelayMarkNativeRichEditing {
         _ = try RelayMarkNativeDocumentProjection.project(snapshot: data)
         let projection = try RelayMarkCollaborativeProse(snapshot: data, dialect: .rich, codecValidated: true)
         return Scope(tree: tree, projection: projection, nodes: nodes, offset: paper.topLevelStart(nodes.lowerBound),
-                     outside: Reserved(identity: { paper.identityUsed($0, outside: nodes) },
-                                       anchor: { paper.anchorUsed($0, outside: nodes) }))
+                     outside: Reserved(paper.outside(nodes: nodes)))
     }
 
     /// The ProseMirror position of a projected offset inside a textblock.
@@ -1044,5 +1133,11 @@ public enum RelayMarkNativeRichEditing {
         guard changed || childChanged else { return node }
         return PMNode(type: node.type, attrs: attrs, content: childChanged ? PMFragment(children) : node.content,
                       marks: node.marks)
+    }
+}
+
+extension RelayMarkNativeRichEditing.Reserved {
+    init(_ outside: RelayMarkCollaborativeProse.Outside) {
+        self.init(identity: outside.identity, anchor: outside.anchor)
     }
 }

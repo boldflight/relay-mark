@@ -18,43 +18,46 @@ public extension RelayMarkNativeDocument {
     }
 
     /// Whether `path` is the first paragraph of a bullet, ordered or task list
-    /// item, read from its own top-level node.
+    /// item, read from the one child of its top-level node that holds it.
     func isRichListParagraph(path: [Int]) -> Bool {
-        guard path.count >= 3, path.last == 0, let first = path.first,
-              var node = (try? snapshot(topLevel: first..<(first + 1)))?["children"] as? [[String: Any]] else { return false }
+        guard path.count >= 3, path.last == 0,
+              var node = (try? snapshot(items: path[1]..<(path[1] + 1), ofTopLevel: path[0]))?["children"] as? [[String: Any]]
+        else { return false }
+        let local = [0, 0] + path.dropFirst(2)
         var list: [String: Any] = ["children": node]
-        for index in [0] + path.dropFirst().dropLast(2) {
+        for index in local.dropLast(2) {
             guard let children = list["children"] as? [[String: Any]], children.indices.contains(index) else { return false }
             list = children[index]
         }
         node = list["children"] as? [[String: Any]] ?? []
         let name = list["name"] as? String ?? ""
-        return ["bulletList", "orderedList", "taskList"].contains(name) && node.indices.contains(path[path.count - 2]) &&
-            node[path[path.count - 2]]["name"] as? String == (name == "taskList" ? "taskItem" : "listItem")
+        return ["bulletList", "orderedList", "taskList"].contains(name) && node.indices.contains(local[local.count - 2]) &&
+            node[local[local.count - 2]]["name"] as? String == (name == "taskList" ? "taskItem" : "listItem")
     }
 
     /// The same check and command on a window of top-level nodes around the
     /// item. `paper` is the caller's projection of the document as it is now.
     func canChangeRichListDepth(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,
                                 paper: RelayMarkCollaborativeProse) -> Bool {
-        (try? windowedListDepthRequest(paragraphPath: paragraphPath, change: change, paper: paper)) != nil
+        (try? RelayMarkNativeRichEditing.windowed(document: self, paper: paper, paths: [paragraphPath]) { scope in
+            try windowedListDepthRequest(paragraphPath: paragraphPath, change: change, scope: scope)
+        }) != nil
     }
 
     func changeRichListDepth(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,
                              paper: RelayMarkCollaborativeProse) throws -> RelayMarkNativeRichEditing.Change {
-        let request = try windowedListDepthRequest(paragraphPath: paragraphPath, change: change, paper: paper)
-        return try RelayMarkNativeRichEditing.command(document: self, tree: request.scope.tree,
-            name: request.name, selection: request.selection, scope: request.scope).change
+        try RelayMarkNativeRichEditing.windowed(document: self, paper: paper, paths: [paragraphPath]) { scope in
+            let request = try windowedListDepthRequest(paragraphPath: paragraphPath, change: change, scope: scope)
+            return try RelayMarkNativeRichEditing.command(document: self, tree: scope.tree,
+                name: request.name, selection: request.selection, scope: scope).change
+        }
     }
 }
 
 @MainActor
 private extension RelayMarkNativeDocument {
     func windowedListDepthRequest(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,
-                                  paper: RelayMarkCollaborativeProse)
-        throws -> (scope: RelayMarkNativeRichEditing.Scope, name: String, selection: [String: Any]) {
-        guard let first = paragraphPath.first else { throw Failure.invalidTextPath }
-        let scope = try RelayMarkNativeRichEditing.scope(document: self, paper: paper, nodes: first...first)
+                                  scope: RelayMarkNativeRichEditing.Scope) throws -> (name: String, selection: [String: Any]) {
         guard scope.projection.isEditable else { throw Failure.unsupportedProseEdit }
         let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: scope.tree)
         let position = try RelayMarkNativeRichEditing.positionForPath(scope.local(paragraphPath), in: source) + 1
@@ -62,7 +65,7 @@ private extension RelayMarkNativeDocument {
         let selection: [String: Any] = ["type": "text", "anchor": position, "head": position]
         _ = try RelayMarkContentEditCodec.command(document: JSONSerialization.data(withJSONObject: source.json()),
             request: JSONSerialization.data(withJSONObject: ["command": name, "selection": selection]))
-        return (scope, name, selection)
+        return (name, selection)
     }
 
     func maintainedListDepthRequest(paragraphPath: [Int], change: RelayMarkNativeListDepthChange,

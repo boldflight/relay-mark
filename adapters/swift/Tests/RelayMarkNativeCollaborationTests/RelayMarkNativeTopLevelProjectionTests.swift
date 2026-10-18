@@ -156,4 +156,47 @@ final class RelayMarkNativeTopLevelProjectionTests: XCTestCase {
         let heading = (snapshot?["children"] as? [[String: Any]])?.first
         return (heading?["attributes"] as? [String: Any])?["headingId"] as? String
     }
+
+    func testPeerEditsInsideAListReprojectOnlyTheirItems() throws {
+        let markdown = "Intro\n\n" + (0..<40).map { "- [ ] Task \($0)" }.joined(separator: "\n") + "\n\nOutro"
+        let document = RelayMarkNativeDocument()
+        let seed = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(markdown, namespace: "list"))
+        let peer = RelayMarkNativeDocument(); try peer.applyUpdate(seed)
+        var projection = try document.richProseProjection()
+        XCTAssertEqual(projection.itemCount(ofTopLevel: 1), 40)
+        var spliced = 0
+        for (step, item) in stride(from: 2, to: 36, by: 3).enumerated() {
+            let peerProjection = try peer.richProseProjection()
+            let range = try XCTUnwrap(peerProjection.blockRange(path: [1, item, 0]))
+            let update: Data
+            switch step % 4 {
+            case 0: update = try peer.typeText("z", replacing: 0, at: 2, path: [1, item, 0, 0]).update
+            case 1: update = try RelayMarkNativeRichReturn.apply(document: peer, blockPath: [1, item, 0], utf16Offset: 3,
+                                                                  expectedSnapshot: peer.snapshot()).change.update
+            case 2: update = try RelayMarkNativeRichEditing.replace(document: peer, range: NSRange(location: NSMaxRange(range) - 2, length: 5),
+                                                                    runs: [], expectedSnapshot: peer.snapshot()).update
+            default: update = try peer.changeRichListDepth(paragraphPath: [1, item, 0], change: .indent, expectedSnapshot: peer.snapshot()).update
+            }
+            try document.applyUpdate(update)
+            guard let touched = document.itemsTouchedByLastUpdate() else {
+                // Lifting an item out of the list splits it: the paper's top level changed.
+                let nodes = try XCTUnwrap(document.topLevelNodesTouchedByLastUpdate())
+                let partial = try document.richProseProjection(topLevel: nodes.after, identityBase: projection.identityLimit)
+                XCTAssertNotNil(projection.replaceTopLevelNodes(nodes.before, with: partial))
+                assertEquivalent(projection, try document.richProseProjection(), "step \(step)", document: document)
+                break
+            }
+            XCTAssertEqual(touched.node, 1)
+            XCTAssertLessThanOrEqual(touched.after.count, 3, "step \(step) touched \(touched.after)")
+            XCTAssertEqual(projection.listAttributes(ofTopLevel: 1), document.listAttributes(ofTopLevel: 1))
+            let count = try XCTUnwrap(projection.itemCount(ofTopLevel: 1))
+            let before = touched.after.lowerBound..<(count - (touched.count - touched.after.upperBound))
+            let items = try XCTUnwrap(document.richProseProjection(items: touched.after, ofTopLevel: 1, paper: projection,
+                                                                   identityBase: projection.identityLimit))
+            XCTAssertNotNil(projection.replaceItems(before, ofTopLevel: 1, with: items), "step \(step)")
+            assertEquivalent(projection, try document.richProseProjection(), "step \(step)", document: document)
+            spliced += 1
+        }
+        XCTAssertGreaterThanOrEqual(spliced, 10)
+    }
 }

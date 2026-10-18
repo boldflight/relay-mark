@@ -92,8 +92,21 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
         }
     }
 
+    /// The window holds the list, so the list's own identity is not taken
+    /// from it; a renamed list would rewrite the whole list instead.
+    func testCommandsInsideALongListRunOnTheirItems() throws {
+        let document = RelayMarkNativeDocument()
+        _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(
+            (1...9).map { "- item \($0)" }.joined(separator: "\n"), namespace: "list"))
+        let offset = String(try document.richProseProjection().text.characters).utf16.count / 2
+        for operation in [Operation.returnKey, .bold, .indent, .lines] {
+            let change = try XCTUnwrap(run(operation, at: offset, on: document, paper: document.richProseProjection()))
+            XCTAssertNotNil(change.items, "\(operation)")
+        }
+    }
+
     func testWindowedCommandsWriteWhatWholePaperCommandsWrite() throws {
-        var compared = 0, refused = 0, changed: [Operation: Int] = [:]
+        var compared = 0, refused = 0, changed: [Operation: Int] = [:], itemWindows = 0
         let length = String(try replicas().whole.richProseProjection().text.characters).utf16.count
         for operation in Operation.allCases {
             for offset in stride(from: 0, to: length - 3, by: 4) {
@@ -109,9 +122,20 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
                 XCTAssertEqual(actual?.caret, expected?.caret, "\(operation) at \(offset)")
                 if let actual {
                     changed[operation, default: 0] += 1
-                    let nodes = try XCTUnwrap(actual.topLevel, "\(operation) at \(offset)")
-                    let partial = try windowed.richProseProjection(topLevel: nodes.after, identityBase: paper.identityLimit)
-                    XCTAssertNotNil(paper.replaceTopLevelNodes(nodes.before, with: partial))
+                    if let items = actual.items {
+                        itemWindows += 1
+                        let partial = try XCTUnwrap(windowed.richProseProjection(items: items.after, ofTopLevel: items.node,
+                                                                                 paper: paper, identityBase: paper.identityLimit))
+                        if paper.replaceItems(items.before, ofTopLevel: items.node, with: partial) == nil {
+                            // An ordered list renumbers its items: the host re-projects the whole list.
+                            let whole = try windowed.richProseProjection(topLevel: items.node..<(items.node + 1), identityBase: paper.identityLimit)
+                            XCTAssertNotNil(paper.replaceTopLevelNodes(items.node..<(items.node + 1), with: whole))
+                        }
+                    } else {
+                        let nodes = try XCTUnwrap(actual.topLevel, "\(operation) at \(offset)")
+                        let partial = try windowed.richProseProjection(topLevel: nodes.after, identityBase: paper.identityLimit)
+                        XCTAssertNotNil(paper.replaceTopLevelNodes(nodes.before, with: partial))
+                    }
                     XCTAssertEqual(String(paper.text.characters), String(try windowed.richProseProjection().text.characters),
                                    "\(operation) at \(offset)")
                     XCTAssertEqual(paper.blockPaths, try windowed.richProseProjection().blockPaths, "\(operation) at \(offset)")
@@ -120,6 +144,7 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
             }
         }
         XCTAssertGreaterThan(compared, 60)
+        XCTAssertGreaterThan(itemWindows, 5, "commands inside lists ran on item windows")
         for operation in Operation.allCases { XCTAssertGreaterThan(changed[operation] ?? 0, 0, "\(operation) never changed the paper") }
         XCTAssertLessThan(refused, compared / 4)
     }

@@ -8,6 +8,8 @@ struct RelayMarkUpdateFootprint {
     private(set) var touched: [ID] = []
     /// `touched` lists inserted structs first, then deleted clocks.
     private(set) var insertedCount = 0
+    /// Whether each inserted struct is an XML node rather than text or a value.
+    private(set) var insertedNodes: [Bool] = []
     /// Only text was inserted, deleted or formatted inside existing parents.
     private(set) var textOnly = true
     /// Larger deletions re-project the paper rather than resolve each clock.
@@ -37,6 +39,7 @@ struct RelayMarkUpdateFootprint {
                 }
                 guard let length = reader.content(reference) else { return nil }
                 if reference != 1 && reference != 4 && reference != 6 { textOnly = false }
+                insertedNodes.append(reference == 7)
                 touched.append(ID(client: client, clock: clock))
                 clock += length
             }

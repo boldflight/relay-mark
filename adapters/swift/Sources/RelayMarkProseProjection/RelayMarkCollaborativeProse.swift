@@ -159,12 +159,27 @@ public struct RelayMarkCollaborativeProse {
         let atom: Bool
     }
 
-    /// One top-level XML node's projection. Offsets count from the node's
-    /// first character and paths are those the node would have alone in a
-    /// paper (`[0, ...]`, the paper itself `[]`), so re-projecting a node
-    /// never touches the others.
+    /// A top-level list whose items are projected one by one.
+    private struct Container {
+        let name: String
+        let intent: PresentationIntent
+        /// The first ordinal of an ordered list.
+        let start: Int
+        /// The list's own authored attributes, as sorted JSON.
+        let attributes: Data
+        let identities: [String]
+    }
+
+    /// One unit's projection: a top-level XML node, or one item of a top-level
+    /// list. Offsets count from the unit's first character and paths are those
+    /// the unit would have alone (`[0, ...]`, its parent `[]`), so re-projecting
+    /// a unit never touches the others.
     private struct Chunk {
         var name = ""
+        /// The list an item unit belongs to; nil for a whole top-level node.
+        var container: Container?
+        /// The unit begins a top-level node; a list's first item does.
+        var nodeStart = true
         var length = 0
         var supported = true
         var ranges: [NSRange] = []
@@ -204,51 +219,141 @@ public struct RelayMarkCollaborativeProse {
     public func identityCount(_ id: String) -> Int { identityCounts[id] ?? 0 }
     public func anchorCount(_ name: String) -> Int { anchorCounts[name] ?? 0 }
 
-    /// Whether a block identity is used by a node outside the top-level nodes in `range`.
-    public func identityUsed(_ id: String, outside range: Range<Int>) -> Bool {
-        (identityCounts[id] ?? 0) > chunks[range].reduce(0) { $0 + $1.identities.filter { $0 == id }.count }
+    /// Which block identities and destination names nodes outside a window use.
+    /// The window is counted once, so each check costs the same however large it is.
+    public struct Outside {
+        public let identity: (String) -> Bool
+        public let anchor: (String) -> Bool
     }
 
-    /// Whether a destination name is used outside the top-level nodes in `range`.
-    public func anchorUsed(_ name: String, outside range: Range<Int>) -> Bool {
-        (anchorCounts[name] ?? 0) > chunks[range].reduce(0) { $0 + $1.anchors.filter { $0 == name }.count }
+    /// Identities and names used outside the top-level nodes in `range`.
+    public func outside(nodes range: Range<Int>) -> Outside {
+        outside(units: units(ofNodes: range), list: nil)
+    }
+
+    /// The same outside some items of the top-level list `node`; the list's own
+    /// identities belong to the window, which holds the list.
+    public func outside(items: Range<Int>, of node: Int) -> Outside {
+        outside(units: units(ofItems: items, of: node), list: chunks[starts.firstUnit(ofNode: node)].container)
+    }
+
+    private func outside(units range: Range<Int>, list: Container?) -> Outside {
+        var identities: [String: Int] = [:], anchors: [String: Int] = [:]
+        for id in list?.identities ?? [] { identities[id, default: 0] += 1 }
+        for chunk in chunks[range] {
+            for id in chunk.identities { identities[id, default: 0] += 1 }
+            if chunk.nodeStart, list == nil, let container = chunk.container {
+                for id in container.identities { identities[id, default: 0] += 1 }
+            }
+            for name in chunk.anchors { anchors[name, default: 0] += 1 }
+        }
+        let identityCounts = identityCounts, anchorCounts = anchorCounts
+        return Outside(identity: { (identityCounts[$0] ?? 0) > (identities[$0] ?? 0) },
+                       anchor: { (anchorCounts[$0] ?? 0) > (anchors[$0] ?? 0) })
+    }
+
+    /// The units of top-level nodes, and of some items of a list.
+    private func units(ofNodes range: Range<Int>) -> Range<Int> {
+        starts.firstUnit(ofNode: range.lowerBound)..<starts.firstUnit(ofNode: range.upperBound)
+    }
+
+    private func units(ofItems items: Range<Int>, of node: Int) -> Range<Int> {
+        let first = starts.firstUnit(ofNode: node)
+        return (first + items.lowerBound)..<(first + items.upperBound)
+    }
+
+    /// Where a unit sits: its top-level node, and its item within a list.
+    private struct Address { let node: Int; let item: Int? }
+
+    private func address(_ unit: Int) -> Address {
+        if let restrictedAddresses { return restrictedAddresses[unit] }
+        let node = starts.node(ofUnit: unit)
+        guard chunks[unit].container != nil else { return Address(node: node, item: nil) }
+        return Address(node: node, item: unit - starts.firstUnit(ofNode: node))
+    }
+
+    /// A paper path for a unit-local one; the unit's parent is `[]` locally.
+    private static func global(_ path: [Int], _ at: Address) -> [Int] {
+        guard !path.isEmpty else { return at.item == nil ? [] : [at.node] }
+        return (at.item.map { [at.node, $0] } ?? [at.node]) + path.dropFirst()
+    }
+
+    /// An index into the unit's parent counts from the unit's place there.
+    private static func global(index: Int, _ path: [Int], _ at: Address) -> Int {
+        path.isEmpty ? index + (at.item ?? at.node) : index
+    }
+
+    /// A paper path resolved to the unit holding it, the list it names, or the paper.
+    private enum Target { case paper; case list(node: Int); case unit(Int, [Int]) }
+
+    private func target(_ path: [Int]) -> Target? {
+        guard let node = path.first else { return .paper }
+        guard node >= 0, node < starts.nodeCount else { return nil }
+        let first = starts.firstUnit(ofNode: node)
+        guard chunks[first].container != nil else { return .unit(first, [0] + path.dropFirst()) }
+        guard path.count >= 2 else { return .list(node: node) }
+        let item = path[1], count = starts.firstUnit(ofNode: node + 1) - first
+        guard item >= 0, item < count else { return nil }
+        return .unit(first + item, [0] + path.dropFirst(2))
     }
 
     private mutating func count(_ chunks: some Sequence<Chunk>, by delta: Int) {
         for chunk in chunks {
+            if chunk.nodeStart, let container = chunk.container {
+                for id in container.identities { identityCounts[id, default: 0] += delta; if identityCounts[id] == 0 { identityCounts[id] = nil } }
+            }
             for id in chunk.identities { identityCounts[id, default: 0] += delta; if identityCounts[id] == 0 { identityCounts[id] = nil } }
             for name in chunk.anchors { anchorCounts[name, default: 0] += delta; if anchorCounts[name] == 0 { anchorCounts[name] = nil } }
         }
     }
 
-    private static func global(_ path: [Int], _ chunk: Int) -> [Int] {
-        path.isEmpty ? path : [chunk] + path.dropFirst()
-    }
-
-    private static func local(_ path: [Int]) -> (chunk: Int, path: [Int])? {
-        guard let first = path.first else { return nil }
-        return (first, [0] + path.dropFirst())
-    }
-
-    private func gather<T>(_ items: KeyPath<Chunk, [T]>, _ place: (T, Int, Int) -> T) -> [T] {
+    /// Each unit's metadata in paper offsets and paths, in one pass that
+    /// carries the running start and address instead of looking each up.
+    private func gather<T>(_ items: KeyPath<Chunk, [T]>, _ place: (T, Int, Address) -> T) -> [T] {
         var result: [T] = []
+        var end = 0, contributed = false, node = -1, item = 0
         for (index, chunk) in chunks.enumerated() {
-            let start = restrictedStarts?[index] ?? starts[index]
-            for item in chunk[keyPath: items] { result.append(place(item, start, index + firstNode)) }
+            let start: Int, at: Address
+            if let restrictedStarts, let restrictedAddresses {
+                start = restrictedStarts[index]; at = restrictedAddresses[index]
+            } else {
+                start = !chunk.ranges.isEmpty && contributed ? end + 1 : end
+                end = start + chunk.length; contributed = contributed || !chunk.ranges.isEmpty
+                if chunk.nodeStart { node += 1; item = 0 } else { item += 1 }
+                at = Address(node: node, item: chunk.container == nil ? nil : item)
+            }
+            for value in chunk[keyPath: items] { result.append(place(value, start, at)) }
         }
         return result
     }
 
-    /// The paper's index of this projection's first top-level node; nonzero only when restricted.
-    private var firstNode = 0
+    /// A restricted projection's units, fixed in the paper's offsets and places.
+    private var restrictedAddresses: [Address]?
 
     /// The metadata of just the top-level nodes in `range`, in the paper's
     /// offsets and paths, at a cost that follows those nodes. Only the
     /// metadata collections and block lists are meaningful on the result.
     public func restricted(toTopLevel range: Range<Int>) -> RelayMarkCollaborativeProse {
+        restricted(toUnits: units(ofNodes: range))
+    }
+
+    /// The same for some items of the top-level list `node`.
+    public func restricted(toItems items: Range<Int>, of node: Int) -> RelayMarkCollaborativeProse {
+        restricted(toUnits: units(ofItems: items, of: node))
+    }
+
+    /// The same for every unit `range` touches, found without reading the others.
+    public func restricted(covering range: NSRange) -> RelayMarkCollaborativeProse {
+        guard let first = chunks(touching: range.location).first else { return restricted(toUnits: 0..<0) }
+        var end = first
+        while end < chunks.count, starts[end] <= NSMaxRange(range) { end += 1 }
+        return restricted(toUnits: first..<end)
+    }
+
+    private func restricted(toUnits range: Range<Int>) -> RelayMarkCollaborativeProse {
         var copy = self
         copy.chunks = Array(chunks[range]); copy.restrictedStarts = range.map { starts[$0] }
-        copy.firstNode = firstNode + range.lowerBound
+        copy.restrictedAddresses = range.map(address)
         return copy
     }
 
@@ -320,30 +425,123 @@ public struct RelayMarkCollaborativeProse {
     public init(snapshot: Data, dialect: Dialect, codecValidated: Bool, identityBase: Int = 0) throws {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
         if dialect == .rich, !codecValidated { _ = try RelayMarkSourceCodec.snapshotToDocument(snapshot) }
-        var value = AttributedString(), length = 0, identity = identityBase
-        chunks = []; unsupportedChunks = 0; rangeCount = 0
-        var widths: [Int] = [], separated: [Bool] = []
+        var identity = identityBase, units: [(Chunk, AttributedString)] = []
         for node in root?["children"] as? [[String: Any]] ?? [] {
-            let (chunk, part, next) = try Self.project(node, dialect: dialect, identityStart: identity)
-            identity = next
+            if let items = try Self.projectList(node, dialect: dialect, identity: &identity) {
+                units += items
+            } else {
+                let (chunk, part, next) = try Self.project(node, dialect: dialect, identityStart: identity)
+                identity = next; units.append((chunk, part))
+            }
+        }
+        self.init(units: units, rootSupported: root?["kind"] as? String == "fragment", identityLimit: identity)
+    }
+
+    private init(units: [(Chunk, AttributedString)], rootSupported: Bool, identityLimit: Int) {
+        var value = AttributedString(), length = 0
+        chunks = []; unsupportedChunks = 0; rangeCount = 0
+        var widths: [Int] = [], separated: [Bool] = [], nodeStarts: [Bool] = []
+        for (chunk, part) in units {
             let separator = !chunk.ranges.isEmpty && rangeCount > 0
             if separator { value.append(AttributedString("\n")); length += 1 }
             rangeCount += chunk.ranges.count
-            widths.append(chunk.length + (separator ? 1 : 0)); separated.append(separator)
+            widths.append(chunk.length + (separator ? 1 : 0)); separated.append(separator); nodeStarts.append(chunk.nodeStart)
             value.append(part); length += chunk.length
             if !chunk.supported { unsupportedChunks += 1 }
             chunks.append(chunk)
         }
         text = value
-        starts = NodeStarts(widths: widths, separated: separated)
+        starts = NodeStarts(widths: widths, separated: separated, nodeStarts: nodeStarts)
         restrictedStarts = nil
-        rootSupported = root?["kind"] as? String == "fragment"
-        identityLimit = identity
+        self.rootSupported = rootSupported
+        self.identityLimit = identityLimit
         count(chunks, by: 1)
     }
 
-    private static func project(_ node: [String: Any], dialect: Dialect,
-                                identityStart: Int) throws -> (Chunk, AttributedString, Int) {
+    private static let listNames: Set<String> = ["bulletList", "orderedList", "taskList"]
+
+    /// A top-level list's items as units, so an edit re-projects only the items
+    /// it touches; nil projects the node whole, as any other.
+    private static func projectList(_ node: [String: Any], dialect: Dialect,
+                                    identity: inout Int) throws -> [(Chunk, AttributedString)]? {
+        guard dialect == .rich, node["kind"] as? String == "element", let name = node["name"] as? String,
+              listNames.contains(name), let items = node["children"] as? [[String: Any]], !items.isEmpty,
+              items.allSatisfy({ $0["name"] as? String == (name == "taskList" ? "taskItem" : "listItem") }) else { return nil }
+        let physical = node["attributes"] as? [String: Any] ?? [:]
+        let attributes = try RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: name, attributes: physical)
+        func validInteger(_ value: Any?) -> Bool {
+            guard let value, !(value is NSNull) else { return true }
+            guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                  let integer = value as? Int else { return false }
+            return integer >= 1
+        }
+        switch name {
+        case "taskList":
+            guard Set(attributes.keys).isSubset(of: ["relaymarkId"]), attributes["relaymarkId"] is String else { return nil }
+        case "orderedList":
+            guard Set(attributes.keys).isSubset(of: ["start", "relaymarkId", "type"]), validInteger(attributes["start"]),
+                  attributes["type"] == nil || attributes["type"] is NSNull else { return nil }
+        default:
+            guard Set(attributes.keys).isSubset(of: ["relaymarkId"]) else { return nil }
+        }
+        identity += 1
+        let container = Container(name: name,
+            intent: PresentationIntent(name == "orderedList" ? .orderedList : .unorderedList, identity: identity, parent: nil),
+            start: attributes["start"] as? Int ?? 1,
+            attributes: try JSONSerialization.data(withJSONObject: physical, options: [.sortedKeys]),
+            identities: (physical["relaymarkId"] as? String).map { [$0] } ?? [])
+        return try projectItems(items, of: container, from: 0, dialect: dialect, identity: &identity)
+    }
+
+    private static func projectItems(_ items: [[String: Any]], of container: Container, from base: Int,
+                                     dialect: Dialect, identity: inout Int) throws -> [(Chunk, AttributedString)] {
+        try items.enumerated().map { offset, item in
+            var (chunk, part, next) = try project(item, dialect: dialect, identityStart: identity,
+                                                  parent: container.intent, ordinal: container.start, indexBase: base + offset)
+            identity = next
+            if item["name"] as? String != (container.name == "taskList" ? "taskItem" : "listItem") { chunk.supported = false }
+            chunk.container = container; chunk.nodeStart = base + offset == 0
+            return (chunk, part)
+        }
+    }
+
+    /// Item units of the top-level list `node` from a fragment holding that
+    /// list with only those items, the first being item `base`, numbered from
+    /// `identityBase`, for `replaceItems`. Nil unless `node` is projected by item.
+    public func projectItems(snapshot: Data, ofTopLevel node: Int, from base: Int,
+                             identityBase: Int) throws -> RelayMarkCollaborativeProse? {
+        guard node >= 0, node < starts.nodeCount, let container = chunks[starts.firstUnit(ofNode: node)].container,
+              let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
+              let lists = root["children"] as? [[String: Any]], lists.count == 1, lists[0]["name"] as? String == container.name,
+              try JSONSerialization.data(withJSONObject: lists[0]["attributes"] as? [String: Any] ?? [:], options: [.sortedKeys]) == container.attributes,
+              let items = lists[0]["children"] as? [[String: Any]] else { return nil }
+        var identity = identityBase
+        let units = try Self.projectItems(items, of: container, from: base, dialect: .rich, identity: &identity)
+        return RelayMarkCollaborativeProse(units: units, rootSupported: true, identityLimit: identity)
+    }
+
+    /// How many items the top-level list `node` holds; nil when it is not projected by item.
+    public func itemCount(ofTopLevel node: Int) -> Int? {
+        guard node >= 0, node < starts.nodeCount else { return nil }
+        let first = starts.firstUnit(ofNode: node)
+        return chunks[first].container == nil ? nil : starts.firstUnit(ofNode: node + 1) - first
+    }
+
+    /// The top-level node, and its item when it is projected by item, whose text holds `offset`.
+    public func itemIndex(atUTF16 offset: Int) -> (node: Int, item: Int?)? {
+        chunks(touching: offset).last.map { let at = address($0); return (at.node, at.item) }
+    }
+
+    /// The authored attributes of the top-level list `node`, as sorted JSON.
+    public func listAttributes(ofTopLevel node: Int) -> Data? {
+        guard node >= 0, node < starts.nodeCount else { return nil }
+        return chunks[starts.firstUnit(ofNode: node)].container?.attributes
+    }
+
+    /// `parent`, `ordinal` and `indexBase` place an item projected alone in its list.
+    private static func project(_ node: [String: Any], dialect: Dialect, identityStart: Int,
+                                parent: PresentationIntent? = nil, ordinal: Int = 1,
+                                indexBase: Int = 0) throws -> (Chunk, AttributedString, Int) {
         let directiveDefinitions = try Self.directiveDefinitions()
         let genericNames = Set(directiveDefinitions.compactMap { $0["name"] as? String })
         var authoredWidgets: [AuthoredWidget] = []
@@ -475,9 +673,11 @@ public struct RelayMarkCollaborativeProse {
         func walk(_ nodes: [[String: Any]], path: [Int], parent: PresentationIntent? = nil,
                   ordinal: Int = 1, tableRows: [[Int]]? = nil, tableColumns: [Int]? = nil,
                   tableIdentity: Int? = nil, tableWidth: Int? = nil, tableRow: Int? = nil,
-                  cellContext: CellContext? = nil, allowCalloutTitle: Bool = false) throws {
+                  cellContext: CellContext? = nil, allowCalloutTitle: Bool = false, indexBase: Int = 0) throws {
             var offsets: [Int] = []
             for (index, block) in nodes.enumerated() {
+                // A node's place among its siblings, when it is projected alone.
+                let position = index + indexBase
                 let blockPath = path + [index]
                 let name = block["name"] as? String ?? ""
                 let physicalAttributes = block["attributes"] as? [String: Any] ?? [:]
@@ -624,7 +824,7 @@ public struct RelayMarkCollaborativeProse {
                     kind = .orderedList
                 case "listItem":
                     let ordered = parent.map { if case .orderedList = $0.components[0].kind { true } else { false } } ?? false
-                    kind = .listItem(ordinal: ordered ? ordinal + index : 1)
+                    kind = .listItem(ordinal: ordered ? ordinal + position : 1)
                 case "table":
                     table = tableLayout(children)
                     kind = .table(columns: Array(repeating: .init(alignment: .left), count: table?.width ?? 0))
@@ -775,7 +975,7 @@ public struct RelayMarkCollaborativeProse {
             }
             offsets.append(length()); boundaries[path] = offsets
         }
-        try walk([node], path: [])
+        try walk([node], path: [], parent: parent, ordinal: ordinal, indexBase: indexBase)
         boundaries[[]] = nil
         var chunk = Chunk()
         chunk.name = node["name"] as? String ?? ""
@@ -811,7 +1011,7 @@ public struct RelayMarkCollaborativeProse {
             for span in chunk.spans where span.text {
                 let intersection = NSIntersectionRange(range, NSRange(location: span.range.location + start, length: span.range.length))
                 guard intersection.length > 0 else { continue }
-                result.append(TextRange(path: Self.global(span.path, index),
+                result.append(TextRange(path: Self.global(span.path, address(index)),
                     index: intersection.location - start - span.range.location, length: intersection.length))
             }
         }
@@ -819,13 +1019,16 @@ public struct RelayMarkCollaborativeProse {
     }
 
     /// The number of top-level nodes.
-    public var topLevelCount: Int { chunks.count }
+    public var topLevelCount: Int { starts.nodeCount }
 
     /// The top-level node whose text holds `offset`, at either edge.
-    public func topLevelIndex(atUTF16 offset: Int) -> Int? { chunks(touching: offset).last.map { $0 + firstNode } }
+    public func topLevelIndex(atUTF16 offset: Int) -> Int? { chunks(touching: offset).last.map { address($0).node } }
 
     /// Where a top-level node's text begins.
-    public func topLevelStart(_ index: Int) -> Int { restrictedStarts?[index - firstNode] ?? starts[index - firstNode] }
+    public func topLevelStart(_ index: Int) -> Int { starts[starts.firstUnit(ofNode: index)] }
+
+    /// Where an item of the top-level list `node` begins.
+    public func itemStart(_ item: Int, of node: Int) -> Int { starts[starts.firstUnit(ofNode: node) + item] }
 
     /// The textblock holding `offset`, at either edge: its path and range.
     public func block(containingUTF16 offset: Int) -> (path: [Int], range: NSRange)? {
@@ -838,7 +1041,7 @@ public struct RelayMarkCollaborativeProse {
             }
             if low < chunk.ranges.count, chunk.ranges[low].location <= local {
                 let range = chunk.ranges[low]
-                return (Self.global(chunk.paths[low], index + firstNode), NSRange(location: range.location + start, length: range.length))
+                return (Self.global(chunk.paths[low], address(index)), NSRange(location: range.location + start, length: range.length))
             }
         }
         return nil
@@ -854,7 +1057,7 @@ public struct RelayMarkCollaborativeProse {
             for row in chunk.ranges.indices {
                 let block = NSRange(location: chunk.ranges[row].location + start, length: chunk.ranges[row].length)
                 if NSIntersectionRange(block, range).length > 0 {
-                    result.append((Self.global(chunk.paths[row], index + firstNode), block, chunk.intents[row]))
+                    result.append((Self.global(chunk.paths[row], address(index)), block, chunk.intents[row]))
                 }
             }
         }
@@ -876,10 +1079,10 @@ public struct RelayMarkCollaborativeProse {
 
     /// A textblock's range, by its path.
     public func blockRange(path: [Int]) -> NSRange? {
-        guard let (index, local) = Self.local(path), index - firstNode >= 0, index - firstNode < chunks.count,
-              let row = chunks[index - firstNode].paths.firstIndex(of: local) else { return nil }
-        let range = chunks[index - firstNode].ranges[row]
-        return NSRange(location: range.location + topLevelStart(index), length: range.length)
+        guard case .unit(let index, let local)? = target(path),
+              let row = chunks[index].paths.firstIndex(of: local) else { return nil }
+        let range = chunks[index].ranges[row]
+        return NSRange(location: range.location + starts[index], length: range.length)
     }
 
     /// The chunks whose text contains `offset`, at either edge; usually one.
@@ -897,7 +1100,8 @@ public struct RelayMarkCollaborativeProse {
     public func position(atUTF16 offset: Int) -> (path: [Int], index: Int)? {
         for index in chunks(touching: offset) {
             if let found = position(in: index, at: offset - starts[index]) {
-                return (Self.global(found.path, index), found.path.isEmpty ? found.index + index : found.index)
+                let at = address(index)
+                return (Self.global(found.path, at), Self.global(index: found.index, found.path, at))
             }
         }
         return nil
@@ -954,9 +1158,17 @@ public struct RelayMarkCollaborativeProse {
 
     /// Resolve a current XML position without coupling a native binding to one replica type.
     public func offset(path: [Int], index: Int) -> Int? {
-        guard index >= 0 else { return nil }
-        guard let (chunkIndex, local) = Self.local(path) else { return rootOffset(index) }
-        guard chunkIndex >= 0, chunkIndex < chunks.count else { return nil }
+        guard index >= 0, let target = target(path) else { return nil }
+        let chunkIndex: Int, local: [Int]
+        switch target {
+        case .paper: return rootOffset(index)
+        case .list(let node):
+            // A list's child boundaries are its items' starts, then its end.
+            let first = starts.firstUnit(ofNode: node), count = starts.firstUnit(ofNode: node + 1) - first
+            guard index <= count else { return nil }
+            return index < count ? starts[first + index] : starts[first + count - 1] + chunks[first + count - 1].length
+        case .unit(let unit, let path): chunkIndex = unit; local = path
+        }
         let chunk = chunks[chunkIndex], start = starts[chunkIndex]
         if let found = Self.textSpanIndex(path: local, in: chunk.spans) {
             let range = chunk.spans[found].range
@@ -970,12 +1182,13 @@ public struct RelayMarkCollaborativeProse {
     /// The paper's own child boundaries: each node's first character, or the
     /// end of a preceding atom block, and finally the end of the text.
     private func rootOffset(_ index: Int) -> Int? {
-        guard index <= chunks.count else { return nil }
-        if index == chunks.count { return text.utf16.count }
-        if index > 0, Self.markupNames.contains(chunks[index - 1].name), !chunks[index - 1].ranges.isEmpty {
-            return starts[index - 1] + chunks[index - 1].length
+        guard index <= starts.nodeCount else { return nil }
+        if index == starts.nodeCount { return text.utf16.count }
+        let unit = starts.firstUnit(ofNode: index)
+        if unit > 0, chunks[unit - 1].container == nil, Self.markupNames.contains(chunks[unit - 1].name), !chunks[unit - 1].ranges.isEmpty {
+            return starts[unit - 1] + chunks[unit - 1].length
         }
-        return starts[index]
+        return starts[unit]
     }
 
     /// A single contiguous replacement at grapheme boundaries; unchanged runs retain CRDT identity.
@@ -999,7 +1212,7 @@ extension RelayMarkCollaborativeProse {
     public func textPosition(replacing range: NSRange) -> (path: [Int], index: Int)? {
         guard let (chunk, span) = textSpanIndex(containing: range) else { return nil }
         let value = chunks[chunk].spans[span]
-        return (Self.global(value.path, chunk), range.location - starts[chunk] - value.range.location)
+        return (Self.global(value.path, address(chunk)), range.location - starts[chunk] - value.range.location)
     }
 
     private func textSpanIndex(containing range: NSRange) -> (chunk: Int, span: Int)? {
@@ -1088,7 +1301,7 @@ extension RelayMarkCollaborativeProse {
     /// unchanged, when the leaf is empty or cannot be spliced on its own.
     /// Returns the range the leaf held before, which a text view replaces too.
     public mutating func replaceLeaf(path: [Int], runs: [(text: String, attributes: [String: Any])]) -> NSRange? {
-        guard isEditable, let (index, local) = Self.local(path), index < chunks.count,
+        guard isEditable, case .unit(let index, let local)? = target(path),
               let spanIndex = Self.textSpanIndex(path: local, in: chunks[index].spans) else { return nil }
         let localLeaf = chunks[index].spans[spanIndex].range
         let leaf = NSRange(location: localLeaf.location + starts[index], length: localLeaf.length)
@@ -1169,6 +1382,26 @@ extension RelayMarkCollaborativeProse {
     /// unless every node involved holds text.
     public mutating func replaceTopLevelNodes(_ range: Range<Int>, with replacement: RelayMarkCollaborativeProse)
         -> (old: NSRange, new: NSRange, content: NSRange)? {
+        guard range.lowerBound >= 0, range.lowerBound <= range.upperBound, range.upperBound <= starts.nodeCount else { return nil }
+        return replaceUnits(units(ofNodes: range), with: replacement)
+    }
+
+    /// Replaces items `items` of the top-level list `node` with `replacement`,
+    /// item units from `projectItems`, with the same results. Nil, unchanged,
+    /// when the list would lose its first or every item, or an ordered list's
+    /// items would renumber; the host then replaces the whole list.
+    public mutating func replaceItems(_ items: Range<Int>, ofTopLevel node: Int, with replacement: RelayMarkCollaborativeProse)
+        -> (old: NSRange, new: NSRange, content: NSRange)? {
+        guard let count = itemCount(ofTopLevel: node), items.lowerBound >= 0, items.lowerBound <= items.upperBound,
+              items.upperBound <= count, replacement.chunks.allSatisfy({ $0.container != nil }),
+              !(items.lowerBound == 0 && replacement.chunks.isEmpty), count - items.count + replacement.chunks.count > 0,
+              chunks[starts.firstUnit(ofNode: node)].container?.name != "orderedList" || replacement.chunks.count == items.count
+        else { return nil }
+        return replaceUnits(units(ofItems: items, of: node), with: replacement)
+    }
+
+    private mutating func replaceUnits(_ range: Range<Int>, with replacement: RelayMarkCollaborativeProse)
+        -> (old: NSRange, new: NSRange, content: NSRange)? {
         guard range.lowerBound >= 0, range.upperBound <= chunks.count, replacement.rootSupported,
               replacement.identityLimit >= identityLimit,
               chunks[range].allSatisfy({ !$0.ranges.isEmpty }),
@@ -1206,14 +1439,16 @@ extension RelayMarkCollaborativeProse {
         // Every node involved holds text, so a separator precedes each but the paper's first;
         // past the replacement only the next node's separator can change.
         let replaced = range.lowerBound..<min(chunks.count, range.lowerBound + replacement.chunks.count + 1)
-        var widths: [Int] = [], separated: [Bool] = []
+        var widths: [Int] = [], separated: [Bool] = [], nodeStarts: [Bool] = []
         var any = (0..<range.lowerBound).reversed().contains { !chunks[$0].ranges.isEmpty }
         for index in replaced {
             let separator = !chunks[index].ranges.isEmpty && any
             any = any || !chunks[index].ranges.isEmpty
             widths.append(chunks[index].length + (separator ? 1 : 0)); separated.append(separator)
+            nodeStarts.append(chunks[index].nodeStart)
         }
-        starts.replace(range.lowerBound..<min(starts.count, range.upperBound + 1), widths: widths, separated: separated)
+        starts.replace(range.lowerBound..<min(starts.count, range.upperBound + 1), widths: widths, separated: separated,
+                       nodeStarts: nodeStarts)
         identityLimit = replacement.identityLimit
         return (NSRange(location: oldStart, length: oldEnd - oldStart),
                 NSRange(location: oldStart, length: inserted.utf16.count),
@@ -1227,72 +1462,100 @@ extension RelayMarkCollaborativeProse {
     }
 }
 
-/// Where each top-level node's text begins. Node widths (length plus the
-/// separator before it) live in buckets with running sums, so a typed
-/// character or an inserted node touches one bucket and a lookup walks the
-/// bucket sums, never every node.
+/// Where each unit's text begins. A unit is a top-level node, or one item of
+/// a top-level list. Unit widths (length plus the separator before it) live
+/// in buckets with running sums, as do the flags marking units that begin a
+/// top-level node, so a typed character or an inserted unit touches one
+/// bucket, and finding a unit's node walks bucket counts, never every unit.
 private struct NodeStarts {
     private struct Bucket {
         var widths: [Int]
         var separated: [Bool]
+        var nodeStarts: [Bool]
         var sum: Int
+        var nodes: Int
     }
     private static let bucketSize = 256
     private var buckets: [Bucket] = []
     private(set) var count = 0
+    private(set) var nodeCount = 0
 
-    init(widths: [Int], separated: [Bool]) {
-        buckets = Self.buckets(widths[...], separated[...])
-        count = widths.count
+    init(widths: [Int], separated: [Bool], nodeStarts: [Bool]) {
+        buckets = Self.buckets(widths[...], separated[...], nodeStarts[...])
+        count = widths.count; nodeCount = nodeStarts.filter { $0 }.count
     }
 
-    private static func buckets(_ widths: ArraySlice<Int>, _ separated: ArraySlice<Bool>) -> [Bucket] {
+    private static func buckets(_ widths: ArraySlice<Int>, _ separated: ArraySlice<Bool>,
+                                _ nodeStarts: ArraySlice<Bool>) -> [Bucket] {
         stride(from: widths.startIndex, to: widths.endIndex, by: bucketSize).map { start in
             let end = min(widths.endIndex, start + bucketSize)
             return Bucket(widths: Array(widths[start..<end]), separated: Array(separated[start..<end]),
-                          sum: widths[start..<end].reduce(0, +))
+                          nodeStarts: Array(nodeStarts[start..<end]), sum: widths[start..<end].reduce(0, +),
+                          nodes: nodeStarts[start..<end].filter { $0 }.count)
         }
     }
 
-    /// The bucket holding node `index`, the bucket's first node and the width before it.
-    private func locate(_ index: Int) -> (bucket: Int, first: Int, before: Int) {
-        var first = 0, before = 0
+    /// The bucket holding unit `index`, the bucket's first unit, the width and the node starts before it.
+    private func locate(_ index: Int) -> (bucket: Int, first: Int, before: Int, nodes: Int) {
+        var first = 0, before = 0, nodes = 0
         for (position, bucket) in buckets.enumerated() {
-            if index < first + bucket.widths.count { return (position, first, before) }
-            first += bucket.widths.count; before += bucket.sum
+            if index < first + bucket.widths.count { return (position, first, before, nodes) }
+            first += bucket.widths.count; before += bucket.sum; nodes += bucket.nodes
         }
-        return (buckets.count, first, before)
+        return (buckets.count, first, before, nodes)
     }
 
     subscript(index: Int) -> Int {
-        let (position, first, before) = locate(index)
+        let (position, first, before, _) = locate(index)
         let bucket = buckets[position]
         return bucket.widths[..<(index - first)].reduce(before, +) + (bucket.separated[index - first] ? 1 : 0)
     }
 
+    /// The top-level node unit `index` belongs to.
+    func node(ofUnit index: Int) -> Int {
+        let (position, first, _, nodes) = locate(index)
+        return nodes + buckets[position].nodeStarts[...(index - first)].filter { $0 }.count - 1
+    }
+
+    /// The first unit of top-level node `node`, or `count` past the last node.
+    func firstUnit(ofNode node: Int) -> Int {
+        var first = 0, nodes = 0
+        for bucket in buckets {
+            if nodes + bucket.nodes <= node { first += bucket.widths.count; nodes += bucket.nodes; continue }
+            for flag in bucket.nodeStarts {
+                if flag { if nodes == node { return first }; nodes += 1 }
+                first += 1
+            }
+        }
+        return count
+    }
+
     mutating func add(_ delta: Int, at index: Int) {
-        let (position, first, _) = locate(index)
+        let (position, first, _, _) = locate(index)
         buckets[position].widths[index - first] += delta
         buckets[position].sum += delta
     }
 
-    /// Replaces the widths of the nodes in `range`, touching only the buckets around it.
-    mutating func replace(_ range: Range<Int>, widths: [Int], separated: [Bool]) {
+    /// Replaces the units in `range`, touching only the buckets around it.
+    mutating func replace(_ range: Range<Int>, widths: [Int], separated: [Bool], nodeStarts: [Bool]) {
         guard !buckets.isEmpty else {
-            buckets = Self.buckets(widths[...], separated[...]); count = widths.count; return
+            self = NodeStarts(widths: widths, separated: separated, nodeStarts: nodeStarts); return
         }
-        var (low, first, _) = locate(range.lowerBound)
+        var (low, first, _, _) = locate(range.lowerBound)
         if low == buckets.count { low -= 1; first -= buckets[low].widths.count }
         var high = low, end = first + buckets[low].widths.count
         while end < range.upperBound, high + 1 < buckets.count { high += 1; end += buckets[high].widths.count }
         var flatWidths = buckets[low...high].flatMap(\.widths), flatSeparated = buckets[low...high].flatMap(\.separated)
+        var flatStarts = buckets[low...high].flatMap(\.nodeStarts)
         let local = (range.lowerBound - first)..<(range.upperBound - first)
+        nodeCount += nodeStarts.filter { $0 }.count - flatStarts[local].filter { $0 }.count
         flatWidths.replaceSubrange(local, with: widths); flatSeparated.replaceSubrange(local, with: separated)
-        buckets.replaceSubrange(low...high, with: Self.buckets(flatWidths[...], flatSeparated[...]))
+        flatStarts.replaceSubrange(local, with: nodeStarts)
+        buckets.replaceSubrange(low...high, with: Self.buckets(flatWidths[...], flatSeparated[...], flatStarts[...]))
         count += widths.count - range.count
     }
 
-    /// The last node whose width, its separator included, begins at or before `offset`.
+    /// The last unit whose width, its separator included, begins at or before `offset`.
     func lastIndex(beginningAtOrBefore offset: Int) -> Int {
         var first = 0, before = 0
         for bucket in buckets {

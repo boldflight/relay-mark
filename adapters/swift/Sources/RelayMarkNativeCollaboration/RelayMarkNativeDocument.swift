@@ -27,6 +27,8 @@ public final class RelayMarkNativeDocument {
         case invalidUTF16Range
         case invalidAnchor
         case unsupportedProseEdit
+        /// A command on a list's items changed the list itself; it runs again on the whole list.
+        case containerChanged
     }
 
     private let document: YDocument
@@ -115,15 +117,14 @@ public final class RelayMarkNativeDocument {
         return document.transactSync { transaction -> [[Int]]? in
             var identities: Set<Data> = [], paths: [[Int]] = []
             for (index, id) in footprint.touched.enumerated() {
-                // Each item resolves to the text node holding it, named by its end-of-branch sticky index.
+                // Each item resolves to the text node holding it, named by its own sticky index.
                 guard let resolved = try? self.document.resolveXmlRelativePosition(
                           RelayMarkUpdateFootprint.stickyIndex(id), in: transaction) else {
                     // A deleted item inside an already removed node changes nothing visible.
                     if index >= footprint.insertedCount { continue } else { return nil }
                 }
                 guard resolved.node.kind(in: transaction) == "text",
-                      let identity = try? resolved.node.relativePosition(
-                          at: resolved.node.length(in: transaction), association: 0, in: transaction) else { return nil }
+                      let identity = try? resolved.node.relativePosition(at: 0, association: -1, in: transaction) else { return nil }
                 guard identities.insert(identity).inserted else { continue }
                 guard let path = self.livePath(of: resolved.node, in: transaction) else { return nil }
                 paths.append(path)
@@ -169,14 +170,86 @@ public final class RelayMarkNativeDocument {
         }
     }
 
+    /// When the last applied update changed only items of one top-level list,
+    /// that list, the item range it now holds and its item count now; nil
+    /// otherwise. The host checks the list's own attributes are unchanged.
+    public func itemsTouchedByLastUpdate() -> (node: Int, after: Range<Int>, count: Int)? {
+        guard let lastUpdate, lastUpdate.revision == revision, let footprint = lastUpdate.footprint else { return nil }
+        return itemsTouched(by: footprint)
+    }
+
+    /// The same for a local change this replica just made.
+    public func itemsTouched(by update: Data) -> (node: Int, after: Range<Int>, count: Int)? {
+        RelayMarkUpdateFootprint(update).flatMap(itemsTouched(by:))
+    }
+
+    private func itemsTouched(by footprint: RelayMarkUpdateFootprint) -> (node: Int, after: Range<Int>, count: Int)? {
+        document.transactSync { transaction -> (node: Int, after: Range<Int>, count: Int)? in
+            var node: Int?, lower = Int.max, upper = Int.min, count = 0
+            for (index, id) in footprint.touched.enumerated() {
+                guard let resolved = try? self.document.resolveXmlRelativePosition(
+                          RelayMarkUpdateFootprint.stickyIndex(id), in: transaction) else {
+                    if index >= footprint.insertedCount { continue } else { return nil }
+                }
+                guard let path = self.climb(from: resolved.node, in: transaction), let first = path.first else { return nil }
+                if node == nil {
+                    node = first
+                    guard let list = self.root.child(at: UInt32(first), in: transaction) else { return nil }
+                    count = Int(list.length(in: transaction))
+                }
+                guard node == first else { return nil }
+                let item: Int
+                if path.count == 1 {
+                    // An item added or removed directly in the list; a new value there is the list's own attribute.
+                    if index < footprint.insertedCount, !footprint.insertedNodes[index] { return nil }
+                    item = Int(resolved.index)
+                } else { item = path[1] }
+                lower = min(lower, item); upper = max(upper, min(item + 1, count))
+            }
+            guard let node else { return nil }
+            return (node, lower <= upper ? lower..<upper : 0..<0, count)
+        }
+    }
+
+    /// The authored attributes of top-level node `node`, as sorted JSON.
+    public func listAttributes(ofTopLevel node: Int) -> Data? {
+        guard let list = root.child(at: UInt32(node)), let attributes = try? list.attributes() else { return nil }
+        return try? JSONSerialization.data(withJSONObject: attributes, options: [.sortedKeys])
+    }
+
+    /// Projects just items `items` of the top-level list `node` as `paper`
+    /// projects that list, for `RelayMarkCollaborativeProse.replaceItems`.
+    public func richProseProjection(items: Range<Int>, ofTopLevel node: Int, paper: RelayMarkCollaborativeProse,
+                                    identityBase: Int) throws -> RelayMarkCollaborativeProse? {
+        guard integrationStatus().isComplete else { return nil }
+        let fragment = try JSONSerialization.data(withJSONObject: snapshot(items: items, ofTopLevel: node), options: [.sortedKeys])
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: fragment)
+        return try paper.projectItems(snapshot: fragment, ofTopLevel: node, from: items.lowerBound, identityBase: identityBase)
+    }
+
+    /// A fragment holding the top-level list `node` with only items `items`, and the paper's metadata.
+    func snapshot(items: Range<Int>, ofTopLevel node: Int) throws -> [String: Any] {
+        guard let list = root.child(at: UInt32(node)), list.kind() == "element", let tag = list.tag(),
+              items.lowerBound >= 0, items.upperBound <= Int(list.length()) else { throw Failure.invalidAnchor }
+        let children = try items.map { index -> [String: Any] in
+            guard let child = list.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            return try snapshot(child)
+        }
+        var object: [String: Any] = ["kind": "fragment", "children": [["kind": "element", "name": tag,
+            "attributes": try list.attributes(), "children": children]]]
+        try addMetadata(to: &object)
+        return object
+    }
+
     /// The path from the paper to `node`, climbing one level at a time: a
-    /// node's end-of-branch sticky index names its own item, which resolves to
-    /// its parent and index. A removed node yields where it was.
+    /// node's sticky index before its start names its own item, without
+    /// walking its children, and resolves to its parent and index. A removed
+    /// node yields where it was.
     private func climb(from node: YXmlNode, in transaction: YrsTransaction) -> [Int]? {
         var path: [Int] = [], current = node
         while !current.isSameNode(as: root) {
             guard path.count < 256,
-                  let identity = try? current.relativePosition(at: current.length(in: transaction), association: 0, in: transaction),
+                  let identity = try? current.relativePosition(at: 0, association: -1, in: transaction),
                   let id = RelayMarkUpdateFootprint.nestedID(identity),
                   let parent = try? document.resolveXmlRelativePosition(RelayMarkUpdateFootprint.stickyIndex(id), in: transaction)
             else { return nil }
@@ -290,7 +363,11 @@ public final class RelayMarkNativeDocument {
     /// A replica holding only some top-level nodes and the paper's metadata,
     /// where a command's write is rehearsed at the cost of those nodes.
     func scratch(topLevel range: Range<Int>) throws -> RelayMarkNativeDocument {
-        let tree = try snapshot(topLevel: range)
+        try scratch(tree: snapshot(topLevel: range))
+    }
+
+    /// A replica holding a fragment snapshot's nodes and metadata.
+    func scratch(tree: [String: Any]) throws -> RelayMarkNativeDocument {
         let scratch = RelayMarkNativeDocument()
         let envelope = try JSONDecoder().decode([String: RelayMarkValue].self,
             from: JSONSerialization.data(withJSONObject: tree["metadata"] ?? [String: Any]()))
@@ -1518,12 +1595,20 @@ public final class RelayMarkNativeDocument {
     /// Writes a transformed ProseMirror document through y-prosemirror's
     /// updateYFragment diff as one local transaction and one undo item.
     /// `window` writes only those top-level nodes; `updated` and `source` then hold just them.
-    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge, window: Range<Int>? = nil) throws -> Data {
+    /// `items` writes only those items of a top-level list; both then hold that one list.
+    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge, window: Range<Int>? = nil,
+                          items: (node: Int, window: Range<Int>)? = nil) throws -> Data {
         let metadataReplacement=try JSONDecoder().decode([String:RelayMarkValue].self,from:JSONSerialization.data(withJSONObject:updated.attrs["relaymark"] ?? [:]))
         wrapUndo()
         revision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
-            try bridge.update(self.root, updated, source: source, in: transaction, window: window)
+            if let items {
+                guard updated.childCount == 1, source.childCount == 1,
+                      let list = self.root.child(at: UInt32(items.node), in: transaction) else { throw Failure.containerChanged }
+                try bridge.update(list, updated.child(0), source: source.child(0), in: transaction, window: items.window)
+            } else {
+                try bridge.update(self.root, updated, source: source, in: transaction, window: window)
+            }
             do {
                 let existing=self.metadata.toMap(transaction:transaction)
                 for key in existing.keys.sorted() where metadataReplacement[key]==nil {_ = self.metadata.removeValue(forKey:key,transaction:transaction)}

@@ -24,12 +24,12 @@ public enum RelayMarkNativeRichReturn {
     public static func apply(document: RelayMarkNativeDocument, blockPath: [Int],
                              utf16Offset: Int, selectionEnd: RelayMarkNativeRichEditing.Caret? = nil,
                              paper: RelayMarkCollaborativeProse) throws -> Result {
-        guard let first = blockPath.first else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
-        let last = selectionEnd?.blockPath.first ?? first
-        let scope = try RelayMarkNativeRichEditing.scope(document: document, paper: paper, nodes: min(first, last)...max(first, last))
-        return try apply(document: document, blockPath: scope.local(blockPath), utf16Offset: utf16Offset,
-                         selectionEnd: selectionEnd.map { .init(blockPath: scope.local($0.blockPath), offset: $0.offset) },
-                         scope: scope, windowed: true)
+        try RelayMarkNativeRichEditing.windowed(document: document, paper: paper,
+                                                paths: [blockPath] + (selectionEnd.map { [$0.blockPath] } ?? [])) { scope in
+            try apply(document: document, blockPath: scope.local(blockPath), utf16Offset: utf16Offset,
+                      selectionEnd: selectionEnd.map { .init(blockPath: scope.local($0.blockPath), offset: $0.offset) },
+                      scope: scope, windowed: true)
+        }
     }
 
     private static func apply(document: RelayMarkNativeDocument, blockPath: [Int],
