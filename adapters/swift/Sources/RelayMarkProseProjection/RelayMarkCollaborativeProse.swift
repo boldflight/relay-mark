@@ -516,7 +516,9 @@ public struct RelayMarkCollaborativeProse {
                           children.first?["name"] as? String == "paragraph" else {
                         supported = false; continue
                     }
-                    let intent = PresentationIntent(.listItem(ordinal: index + 1), identity: identity, parent: parent)
+                    // Only ordered lists number their items; a task item's
+                    // presentation does not depend on its position.
+                    let intent = PresentationIntent(.listItem(ordinal: 1), identity: identity, parent: parent)
                     let firstRange = ranges.count
                     try walk(children, path: blockPath, parent: intent, cellContext: cellContext)
                     guard ranges.count > firstRange else { supported = false; continue }
@@ -620,7 +622,9 @@ public struct RelayMarkCollaborativeProse {
                     if !validInteger(attributes["start"], minimum: 1) { supported = false }
                     if let type = attributes["type"], !(type is NSNull) { supported = false }
                     kind = .orderedList
-                case "listItem": kind = .listItem(ordinal: ordinal + index)
+                case "listItem":
+                    let ordered = parent.map { if case .orderedList = $0.components[0].kind { true } else { false } } ?? false
+                    kind = .listItem(ordinal: ordered ? ordinal + index : 1)
                 case "table":
                     table = tableLayout(children)
                     kind = .table(columns: Array(repeating: .init(alignment: .left), count: table?.width ?? 0))
