@@ -104,4 +104,57 @@ final class RelayMarkNativeTypingProjectionTests: XCTestCase {
         try peer.applyUpdate(seed)
         XCTAssertGreaterThan(peer.revision, before)
     }
+
+    func testPeerTextEditsReprojectOnlyTheirLeaves() throws {
+        let document = RelayMarkNativeDocument()
+        let seed = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(source, namespace: "remote"))
+        let peer = RelayMarkNativeDocument(); try peer.applyUpdate(seed)
+        var projection = try document.richProseProjection()
+        let length = String(projection.text.characters).utf16.count
+        var spliced = 0
+        for offset in stride(from: 0, through: length, by: 5) {
+            let peerProjection = try peer.richProseProjection()
+            guard let position = peerProjection.textPosition(replacing: NSRange(location: offset, length: 0)) else { continue }
+            let update: Data
+            switch offset % 3 {
+            case 0: update = try peer.typeText("p", replacing: 0, at: position.index, path: position.path).update
+            case 1:
+                guard position.index > 0 else { continue }
+                update = try peer.typeText("", replacing: 1, at: position.index - 1, path: position.path).update
+            default:
+                // Code blocks carry no marks.
+                guard position.index > 0, position.path.first != 4 else { continue }
+                update = try peer.formatText(at: 0, length: position.index, attributes: ["bold": [:]], path: position.path)
+            }
+            try document.applyUpdate(update)
+            let leaves = try XCTUnwrap(document.textLeavesTouchedByLastUpdate())
+            XCTAssertEqual(leaves, [position.path])
+            for leaf in leaves {
+                let runs = try document.textRuns(path: leaf)
+                XCTAssertTrue(projection.replaceLeaf(path: leaf, runs: runs), "\(offset % 3) \(leaf) \(runs.map { ($0.text, $0.attributes) })")
+            }
+            assertMatches(projection, try document.richProseProjection())
+            spliced += 1
+        }
+        XCTAssertGreaterThan(spliced, 20)
+        // Inserting nodes changes structure; the host re-projects the paper.
+        let structural = try RelayMarkNativeDocument().initializeDocument(
+            authoredAST: RelayMarkSourceCodec.parseDocument("New paragraph.", namespace: "other"))
+        try document.applyUpdate(structural)
+        XCTAssertNil(document.textLeavesTouchedByLastUpdate())
+    }
+
+    func testOneDeleteRangeSpanningTextAndANodeIsStructural() throws {
+        let document = RelayMarkNativeDocument()
+        let seed = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Hello", namespace: "span"))
+        let peer = RelayMarkNativeDocument(); try peer.applyUpdate(seed)
+        // The peer's "x" and hard break take consecutive clocks, so deleting both is one range.
+        try document.applyUpdate(try RelayMarkNativeRichEditing.insert(
+            document: peer, range: NSRange(location: 5, length: 0), content: [.text("x"), .node("hardBreak")],
+            expectedSnapshot: peer.snapshot()).update)
+        try document.applyUpdate(try RelayMarkNativeRichEditing.replace(
+            document: peer, range: NSRange(location: 5, length: 2), runs: [], expectedSnapshot: peer.snapshot()).update)
+        XCTAssertEqual(String(try document.richProseProjection().text.characters), "Hello")
+        XCTAssertNil(document.textLeavesTouchedByLastUpdate(), "Removing the break node changed structure")
+    }
 }

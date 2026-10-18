@@ -98,6 +98,77 @@ public final class RelayMarkNativeDocument {
         try document.transactSync { transaction in
             try transaction.transactionApplyUpdate(update: Array(update))
         }
+        lastTextLeafIdentities = touchedTextLeafIdentities(update)
+        if lastTextLeafIdentities == nil { structureRevision &+= 1 }
+    }
+
+    /// Advances on every change that may add, remove or move XML nodes.
+    private var structureRevision = 0
+    private var lastTextLeafIdentities: Set<Data>?
+    private var leafPaths: (revision: Int, paths: [Data: [Int]])?
+
+    /// The text leaves the last applied update changed, when it only inserted,
+    /// deleted or formatted text inside existing leaves; nil when it changed
+    /// structure. A host re-projects just these leaves instead of the paper.
+    public func textLeavesTouchedByLastUpdate() -> [[Int]]? {
+        guard let identities = lastTextLeafIdentities else { return nil }
+        if leafPaths?.revision != structureRevision { leafPaths = (structureRevision, currentLeafPaths()) }
+        guard let paths = leafPaths?.paths else { return nil }
+        var touched: [[Int]] = []
+        for identity in identities {
+            guard let path = paths[identity] else { return nil }
+            touched.append(path)
+        }
+        return touched
+    }
+
+    /// Each touched item resolves to the XML text node holding it; that node's
+    /// own identity is its end-of-branch sticky index.
+    private func touchedTextLeafIdentities(_ update: Data) -> Set<Data>? {
+        guard let footprint = RelayMarkUpdateFootprint(update) else { return nil }
+        return document.transactSync { transaction -> Set<Data>? in
+            var identities: Set<Data> = []
+            for id in footprint.touched {
+                guard let resolved = try? self.document.resolveXmlRelativePosition(
+                          RelayMarkUpdateFootprint.stickyIndex(id), in: transaction),
+                      resolved.node.kind(in: transaction) == "text",
+                      let identity = try? resolved.node.relativePosition(
+                          at: resolved.node.length(in: transaction), association: 0, in: transaction) else { return nil }
+                identities.insert(identity)
+            }
+            return identities
+        }
+    }
+
+    private func currentLeafPaths() -> [Data: [Int]] {
+        document.transactSync { transaction in
+            var paths: [Data: [Int]] = [:]
+            func visit(_ node: YXmlNode, _ path: [Int]) {
+                for (index, child) in node.children(in: transaction).enumerated() {
+                    if child.kind(in: transaction) == "text" {
+                        if let identity = try? child.relativePosition(at: child.length(in: transaction), association: 0, in: transaction) {
+                            paths[identity] = path + [index]
+                        }
+                    } else { visit(child, path + [index]) }
+                }
+            }
+            visit(self.root, [])
+            return paths
+        }
+    }
+
+    /// The authored runs of one text leaf, as a projection splices them.
+    public func textRuns(path: [Int]) throws -> [(text: String, attributes: [String: Any])] {
+        try document.transactSync { transaction in
+            var node = self.root
+            for component in path {
+                guard component >= 0, component <= Int(UInt32.max),
+                      let child = node.child(at: UInt32(component), in: transaction) else { throw Failure.invalidTextPath }
+                node = child
+            }
+            guard node.kind(in: transaction) == "text" else { throw Failure.invalidTextPath }
+            return try node.delta(in: transaction).map { ($0.text, $0.attributes) }
+        }
     }
 
     public func stateVector() -> Data {
@@ -183,7 +254,7 @@ public final class RelayMarkNativeDocument {
         let (_, path) = try anchoredElement(paragraphAnchor)
         guard paragraphs.count == 1, !paragraphs[0].text.isEmpty, path == [0, 0],
               let quote = root.child(at: 0) else { throw Failure.unsupportedProseEdit }
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             _ = try quote.insertElement(named: "paragraph", at: 1, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
@@ -215,7 +286,7 @@ public final class RelayMarkNativeDocument {
                 let existing = paragraph.node.child(at: 0)
                 let attributes = try existing?.delta().last?.attributes ??
                     (index == 1 ? paragraphs[0].node.child(at: 0)?.delta().last?.attributes : nil) ?? [:]
-                revision &+= 1
+                revision &+= 1; structureRevision &+= 1
                 let update = try document.transactSync(origin: localOrigin) { transaction in
                     let leaf = try existing ?? paragraph.node.insertText(at: 0, in: transaction)
                     try leaf.insert(text, attributes: attributes, at: UInt32(localStart), in: transaction)
@@ -284,7 +355,7 @@ public final class RelayMarkNativeDocument {
         guard lines.count <= 4096 else { throw Failure.unsupportedProseEdit }
         if blocks.isEmpty {
             guard start == 0, end == 0 else { throw Failure.unsupportedProseEdit }
-            revision &+= 1
+            revision &+= 1; structureRevision &+= 1
             let update = try document.transactSync(origin: localOrigin) { transaction in
                 for (index, line) in lines.enumerated() {
                     let paragraph = try self.root.insertElement(named: "paragraph", at: UInt32(index), in: transaction)
@@ -314,7 +385,7 @@ public final class RelayMarkNativeDocument {
         }
         // All bounds, Unicode boundaries, node kinds and JSON attributes were
         // validated above. The mutation itself is one local Yrs transaction.
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             let leaf = blocks[first.block].leaf
             if firstLength > first.index {
@@ -397,7 +468,7 @@ public final class RelayMarkNativeDocument {
         guard !text.contains("\u{2028}") || insertBreak else { throw Failure.unsupportedProseEdit }
         if block.parts.isEmpty {
             guard start == end, start == block.start, !text.isEmpty else { throw Failure.unsupportedProseEdit }
-            revision &+= 1
+            revision &+= 1; structureRevision &+= 1
             let update = try document.transactSync(origin: localOrigin) { transaction in
                 let leaf = try block.node.insertText(at: 0, in: transaction)
                 if insertBreak {
@@ -420,7 +491,7 @@ public final class RelayMarkNativeDocument {
         if insertBreak {
             let suffix = try Self.suffixRuns(of: target.node, after: Int(insertionIndex))
             let suffixLength = target.end - start
-            revision &+= 1
+            revision &+= 1; structureRevision &+= 1
             let update = try document.transactSync(origin: localOrigin) { transaction in
                 if suffixLength > 0 {
                     try target.node.removeText(start: insertionIndex, length: UInt32(suffixLength), in: transaction)
@@ -443,7 +514,7 @@ public final class RelayMarkNativeDocument {
         // Remove from right to left so original child indices stay valid. A
         // selected hardBreak is removed as an XML node; untouched siblings and
         // heading identity remain integrated in Yrs.
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             for part in affected.reversed() {
                 if part.isText {
@@ -565,7 +636,7 @@ public final class RelayMarkNativeDocument {
         guard undoGroupDepth == 0, editorCommandDepth == 0 else { throw Failure.unsupportedProseEdit }
         let before = stateVector()
         undoManager.wrap()
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         guard try redo ? undoManager.redo() : undoManager.undo() else { return nil }
         undoManager.wrap()
         return try encodeUpdate(since: before)
@@ -748,7 +819,7 @@ public final class RelayMarkNativeDocument {
     func insertTextIntoEmptyParagraph(path: [Int],
                                       runs: [(text: String, attributes: [String: Any])]) throws -> Data {
         guard runs.contains(where: { !$0.text.isEmpty }) else { throw Failure.unsupportedProseEdit }
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             var node = self.root
             for component in path {
@@ -779,7 +850,7 @@ public final class RelayMarkNativeDocument {
 
     /// Apply standard Y.XmlText formatting attributes; a null attribute clears a mark.
     public func formatText(at index: Int, length: Int, attributes: [String: Any], path: [Int]) throws -> Data {
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             var node = self.root
             for component in path {
@@ -856,7 +927,7 @@ public final class RelayMarkNativeDocument {
                 offset = runEnd
             }
         }
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             for slice in slices {
                 try slice.leaf.format(at: slice.index, length: slice.length,
@@ -978,7 +1049,7 @@ public final class RelayMarkNativeDocument {
         guard path.count == 1, heading.tag() == "heading" else { throw Failure.invalidAnchor }
         let attributes = try heading.attributes()
         guard attributes["headingId"] as? String == expectedHeadingID else { throw Failure.invalidAnchor }
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try heading.setAttribute("level", value: level, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
@@ -998,7 +1069,7 @@ public final class RelayMarkNativeDocument {
         try validateEditableList(top, depth: 0)
         let current = try list.attributes()["start"] as? Int ?? 1
         guard current == expectedStart else { throw Failure.invalidAnchor }
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try list.setAttribute("start", value: start, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
@@ -1039,7 +1110,7 @@ public final class RelayMarkNativeDocument {
         }
         if leaf == nil {
             guard start == 0, end == 0, !text.isEmpty else { throw Failure.unsupportedProseEdit }
-            revision &+= 1
+            revision &+= 1; structureRevision &+= 1
             let update = try document.transactSync(origin: localOrigin) { transaction in
                 let newText = try paragraph.insertText(at: 0, in: transaction)
                 try newText.insert(text, at: 0, in: transaction)
@@ -1074,7 +1145,7 @@ public final class RelayMarkNativeDocument {
               try !leaf.delta().map(\.text).joined().isEmpty,
               list.length() < 4096,
               try String(proseProjection().text.characters).utf16.count < 131_072 else { throw Failure.unsupportedProseEdit }
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             let next = try list.insertElement(named: "listItem", at: UInt32(itemIndex + 1), in: transaction)
             _ = try next.insertElement(named: "paragraph", at: 0, in: transaction)
@@ -1178,7 +1249,7 @@ public final class RelayMarkNativeDocument {
                                    rich: Bool = false) throws -> Data {
         let record = try taskRecord(anchor: anchor, expectedEntityID: expectedEntityID,
                                     rich: rich)
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try record.node.setAttribute("checked", value: checked, in: transaction)
             return Data(transaction.transactionEncodeUpdate())
@@ -1263,7 +1334,7 @@ public final class RelayMarkNativeDocument {
               text.utf16.count <= 131_072, old.utf16.count - (end - start) + text.utf16.count <= 131_072 else {
             throw Failure.unsupportedProseEdit
         }
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             if end > start {
                 try leaf.removeText(start: UInt32(start), length: UInt32(end - start), in: transaction)
@@ -1366,7 +1437,7 @@ public final class RelayMarkNativeDocument {
     func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge) throws -> Data {
         let metadataReplacement=try JSONDecoder().decode([String:RelayMarkValue].self,from:JSONSerialization.data(withJSONObject:updated.attrs["relaymark"] ?? [:]))
         wrapUndo()
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
             try bridge.update(self.root, updated, source: source, in: transaction)
             do {
@@ -1443,7 +1514,7 @@ public final class RelayMarkNativeDocument {
             return (parent, first, removed, replacement.nodes)
         }
         wrapUndo()
-        revision &+= 1
+        revision &+= 1; structureRevision &+= 1
         let update = try document.transactSync(origin: origin ?? localOrigin) { transaction in
             func append(_ raw: [String: Any], to parent: YXmlNode, at index: UInt32) throws {
                 if raw["kind"] as? String == "text" {

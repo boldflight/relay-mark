@@ -812,6 +812,42 @@ extension RelayMarkCollaborativeProse {
         return copy.replaceText(in: range, with: inserted, attributes: attributes) ? copy : nil
     }
 
+    /// Re-projects one text leaf from its current authored runs, for a peer's
+    /// update that changed only that leaf's text or marks. Returns false,
+    /// unchanged, when the leaf is empty or cannot be spliced on its own.
+    public mutating func replaceLeaf(path: [Int], runs: [(text: String, attributes: [String: Any])]) -> Bool {
+        guard isEditable, let spanIndex = spans.firstIndex(where: { $0.text && $0.path == path }) else { return false }
+        let leaf = span(spanIndex).range
+        let inserted = runs.map(\.text).joined()
+        guard leaf.length > 0, !inserted.isEmpty else { return false }
+        let task = storedTaskItems.indices.first {
+            let paragraph = shifted(storedTaskItems[$0].firstParagraphRange)
+            return paragraph.location <= leaf.location && NSMaxRange(paragraph) >= NSMaxRange(leaf)
+        }
+        if let task, shifted(storedTaskItems[task].firstParagraphRange) != leaf { return false }
+        let utf16 = text.utf16, scalars = text.unicodeScalars
+        let lower = utf16.index(text.startIndex, offsetBy: leaf.location)
+        let upper = utf16.index(lower, offsetBy: leaf.length)
+        guard let block = text[lower..<scalars.index(after: lower)].runs.first?.attributes else { return false }
+        let codeBlock = block.presentationIntent?.components.contains(where: {
+            if case .codeBlock = $0.kind { return true } else { return false }
+        }) == true
+        // Only code text holds line breaks inside one leaf; other breaks are separate nodes.
+        let forbidden = codeBlock ? "\r\u{2028}\u{2029}\u{FFFC}" : "\n\r\u{2028}\u{2029}\u{FFFC}"
+        guard !inserted.unicodeScalars.contains(where: { forbidden.unicodeScalars.contains($0) }) else { return false }
+        var part = AttributedString()
+        for run in runs where !run.text.isEmpty {
+            guard var piece = try? Self.projectedText(text: run.text, attributes: run.attributes, dialect: .rich, codeBlock: codeBlock) else { return false }
+            piece.presentationIntent = block.presentationIntent
+            part.append(piece)
+        }
+        text.replaceSubrange(lower..<upper, with: part)
+        if let task { storedTaskItems[task].firstParagraphText = inserted }
+        shifts.append(Shift(start: leaf.location, end: NSMaxRange(leaf), delta: inserted.utf16.count - leaf.length))
+        if shifts.count >= Self.shiftLimit { settle() }
+        return true
+    }
+
     /// A bound on deferred typing; hosts normally settle when typing pauses.
     private static let shiftLimit = 256
 
