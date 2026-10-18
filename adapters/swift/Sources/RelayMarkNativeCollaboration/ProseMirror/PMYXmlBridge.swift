@@ -202,7 +202,10 @@ final class PMYXmlBridge {
         return nil
     }
 
-    func update(_ y: YXmlNode, _ p: PMNode, source: PMNode?, in tx: YrsTransaction) throws {
+    /// `window` limits the write to those children of `y`; the PM node then
+    /// holds only them, and every index written is offset by the window's start.
+    func update(_ y: YXmlNode, _ p: PMNode, source: PMNode?, in tx: YrsTransaction, window: Range<Int>? = nil) throws {
+        let base = window?.lowerBound ?? 0
         let isElement = y.kind(in: tx) == "element"
         if isElement {
             guard y.tag(in: tx) == p.type.name else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
@@ -215,11 +218,15 @@ final class PMYXmlBridge {
             }
             for key in yAttrs.keys.sorted() where physical[key] == nil { try y.removeAttribute(key, in: tx) }
         }
-        let pChildren = Self.normalize(p), yChildren = y.children(in: tx)
+        let pChildren = Self.normalize(p)
+        let yChildren = try window.map { range in try range.map { index -> YXmlNode in
+            guard let child = y.child(at: UInt32(index), in: tx) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+            return child
+        } } ?? y.children(in: tx)
         let pCount = pChildren.count, yCount = yChildren.count, minCount = min(pCount, yCount)
         let mapping = mapped(source, count: yCount)
         if try reconcileMappedChildren(y, p, source: source, yChildren: yChildren,
-                                       pChildren: pChildren, mapping: mapping, in: tx) { return }
+                                       pChildren: pChildren, mapping: mapping, base: base, in: tx) { return }
         var left = 0, right = 0
         while left < minCount {
             if try requiresWrite(pChildren[left], y: yChildren[left], sourceParent: source, sourceGroup: left, targetParent: p, targetGroup: left, in: tx) {break}
@@ -261,8 +268,8 @@ final class PMYXmlBridge {
                 try update(rightY, node, source: Self.sourceNode(mapping?[rightIndex]), in: tx)
                 right += 1
             } else {
-                try y.removeChildren(start: UInt32(left), length: 1, in: tx)
-                try create(leftP, in: y, at: left, tx)
+                try y.removeChildren(start: UInt32(base + left), length: 1, in: tx)
+                try create(leftP, in: y, at: base + left, tx)
                 left += 1
             }
         }
@@ -271,11 +278,11 @@ final class PMYXmlBridge {
             let length = yChildren[0].length(in: tx)
             if length > 0 { try yChildren[0].removeText(start: 0, length: length, in: tx) }
         } else if deleteCount > 0 {
-            try y.removeChildren(start: UInt32(left), length: UInt32(deleteCount), in: tx)
+            try y.removeChildren(start: UInt32(base + left), length: UInt32(deleteCount), in: tx)
         }
         if left + right < pCount {
             for (offset, child) in pChildren[left..<(pCount - right)].enumerated() {
-                try create(child, in: y, at: left + offset, tx)
+                try create(child, in: y, at: base + left + offset, tx)
             }
         }
     }
@@ -316,7 +323,7 @@ final class PMYXmlBridge {
 
     private func reconcileMappedChildren(_ y: YXmlNode, _ p: PMNode, source: PMNode?,
                                         yChildren: [YXmlNode], pChildren: [Child], mapping: [Child]?,
-                                        in tx: YrsTransaction) throws -> Bool {
+                                        base: Int = 0, in tx: YrsTransaction) throws -> Bool {
         let anchors = mappedChildAnchors(mapping, pChildren)
         guard anchors.count >= 2, anchors.contains(where: { $0.y != $0.p }),
               anchors.allSatisfy({ matchNodeName(yChildren[$0.y], pChildren[$0.p], in: tx) }) else { return false }
@@ -343,13 +350,13 @@ final class PMYXmlBridge {
             let count = min(oldEnd - oldStart, targetEnd - targetStart)
             for offset in 0..<count {
                 if try !updateMatching(oldStart + offset, targetStart + offset) {
-                    try y.removeChildren(start: UInt32(targetStart + offset), length: 1, in: tx)
-                    try create(pChildren[targetStart + offset], in: y, at: targetStart + offset, tx)
+                    try y.removeChildren(start: UInt32(base + targetStart + offset), length: 1, in: tx)
+                    try create(pChildren[targetStart + offset], in: y, at: base + targetStart + offset, tx)
                 }
             }
             let deleted = oldEnd - oldStart - count
-            if deleted > 0 { try y.removeChildren(start: UInt32(targetStart + count), length: UInt32(deleted), in: tx) }
-            for index in (targetStart + count)..<targetEnd { try create(pChildren[index], in: y, at: index, tx) }
+            if deleted > 0 { try y.removeChildren(start: UInt32(base + targetStart + count), length: UInt32(deleted), in: tx) }
+            for index in (targetStart + count)..<targetEnd { try create(pChildren[index], in: y, at: base + index, tx) }
         }
         var oldIndex = 0, targetIndex = 0
         for anchor in anchors {

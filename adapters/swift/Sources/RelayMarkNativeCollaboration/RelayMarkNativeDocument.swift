@@ -251,10 +251,41 @@ public final class RelayMarkNativeDocument {
     /// The same lossless XML JSON shape used by the existing collaboration adapter.
     public func snapshot() throws -> Data {
         var object = try snapshot(root)
+        try addMetadata(to: &object)
+        return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    }
+
+    /// The same shape for just the top-level nodes in `range`, with the paper's
+    /// metadata, for a command that reads and writes only those nodes.
+    func snapshot(topLevel range: Range<Int>) throws -> [String: Any] {
+        guard range.lowerBound >= 0, range.upperBound <= Int(root.length()) else { throw Failure.invalidAnchor }
+        var object: [String: Any] = ["kind": "fragment", "children": try range.map { index -> [String: Any] in
+            guard let child = root.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
+            return try snapshot(child)
+        }]
+        try addMetadata(to: &object)
+        return object
+    }
+
+    private func addMetadata(to object: inout [String: Any]) throws {
         let envelope = metadata.toMap()
         guard Set(envelope.keys).isSubset(of:["frontmatter","annotations","resources","meta"]) else { throw Failure.unsupportedProseEdit }
         if !envelope.isEmpty { object["metadata"] = try JSONSerialization.jsonObject(with:JSONEncoder().encode(envelope)) }
-        return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+    }
+
+    /// The number of top-level nodes.
+    public var topLevelCount: Int { Int(root.length()) }
+
+    /// A replica holding only some top-level nodes and the paper's metadata,
+    /// where a command's write is rehearsed at the cost of those nodes.
+    func scratch(topLevel range: Range<Int>) throws -> RelayMarkNativeDocument {
+        let tree = try snapshot(topLevel: range)
+        let scratch = RelayMarkNativeDocument()
+        let envelope = try JSONDecoder().decode([String: RelayMarkValue].self,
+            from: JSONSerialization.data(withJSONObject: tree["metadata"] ?? [String: Any]()))
+        _ = try scratch.replaceSnapshotNodes([SnapshotNodeReplacement(parentPath: [], start: 0, count: 0,
+            nodes: tree["children"] as? [[String: Any]] ?? [])], metadataUpdates: envelope)
+        return scratch
     }
 
     /// Initializes authored AST once, in the same Yrs transaction as its envelope.
@@ -1472,12 +1503,13 @@ public final class RelayMarkNativeDocument {
 
     /// Writes a transformed ProseMirror document through y-prosemirror's
     /// updateYFragment diff as one local transaction and one undo item.
-    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge) throws -> Data {
+    /// `window` writes only those top-level nodes; `updated` and `source` then hold just them.
+    func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge, window: Range<Int>? = nil) throws -> Data {
         let metadataReplacement=try JSONDecoder().decode([String:RelayMarkValue].self,from:JSONSerialization.data(withJSONObject:updated.attrs["relaymark"] ?? [:]))
         wrapUndo()
         revision &+= 1
         let update = try document.transactSync(origin: localOrigin) { transaction in
-            try bridge.update(self.root, updated, source: source, in: transaction)
+            try bridge.update(self.root, updated, source: source, in: transaction, window: window)
             do {
                 let existing=self.metadata.toMap(transaction:transaction)
                 for key in existing.keys.sorted() where metadataReplacement[key]==nil {_ = self.metadata.removeValue(forKey:key,transaction:transaction)}

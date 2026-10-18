@@ -775,6 +775,53 @@ public struct RelayMarkCollaborativeProse {
         return result
     }
 
+    /// The number of top-level nodes.
+    public var topLevelCount: Int { chunks.count }
+
+    /// The top-level node whose text holds `offset`, at either edge.
+    public func topLevelIndex(atUTF16 offset: Int) -> Int? { chunks(touching: offset).last.map { $0 + firstNode } }
+
+    /// Where a top-level node's text begins.
+    public func topLevelStart(_ index: Int) -> Int { restrictedStarts?[index - firstNode] ?? starts[index - firstNode] }
+
+    /// The textblock holding `offset`, at either edge: its path and range.
+    public func block(containingUTF16 offset: Int) -> (path: [Int], range: NSRange)? {
+        for index in chunks(touching: offset) {
+            let chunk = chunks[index], start = starts[index], local = offset - start
+            var low = 0, high = chunk.ranges.count
+            while low < high {
+                let middle = (low + high) / 2
+                if NSMaxRange(chunk.ranges[middle]) < local { low = middle + 1 } else { high = middle }
+            }
+            if low < chunk.ranges.count, chunk.ranges[low].location <= local {
+                let range = chunk.ranges[low]
+                return (Self.global(chunk.paths[low], index + firstNode), NSRange(location: range.location + start, length: range.length))
+            }
+        }
+        return nil
+    }
+
+    /// Where the first empty textblock at or after `offset` begins.
+    public func emptyBlock(atOrAfterUTF16 offset: Int) -> Int? {
+        var index = max(0, chunks(touching: offset).first ?? min(starts.lastIndex(beginningAtOrBefore: offset), chunks.count - 1))
+        while index < chunks.count {
+            let start = starts[index]
+            if let range = chunks[index].ranges.first(where: { $0.length == 0 && $0.location + start >= offset }) {
+                return range.location + start
+            }
+            index += 1
+        }
+        return nil
+    }
+
+    /// A textblock's range, by its path.
+    public func blockRange(path: [Int]) -> NSRange? {
+        guard let (index, local) = Self.local(path), index - firstNode >= 0, index - firstNode < chunks.count,
+              let row = chunks[index - firstNode].paths.firstIndex(of: local) else { return nil }
+        let range = chunks[index - firstNode].ranges[row]
+        return NSRange(location: range.location + topLevelStart(index), length: range.length)
+    }
+
     /// The chunks whose text contains `offset`, at either edge; usually one.
     private func chunks(touching offset: Int) -> [Int] {
         guard !chunks.isEmpty else { return [] }

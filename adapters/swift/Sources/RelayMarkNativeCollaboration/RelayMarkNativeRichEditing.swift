@@ -30,6 +30,9 @@ public enum RelayMarkNativeRichEditing {
         public let storedTextAttributes: Data?
         /// Call-local exact fitter correspondence/normalizations, never a journal field.
         public let clipboardFitting: Data?
+        /// For a windowed command, the top-level nodes it rewrote: their range
+        /// before and after. A host re-projects just these.
+        public internal(set) var topLevel: (before: Range<Int>, after: Range<Int>)?
         init(update:Data,caret:Caret?,authoredMetadataChanged:Bool=false,storedMarks:Data?=nil,storedTextAttributes:Data?=nil,clipboardFitting:Data?=nil){
             self.update=update;self.caret=caret;self.authoredMetadataChanged=authoredMetadataChanged
             self.storedMarks=storedMarks;self.storedTextAttributes=storedTextAttributes;self.clipboardFitting=clipboardFitting
@@ -44,11 +47,23 @@ public enum RelayMarkNativeRichEditing {
     public static func replace(document: RelayMarkNativeDocument, range: NSRange,
                                runs: [(text: String, attributes: [String: Any])], inheritMarks: Bool = false,
                                expectedSnapshot: Data) throws -> Change {
-        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
-            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
-        }
-        let projection = try document.richProseProjection()
+        try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks,
+                    scope: scope(document: document, expectedSnapshot: expectedSnapshot))
+    }
+
+    /// The same command reading and writing only the top-level nodes around
+    /// `range`. `paper` is the caller's projection of the document as it is now.
+    public static func replace(document: RelayMarkNativeDocument, range: NSRange,
+                               runs: [(text: String, attributes: [String: Any])], inheritMarks: Bool = false,
+                               paper: RelayMarkCollaborativeProse) throws -> Change {
+        try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks,
+                    scope: scope(document: document, paper: paper, range: range))
+    }
+
+    private static func replace(document: RelayMarkNativeDocument, range paperRange: NSRange,
+                                runs: [(text: String, attributes: [String: Any])], inheritMarks: Bool,
+                                scope: Scope) throws -> Change {
+        let range = scope.local(paperRange), tree = scope.tree, projection = scope.projection
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
@@ -103,7 +118,7 @@ public enum RelayMarkNativeRichEditing {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         guard !transform.steps.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document)
+        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document, window: scope.nodes)
         // deleteSelection places the caret with selectionToInsertionEnd;
         // insertText and replaceRange map the TextSelection head.
         let head: Int?
@@ -118,7 +133,7 @@ public enum RelayMarkNativeRichEditing {
                     if case .text(let pos) = $0 { return pos } else { return nil }
                 }
         }
-        return Change(update: update, caret: head.flatMap { caret($0, in: updated) })
+        return scope.paper(Change(update: update, caret: head.flatMap { caret($0, in: updated) }), updated: updated)
     }
 
     /// Inline content for insertion: marked text or an inline node such as
@@ -451,15 +466,22 @@ public enum RelayMarkNativeRichEditing {
     /// its handlers only select a node or throw.
     public static func key(_ key: Key, document: RelayMarkNativeDocument, at offset: Int,
                            expectedSnapshot: Data) throws -> Change? {
-        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
-            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
-        }
-        let projection = try document.richProseProjection()
+        try self.key(key, document: document, at: offset, scope: scope(document: document, expectedSnapshot: expectedSnapshot))
+    }
+
+    /// The same command reading and writing only the top-level nodes around `offset`.
+    public static func key(_ key: Key, document: RelayMarkNativeDocument, at offset: Int,
+                           paper: RelayMarkCollaborativeProse) throws -> Change? {
+        try self.key(key, document: document, at: offset,
+                     scope: scope(document: document, paper: paper, range: NSRange(location: offset, length: 0)))
+    }
+
+    private static func key(_ key: Key, document: RelayMarkNativeDocument, at paperOffset: Int, scope: Scope) throws -> Change? {
+        let tree = scope.tree, projection = scope.projection
         guard projection.isEditable else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let bridge = try PMYXmlBridge.canonical()
         let doc = try bridge.document(fromSnapshot: tree)
-        let head = try position(offset, projection: projection, doc: doc)
+        let head = try position(scope.local(paperOffset), projection: projection, doc: doc)
         let result: PMState
         do {
             let state = PMState(transform: PMTransform(doc), selection: .text(head))
@@ -468,9 +490,9 @@ public enum RelayMarkNativeRichEditing {
             return nil
         }
         guard !result.transform.steps.isEmpty else { return nil }
-        let (update, updated) = try commit(result.transform, source: doc, bridge: bridge, document: document)
-        guard case .text(let pos) = result.selection else { return Change(update: update, caret: nil) }
-        return Change(update: update, caret: caret(pos, in: updated))
+        let (update, updated) = try commit(result.transform, source: doc, bridge: bridge, document: document, window: scope.nodes)
+        guard case .text(let pos) = result.selection else { return scope.paper(Change(update: update, caret: nil), updated: updated) }
+        return scope.paper(Change(update: update, caret: caret(pos, in: updated)), updated: updated)
     }
 
     /// Actual maintained AddMark/RemoveMark commands in the same canonical schema.
@@ -478,10 +500,22 @@ public enum RelayMarkNativeRichEditing {
     public static func format(document: RelayMarkNativeDocument, range: NSRange,
                               mark: String, attributes: [String: Any] = [:], enabled: Bool,
                               expectedSnapshot: Data) throws -> Change? {
-        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              range.location >= 0, range.length > 0,
-              JSONSerialization.isValidJSONObject(attributes),
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+        try format(document: document, range: range, mark: mark, attributes: attributes, enabled: enabled,
+                   scope: scope(document: document, expectedSnapshot: expectedSnapshot))
+    }
+
+    /// The same command reading and writing only the top-level nodes the range touches.
+    public static func format(document: RelayMarkNativeDocument, range: NSRange,
+                              mark: String, attributes: [String: Any] = [:], enabled: Bool,
+                              paper: RelayMarkCollaborativeProse) throws -> Change? {
+        try format(document: document, range: range, mark: mark, attributes: attributes, enabled: enabled,
+                   scope: scope(document: document, paper: paper, range: range))
+    }
+
+    private static func format(document: RelayMarkNativeDocument, range paperRange: NSRange,
+                               mark: String, attributes: [String: Any], enabled: Bool, scope: Scope) throws -> Change? {
+        let range = scope.local(paperRange), tree = scope.tree
+        guard range.location >= 0, range.length > 0, JSONSerialization.isValidJSONObject(attributes) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let bridge = try PMYXmlBridge.canonical(), doc = try bridge.document(fromSnapshot: tree)
@@ -489,7 +523,7 @@ public enum RelayMarkNativeRichEditing {
               Set(attributes.keys).isSubset(of: Set(type.attrs.map(\.name))) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let projection = try document.richProseProjection()
+        let projection = scope.projection
         let from = try position(range.location, projection: projection, doc: doc)
         let to = try position(NSMaxRange(range), projection: projection, doc: doc)
         // Portable hard breaks carry no marks. Keep the maintained PM mark
@@ -510,14 +544,15 @@ public enum RelayMarkNativeRichEditing {
             else { try transform.removeMark(lower, upper, mark: type.create(attributes)) }
         }
         guard !transform.steps.isEmpty else { return nil }
-        return try change(transform, source: doc, bridge: bridge, document: document)
+        let (update, updated) = try commit(transform, source: doc, bridge: bridge, document: document, window: scope.nodes)
+        return scope.paper(Change(update: update, caret: nil), updated: updated)
     }
 
     /// Execute the packaged maintained PM command and apply those exact Steps
     /// through this existing native PM/Yrs owner. No native XML planner or diff
     /// manufactures the command evidence.
     static func command(document: RelayMarkNativeDocument, tree: [String: Any],
-                        name: String, selection: [String: Any]) throws -> (change: Change, kind: String, blockID: String?) {
+                        name: String, selection: [String: Any], scope: Scope? = nil) throws -> (change: Change, kind: String, blockID: String?) {
         let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
         let response = try RelayMarkContentEditCodec.command(document: JSONSerialization.data(withJSONObject: source.json()),
             request: JSONSerialization.data(withJSONObject: ["command": name, "selection": selection]))
@@ -537,14 +572,16 @@ public enum RelayMarkNativeRichEditing {
             try transform.step(step)
         }
         guard pmCompareDeep(transform.doc.json(), expected) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        let (update, updated) = try commit(transform, source: source, bridge: bridge, document: document, preferredIDs: result["retained_ids"] as? [String: Int] ?? [:])
+        let (update, updated) = try commit(transform, source: source, bridge: bridge, document: document,
+            preferredIDs: result["retained_ids"] as? [String: Int] ?? [:], window: scope?.nodes)
         let caret = (finalSelection["head"] as? Int).flatMap { Self.caret($0, in: updated) }
         let id = caret.flatMap { value -> String? in
             var node = updated
             for index in value.blockPath { guard index < node.childCount else { return nil }; node = node.child(index) }
             return node.attrs["relaymarkId"] as? String
         }
-        return (Change(update: update, caret: caret,storedMarks:storedMarks,storedTextAttributes:storedAttributes), kind, id)
+        let change = Change(update: update, caret: caret,storedMarks:storedMarks,storedTextAttributes:storedAttributes)
+        return (scope.map { $0.paper(change, updated: updated) } ?? change, kind, id)
     }
 
     static func positionForPath(_ path: [Int], in source: PMNode) throws -> Int {
@@ -750,7 +787,8 @@ public enum RelayMarkNativeRichEditing {
     /// scratch replica, then writes it through y-prosemirror's diff.
     private static func commit(_ transform: PMTransform, source: PMNode, bridge: PMYXmlBridge,
                                document: RelayMarkNativeDocument, preferredIDs: [String: Int] = [:],
-                               preservedHeadingPositions: Set<Int> = [], clipboardSlice: PMSlice? = nil, clipboardSourceTrace: [String: Any]? = nil, clipboardItems: [[String: Any]]? = nil) throws -> (Data, PMNode) {
+                               preservedHeadingPositions: Set<Int> = [], clipboardSlice: PMSlice? = nil, clipboardSourceTrace: [String: Any]? = nil, clipboardItems: [[String: Any]]? = nil,
+                               window: Range<Int>? = nil) throws -> (Data, PMNode) {
         var witnessed = transform
         let retainedHeadingPositions = preservedHeadingPositions
         var retainedDestinationNames = Set<String>()
@@ -813,14 +851,78 @@ public enum RelayMarkNativeRichEditing {
         let prospective = try bridge.snapshot(updated)
         let expected = try RelayMarkNativeDocumentProjection.project(
             snapshot: JSONSerialization.data(withJSONObject: prospective, options: [.sortedKeys]))
-        let scratch = RelayMarkNativeDocument()
-        try scratch.applyUpdate(document.encodeUpdate())
+        // The write is rehearsed on a replica of just the nodes it reads.
+        let scratch: RelayMarkNativeDocument
+        if let window { scratch = try document.scratch(topLevel: window) }
+        else { scratch = RelayMarkNativeDocument(); try scratch.applyUpdate(document.encodeUpdate()) }
         _ = try scratch.applyProseMirror(updated, source: source, bridge: bridge)
         guard try RelayMarkNativeDocumentProjection.project(document: scratch) == expected,
               try scratch.richProseProjection().isEditable else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        return (try document.applyProseMirror(updated, source: source, bridge: bridge), updated)
+        return (try document.applyProseMirror(updated, source: source, bridge: bridge, window: window), updated)
+    }
+
+    /// What a command reads: the whole paper, or a window of top-level nodes
+    /// around the edit with one neighbour each side, so joins and emptied
+    /// ranges behave as they do in the paper.
+    struct Scope {
+        let tree: [String: Any]
+        let projection: RelayMarkCollaborativeProse
+        /// The window's top-level nodes, and the paper offset where its text begins.
+        let nodes: Range<Int>?
+        let offset: Int
+
+        func local(_ value: Int) -> Int { value - offset }
+        func local(_ range: NSRange) -> NSRange { NSRange(location: range.location - offset, length: range.length) }
+        func local(_ path: [Int]) -> [Int] {
+            guard let nodes, let first = path.first else { return path }
+            return [first - nodes.lowerBound] + path.dropFirst()
+        }
+        func paper(_ caret: Caret?) -> Caret? {
+            guard let nodes, let caret, let first = caret.blockPath.first else { return caret }
+            return Caret(blockPath: [first + nodes.lowerBound] + caret.blockPath.dropFirst(), offset: caret.offset)
+        }
+        func paper(_ change: Change, updated: PMNode) -> Change {
+            guard let nodes else { return change }
+            var result = Change(update: change.update, caret: paper(change.caret),
+                                authoredMetadataChanged: change.authoredMetadataChanged, storedMarks: change.storedMarks,
+                                storedTextAttributes: change.storedTextAttributes, clipboardFitting: change.clipboardFitting)
+            result.topLevel = (nodes, nodes.lowerBound..<(nodes.lowerBound + updated.childCount))
+            return result
+        }
+    }
+
+    static func scope(document: RelayMarkNativeDocument, expectedSnapshot: Data) throws -> Scope {
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return Scope(tree: tree, projection: try document.richProseProjection(), nodes: nil, offset: 0)
+    }
+
+    /// `paper` is the caller's projection of the document as it is now.
+    static func scope(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse,
+                      range: NSRange) throws -> Scope {
+        guard let first = paper.topLevelIndex(atUTF16: range.location),
+              let last = paper.topLevelIndex(atUTF16: NSMaxRange(range)) else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return try scope(document: document, paper: paper, nodes: min(first, last)...max(first, last))
+    }
+
+    static func scope(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse,
+                      nodes touched: ClosedRange<Int>) throws -> Scope {
+        guard document.integrationStatus().isComplete, paper.isEditable,
+              paper.topLevelCount == document.topLevelCount else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        let nodes = max(0, touched.lowerBound - 1)..<min(paper.topLevelCount, touched.upperBound + 2)
+        let tree = try document.snapshot(topLevel: nodes)
+        let data = try JSONSerialization.data(withJSONObject: tree, options: [.sortedKeys])
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: data)
+        let projection = try RelayMarkCollaborativeProse(snapshot: data, dialect: .rich, codecValidated: true)
+        return Scope(tree: tree, projection: projection, nodes: nodes, offset: paper.topLevelStart(nodes.lowerBound))
     }
 
     /// The ProseMirror position of a projected offset inside a textblock.

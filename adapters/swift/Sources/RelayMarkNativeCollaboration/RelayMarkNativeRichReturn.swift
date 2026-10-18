@@ -1,4 +1,5 @@
 import Foundation
+import RelayMarkProseProjection
 
 /// Structural Return uses the packaged maintained command/keymap and the same
 /// canonical native PM/Yrs writer as ordinary rich selection replacement.
@@ -14,11 +15,27 @@ public enum RelayMarkNativeRichReturn {
     public static func apply(document: RelayMarkNativeDocument, blockPath: [Int],
                              utf16Offset: Int, selectionEnd: RelayMarkNativeRichEditing.Caret? = nil,
                              expectedSnapshot: Data) throws -> Result {
-        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
-            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
-        }
-        let projection = try document.richProseProjection()
+        try apply(document: document, blockPath: blockPath, utf16Offset: utf16Offset, selectionEnd: selectionEnd,
+                  scope: RelayMarkNativeRichEditing.scope(document: document, expectedSnapshot: expectedSnapshot), windowed: false)
+    }
+
+    /// The same command reading and writing only the top-level nodes around
+    /// the selection. `paper` is the caller's projection of the document as it is now.
+    public static func apply(document: RelayMarkNativeDocument, blockPath: [Int],
+                             utf16Offset: Int, selectionEnd: RelayMarkNativeRichEditing.Caret? = nil,
+                             paper: RelayMarkCollaborativeProse) throws -> Result {
+        guard let first = blockPath.first else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
+        let last = selectionEnd?.blockPath.first ?? first
+        let scope = try RelayMarkNativeRichEditing.scope(document: document, paper: paper, nodes: min(first, last)...max(first, last))
+        return try apply(document: document, blockPath: scope.local(blockPath), utf16Offset: utf16Offset,
+                         selectionEnd: selectionEnd.map { .init(blockPath: scope.local($0.blockPath), offset: $0.offset) },
+                         scope: scope, windowed: true)
+    }
+
+    private static func apply(document: RelayMarkNativeDocument, blockPath: [Int],
+                              utf16Offset: Int, selectionEnd: RelayMarkNativeRichEditing.Caret?,
+                              scope: RelayMarkNativeRichEditing.Scope, windowed: Bool) throws -> Result {
+        let tree = scope.tree, projection = scope.projection
         guard projection.isEditable else {throw RelayMarkNativeDocument.Failure.unsupportedProseEdit}
         let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
         func position(path: [Int], offset: Int) throws -> Int {
@@ -32,7 +49,7 @@ public enum RelayMarkNativeRichReturn {
         let anchor=try position(path:blockPath,offset:utf16Offset)
         let head=try selectionEnd.map {try position(path:$0.blockPath,offset:$0.offset)} ?? anchor
         let result = try RelayMarkNativeRichEditing.command(document: document, tree: tree, name: "return",
-            selection: ["type": "text", "anchor": anchor, "head": head])
+            selection: ["type": "text", "anchor": anchor, "head": head], scope: windowed ? scope : nil)
         guard let id = result.blockID else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         return Result(change: result.change, kind: result.kind == "exit" ? .exit : .split, blockID: id)
     }
