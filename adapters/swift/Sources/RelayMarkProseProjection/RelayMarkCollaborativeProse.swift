@@ -750,7 +750,7 @@ public struct RelayMarkCollaborativeProse {
     /// Resolve a current XML position without coupling a native binding to one replica type.
     public func offset(path: [Int], index: Int) -> Int? {
         guard index >= 0 else { return nil }
-        if let found = spans.firstIndex(where: { $0.text && $0.path == path }) {
+        if let found = textSpanIndex(path: path) {
             let range = span(found).range
             guard index <= range.length else { return nil }
             return range.location + index
@@ -815,29 +815,30 @@ extension RelayMarkCollaborativeProse {
     /// Re-projects one text leaf from its current authored runs, for a peer's
     /// update that changed only that leaf's text or marks. Returns false,
     /// unchanged, when the leaf is empty or cannot be spliced on its own.
-    public mutating func replaceLeaf(path: [Int], runs: [(text: String, attributes: [String: Any])]) -> Bool {
-        guard isEditable, let spanIndex = spans.firstIndex(where: { $0.text && $0.path == path }) else { return false }
+    /// Returns the range the leaf held before, which a text view replaces too.
+    public mutating func replaceLeaf(path: [Int], runs: [(text: String, attributes: [String: Any])]) -> NSRange? {
+        guard isEditable, let spanIndex = textSpanIndex(path: path) else { return nil }
         let leaf = span(spanIndex).range
         let inserted = runs.map(\.text).joined()
-        guard leaf.length > 0, !inserted.isEmpty else { return false }
+        guard leaf.length > 0, !inserted.isEmpty else { return nil }
         let task = storedTaskItems.indices.first {
             let paragraph = shifted(storedTaskItems[$0].firstParagraphRange)
             return paragraph.location <= leaf.location && NSMaxRange(paragraph) >= NSMaxRange(leaf)
         }
-        if let task, shifted(storedTaskItems[task].firstParagraphRange) != leaf { return false }
+        if let task, shifted(storedTaskItems[task].firstParagraphRange) != leaf { return nil }
         let utf16 = text.utf16, scalars = text.unicodeScalars
         let lower = utf16.index(text.startIndex, offsetBy: leaf.location)
         let upper = utf16.index(lower, offsetBy: leaf.length)
-        guard let block = text[lower..<scalars.index(after: lower)].runs.first?.attributes else { return false }
+        guard let block = text[lower..<scalars.index(after: lower)].runs.first?.attributes else { return nil }
         let codeBlock = block.presentationIntent?.components.contains(where: {
             if case .codeBlock = $0.kind { return true } else { return false }
         }) == true
         // Only code text holds line breaks inside one leaf; other breaks are separate nodes.
         let forbidden = codeBlock ? "\r\u{2028}\u{2029}\u{FFFC}" : "\n\r\u{2028}\u{2029}\u{FFFC}"
-        guard !inserted.unicodeScalars.contains(where: { forbidden.unicodeScalars.contains($0) }) else { return false }
+        guard !inserted.unicodeScalars.contains(where: { forbidden.unicodeScalars.contains($0) }) else { return nil }
         var part = AttributedString()
         for run in runs where !run.text.isEmpty {
-            guard var piece = try? Self.projectedText(text: run.text, attributes: run.attributes, dialect: .rich, codeBlock: codeBlock) else { return false }
+            guard var piece = try? Self.projectedText(text: run.text, attributes: run.attributes, dialect: .rich, codeBlock: codeBlock) else { return nil }
             piece.presentationIntent = block.presentationIntent
             part.append(piece)
         }
@@ -845,7 +846,21 @@ extension RelayMarkCollaborativeProse {
         if let task { storedTaskItems[task].firstParagraphText = inserted }
         shifts.append(Shift(start: leaf.location, end: NSMaxRange(leaf), delta: inserted.utf16.count - leaf.length))
         if shifts.count >= Self.shiftLimit { settle() }
-        return true
+        return leaf
+    }
+
+    /// Spans follow document order, so their paths sort lexicographically.
+    private func textSpanIndex(path: [Int]) -> Int? {
+        var low = 0, high = spans.count
+        while low < high {
+            let middle = (low + high) / 2
+            if spans[middle].path.lexicographicallyPrecedes(path) { low = middle + 1 } else { high = middle }
+        }
+        while low < spans.count, spans[low].path == path {
+            if spans[low].text { return low }
+            low += 1
+        }
+        return nil
     }
 
     /// A bound on deferred typing; hosts normally settle when typing pauses.

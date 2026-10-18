@@ -131,7 +131,7 @@ final class RelayMarkNativeTypingProjectionTests: XCTestCase {
             XCTAssertEqual(leaves, [position.path])
             for leaf in leaves {
                 let runs = try document.textRuns(path: leaf)
-                XCTAssertTrue(projection.replaceLeaf(path: leaf, runs: runs), "\(offset % 3) \(leaf) \(runs.map { ($0.text, $0.attributes) })")
+                XCTAssertNotNil(projection.replaceLeaf(path: leaf, runs: runs), "\(offset % 3) \(leaf) \(runs.map { ($0.text, $0.attributes) })")
             }
             assertMatches(projection, try document.richProseProjection())
             spliced += 1
