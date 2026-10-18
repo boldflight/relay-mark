@@ -61,12 +61,6 @@ final class RelayMarkNativeTypingProjectionTests: XCTestCase {
                 }
                 assertMatches(next, try document.richProseProjection())
                 projection = next
-                // Settling at an arbitrary pause must not change what the projection says.
-                if edits % 7 == 0 {
-                    var settled = next; settled.settle()
-                    assertMatches(settled, try document.richProseProjection())
-                    projection = settled
-                }
                 edits += 1
             }
         }

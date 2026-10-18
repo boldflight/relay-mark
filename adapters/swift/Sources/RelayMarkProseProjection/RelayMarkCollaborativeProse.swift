@@ -10,9 +10,8 @@ public struct RelayMarkCollaborativeProse {
     }
 
     public private(set) var text: AttributedString
-    public private(set) var isEditable: Bool
-    private var storedBlockRanges: [NSRange]
-    public var blockRanges: [NSRange] { shifts.isEmpty ? storedBlockRanges : storedBlockRanges.map(shifted) }
+    public var isEditable: Bool { rootSupported && unsupportedChunks == 0 && rangeCount > 0 }
+    public var blockRanges: [NSRange] { gather(\.ranges) { range, start, _ in NSRange(location: range.location + start, length: range.length) } }
 
     /// Native presentation metadata for table paragraphs. XML remains the
     /// source of truth; these ranges share the same UTF-16 text map as edits.
@@ -30,8 +29,7 @@ public struct RelayMarkCollaborativeProse {
         /// Explicit cell alignment; nil retains the native paragraph default.
         public let alignment: String?
     }
-    private var storedTableCells: [TableCell]
-    public var tableCells: [TableCell] { shifts.isEmpty ? storedTableCells : storedTableCells.map { var item = $0; item.range = shifted(item.range); return item } }
+    public var tableCells: [TableCell] { gather(\.cells) { _ = $2; var item = $0; item.range.location += $1; return item } }
 
     /// Stable callout identity and presentation ranges. The Yrs XML remains
     /// authoritative; these ranges only style editable native text leaves.
@@ -42,8 +40,7 @@ public struct RelayMarkCollaborativeProse {
         public let tone: String
         public let emphasis: String
     }
-    private var storedCallouts: [Callout]
-    public var callouts: [Callout] { shifts.isEmpty ? storedCallouts : storedCallouts.map { var item = $0; item.range = shifted(item.range); item.titleRange = item.titleRange.map(shifted); return item } }
+    public var callouts: [Callout] { gather(\.callouts) { _ = $2; var item = $0; item.range.location += $1; item.titleRange?.location += $1; return item } }
 
     /// Identified inline XML nodes occupy one non-text UTF-16 unit in `text`.
     /// Authored identity and source remain on the XML node; the range is only a
@@ -58,10 +55,9 @@ public struct RelayMarkCollaborativeProse {
         public let label: String
         public let source: String
         public internal(set) var range: NSRange
-        public let path: [Int]
+        public internal(set) var path: [Int]
     }
-    private var storedInlineAtoms: [InlineAtom]
-    public var inlineAtoms: [InlineAtom] { shifts.isEmpty ? storedInlineAtoms : storedInlineAtoms.map { var item = $0; item.range = shifted(item.range); return item } }
+    public var inlineAtoms: [InlineAtom] { gather(\.inlineAtoms) { var item = $0; item.range.location += $1; item.path = Self.global(item.path, $2); return item } }
 
     /// Inert canonical Paper controls projected as one UTF-16 block unit.
     public struct BlockAtom: Equatable, Sendable {
@@ -71,10 +67,9 @@ public struct RelayMarkCollaborativeProse {
         public let source: String
         public let displayLabel: String
         public internal(set) var range: NSRange
-        public let path: [Int]
+        public internal(set) var path: [Int]
     }
-    private var storedBlockAtoms: [BlockAtom]
-    public var blockAtoms: [BlockAtom] { shifts.isEmpty ? storedBlockAtoms : storedBlockAtoms.map { var item = $0; item.range = shifted(item.range); return item } }
+    public var blockAtoms: [BlockAtom] { gather(\.blockAtoms) { var item = $0; item.range.location += $1; item.path = Self.global(item.path, $2); return item } }
 
     /// A block reference occupies one selection unit. The host resolves its
     /// authorized target; authored identity and fallback remain in XML.
@@ -84,10 +79,9 @@ public struct RelayMarkCollaborativeProse {
         public let label: String
         public let source: String
         public internal(set) var range: NSRange
-        public let path: [Int]
+        public internal(set) var path: [Int]
     }
-    private var storedEntityReferenceAtoms: [EntityReferenceAtom]
-    public var entityReferenceAtoms: [EntityReferenceAtom] { shifts.isEmpty ? storedEntityReferenceAtoms : storedEntityReferenceAtoms.map { var item = $0; item.range = shifted(item.range); return item } }
+    public var entityReferenceAtoms: [EntityReferenceAtom] { gather(\.entityReferenceAtoms) { var item = $0; item.range.location += $1; item.path = Self.global(item.path, $2); return item } }
 
     /// A task's authored checkbox and optional linked entity are metadata on
     /// its XML item, not characters inserted into the editable text map.
@@ -99,10 +93,9 @@ public struct RelayMarkCollaborativeProse {
         /// Exact first-paragraph XML text; inline atom presentation and hard
         /// breaks contribute no characters, matching domain task commands.
         public internal(set) var firstParagraphText: String
-        public let path: [Int]
+        public internal(set) var path: [Int]
     }
-    private var storedTaskItems: [TaskItem]
-    public var taskItems: [TaskItem] { shifts.isEmpty ? storedTaskItems : storedTaskItems.map { var item = $0; item.firstParagraphRange = shifted(item.firstParagraphRange); return item } }
+    public var taskItems: [TaskItem] { gather(\.taskItems) { var item = $0; item.firstParagraphRange.location += $1; item.path = Self.global(item.path, $2); return item } }
 
     /// Media occupies one block selection unit. The host resolves and renders
     /// the source; this projection never fetches media or changes the XML.
@@ -119,10 +112,9 @@ public struct RelayMarkCollaborativeProse {
         public let width: Int?
         public let height: Int?
         public internal(set) var range: NSRange
-        public let path: [Int]
+        public internal(set) var path: [Int]
     }
-    private var storedMediaAtoms: [MediaAtom]
-    public var mediaAtoms: [MediaAtom] { shifts.isEmpty ? storedMediaAtoms : storedMediaAtoms.map { var item = $0; item.range = shifted(item.range); return item } }
+    public var mediaAtoms: [MediaAtom] { gather(\.mediaAtoms) { var item = $0; item.range.location += $1; item.path = Self.global(item.path, $2); return item } }
 
     /// Authored canonical suggestion as one inert block unit; review actions remain host-owned.
     public struct SuggestionAtom: Equatable, Sendable {
@@ -133,10 +125,9 @@ public struct RelayMarkCollaborativeProse {
         public let evidence: [String]
         public let content: String
         public internal(set) var range: NSRange
-        public let path: [Int]
+        public internal(set) var path: [Int]
     }
-    private var storedSuggestionAtoms: [SuggestionAtom]
-    public var suggestionAtoms: [SuggestionAtom] { shifts.isEmpty ? storedSuggestionAtoms : storedSuggestionAtoms.map { var item = $0; item.range = shifted(item.range); return item } }
+    public var suggestionAtoms: [SuggestionAtom] { gather(\.suggestionAtoms) { var item = $0; item.range.location += $1; item.path = Self.global(item.path, $2); return item } }
 
     /// Shared authored widgets retain XML identity and editable child ranges.
     /// The host supplies domain actions/rendering; this metadata contains no answers or permissions.
@@ -147,14 +138,13 @@ public struct RelayMarkCollaborativeProse {
         public let nodeName: String
         public let attributes: Data
         public internal(set) var range: NSRange
-        public let path: [Int]
+        public internal(set) var path: [Int]
     }
-    private var storedAuthoredWidgets: [AuthoredWidget]
-    public var authoredWidgets: [AuthoredWidget] { shifts.isEmpty ? storedAuthoredWidgets : storedAuthoredWidgets.map { var item = $0; item.range = shifted(item.range); return item } }
+    public var authoredWidgets: [AuthoredWidget] { gather(\.authoredWidgets) { var item = $0; item.range.location += $1; item.path = Self.global(item.path, $2); return item } }
 
     /// Block metadata remains available when an empty paragraph has no text run.
-    public private(set) var blockIntents: [PresentationIntent]
-    public private(set) var blockPaths: [[Int]]
+    public var blockIntents: [PresentationIntent] { gather(\.intents) { intent, _, _ in intent } }
+    public var blockPaths: [[Int]] { gather(\.paths) { path, _, index in Self.global(path, index) } }
     public struct TextRange: Equatable, Sendable {
         public let path: [Int]
         public let index: Int
@@ -168,33 +158,64 @@ public struct RelayMarkCollaborativeProse {
         var afterIndex: Int
         let atom: Bool
     }
-    private var spans: [Span]
-    private var containerOffsets: [[Int]: [Int]]
-    /// Typing recorded since the stored offsets were last brought current. A
-    /// read applies these in order; they are folded into storage in batches.
-    private struct Shift { let start: Int; let end: Int; let delta: Int }
-    private var shifts: [Shift] = []
 
-    private func shifted(_ value: NSRange) -> NSRange {
-        var value = value
-        // A range holding the whole edited leaf grows; a range at or after its end moves.
-        for shift in shifts {
-            if value.location <= shift.start && NSMaxRange(value) >= shift.end { value.length += shift.delta }
-            else if value.location >= shift.end { value.location += shift.delta }
+    /// One top-level XML node's projection. Offsets count from the node's
+    /// first character and paths are those the node would have alone in a
+    /// paper (`[0, ...]`, the paper itself `[]`), so re-projecting a node
+    /// never touches the others.
+    private struct Chunk {
+        var name = ""
+        var length = 0
+        var supported = true
+        var ranges: [NSRange] = []
+        var paths: [[Int]] = []
+        var intents: [PresentationIntent] = []
+        var cells: [TableCell] = []
+        var callouts: [Callout] = []
+        var inlineAtoms: [InlineAtom] = []
+        var blockAtoms: [BlockAtom] = []
+        var entityReferenceAtoms: [EntityReferenceAtom] = []
+        var taskItems: [TaskItem] = []
+        var mediaAtoms: [MediaAtom] = []
+        var suggestionAtoms: [SuggestionAtom] = []
+        var authoredWidgets: [AuthoredWidget] = []
+        var spans: [Span] = []
+        var boundaries: [[Int]: [Int]] = [:]
+    }
+    private var chunks: [Chunk]
+    /// Where each chunk's text begins in `text`. Chunks with text are joined by one separator.
+    private var starts: [Int]
+    private var rootSupported: Bool
+    private var unsupportedChunks: Int
+    private var rangeCount: Int
+    /// Presentation identities below this are in use; a re-projected node starts here.
+    public private(set) var identityLimit: Int
+
+    private static func global(_ path: [Int], _ chunk: Int) -> [Int] {
+        path.isEmpty ? path : [chunk] + path.dropFirst()
+    }
+
+    private static func local(_ path: [Int]) -> (chunk: Int, path: [Int])? {
+        guard let first = path.first else { return nil }
+        return (first, [0] + path.dropFirst())
+    }
+
+    private func gather<T>(_ items: KeyPath<Chunk, [T]>, _ place: (T, Int, Int) -> T) -> [T] {
+        var result: [T] = []
+        for (index, chunk) in chunks.enumerated() {
+            for item in chunk[keyPath: items] { result.append(place(item, starts[index], index)) }
         }
-        return value
+        return result
     }
 
-    private func shifted(offset: Int) -> Int {
-        var offset = offset
-        for shift in shifts where offset >= shift.end { offset += shift.delta }
-        return offset
-    }
+    private static let markupNames: Set<String> = ["horizontalRule", "relayButton", "relayAnchor", "relayConnection",
+                                                   "relayEntityReference", "agentSuggestion", "image", "videoEmbed"]
 
-    private func span(_ index: Int) -> Span {
-        guard !shifts.isEmpty else { return spans[index] }
-        var value = spans[index]
-        value.range = shifted(value.range)
+    nonisolated(unsafe) private static var cachedDirectiveDefinitions: [[String: Any]]?
+    private static func directiveDefinitions() throws -> [[String: Any]] {
+        if let cachedDirectiveDefinitions { return cachedDirectiveDefinitions }
+        let value = try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.directiveDefinitions()) as? [[String: Any]] ?? []
+        cachedDirectiveDefinitions = value
         return value
     }
 
@@ -243,16 +264,40 @@ public struct RelayMarkCollaborativeProse {
         return part
     }
 
+
     public init(snapshot: Data, dialect: Dialect = .legacy) throws {
         try self.init(snapshot: snapshot, dialect: dialect, codecValidated: false)
     }
 
     /// `codecValidated` means the caller already ran this exact snapshot through
     /// the codec, so the rich dialect does not convert it a second time.
-    public init(snapshot: Data, dialect: Dialect, codecValidated: Bool) throws {
+    /// `identityBase` numbers presentation identities from there, for nodes
+    /// that will replace others in an existing projection.
+    public init(snapshot: Data, dialect: Dialect, codecValidated: Bool, identityBase: Int = 0) throws {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
         if dialect == .rich, !codecValidated { _ = try RelayMarkSourceCodec.snapshotToDocument(snapshot) }
-        let directiveDefinitions = try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.directiveDefinitions()) as? [[String:Any]] ?? []
+        var value = AttributedString(), length = 0, identity = identityBase
+        chunks = []; starts = []; unsupportedChunks = 0; rangeCount = 0
+        for node in root?["children"] as? [[String: Any]] ?? [] {
+            let (chunk, part, next) = try Self.project(node, dialect: dialect, identityStart: identity)
+            identity = next
+            if !chunk.ranges.isEmpty {
+                if rangeCount > 0 { value.append(AttributedString("\n")); length += 1 }
+                rangeCount += chunk.ranges.count
+            }
+            starts.append(length)
+            value.append(part); length += chunk.length
+            if !chunk.supported { unsupportedChunks += 1 }
+            chunks.append(chunk)
+        }
+        text = value
+        rootSupported = root?["kind"] as? String == "fragment"
+        identityLimit = identity
+    }
+
+    private static func project(_ node: [String: Any], dialect: Dialect,
+                                identityStart: Int) throws -> (Chunk, AttributedString, Int) {
+        let directiveDefinitions = try Self.directiveDefinitions()
         let genericNames = Set(directiveDefinitions.compactMap { $0["name"] as? String })
         var authoredWidgets: [AuthoredWidget] = []
         var value = AttributedString()
@@ -268,8 +313,8 @@ public struct RelayMarkCollaborativeProse {
         var suggestionAtoms: [SuggestionAtom] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
-        var supported = root?["kind"] as? String == "fragment"
-        var identity = 0
+        var supported = true
+        var identity = identityStart
         func widget(kind:AuthoredWidget.Kind,id:String,name:String,attributes:[String:Any],range:NSRange,path:[Int]) {
             guard let data=try? JSONSerialization.data(withJSONObject:attributes,options:[.sortedKeys]) else { supported=false;return }
             authoredWidgets.append(AuthoredWidget(kind:kind,id:id,nodeName:name,attributes:data,range:range,path:path))
@@ -679,44 +724,81 @@ public struct RelayMarkCollaborativeProse {
             }
             offsets.append(length()); boundaries[path] = offsets
         }
-        try walk(root?["children"] as? [[String: Any]] ?? [], path: [])
-        text = value; storedBlockRanges = ranges; blockPaths = paths; blockIntents = intents
-        storedTableCells = cells; storedCallouts = calloutRanges; storedInlineAtoms = atoms
-        storedBlockAtoms = blockAtoms; storedEntityReferenceAtoms = entityReferenceAtoms
-        storedTaskItems = taskItems.sorted { $0.firstParagraphRange.location < $1.firstParagraphRange.location }
-        storedMediaAtoms = mediaAtoms; storedSuggestionAtoms = suggestionAtoms
-        storedAuthoredWidgets = authoredWidgets
-        spans = mapped; containerOffsets = boundaries
-        isEditable = supported && !ranges.isEmpty
+        try walk([node], path: [])
+        boundaries[[]] = nil
+        var chunk = Chunk()
+        chunk.name = node["name"] as? String ?? ""
+        chunk.length = length()
+        chunk.supported = supported
+        chunk.ranges = ranges; chunk.paths = paths; chunk.intents = intents
+        chunk.cells = cells; chunk.callouts = calloutRanges; chunk.inlineAtoms = atoms
+        chunk.blockAtoms = blockAtoms; chunk.entityReferenceAtoms = entityReferenceAtoms
+        chunk.taskItems = taskItems.sorted { $0.firstParagraphRange.location < $1.firstParagraphRange.location }
+        chunk.mediaAtoms = mediaAtoms; chunk.suggestionAtoms = suggestionAtoms
+        chunk.authoredWidgets = authoredWidgets
+        chunk.spans = mapped; chunk.boundaries = boundaries
+        return (chunk, value, identity)
     }
 
     /// Actual text-leaf intersections; atom and separator ranges never receive text marks.
     public func textRanges(in range: NSRange) -> [TextRange] {
-        spans.indices.map(span).filter(\.text).compactMap { span in
-            let intersection = NSIntersectionRange(range, span.range)
-            guard intersection.length > 0 else { return nil }
-            return TextRange(path: span.path, index: intersection.location - span.range.location, length: intersection.length)
+        var result: [TextRange] = []
+        for (index, chunk) in chunks.enumerated() {
+            let start = starts[index]
+            guard start <= NSMaxRange(range), start + chunk.length >= range.location else { continue }
+            for span in chunk.spans where span.text {
+                let intersection = NSIntersectionRange(range, NSRange(location: span.range.location + start, length: span.range.length))
+                guard intersection.length > 0 else { continue }
+                result.append(TextRange(path: Self.global(span.path, index),
+                    index: intersection.location - start - span.range.location, length: intersection.length))
+            }
         }
+        return result
+    }
+
+    /// The chunks whose text contains `offset`, at either edge; usually one.
+    private func chunks(touching offset: Int) -> [Int] {
+        var low = 0, high = starts.count
+        while low < high {
+            let middle = (low + high) / 2
+            if starts[middle] <= offset { low = middle + 1 } else { high = middle }
+        }
+        var found: [Int] = []
+        var index = low - 1
+        while index >= 0, starts[index] + chunks[index].length >= offset {
+            found.insert(index, at: 0); index -= 1
+        }
+        return found
     }
 
     public func position(atUTF16 offset: Int) -> (path: [Int], index: Int)? {
+        for index in chunks(touching: offset) {
+            if let found = position(in: index, at: offset - starts[index]) {
+                return (Self.global(found.path, index), found.path.isEmpty ? found.index + index : found.index)
+            }
+        }
+        return nil
+    }
+
+    private func position(in index: Int, at offset: Int) -> (path: [Int], index: Int)? {
+        let chunk = chunks[index]
         // Only spans touching `offset` can answer; find them by binary search.
-        var low = 0, high = spans.count
+        var low = 0, high = chunk.spans.count
         while low < high {
             let middle = (low + high) / 2
-            if NSMaxRange(span(middle).range) < offset { low = middle + 1 } else { high = middle }
+            if NSMaxRange(chunk.spans[middle].range) < offset { low = middle + 1 } else { high = middle }
         }
         var spans: [Span] = []
-        while low < self.spans.count, case let value = span(low), value.range.location <= offset {
+        while low < chunk.spans.count, case let value = chunk.spans[low], value.range.location <= offset {
             spans.append(value); low += 1
         }
         // For identified atoms, both edges are XML sibling boundaries. Prefer
         // an adjacent text leaf when present so a caret edits that leaf.
         if let atom = spans.first(where: { $0.atom && ($0.range.location == offset || NSMaxRange($0.range) == offset) }) {
             if atom.range.location == offset,
-               storedBlockAtoms.contains(where: { $0.path == atom.path }) ||
-               storedMediaAtoms.contains(where: { $0.path == atom.path }) ||
-               storedSuggestionAtoms.contains(where: { $0.path == atom.path }) {
+               chunk.blockAtoms.contains(where: { $0.path == atom.path }) ||
+               chunk.mediaAtoms.contains(where: { $0.path == atom.path }) ||
+               chunk.suggestionAtoms.contains(where: { $0.path == atom.path }) {
                 return (atom.path, 0)
             }
             if atom.range.location == offset,
@@ -735,13 +817,13 @@ public struct RelayMarkCollaborativeProse {
             return (span.afterPath, span.afterIndex)
         }
         // An empty block holds no span; block starts are ordered too.
-        var first = 0, last = storedBlockRanges.count
+        var first = 0, last = chunk.ranges.count
         while first < last {
             let middle = (first + last) / 2
-            if shifted(storedBlockRanges[middle]).location < offset { first = middle + 1 } else { last = middle }
+            if chunk.ranges[middle].location < offset { first = middle + 1 } else { last = middle }
         }
-        while first < storedBlockRanges.count, case let range = shifted(storedBlockRanges[first]), range.location == offset {
-            if range.length == 0 { return (blockPaths[first], 0) }
+        while first < chunk.ranges.count, case let range = chunk.ranges[first], range.location == offset {
+            if range.length == 0 { return (chunk.paths[first], 0) }
             first += 1
         }
         return nil
@@ -750,13 +832,27 @@ public struct RelayMarkCollaborativeProse {
     /// Resolve a current XML position without coupling a native binding to one replica type.
     public func offset(path: [Int], index: Int) -> Int? {
         guard index >= 0 else { return nil }
-        if let found = textSpanIndex(path: path) {
-            let range = span(found).range
+        guard let (chunkIndex, local) = Self.local(path) else { return rootOffset(index) }
+        guard chunkIndex >= 0, chunkIndex < chunks.count else { return nil }
+        let chunk = chunks[chunkIndex], start = starts[chunkIndex]
+        if let found = Self.textSpanIndex(path: local, in: chunk.spans) {
+            let range = chunk.spans[found].range
             guard index <= range.length else { return nil }
-            return range.location + index
+            return start + range.location + index
         }
-        guard let offsets = containerOffsets[path], index < offsets.count else { return nil }
-        return shifted(offset: offsets[index])
+        guard let offsets = chunk.boundaries[local], index < offsets.count else { return nil }
+        return start + offsets[index]
+    }
+
+    /// The paper's own child boundaries: each node's first character, or the
+    /// end of a preceding atom block, and finally the end of the text.
+    private func rootOffset(_ index: Int) -> Int? {
+        guard index <= chunks.count else { return nil }
+        if index == chunks.count { return text.utf16.count }
+        if index > 0, Self.markupNames.contains(chunks[index - 1].name), !chunks[index - 1].ranges.isEmpty {
+            return starts[index - 1] + chunks[index - 1].length
+        }
+        return starts[index]
     }
 
     /// A single contiguous replacement at grapheme boundaries; unchanged runs retain CRDT identity.
@@ -773,32 +869,52 @@ public struct RelayMarkCollaborativeProse {
     }
 }
 
-// MARK: Incremental typing
+// MARK: Incremental edits
 
 extension RelayMarkCollaborativeProse {
     /// The XML text leaf and offset for an edit wholly inside one non-empty text leaf.
     public func textPosition(replacing range: NSRange) -> (path: [Int], index: Int)? {
-        guard let index = textSpanIndex(containing: range) else { return nil }
-        return (spans[index].path, range.location - span(index).range.location)
+        guard let (chunk, span) = textSpanIndex(containing: range) else { return nil }
+        let value = chunks[chunk].spans[span]
+        return (Self.global(value.path, chunk), range.location - starts[chunk] - value.range.location)
     }
 
-    private func textSpanIndex(containing range: NSRange) -> Int? {
+    private func textSpanIndex(containing range: NSRange) -> (chunk: Int, span: Int)? {
         guard range.location >= 0, range.length >= 0 else { return nil }
-        // Spans are in document order; binary search keeps lookup logarithmic.
-        var low = 0, high = spans.count - 1
-        while low <= high {
-            let middle = (low + high) / 2, span = self.span(middle)
-            if NSMaxRange(span.range) < range.location { low = middle + 1 }
-            else if span.range.location > NSMaxRange(range) { high = middle - 1 }
-            else {
-                // Adjacent spans can share a boundary; prefer a text span that contains the range.
-                for candidate in max(0, middle - 2)...min(spans.count - 1, middle + 2) {
-                    let value = self.span(candidate)
-                    if value.text && value.range.length > 0 &&
-                        range.location >= value.range.location && NSMaxRange(range) <= NSMaxRange(value.range) { return candidate }
+        for chunk in chunks(touching: range.location) {
+            let spans = chunks[chunk].spans, local = NSRange(location: range.location - starts[chunk], length: range.length)
+            // Spans are in document order; binary search keeps lookup logarithmic.
+            var low = 0, high = spans.count - 1
+            while low <= high {
+                let middle = (low + high) / 2, span = spans[middle]
+                if NSMaxRange(span.range) < local.location { low = middle + 1 }
+                else if span.range.location > NSMaxRange(local) { high = middle - 1 }
+                else {
+                    // Adjacent spans can share a boundary; prefer a text span that contains the range.
+                    for candidate in max(0, middle - 2)...min(spans.count - 1, middle + 2) {
+                        let value = spans[candidate]
+                        if value.text && value.range.length > 0 &&
+                            local.location >= value.range.location && NSMaxRange(local) <= NSMaxRange(value.range) {
+                            return (chunk, candidate)
+                        }
+                    }
+                    break
                 }
-                return nil
             }
+        }
+        return nil
+    }
+
+    /// Spans follow document order, so their paths sort lexicographically.
+    private static func textSpanIndex(path: [Int], in spans: [Span]) -> Int? {
+        var low = 0, high = spans.count
+        while low < high {
+            let middle = (low + high) / 2
+            if spans[middle].path.lexicographicallyPrecedes(path) { low = middle + 1 } else { high = middle }
+        }
+        while low < spans.count, spans[low].path == path {
+            if spans[low].text { return low }
+            low += 1
         }
         return nil
     }
@@ -812,20 +928,54 @@ extension RelayMarkCollaborativeProse {
         return copy.replaceText(in: range, with: inserted, attributes: attributes) ? copy : nil
     }
 
+    /// Moves what follows a changed leaf: ranges holding the whole leaf grow,
+    /// ranges at or after its end move. Only the leaf's own node is visited;
+    /// later nodes move by their start alone.
+    private mutating func shift(chunk index: Int, start: Int, end: Int, delta: Int) {
+        func move(_ range: inout NSRange) {
+            if range.location <= start && NSMaxRange(range) >= end { range.length += delta }
+            else if range.location >= end { range.location += delta }
+        }
+        var chunk = chunks[index]
+        chunks[index] = Chunk()
+        for item in chunk.ranges.indices { move(&chunk.ranges[item]) }
+        for item in chunk.cells.indices { move(&chunk.cells[item].range) }
+        for item in chunk.callouts.indices {
+            move(&chunk.callouts[item].range)
+            if chunk.callouts[item].titleRange != nil { move(&chunk.callouts[item].titleRange!) }
+        }
+        for item in chunk.inlineAtoms.indices { move(&chunk.inlineAtoms[item].range) }
+        for item in chunk.blockAtoms.indices { move(&chunk.blockAtoms[item].range) }
+        for item in chunk.entityReferenceAtoms.indices { move(&chunk.entityReferenceAtoms[item].range) }
+        for item in chunk.taskItems.indices { move(&chunk.taskItems[item].firstParagraphRange) }
+        for item in chunk.mediaAtoms.indices { move(&chunk.mediaAtoms[item].range) }
+        for item in chunk.suggestionAtoms.indices { move(&chunk.suggestionAtoms[item].range) }
+        for item in chunk.authoredWidgets.indices { move(&chunk.authoredWidgets[item].range) }
+        for item in chunk.spans.indices { move(&chunk.spans[item].range) }
+        for key in chunk.boundaries.keys {
+            chunk.boundaries[key] = chunk.boundaries[key]?.map { $0 >= end ? $0 + delta : $0 }
+        }
+        chunk.length += delta
+        chunks[index] = chunk
+        for later in starts.indices.dropFirst(index + 1) { starts[later] += delta }
+    }
+
     /// Re-projects one text leaf from its current authored runs, for a peer's
-    /// update that changed only that leaf's text or marks. Returns false,
+    /// update that changed only that leaf's text or marks. Returns nil,
     /// unchanged, when the leaf is empty or cannot be spliced on its own.
     /// Returns the range the leaf held before, which a text view replaces too.
     public mutating func replaceLeaf(path: [Int], runs: [(text: String, attributes: [String: Any])]) -> NSRange? {
-        guard isEditable, let spanIndex = textSpanIndex(path: path) else { return nil }
-        let leaf = span(spanIndex).range
+        guard isEditable, let (index, local) = Self.local(path), index < chunks.count,
+              let spanIndex = Self.textSpanIndex(path: local, in: chunks[index].spans) else { return nil }
+        let localLeaf = chunks[index].spans[spanIndex].range
+        let leaf = NSRange(location: localLeaf.location + starts[index], length: localLeaf.length)
         let inserted = runs.map(\.text).joined()
         guard leaf.length > 0, !inserted.isEmpty else { return nil }
-        let task = storedTaskItems.indices.first {
-            let paragraph = shifted(storedTaskItems[$0].firstParagraphRange)
-            return paragraph.location <= leaf.location && NSMaxRange(paragraph) >= NSMaxRange(leaf)
+        let task = chunks[index].taskItems.indices.first {
+            let paragraph = chunks[index].taskItems[$0].firstParagraphRange
+            return paragraph.location <= localLeaf.location && NSMaxRange(paragraph) >= NSMaxRange(localLeaf)
         }
-        if let task, shifted(storedTaskItems[task].firstParagraphRange) != leaf { return nil }
+        if let task, chunks[index].taskItems[task].firstParagraphRange != localLeaf { return nil }
         let utf16 = text.utf16, scalars = text.unicodeScalars
         let lower = utf16.index(text.startIndex, offsetBy: leaf.location)
         let upper = utf16.index(lower, offsetBy: leaf.length)
@@ -843,70 +993,33 @@ extension RelayMarkCollaborativeProse {
             part.append(piece)
         }
         text.replaceSubrange(lower..<upper, with: part)
-        if let task { storedTaskItems[task].firstParagraphText = inserted }
-        shifts.append(Shift(start: leaf.location, end: NSMaxRange(leaf), delta: inserted.utf16.count - leaf.length))
-        if shifts.count >= Self.shiftLimit { settle() }
+        if let task { chunks[index].taskItems[task].firstParagraphText = inserted }
+        shift(chunk: index, start: localLeaf.location, end: NSMaxRange(localLeaf), delta: inserted.utf16.count - leaf.length)
         return leaf
-    }
-
-    /// Spans follow document order, so their paths sort lexicographically.
-    private func textSpanIndex(path: [Int]) -> Int? {
-        var low = 0, high = spans.count
-        while low < high {
-            let middle = (low + high) / 2
-            if spans[middle].path.lexicographicallyPrecedes(path) { low = middle + 1 } else { high = middle }
-        }
-        while low < spans.count, spans[low].path == path {
-            if spans[low].text { return low }
-            low += 1
-        }
-        return nil
-    }
-
-    /// A bound on deferred typing; hosts normally settle when typing pauses.
-    private static let shiftLimit = 256
-
-    /// Brings every stored offset current in one pass over the paper. Typing
-    /// defers this so a keystroke's cost does not depend on the paper's
-    /// length; a host calls it when typing pauses.
-    public mutating func settle() {
-        guard !shifts.isEmpty else { return }
-        storedBlockRanges = blockRanges; storedTableCells = tableCells; storedCallouts = callouts
-        storedInlineAtoms = inlineAtoms; storedBlockAtoms = blockAtoms
-        storedEntityReferenceAtoms = entityReferenceAtoms; storedTaskItems = taskItems
-        storedMediaAtoms = mediaAtoms; storedSuggestionAtoms = suggestionAtoms; storedAuthoredWidgets = authoredWidgets
-        spans = spans.indices.map(span)
-        for key in containerOffsets.indices {
-            for index in containerOffsets.values[key].indices {
-                containerOffsets.values[key][index] = shifted(offset: containerOffsets.values[key][index])
-            }
-        }
-        shifts = []
     }
 
     /// Applies typing `inserted` over `range` inside one text leaf in place.
     /// `attributes` are the leaf's authored marks for the inserted text. The
-    /// text changes in logarithmic time; stored offsets after the leaf move by
-    /// a plain integer pass with no allocation. Returns false, unchanged, when
-    /// the edit is not local to one leaf.
+    /// text changes in logarithmic time; only the leaf's own top-level node
+    /// is visited. Returns false, unchanged, when the edit is not local to one leaf.
     public mutating func replaceText(in range: NSRange, with inserted: String, attributes: [String: Any]) -> Bool {
-        guard isEditable, let spanIndex = textSpanIndex(containing: range),
+        guard isEditable, let (index, spanIndex) = textSpanIndex(containing: range),
               !inserted.unicodeScalars.contains(where: { "\n\r\u{2028}\u{2029}\u{FFFC}".unicodeScalars.contains($0) }),
-              range.length < span(spanIndex).range.length || !inserted.isEmpty else { return false }
-        let leaf = span(spanIndex).range
+              range.length < chunks[index].spans[spanIndex].range.length || !inserted.isEmpty else { return false }
+        let leaf = chunks[index].spans[spanIndex].range, chunkStart = starts[index]
         let start = leaf.location, end = NSMaxRange(leaf)
         // The paragraph's XML text omits atoms and breaks; only a task paragraph of this one leaf maps directly.
-        let task = storedTaskItems.indices.first {
-            let paragraph = shifted(storedTaskItems[$0].firstParagraphRange)
+        let task = chunks[index].taskItems.indices.first {
+            let paragraph = chunks[index].taskItems[$0].firstParagraphRange
             return paragraph.location <= start && NSMaxRange(paragraph) >= end
         }
-        if let task, shifted(storedTaskItems[task].firstParagraphRange) != leaf { return false }
+        if let task, chunks[index].taskItems[task].firstParagraphRange != leaf { return false }
         let delta = inserted.utf16.count - range.length
         let utf16 = text.utf16, scalars = text.unicodeScalars
         let lower = utf16.index(text.startIndex, offsetBy: range.location)
         let upper = utf16.index(lower, offsetBy: range.length)
         // Block presentation comes from the leaf's neighbouring character; marks come from `attributes`.
-        let neighbour = range.location > start ? scalars.index(before: lower) : (range.length > 0 ? lower : upper)
+        let neighbour = range.location > chunkStart + start ? scalars.index(before: lower) : (range.length > 0 ? lower : upper)
         guard neighbour < text.endIndex,
               let block = text[neighbour..<scalars.index(after: neighbour)].runs.first?.attributes,
               var part = try? Self.projectedText(text: inserted, attributes: attributes, dialect: .rich,
@@ -916,11 +1029,69 @@ extension RelayMarkCollaborativeProse {
         part.presentationIntent = block.presentationIntent
         text.replaceSubrange(lower..<upper, with: part)
         if let task {
-            storedTaskItems[task].firstParagraphText = (storedTaskItems[task].firstParagraphText as NSString)
-                .replacingCharacters(in: NSRange(location: range.location - start, length: range.length), with: inserted)
+            chunks[index].taskItems[task].firstParagraphText = (chunks[index].taskItems[task].firstParagraphText as NSString)
+                .replacingCharacters(in: NSRange(location: range.location - chunkStart - start, length: range.length), with: inserted)
         }
-        shifts.append(Shift(start: start, end: end, delta: delta))
-        if shifts.count >= Self.shiftLimit { settle() }
+        shift(chunk: index, start: start, end: end, delta: delta)
         return true
+    }
+
+    /// Replaces the top-level nodes in `range` with `replacement`, a projection
+    /// of just the nodes now there, numbered from `identityLimit`. Only those
+    /// nodes' text and metadata change; later nodes move by their start alone.
+    /// Returns the text range replaced and the range now holding its
+    /// replacement, separators included; nil, unchanged, unless every node
+    /// involved holds text.
+    public mutating func replaceTopLevelNodes(_ range: Range<Int>, with replacement: RelayMarkCollaborativeProse)
+        -> (old: NSRange, new: NSRange)? {
+        guard range.lowerBound >= 0, range.upperBound <= chunks.count, replacement.rootSupported,
+              replacement.identityLimit >= identityLimit,
+              chunks[range].allSatisfy({ !$0.ranges.isEmpty }),
+              replacement.chunks.allSatisfy({ !$0.ranges.isEmpty }),
+              chunks.count - range.count + replacement.chunks.count > 0 else { return nil }
+        // Separators sit before every node but the first, so the replaced text
+        // takes the separator before it, or after it at the paper's start.
+        let oldStart: Int, oldEnd: Int
+        var inserted = AttributedString()
+        if range.lowerBound > 0 {
+            oldStart = starts[range.lowerBound - 1] + chunks[range.lowerBound - 1].length
+            oldEnd = range.isEmpty ? oldStart : starts[range.upperBound - 1] + chunks[range.upperBound - 1].length
+            for chunk in replacement.chunks.indices {
+                inserted.append(AttributedString("\n")); inserted.append(replacement.chunkText(chunk))
+            }
+        } else if range.upperBound < chunks.count {
+            oldStart = 0; oldEnd = starts[range.upperBound]
+            for chunk in replacement.chunks.indices {
+                inserted.append(replacement.chunkText(chunk)); inserted.append(AttributedString("\n"))
+            }
+        } else {
+            oldStart = 0; oldEnd = text.utf16.count
+            inserted = replacement.text
+        }
+        let lower = text.utf16.index(text.startIndex, offsetBy: oldStart)
+        text.replaceSubrange(lower..<text.utf16.index(lower, offsetBy: oldEnd - oldStart), with: inserted)
+        unsupportedChunks += replacement.chunks.filter { !$0.supported }.count - chunks[range].filter { !$0.supported }.count
+        rangeCount += replacement.chunks.reduce(0) { $0 + $1.ranges.count } - chunks[range].reduce(0) { $0 + $1.ranges.count }
+        chunks.replaceSubrange(range, with: replacement.chunks)
+        starts.replaceSubrange(range, with: Array(repeating: 0, count: replacement.chunks.count))
+        // Later starts follow the separator rule; a node without text takes none.
+        var previous = range.lowerBound - 1
+        while previous >= 0, chunks[previous].ranges.isEmpty { previous -= 1 }
+        var position = range.lowerBound > 0 ? starts[range.lowerBound - 1] + chunks[range.lowerBound - 1].length : 0
+        var separated = previous >= 0
+        for index in range.lowerBound..<chunks.count {
+            if !chunks[index].ranges.isEmpty { if separated { position += 1 }; separated = true }
+            starts[index] = position
+            position += chunks[index].length
+        }
+        identityLimit = replacement.identityLimit
+        return (NSRange(location: oldStart, length: oldEnd - oldStart),
+                NSRange(location: oldStart, length: inserted.utf16.count))
+    }
+
+    /// One chunk's own text, without separators.
+    private func chunkText(_ index: Int) -> AttributedSubstring {
+        let lower = text.utf16.index(text.startIndex, offsetBy: starts[index])
+        return text[lower..<text.utf16.index(lower, offsetBy: chunks[index].length)]
     }
 }
