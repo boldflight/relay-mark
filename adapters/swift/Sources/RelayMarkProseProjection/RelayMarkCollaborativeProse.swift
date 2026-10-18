@@ -244,8 +244,14 @@ public struct RelayMarkCollaborativeProse {
     }
 
     public init(snapshot: Data, dialect: Dialect = .legacy) throws {
+        try self.init(snapshot: snapshot, dialect: dialect, codecValidated: false)
+    }
+
+    /// `codecValidated` means the caller already ran this exact snapshot through
+    /// the codec, so the rich dialect does not convert it a second time.
+    public init(snapshot: Data, dialect: Dialect, codecValidated: Bool) throws {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
-        if dialect == .rich { _ = try RelayMarkSourceCodec.snapshotToDocument(snapshot) }
+        if dialect == .rich, !codecValidated { _ = try RelayMarkSourceCodec.snapshotToDocument(snapshot) }
         let directiveDefinitions = try JSONSerialization.jsonObject(with:RelayMarkSourceCodec.directiveDefinitions()) as? [[String:Any]] ?? []
         let genericNames = Set(directiveDefinitions.compactMap { $0["name"] as? String })
         var authoredWidgets: [AuthoredWidget] = []

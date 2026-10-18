@@ -160,9 +160,12 @@ public final class RelayMarkNativeDocument {
 
     /// Basic canonical Markdown read/selection map after strict whole-document AST
     /// validation. Tables and other unsupported presentation shapes stay gated.
+    /// One snapshot and one codec conversion serve both the document validation and the prose projection.
     public func richProseProjection() throws -> RelayMarkCollaborativeProse {
-        _ = try RelayMarkNativeDocumentProjection.project(document: self)
-        return try RelayMarkCollaborativeProse(snapshot: snapshot(), dialect: .rich)
+        guard integrationStatus().isComplete else { throw RelayMarkNativeDocumentProjection.Failure.unsupported("incomplete update") }
+        let snapshot = try snapshot()
+        _ = try RelayMarkNativeDocumentProjection.project(snapshot: snapshot)
+        return try RelayMarkCollaborativeProse(snapshot: snapshot, dialect: .rich, codecValidated: true)
     }
 
     /// One quote with one or two flat paragraphs; no wrapping, splitting or joins.
