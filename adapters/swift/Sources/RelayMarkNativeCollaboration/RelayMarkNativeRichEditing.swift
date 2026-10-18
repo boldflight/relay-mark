@@ -829,7 +829,17 @@ public enum RelayMarkNativeRichEditing {
             if node.type.name == "relayAnchor", let name = node.attrs["name"] as? String { anchors.insert(name) }
             return true
         })
-        try applyRepairs(identified(witnessed.doc, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs, retainedHeadingPositions: retainedHeadingPositions))
+        // As the browser's PaperHeading does, a heading the change left exactly
+        // as it was keeps its anchor, even an absent one; only edited or new
+        // headings are given one.
+        var unchangedHeadings = retainedHeadingPositions
+        source.content.nodesBetween(0, source.content.size, { node, pos, _, _ in
+            guard node.type.name == "heading" else { return true }
+            let mapped = witnessed.map(pos)
+            if let candidate = witnessed.doc.nodeAt(mapped), candidate.eq(node) { unchangedHeadings.insert(mapped) }
+            return false
+        })
+        try applyRepairs(identified(witnessed.doc, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs, retainedHeadingPositions: unchangedHeadings))
         if clipboardSlice != nil || clipboardItems != nil {
             var input: [String: Any] = ["before_document": source.json(), "steps": witnessed.steps.map { $0.json() }]
             if let clipboardItems { input["clipboard_items"] = clipboardItems }

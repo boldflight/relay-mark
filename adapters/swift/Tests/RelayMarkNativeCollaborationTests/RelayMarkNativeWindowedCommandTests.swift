@@ -28,13 +28,12 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
     Last paragraph.
     """
 
-    /// Generated identities differ between runs; everything else must not. A
-    /// whole-paper command also gives every heading lacking an anchor one, while
-    /// a window gives only its own, so heading anchors are left out.
+    /// Generated identities differ between runs; everything else must not,
+    /// including which headings have an anchor.
     private func masked(_ value: Any) -> Any {
         if let object = value as? [String: Any] {
-            return Dictionary(uniqueKeysWithValues: object.compactMap { key, value in
-                key == "headingId" ? nil : (key, key == "relaymarkId" ? "*" : masked(value))
+            return Dictionary(uniqueKeysWithValues: object.map { key, value in
+                (key, ["relaymarkId", "headingId"].contains(key) && !(value is NSNull) ? "*" : masked(value))
             })
         }
         if let array = value as? [Any] { return array.map(masked) }
