@@ -544,7 +544,7 @@ public final class RelayMarkNativeDocument {
         let suffix = try Self.suffixRuns(of: blocks[last.block].leaf, after: last.index)
         let firstLength = blocks[first.block].text.utf16.count
         let removedBlockCount = last.block - first.block
-        guard blocks.count - removedBlockCount + lines.count - 1 <= 4096 else {
+        guard blocks.count - removedBlockCount + lines.count - 1 <= Self.maximumBlocks else {
             throw Failure.unsupportedProseEdit
         }
         // All bounds, Unicode boundaries, node kinds and JSON attributes were
@@ -1324,7 +1324,7 @@ public final class RelayMarkNativeDocument {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
               try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
         let (_, path, _) = try richTopLevelParagraphTarget(paragraphAnchor)
-        guard root.length() < 4_096 else { throw Failure.unsupportedProseEdit }
+        guard Int(root.length()) < Self.maximumBlocks else { throw Failure.unsupportedProseEdit }
         let listID = RelayMarkNativeRichXML.freshID(), itemID = RelayMarkNativeRichXML.freshID(),
             paragraphID = RelayMarkNativeRichXML.freshID()
         let paragraph: [String: Any] = ["kind": "element", "name": "paragraph",
