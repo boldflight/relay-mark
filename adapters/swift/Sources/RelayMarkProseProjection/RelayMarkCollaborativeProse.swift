@@ -761,8 +761,9 @@ public struct RelayMarkCollaborativeProse {
     /// Actual text-leaf intersections; atom and separator ranges never receive text marks.
     public func textRanges(in range: NSRange) -> [TextRange] {
         var result: [TextRange] = []
-        for (index, chunk) in chunks.enumerated() {
-            let start = starts[index]
+        let first = chunks(touching: range.location).first ?? starts.lastIndex(beginningAtOrBefore: range.location)
+        for index in first..<chunks.count {
+            let chunk = chunks[index], start = starts[index]
             guard start <= NSMaxRange(range) else { break }
             guard start + chunk.length >= range.location else { continue }
             for span in chunk.spans where span.text {
@@ -799,6 +800,23 @@ public struct RelayMarkCollaborativeProse {
             }
         }
         return nil
+    }
+
+    /// The textblocks `range` intersects, in order, reading only the nodes it touches.
+    public func blocks(intersecting range: NSRange) -> [(path: [Int], range: NSRange, intent: PresentationIntent)] {
+        var result: [(path: [Int], range: NSRange, intent: PresentationIntent)] = []
+        let first = chunks(touching: range.location).first ?? starts.lastIndex(beginningAtOrBefore: range.location)
+        for index in first..<chunks.count {
+            let chunk = chunks[index], start = starts[index]
+            guard start <= NSMaxRange(range) else { break }
+            for row in chunk.ranges.indices {
+                let block = NSRange(location: chunk.ranges[row].location + start, length: chunk.ranges[row].length)
+                if NSIntersectionRange(block, range).length > 0 {
+                    result.append((Self.global(chunk.paths[row], index + firstNode), block, chunk.intents[row]))
+                }
+            }
+        }
+        return result
     }
 
     /// Where the first empty textblock at or after `offset` begins.
