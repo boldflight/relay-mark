@@ -53,7 +53,7 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
         return (whole, windowed)
     }
 
-    private enum Operation: CaseIterable { case returnKey, backspace, delete, lines, deletion, bold }
+    private enum Operation: CaseIterable { case returnKey, backspace, delete, lines, deletion, bold, indent, outdent }
 
     private func run(_ operation: Operation, at offset: Int, on document: RelayMarkNativeDocument,
                      paper: RelayMarkCollaborativeProse?) throws -> RelayMarkNativeRichEditing.Change? {
@@ -77,6 +77,12 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
             if let paper { return try RelayMarkNativeRichEditing.replace(document: document, range: range, runs: runs, paper: paper) }
             return try RelayMarkNativeRichEditing.replace(document: document, range: range, runs: runs,
                                                           expectedSnapshot: document.snapshot())
+        case .indent, .outdent:
+            guard let block = projection.blockRanges.firstIndex(where: { offset >= $0.location && offset <= NSMaxRange($0) }),
+                  document.isRichListParagraph(path: projection.blockPaths[block]) else { return nil }
+            let path = projection.blockPaths[block], change: RelayMarkNativeListDepthChange = operation == .indent ? .indent : .outdent
+            if let paper { return try document.changeRichListDepth(paragraphPath: path, change: change, paper: paper) }
+            return try document.changeRichListDepth(paragraphPath: path, change: change, expectedSnapshot: document.snapshot())
         case .bold:
             let range = NSRange(location: offset, length: 3)
             if let paper {
@@ -88,7 +94,7 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
     }
 
     func testWindowedCommandsWriteWhatWholePaperCommandsWrite() throws {
-        var compared = 0, refused = 0
+        var compared = 0, refused = 0, changed: [Operation: Int] = [:]
         let length = String(try replicas().whole.richProseProjection().text.characters).utf16.count
         for operation in Operation.allCases {
             for offset in stride(from: 0, to: length - 3, by: 4) {
@@ -103,6 +109,7 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
                 XCTAssertEqual(try shape(windowed), try shape(whole), "\(operation) at \(offset)")
                 XCTAssertEqual(actual?.caret, expected?.caret, "\(operation) at \(offset)")
                 if let actual {
+                    changed[operation, default: 0] += 1
                     let nodes = try XCTUnwrap(actual.topLevel, "\(operation) at \(offset)")
                     let partial = try windowed.richProseProjection(topLevel: nodes.after, identityBase: paper.identityLimit)
                     XCTAssertNotNil(paper.replaceTopLevelNodes(nodes.before, with: partial))
@@ -114,6 +121,7 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
             }
         }
         XCTAssertGreaterThan(compared, 60)
+        for operation in Operation.allCases { XCTAssertGreaterThan(changed[operation] ?? 0, 0, "\(operation) never changed the paper") }
         XCTAssertLessThan(refused, compared / 4)
     }
 }
