@@ -105,6 +105,19 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
         }
     }
 
+    func testCommandsInsideALongTableRunOnTheirRows() throws {
+        let document = RelayMarkNativeDocument()
+        _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(
+            (["| a | b |", "| --- | --- |"] + (1...9).map { "| cell \($0) | other \($0) |" }).joined(separator: "\n"),
+            namespace: "table"))
+        let text = String(try document.richProseProjection().text.characters) as NSString
+        let offset = text.range(of: "cell 5").location + 2
+        for operation in [Operation.returnKey, .bold, .lines] {
+            let change = try XCTUnwrap(run(operation, at: offset, on: document, paper: document.richProseProjection()))
+            XCTAssertNotNil(change.items, "\(operation)")
+        }
+    }
+
     func testWindowedCommandsWriteWhatWholePaperCommandsWrite() throws {
         var compared = 0, refused = 0, changed: [Operation: Int] = [:], itemWindows = 0
         let length = String(try replicas().whole.richProseProjection().text.characters).utf16.count
@@ -124,10 +137,11 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
                     changed[operation, default: 0] += 1
                     if let items = actual.items {
                         itemWindows += 1
-                        let partial = try XCTUnwrap(windowed.richProseProjection(items: items.after, ofTopLevel: items.node,
-                                                                                 paper: paper, identityBase: paper.identityLimit))
-                        if paper.replaceItems(items.before, ofTopLevel: items.node, with: partial) == nil {
-                            // An ordered list renumbers its items: the host re-projects the whole list.
+                        let partial = try windowed.richProseProjection(items: items.after, ofTopLevel: items.node,
+                                                                       paper: paper, identityBase: paper.identityLimit)
+                        if partial.flatMap({ paper.replaceItems(items.before, ofTopLevel: items.node, with: $0) }) == nil {
+                            // An ordered list renumbers its items, a table its rows, and rows
+                            // that change the table's columns need it whole: the host re-projects it.
                             let whole = try windowed.richProseProjection(topLevel: items.node..<(items.node + 1), identityBase: paper.identityLimit)
                             XCTAssertNotNil(paper.replaceTopLevelNodes(items.node..<(items.node + 1), with: whole))
                         }

@@ -159,7 +159,7 @@ public struct RelayMarkCollaborativeProse {
         let atom: Bool
     }
 
-    /// A top-level list whose items are projected one by one.
+    /// A top-level list whose items, or table whose rows, are projected one by one.
     private struct Container {
         let name: String
         let intent: PresentationIntent
@@ -168,6 +168,26 @@ public struct RelayMarkCollaborativeProse {
         /// The list's own authored attributes, as sorted JSON.
         let attributes: Data
         let identities: [String]
+        /// A table's columns; every row spans all of them.
+        var width = 0
+        /// The child each unit holds.
+        var itemName: String { name == "taskList" ? "taskItem" : name == "table" ? "tableRow" : "listItem" }
+    }
+
+    /// Where a table row's cells start, and how many columns it spans. Nil for
+    /// a row whose cells span rows, as its layout then depends on the rows above.
+    private static func rowColumns(_ row: [String: Any]) -> (columns: [Int], width: Int)? {
+        guard row["kind"] as? String == "element", row["name"] as? String == "tableRow",
+              let cells = row["children"] as? [[String: Any]], !cells.isEmpty else { return nil }
+        var columns: [Int] = [], column = 0
+        for cell in cells {
+            let attributes = cell["attributes"] as? [String: Any] ?? [:]
+            let colspan = attributes["colspan"] as? Int ?? 1, rowspan = attributes["rowspan"] as? Int ?? 1
+            guard ["tableCell", "tableHeader"].contains(cell["name"] as? String ?? ""),
+                  colspan > 0, rowspan == 1, column <= 256 - colspan else { return nil }
+            columns.append(column); column += colspan
+        }
+        return (columns, column)
     }
 
     /// One unit's projection: a top-level XML node, or one item of a top-level
@@ -460,13 +480,16 @@ public struct RelayMarkCollaborativeProse {
 
     private static let listNames: Set<String> = ["bulletList", "orderedList", "taskList"]
 
-    /// A top-level list's items as units, so an edit re-projects only the items
-    /// it touches; nil projects the node whole, as any other.
+    /// A top-level list's items, or a table's rows, as units, so an edit
+    /// re-projects only the items it touches; nil projects the node whole, as
+    /// any other. A table whose cells span rows is projected whole.
     private static func projectList(_ node: [String: Any], dialect: Dialect,
                                     identity: inout Int) throws -> [(Chunk, AttributedString)]? {
         guard dialect == .rich, node["kind"] as? String == "element", let name = node["name"] as? String,
-              listNames.contains(name), let items = node["children"] as? [[String: Any]], !items.isEmpty,
-              items.allSatisfy({ $0["name"] as? String == (name == "taskList" ? "taskItem" : "listItem") }) else { return nil }
+              listNames.contains(name) || name == "table", let items = node["children"] as? [[String: Any]], !items.isEmpty
+        else { return nil }
+        if name == "table" { return try projectTable(node, rows: items, identity: &identity) }
+        guard items.allSatisfy({ $0["name"] as? String == (name == "taskList" ? "taskItem" : "listItem") }) else { return nil }
         let physical = node["attributes"] as? [String: Any] ?? [:]
         let attributes = try RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: name, attributes: physical)
         func validInteger(_ value: Any?) -> Bool {
@@ -493,16 +516,45 @@ public struct RelayMarkCollaborativeProse {
         return try projectItems(items, of: container, from: 0, dialect: dialect, identity: &identity)
     }
 
+    private static func projectTable(_ node: [String: Any], rows: [[String: Any]],
+                                     identity: inout Int) throws -> [(Chunk, AttributedString)]? {
+        let physical = node["attributes"] as? [String: Any] ?? [:]
+        let attributes = try RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: "table", attributes: physical)
+        guard Set(attributes.keys).isSubset(of: ["relaymarkId"]), let first = rowColumns(rows[0]), first.width > 0,
+              rows.allSatisfy({ rowColumns($0)?.width == first.width }) else { return nil }
+        identity += 1
+        var container = Container(name: "table",
+            intent: PresentationIntent(.table(columns: Array(repeating: .init(alignment: .left), count: first.width)),
+                                       identity: identity, parent: nil),
+            start: 1, attributes: try JSONSerialization.data(withJSONObject: physical, options: [.sortedKeys]),
+            identities: (physical["relaymarkId"] as? String).map { [$0] } ?? [])
+        container.width = first.width
+        return try projectItems(rows, of: container, from: 0, dialect: .rich, identity: &identity)
+    }
+
     private static func projectItems(_ items: [[String: Any]], of container: Container, from base: Int,
                                      dialect: Dialect, identity: inout Int) throws -> [(Chunk, AttributedString)] {
         try items.enumerated().map { offset, item in
+            // A row is laid out on the table's columns, as it is inside the table.
+            let row = container.name == "table" ? rowColumns(item).map {
+                Row(identity: container.intent.components[0].identity, width: container.width, columns: $0.columns)
+            } : nil
             var (chunk, part, next) = try project(item, dialect: dialect, identityStart: identity,
-                                                  parent: container.intent, ordinal: container.start, indexBase: base + offset)
+                                                  parent: container.intent, ordinal: container.start, indexBase: base + offset,
+                                                  row: row)
             identity = next
-            if item["name"] as? String != (container.name == "taskList" ? "taskItem" : "listItem") { chunk.supported = false }
+            if item["name"] as? String != container.itemName || (container.name == "table" && row == nil) { chunk.supported = false }
             chunk.container = container; chunk.nodeStart = base + offset == 0
             return (chunk, part)
         }
+    }
+
+    /// A table row projected alone: its table's presentation identity and
+    /// columns, and where its cells start.
+    private struct Row {
+        let identity: Int
+        let width: Int
+        let columns: [Int]
     }
 
     /// Item units of the top-level list `node` from a fragment holding that
@@ -515,6 +567,8 @@ public struct RelayMarkCollaborativeProse {
               let lists = root["children"] as? [[String: Any]], lists.count == 1, lists[0]["name"] as? String == container.name,
               try JSONSerialization.data(withJSONObject: lists[0]["attributes"] as? [String: Any] ?? [:], options: [.sortedKeys]) == container.attributes,
               let items = lists[0]["children"] as? [[String: Any]] else { return nil }
+        // Rows that would change the table's columns, or span rows, need the whole table.
+        if container.name == "table", !items.allSatisfy({ Self.rowColumns($0)?.width == container.width }) { return nil }
         var identity = identityBase
         let units = try Self.projectItems(items, of: container, from: base, dialect: .rich, identity: &identity)
         return RelayMarkCollaborativeProse(units: units, rootSupported: true, identityLimit: identity)
@@ -538,10 +592,11 @@ public struct RelayMarkCollaborativeProse {
         return chunks[starts.firstUnit(ofNode: node)].container?.attributes
     }
 
-    /// `parent`, `ordinal` and `indexBase` place an item projected alone in its list.
+    /// `parent`, `ordinal` and `indexBase` place an item projected alone in its
+    /// list, and with `row` a row in its table.
     private static func project(_ node: [String: Any], dialect: Dialect, identityStart: Int,
                                 parent: PresentationIntent? = nil, ordinal: Int = 1,
-                                indexBase: Int = 0) throws -> (Chunk, AttributedString, Int) {
+                                indexBase: Int = 0, row: Row? = nil) throws -> (Chunk, AttributedString, Int) {
         let directiveDefinitions = try Self.directiveDefinitions()
         let genericNames = Set(directiveDefinitions.compactMap { $0["name"] as? String })
         var authoredWidgets: [AuthoredWidget] = []
@@ -830,7 +885,7 @@ public struct RelayMarkCollaborativeProse {
                     kind = .table(columns: Array(repeating: .init(alignment: .left), count: table?.width ?? 0))
                 case "tableRow":
                     kind = children.allSatisfy { $0["name"] as? String == "tableHeader" }
-                        ? .tableHeaderRow : .tableRow(rowIndex: index)
+                        ? .tableHeaderRow : .tableRow(rowIndex: position)
                 case "tableHeader", "tableCell":
                     kind = .tableCell(columnIndex: tableColumns?[index] ?? index)
                 case "calloutTitle":
@@ -864,7 +919,7 @@ public struct RelayMarkCollaborativeProse {
                 } else if name == "tableRow" {
                     guard dialect == .rich, let columns = tableRows?[index] else { supported = false; continue }
                     try walk(children, path: blockPath, parent: intent, tableColumns: columns,
-                         tableIdentity: tableIdentity, tableWidth: tableWidth, tableRow: index)
+                         tableIdentity: tableIdentity, tableWidth: tableWidth, tableRow: position)
                 } else if name == "tableHeader" || name == "tableCell" {
                     guard dialect == .rich, let tableIdentity, let tableWidth, let tableRow,
                           let column = tableColumns?[index], !children.isEmpty else {
@@ -975,7 +1030,8 @@ public struct RelayMarkCollaborativeProse {
             }
             offsets.append(length()); boundaries[path] = offsets
         }
-        try walk([node], path: [], parent: parent, ordinal: ordinal, indexBase: indexBase)
+        try walk([node], path: [], parent: parent, ordinal: ordinal, tableRows: row.map { [$0.columns] },
+                 tableIdentity: row?.identity, tableWidth: row?.width, indexBase: indexBase)
         boundaries[[]] = nil
         var chunk = Chunk()
         chunk.name = node["name"] as? String ?? ""
@@ -1389,13 +1445,14 @@ extension RelayMarkCollaborativeProse {
     /// Replaces items `items` of the top-level list `node` with `replacement`,
     /// item units from `projectItems`, with the same results. Nil, unchanged,
     /// when the list would lose its first or every item, or an ordered list's
-    /// items would renumber; the host then replaces the whole list.
+    /// items or a table's rows would renumber; the host then replaces the whole list.
     public mutating func replaceItems(_ items: Range<Int>, ofTopLevel node: Int, with replacement: RelayMarkCollaborativeProse)
         -> (old: NSRange, new: NSRange, content: NSRange)? {
         guard let count = itemCount(ofTopLevel: node), items.lowerBound >= 0, items.lowerBound <= items.upperBound,
               items.upperBound <= count, replacement.chunks.allSatisfy({ $0.container != nil }),
               !(items.lowerBound == 0 && replacement.chunks.isEmpty), count - items.count + replacement.chunks.count > 0,
-              chunks[starts.firstUnit(ofNode: node)].container?.name != "orderedList" || replacement.chunks.count == items.count
+              !["orderedList", "table"].contains(chunks[starts.firstUnit(ofNode: node)].container?.name ?? "")
+                || replacement.chunks.count == items.count
         else { return nil }
         return replaceUnits(units(ofItems: items, of: node), with: replacement)
     }
