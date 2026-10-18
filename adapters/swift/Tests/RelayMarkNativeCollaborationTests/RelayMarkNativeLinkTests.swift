@@ -9,7 +9,7 @@ final class RelayMarkNativeLinkTests: XCTestCase {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "links-v1", withExtension: "json"))
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         for item in try XCTUnwrap(fixture["cases"] as? [[String: Any]]) {
-            let doc = RelayMarkNativeDocument(), browser = try RelayMarkCollaborationDocument()
+            let doc = RelayMarkNativeDocument(), browser = RelayMarkNativeDocument()
             let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(item["seed"] as? String)))
             try doc.applyUpdate(seed); try browser.applyUpdate(seed)
             let before = try doc.snapshot(), projection = try doc.proseProjection()

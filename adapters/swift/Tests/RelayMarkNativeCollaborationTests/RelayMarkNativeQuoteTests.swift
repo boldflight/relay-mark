@@ -26,7 +26,7 @@ final class RelayMarkNativeQuoteTests: XCTestCase {
             XCTAssertEqual(resolved.path, [0, 0, 0]); XCTAssertEqual(resolved.index, expected["index"] as? Int)
         }
         XCTAssertEqual(try doc.resolve(anchor: quote)?.path, [0]); XCTAssertEqual(try doc.resolve(anchor: paragraph)?.path, [0, 0])
-        let browser = try RelayMarkCollaborationDocument(); try browser.applyUpdate(bytes(fixture, "seed")); try browser.applyUpdate(update)
+        let browser = RelayMarkNativeDocument(); try browser.applyUpdate(bytes(fixture, "seed")); try browser.applyUpdate(update)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary, fixture["after"] as? NSDictionary)
         _ = try XCTUnwrap(doc.undo()); XCTAssertEqual(try doc.snapshot(), before); _ = try XCTUnwrap(doc.redo())
         let peer = RelayMarkNativeDocument(); try peer.applyUpdate(bytes(fixture, "seed"))
@@ -58,7 +58,7 @@ final class RelayMarkNativeQuoteTests: XCTestCase {
             var nodes = [quote]
             if mutation == "mixed" { nodes.append(["kind": "element", "name": "paragraph", "children": []]) }
             if mutation == "nested" { nodes = [["kind": "element", "name": "blockquote", "children": nodes]] }
-            let source = try RelayMarkCollaborationDocument(); _ = try source.edit(JSONSerialization.data(withJSONObject: ["kind": "insertNodes", "path": [], "index": 0, "nodes": nodes]))
+            let source = RelayMarkNativeDocument(); _ = try source.edit(JSONSerialization.data(withJSONObject: ["kind": "insertNodes", "path": [], "index": 0, "nodes": nodes]))
             let invalid = RelayMarkNativeDocument(); try invalid.applyUpdate(source.encodeUpdate())
             let checkpoint = try invalid.encodeUpdate()
             XCTAssertFalse(invalid.supportsQuoteEditing(), mutation)

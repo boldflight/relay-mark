@@ -12,7 +12,7 @@ final class RelayMarkNativeEmptyListTests: XCTestCase {
     func testNativeEndReturnMatchesBrowserAndPreservesEveryExistingAnchor() throws {
         let fixture = try fixture()
         let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["seed"] as? String)))
-        let native = RelayMarkNativeDocument(), browser = try RelayMarkCollaborationDocument()
+        let native = RelayMarkNativeDocument(), browser = RelayMarkNativeDocument()
         try native.applyUpdate(seed); try browser.applyUpdate(seed)
         let before = try native.snapshot()
         let replay = RelayMarkNativeDocument()

@@ -4,7 +4,7 @@ import JavaScriptCore
 /// The same packaged portable source/AST grammar used by browser clients.
 /// This runtime owns no Yjs document, undo manager, transport or host domain actions.
 public enum RelayMarkSourceCodec {
-    public enum Failure: Error, Equatable { case unavailable, invalidInput, invalidAuthoredDocument, sourceIdentityMismatch, sourceReferenceMismatch, sourceIdentityLimit }
+    public enum Failure: Error, Equatable { case unavailable, invalidInput, invalidAuthoredDocument }
     public static func parseDocument(_ source: String, namespace: String) throws -> Data {
         try call("parseDocument",arguments:[source,["namespace":namespace]])
     }
@@ -50,39 +50,6 @@ public enum RelayMarkSourceCodec {
     public static func validateTextAttributes(_ attributes: [String:Any]) throws {
         guard try json(call("validateTextAttributes",arguments:[attributes])) as? Bool == true else { throw Failure.invalidAuthoredDocument }
     }
-    /// Stateless classification of host-authenticated current receipts. Neither
-    /// these JSON inputs nor its result grants source or document authority.
-    public static func classifyContentEditReference(binding: Data, transaction: Data, proof: Data, humanAncestry: Data, regionalContext: Data? = nil) throws -> Data {
-        var arguments = [try json(binding), try json(transaction), try json(proof), try json(humanAncestry)]
-        if let regionalContext { arguments.append(try json(regionalContext)) }
-        return try call("classifyContentEditReference", arguments: arguments)
-    }
-    public static func foldSourceReferences(binding: Data, candidateSelector: Data, references: Data, regionalContexts: Data? = nil) throws -> Data {
-        var arguments = [try json(binding), try json(candidateSelector), try json(references)]
-        if let regionalContexts { arguments.append(try json(regionalContexts)) }
-        return try call("foldSourceReferences", arguments: arguments)
-    }
-    /// Only independently authenticated human/generated subsets may be supplied.
-    /// The remaining exact imported destinations are unknown, never inferred generated.
-    public static func partitionReviewedRecoveryDestinations(_ input: Data) throws -> Data {
-        try call("partitionReviewedRecoveryDestinations", arguments: [json(input)])
-    }
-    public static func validateSourceReadSelector(_ selector: Data) throws {
-        guard try json(call("validateSourceReadSelector",arguments:[json(selector)])) as? Bool == true else {throw Failure.invalidInput}
-    }
-    /// Bounded read windows over the current admitted visible snapshot.
-    public static func sourceSelectorWindows(identitySnapshot: Data) throws -> Data {
-        try call("sourceSelectorWindows",arguments:[json(identitySnapshot)])
-    }
-    /// Visible current candidates only; unavailable items never imply deletion.
-    public static func resolveTextItems(identitySnapshot: Data, selector: Data) throws -> Data {
-        try call("resolveContentEditTextItems",arguments:[json(identitySnapshot),json(selector)])
-    }
-    /// Original outgoing/server-delta footprints plus the independently trusted
-    /// atomic server vector. Local observed clocks/tombstones confer no ACK.
-    public static func reconciliationCoverage(localFootprint: Data, serverFootprint: Data, serverStateVector: Data) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "reconciliationCoverage", arguments: [json(localFootprint), json(serverFootprint), Array(serverStateVector)])
-    }
     public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
     private static func json(_ data: Data) throws -> Any {
         try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)
@@ -117,13 +84,6 @@ enum RelayMarkPortableRuntime {
         context.setObject(arguments,forKeyedSubscript:"relayMarkRuntimeArguments" as NSString)
         let result=context.evaluateScript("JSON.stringify(globalThis[relayMarkRuntimeGlobal][relayMarkRuntimeOperation](...relayMarkRuntimeArguments))")
         if let exception=context.exception {
-            if operation == "classifyContentEditReference" || operation == "foldSourceReferences" || operation == "partitionReviewedRecoveryDestinations" {
-                switch exception.forProperty("code")?.toString() {
-                case "source_identity_mismatch": throw RelayMarkSourceCodec.Failure.sourceIdentityMismatch
-                case "source_identity_limit": throw RelayMarkSourceCodec.Failure.sourceIdentityLimit
-                default: throw RelayMarkSourceCodec.Failure.sourceReferenceMismatch
-                }
-            }
             throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
         }
         guard let encoded=result?.toString(),let data=encoded.data(using:.utf8) else {throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument}

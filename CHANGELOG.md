@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Removes the Swift collaboration proof machinery under Relay's standard
+  collaboration plan: the JavaScriptCore Yjs replica
+  (`RelayMarkCollaborationDocument` and `yjs-runtime.js`), the content-edit
+  witness, owned-history groups and archives, identity/text-item capture,
+  reviewed-recovery import and the source-reference codec calls.
+  `RelayMarkLocalTransaction` now carries only its id, update and input intent.
+  `RelayMarkNativeDocument` keeps a plain Yrs `UndoManager` for its own origin,
+  with `editorCommand(separateUndoItem:)` grouping a typing burst into one undo
+  item, and garbage-collects deleted content. `RelayMarkRelativeRange` replaces
+  the replica's relative range type.
+
 - Repairs canonical browser history restoration after Yrs sorts mark attribute
   keys, reconstructing the known producer encoding against the unchanged
   original archive hash. The detached repair preserves selective Undo/Redo and

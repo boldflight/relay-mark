@@ -5,20 +5,20 @@ import RelayMarkCollaboration
 
 @MainActor
 final class RelayMarkNativeStructuredTests: XCTestCase {
-    private func pair(_ name: String) throws -> (RelayMarkNativeDocument, RelayMarkCollaborationDocument) {
+    private func pair(_ name: String) throws -> (RelayMarkNativeDocument, RelayMarkNativeDocument) {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "structured-v1", withExtension: "json"))
         let value = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let cases = try XCTUnwrap(value["cases"] as? [[String: Any]])
         let item = try XCTUnwrap(cases.first { $0["name"] as? String == name })
         let bytes = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(item["update"] as? String)))
-        let native = RelayMarkNativeDocument(), browser = try RelayMarkCollaborationDocument()
+        let native = RelayMarkNativeDocument(), browser = RelayMarkNativeDocument()
         try native.applyUpdate(bytes); try browser.applyUpdate(bytes)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
                        item["snapshot"] as? NSDictionary)
         return (native, browser)
     }
 
-    private func equal(_ native: RelayMarkNativeDocument, _ browser: RelayMarkCollaborationDocument) throws {
+    private func equal(_ native: RelayMarkNativeDocument, _ browser: RelayMarkNativeDocument) throws {
         XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
                        try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary)
     }
@@ -111,7 +111,7 @@ final class RelayMarkNativeStructuredTests: XCTestCase {
         XCTAssertEqual(try native.encodeUpdate(), before)
 
         for attributes in ["{\"level\":true}", "{\"level\":7}", "{\"level\":2,\"unknown\":true}"] {
-            let reference = try RelayMarkCollaborationDocument()
+            let reference = RelayMarkNativeDocument()
             _ = try reference.edit(Data("{\"kind\":\"insertNodes\",\"path\":[],\"index\":0,\"nodes\":[{\"kind\":\"element\",\"name\":\"heading\",\"attributes\":\(attributes),\"children\":[{\"kind\":\"text\",\"delta\":[{\"insert\":\"x\"}]}]}]}".utf8))
             let invalid = RelayMarkNativeDocument(); try invalid.applyUpdate(reference.encodeUpdate())
             let saved = try invalid.encodeUpdate()

@@ -29,6 +29,9 @@ The JavaScriptCore host supplies cryptographic random bytes and UTF-8 encoding t
 
 ## Verification
 
+> The Swift JavaScriptCore replica (`RelayMarkCollaborationDocument`) and its `RelayMarkCollaborationTests` round trip were removed on October 19, 2026 under Relay's standard collaboration plan. The native client uses YSwift/Yrs only; the Swift steps below are historical.
+
+
 ```sh
 DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer swift test
 RELAY_COLLABORATION_INTEROP_OUTPUT=/private/tmp/relay-native-interop.json \

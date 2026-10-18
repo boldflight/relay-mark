@@ -131,6 +131,15 @@ public final class RelayMarkNativePresence {
         }
     }
 
+    /// Removes peers the server reports gone, whatever origin delivered them.
+    public func removePresence(clientIDs: [UInt64]) throws {
+        for id in clientIDs where id != clientID {
+            _ = try awareness.removeRemoteState(for: id)
+            for key in Array(origins.keys) { origins[key]?.remove(id) }
+        }
+        origins = origins.filter { !$0.value.isEmpty }
+    }
+
     public func clearRemotePresence() throws {
         for state in try awareness.states() where state.clientID != clientID && state.state != nil {
             _ = try awareness.removeRemoteState(for: state.clientID)

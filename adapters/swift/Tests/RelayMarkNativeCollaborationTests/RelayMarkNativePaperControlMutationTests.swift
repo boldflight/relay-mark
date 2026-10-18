@@ -20,22 +20,15 @@ final class RelayMarkNativePaperControlMutationTests: XCTestCase {
     func testInsertUpdateRemoveRetainIdentityAndReplayToPeers() throws {
         let update = try fixture()
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         for replica in [native, peer] { try replica.applyUpdate(update) }
         try browser.applyUpdate(update)
 
         let block = RelayMarkNativePaperControlMutation.Block(
             id: insertedID, control: .anchor, authored: ["name": "later"])
-        let observation = try native.captureContentEditObservation()
         let inserted = try RelayMarkNativePaperControlMutation.insert(
             document: native, atRootIndex: 1,
             expectedPreviousID: paragraphID, expectedNextID: anchorID, block: block)
-        let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: inserted.steps) as? [[String: Any]])
-        XCTAssertEqual(steps.first?["stepType"] as? String, "replace")
-        let witness = try XCTUnwrap(JSONSerialization.jsonObject(with:
-            native.buildContentEditWitness(observation, steps: inserted.steps, update: inserted.update)) as? [String: Any])
-        XCTAssertEqual((witness["text_items"] as? [String: Any])?["runs"] as? [[String: Int]], [])
-        XCTAssertFalse(inserted.beforeSnapshot.isEmpty)
         try peer.applyUpdate(inserted.update)
         try browser.applyUpdate(inserted.update)
         XCTAssertEqual(try peer.snapshot(), try native.snapshot())

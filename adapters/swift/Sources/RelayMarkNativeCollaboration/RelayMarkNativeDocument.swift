@@ -1,6 +1,5 @@
 import Foundation
 import CoreFoundation
-import CryptoKit
 import RelayMarkProseProjection
 import YSwift
 import RelayMarkSwift
@@ -27,310 +26,57 @@ public final class RelayMarkNativeDocument {
         case invalidUTF16Range
         case invalidAnchor
         case unsupportedProseEdit
-        case unboundOwnedHistory
-        case conflictingOwnedCommand
     }
 
     private let document: YDocument
     private let root: YXmlNode
     private let metadata: YMap<RelayMarkValue>
     private let localOrigin: Origin
-    private var undoManager: YUndoManager<NSObject>
+    /// Tracks only this document's local origin, so undo never reverts a peer's edit.
+    private let undoManager: YUndoManager<NSObject>
     public let presence: RelayMarkNativePresence
-    /// Stable identity of this actual manager, supplied by its persisted journal on restore.
-    public let historyOwnerID: UUID
-    private var historySubscriptions: [YSubscription] = []
-    private var ownedOperationID: UUID?
-    private final class HistoryCapture {
-        var inverseMetadata: [NSMutableData] = []
-        var operations: [UUID]?
-    }
-    private var historyCapture: HistoryCapture?
 
-    public convenience init(guid: String = UUID().uuidString, retainDeletedItems: Bool = true, historyOwnerID: UUID = UUID()) {
-        self.init(document: YDocument(guid: guid, retainDeletedItems: retainDeletedItems), historyOwnerID: historyOwnerID)
-    }
-
-    private init(document: YDocument, historyOwnerID: UUID) {
+    public init(guid: String = UUID().uuidString) {
+        let document = YDocument(guid: guid, retainDeletedItems: false)
         let root = document.getOrCreateXmlFragment(named: "default")
         let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
         let origin = Origin(UUID().uuidString)
         let undoManager: YUndoManager<NSObject> = document.undoManager(trackedRefs: [root,metadata])
         undoManager.addOrigin(origin)
         undoManager.preserveChangedXML()
-        self.historyOwnerID = historyOwnerID
         self.document = document
         self.root = root
         self.metadata = metadata
         localOrigin = origin
         self.undoManager = undoManager
         presence = RelayMarkNativePresence(awareness: document.makeAwareness())
-        installHistoryObservers()
-    }
-
-    /// Maintained identities and full rich runs, including authored envelope
-    /// metadata, without a host traversal or text-diff reconstruction.
-    public func captureIdentitySnapshot() throws -> Data {
-        _ = try authoredDocument()
-        return try retainedIdentitySnapshot()
-    }
-
-    /// Detached archive inspection only: the shared finite converter qualifies
-    /// aggregate settings before raw retained identities are observed. Normal
-    /// live identity capture continues to require canonical authored content.
-    public func captureAggregateArchiveIdentitySnapshot() throws -> Data {
-        guard integrationStatus().isComplete else { throw Failure.unsupportedProseEdit }
-        _ = try RelayMarkContentEditCodec.importAggregateSettingsSnapshot(snapshot())
-        return try retainedIdentitySnapshot()
-    }
-
-    private func retainedIdentitySnapshot() throws -> Data {
-        var tree=try JSONSerialization.jsonObject(with:document.inspectXMLSnapshot()) as! [String:Any]
-        let envelope=metadata.toMap()
-        if !envelope.isEmpty {tree["metadata"]=try JSONSerialization.jsonObject(with:JSONEncoder().encode(envelope))}
-        return try JSONSerialization.data(withJSONObject:tree,options:[.sortedKeys])
-    }
-    /// The exact original update's allocated/deleted/hidden items and maintained
-    /// clocks. Empty update bytes obtain a trusted vector without a wire decoder.
-    public func captureUpdateFootprint(_ update: Data) throws -> Data {
-        _ = try authoredDocument()
-        return try document.inspectUpdateFootprint(update)
-    }
-
-    /// Exact upstream sender Snapshot bytes from this same settled retained owner.
-    public func captureSenderSnapshot() throws -> Data {
-        _ = try authoredDocument()
-        return try document.stateSnapshot()
-    }
-
-    /// Actual visible UTF-16 item identities on this canonical rich document.
-    /// Positions count text units, including both units of a surrogate pair.
-    public func captureTextItems(path: [Int], start: Int, length: Int) throws -> Data {
-        _ = try authoredDocument()
-        guard let start = UInt32(exactly: start), let length = UInt32(exactly: length) else { throw Failure.invalidUTF16Range }
-        let data = try document.transactSync { tx in
-            var node = self.root
-            for index in path {
-                guard let index = UInt32(exactly:index), let child = node.child(at:index,in:tx) else { throw Failure.invalidTextPath }
-                node = child
-            }
-            return try node.textItems(start:start,length:length,in:tx)
-        }
-        var envelope = try JSONSerialization.jsonObject(with:data) as! [String:Any]
-        envelope["contract_version"] = RelayMarkContract.version; envelope["kind"] = "text_items"
-        return try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
-    }
-
-    /// Captures every visible rich XML string identity in one maintained bounded
-    /// traversal. A supplied pre-state vector returns only newly allocated visible
-    /// identities, including independent nested widget edits. Deleted ancestors and
-    /// format markers are excluded; the host still proves authorship/copy witnesses.
-    public func captureVisibleTextItems(since stateVector: Data? = nil) throws -> Data {
-        _ = try authoredDocument()
-        let data = try document.inspectVisibleTextItems(since:stateVector ?? Data([0]),rootName:"default")
-        var envelope = try JSONSerialization.jsonObject(with:data) as! [String:Any]
-        envelope["contract_version"] = RelayMarkContract.version
-        envelope["kind"] = "text_items"
-        return try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
-    }
-
-    /// Exact causal evidence for one bold/italic update against this unchanged
-    /// prestate. Immutable record authentication remains the host's responsibility.
-    public func captureFormatEvent(update: Data, mark: String, textItems: Data, operationID: UUID) throws -> Data {
-        _ = try authoredDocument()
-        guard ["bold","italic"].contains(mark),
-              let selection = try JSONSerialization.jsonObject(with:textItems) as? [String:Any],
-              Set(selection.keys) == ["contract_version","kind","runs"],
-              selection["contract_version"] as? Int == RelayMarkContract.version,
-              selection["kind"] as? String == "text_items", let runs = selection["runs"] as? [[String:Any]] else { throw Failure.unsupportedProseEdit }
-        let bare = try JSONSerialization.data(withJSONObject:["runs":runs],options:[.sortedKeys])
-        let result = try document.inspectFormatEvent(update:update,attribute:mark,textItems:bare)
-        var event = try JSONSerialization.jsonObject(with:result) as! [String:Any]
-        // Observe the full rich tree to refuse a claimed selection that hides
-        // actual enabled-state changes to unrelated text.
-        let all = try JSONSerialization.jsonObject(with:captureVisibleTextItems()) as! [String:Any]
-        let allBare = try JSONSerialization.data(withJSONObject:["runs":all["runs"]!],options:[.sortedKeys])
-        let whole = try JSONSerialization.jsonObject(with:document.inspectFormatEvent(update:update,attribute:mark,textItems:allBare)) as! [String:Any]
-        let changes = event["changes"] as! [[String:Any]]
-        func identity(_ unit: Any) throws -> Data { try JSONSerialization.data(withJSONObject:unit,options:[.sortedKeys]) }
-        let selected = try Set(changes.map { try identity($0["unit"]!) })
-        func enabled(_ state: [String:Any]) throws -> Bool {
-            if state["value"] is NSNull { return false }
-            guard let value = state["value"] as? [String:Any], value.isEmpty else { throw Failure.unsupportedProseEdit }
-            return true
-        }
-        for change in whole["changes"] as! [[String:Any]] where try !selected.contains(identity(change["unit"]!)) {
-            guard try enabled(change["before"] as! [String:Any]) == enabled(change["after"] as! [String:Any]) else { throw Failure.unsupportedProseEdit }
-        }
-        event["changes"] = try changes.map { change -> [String:Any] in
-            let before = change["before"] as! [String:Any], after = change["after"] as! [String:Any]
-            return ["unit":change["unit"]!,"before":["marker":before["marker"]!,"enabled":try enabled(before)],"after":["marker":after["marker"]!,"enabled":try enabled(after)]]
-        }
-        event["contract_version"] = RelayMarkContract.version;event["kind"] = "format_event"
-        event["operation_id"] = operationID.uuidString.lowercased();event["mark"] = mark
-        event["update_sha256"] = SHA256.hash(data:update).map { String(format:"%02x",$0) }.joined()
-        event["text_items"] = ["runs":runs]
-        return try JSONSerialization.data(withJSONObject:event,options:[.sortedKeys])
-    }
-
-    /// Immediate maintained undo/redo ancestry. Capture before checkpointing and
-    /// retain it in the host's immutable operation journal; wire bytes lack redone links.
-    public func captureRestoredTextItems(since stateVector: Data) throws -> Data {
-        _ = try authoredDocument()
-        return try document.inspectRestoredTextItems(since:stateVector,rootName:"default")
-    }
-
-    /// Capture intent before mutation using the same rich text owner and upstream
-    /// RelativePosition JSON as browser/headless operations. No flat-text indexing.
-    public func captureReplaceProseOperation(start: Position, end: Position, text: String,
-                                             attributes: [String:Any] = [:]) throws -> Data {
-        _ = try authoredDocument()
-        guard (start.path==end.path && start.index<=end.index) || start.path.lexicographicallyPrecedes(end.path),
-              JSONSerialization.isValidJSONObject(attributes) else { throw Failure.unsupportedProseEdit }
-        let typeIdentities = try document.transactSync { tx -> [[String:Any]] in
-            var types:[[String:Any]]=[]
-            for position in [start,end] {
-                var node=self.root
-                for index in position.path {
-                    guard let index=UInt32(exactly:index),let child=node.child(at:index,in:tx) else {throw Failure.invalidTextPath}
-                    node=child
-                }
-                guard node.kind(in:tx)=="text" else {throw Failure.invalidTextPath}
-                let units=Array(try node.text(in:tx).utf16)
-                guard position.index>=0,position.index<=units.count else {throw Failure.invalidUTF16Range}
-                if position.index>0 && position.index<units.count && (0xd800...0xdbff).contains(units[position.index-1]) && (0xdc00...0xdfff).contains(units[position.index]) {throw Failure.invalidUTF16Range}
-                // Binary item anchors omit parent type. The maintained end-of-type
-                // anchor supplies that exact binding without scanning text per unit.
-                let typeAnchor=try node.relativePosition(at:node.length(in:tx),association:0,in:tx)
-                guard let identity=try YDocument.relativePositionJSON(from:typeAnchor)["type"] as? [String:Any] else {throw Failure.invalidAnchor}
-                types.append(identity)
-            }
-            return types
-        }
-        // The shared grammar validates typing marks/links, including exclusivity,
-        // without inventing another application mark allowlist or changing this owner.
-        try RelayMarkSourceCodec.validateTextAttributes(attributes)
-        let a=try anchor(path:start.path,index:start.index,association:start.association)
-        let b=try anchor(path:end.path,index:end.index,association:end.association)
-        var startJSON=try YDocument.relativePositionJSON(from:a),endJSON=try YDocument.relativePositionJSON(from:b)
-        startJSON["type"]=typeIdentities[0];endJSON["type"]=typeIdentities[1]
-        let operation:[String:Any]=["kind":"replace_prose","start_anchor":startJSON,"end_anchor":endJSON,"inserted_text":text,"inserted_attributes":attributes]
-        return try JSONSerialization.data(withJSONObject:operation,options:[.sortedKeys])
     }
 
     public var documentGUID: String { document.guid }
 
-    /// Preview only on an independent fork of this retained live owner. The
-    /// archive still passes the ordinary exact document/owner/scope admission.
-    /// Prospective fork edits must not be persisted or delivered to peers.
-    public func forkHistoryState(_ state: Data, scopeToken: String) throws -> RelayMarkNativeDocument {
-        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
-        let fork = RelayMarkNativeDocument(document: try document.forkRetainedHistory(), historyOwnerID: historyOwnerID)
-        try fork.restoreHistoryState(state, scopeToken: scopeToken)
-        return fork
-    }
-
-    /// One scoped retained Yrs checkpoint. The host owns authorization and durable storage.
-    public func exportHistoryState(scopeToken: String) throws -> Data {
-        let archive = try undoManager.exportHistory(scopeToken:scopeToken) { object in
-            guard let data=object as? NSData else { throw Failure.unsupportedProseEdit }
-            return data as Data
-        }
-        return try JSONSerialization.data(withJSONObject:[
-            "contract_version":RelayMarkContract.version,"kind":"prosemirror_history",
-            "owner_id":historyOwnerID.uuidString.lowercased(),
-            "history":JSONSerialization.jsonObject(with:archive.data)
-        ],options:[.sortedKeys])
-    }
-
-    /// Load the checkpoint update before restoring stacks; integrate newer peer updates afterward.
-    public static func historyDocumentState(_ state: Data) throws -> Data { try historyArchive(state).documentState }
-    public static func historyDocumentGUID(_ state: Data) throws -> String { try historyArchive(state).documentGUID }
-    public static func historyOwner(_ state: Data) throws -> UUID {
-        _ = try historyArchive(state)
-        let value = try JSONSerialization.jsonObject(with:state) as! [String:Any]
-        return UUID(uuidString:value["owner_id"] as! String)!
-    }
-
-    public struct RetainedHistoryImport: Sendable {
-        public let originalState: Data
-        public let state: Data
-        public let normalizations: Data
-    }
-
-    /// Explicit finite conversion of saved single-command receipt metadata.
-    /// Preserve originalState durably before installing state. Unknown metadata
-    /// remains unbound evidence; it never becomes an owned command receipt.
-    public static func importRetainedHistoryState(_ state: Data, historyOwnerID: UUID) throws -> RetainedHistoryImport {
-        guard var envelope = try JSONSerialization.jsonObject(with:state) as? [String:Any],
-              Set(envelope.keys)==["contract_version","kind","history"] || Set(envelope.keys)==["contract_version","kind","history","owner_id"],
-              envelope["kind"] as? String == "prosemirror_history",
-              let version=envelope["contract_version"] as? NSNumber,
-              CFGetTypeID(version) != CFBooleanGetTypeID(),version.doubleValue==Double(RelayMarkContract.version),
-              var archive=envelope["history"] as? [String:Any],let metadata=archive["metadata"] as? [Any] else {throw Failure.unsupportedProseEdit}
-        var changes:[[String:Any]]=[]
-        _ = try YUndoHistoryArchive(data:JSONSerialization.data(withJSONObject:archive,options:[.sortedKeys]))
-        let owner = historyOwnerID.uuidString.lowercased()
-        if let old=envelope["owner_id"] {guard old as? String == owner else {throw Failure.conflictingOwnedCommand}}
-        else {envelope["owner_id"]=owner;changes.append(["path":["owner_id"],"operation":"history_owner","value":owner])}
-        archive["metadata"] = try metadata.enumerated().map { index,value -> Any in
-            guard let object=value as? [String:Any] else {return value}
-            if Set(object.keys)==["operation_id"] {
-                guard let text=object["operation_id"] as? String,let id=UUID(uuidString:text) else {throw Failure.unboundOwnedHistory}
-                changes.append(["path":["history","metadata",index],"operation":"owned_command_group"])
-                return ["owner_id":owner,"operation_ids":[id.uuidString.lowercased()]]
-            }
-            if Set(object.keys)==["operation_ids"] {
-                var current=object;current["owner_id"]=owner
-                guard operationReferences(current,ownerID:historyOwnerID) != nil else {throw Failure.unboundOwnedHistory}
-                changes.append(["path":["history","metadata",index,"owner_id"],"operation":"history_owner","value":owner])
-                return current
-            }
-            return value
-        }
-        envelope["history"] = archive
-        let imported = changes.isEmpty ? state : try JSONSerialization.data(withJSONObject:envelope,options:[.sortedKeys])
-        _ = try historyArchive(imported)
-        return RetainedHistoryImport(originalState:state,state:imported,normalizations:try JSONSerialization.data(withJSONObject:changes,options:[.sortedKeys]))
-    }
-
-    /// Rejection preserves the current document and manager. No reconstruction or second engine.
-    public func restoreHistoryState(_ state: Data, scopeToken: String) throws {
-        let archive = try Self.historyArchive(state)
-        guard try Self.historyOwner(state) == historyOwnerID else {throw Failure.conflictingOwnedCommand}
-        let manager: YUndoManager<NSObject> = try document.restoreUndoManager(
-            trackedRefs:[root,metadata],history:archive,scopeToken:scopeToken,
-            decodeMetadata:{ $0 as NSData })
-        manager.addOrigin(localOrigin)
-        manager.preserveChangedXML()
-        historySubscriptions.forEach { $0.cancel() }
-        undoManager=manager
-        installHistoryObservers()
-    }
-
-    private static func historyArchive(_ state: Data) throws -> YUndoHistoryArchive {
-        guard let value=try JSONSerialization.jsonObject(with:state) as? [String:Any],
-              Set(value.keys)==["contract_version","kind","history","owner_id"],
-              let owner=value["owner_id"] as? String,let ownerID=UUID(uuidString:owner),ownerID.uuidString.lowercased()==owner,
-              let version=value["contract_version"] as? NSNumber,
-              CFGetTypeID(version) != CFBooleanGetTypeID(),version.doubleValue==Double(RelayMarkContract.version),
-              value["kind"] as? String=="prosemirror_history",let archive=value["history"] as? [String:Any] else { throw Failure.unsupportedProseEdit }
-        if let values=archive["metadata"] as? [Any] {
-            for item in values {
-                if let object=item as? [String:Any],object["owner_id"] != nil || object["operation_ids"] != nil || object["operation_id"] != nil {
-                    guard operationReferences(object,ownerID:ownerID) != nil else {throw Failure.conflictingOwnedCommand}
-                }
-            }
-        }
-        return try YUndoHistoryArchive(data:JSONSerialization.data(withJSONObject:archive,options:[.sortedKeys]))
-    }
-
     private var undoGroupDepth = 0
+    private var editorCommandDepth = 0
 
-    /// Closes the current undo item unless an enclosing group is open.
+    /// Closes the current undo item unless an enclosing group or editor command is open.
     private func wrapUndo() {
-        if undoGroupDepth == 0 && ownedOperationID == nil { undoManager.wrap() }
+        if undoGroupDepth == 0 && editorCommandDepth == 0 { undoManager.wrap() }
     }
+
+    /// Runs one editor command. Consecutive ordinary edits join the current undo
+    /// item, as the Yjs UndoManager capture timeout groups a typing burst; a
+    /// semantic command (a paste, a block insertion) is its own item.
+    public func editorCommand<T>(separateUndoItem: Bool = false, _ body: () throws -> T) rethrows -> T {
+        if separateUndoItem, undoGroupDepth == 0 { undoManager.wrap() }
+        editorCommandDepth += 1
+        defer {
+            editorCommandDepth -= 1
+            if separateUndoItem, undoGroupDepth == 0 { undoManager.wrap() }
+        }
+        return try body()
+    }
+
+    /// Ends the current undo item so the next edit starts a new one.
+    public func closeUndoItem() { if undoGroupDepth == 0 { undoManager.wrap() } }
 
     /// Runs several local edits as one undo item, as one ProseMirror
     /// transaction would be (for example deleting a selection, then Return).
@@ -380,12 +126,6 @@ public final class RelayMarkNativeDocument {
 
     public func mergeUpdates(_ updates: [Data]) throws -> Data {
         try YDocument.mergeUpdatesV1(updates)
-    }
-
-    /// Read community deletion metadata; callers must distinguish original
-    /// updates from reconstructed state before interpreting sender observation.
-    public static func hasAdditionalDeletionsV1(before: Data, after: Data, declaredBy: Data) throws -> Bool {
-        try YDocument.hasAdditionalDeletionsV1(before: before, after: after, declaredBy: declaredBy)
     }
 
     /// The same lossless XML JSON shape used by the existing collaboration adapter.
@@ -807,204 +547,18 @@ public final class RelayMarkNativeDocument {
         return result
     }
 
-    /// Bind each immutable command UUID to the maintained typing group. Capturing
-    /// a durable checkpoint does not close that live group. Hosts may explicitly
-    /// request a boundary for a semantic command, never for every keystroke.
-    public func performOwnedCommand(operationID: UUID, separateHistoryItem: Bool = false,
-                                    _ command: () throws -> Data) throws -> Data {
-        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
-        let history = undoManager.undoMetadata() + undoManager.redoMetadata()
-        guard !history.contains(where: { self.operationReferences($0)?.contains(operationID) == true }) else { throw Failure.conflictingOwnedCommand }
-        if separateHistoryItem || undoManager.undoMetadata().last.map({ self.operationReferences($0).map({$0.count>=4096}) ?? true }) == true {
-            undoManager.wrap()
-        }
-        ownedOperationID = operationID
-        defer { ownedOperationID = nil; if separateHistoryItem { undoManager.wrap() } }
-        return try command()
-    }
-
-    public func closeOwnedHistoryGroup() throws {
-        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
-        undoManager.wrap()
-    }
-
-    public struct OwnedCommandGroup: Sendable {
-        public let ownerID: UUID
-        public let reference: UUID
-        public let operationIDs: [UUID]
-        public init(ownerID: UUID, reference: UUID, operationIDs: [UUID]) {
-            self.ownerID = ownerID; self.reference = reference; self.operationIDs = operationIDs
-        }
-    }
-    public func ownedCommandGroup(operationID: UUID) throws -> OwnedCommandGroup {
-        guard let metadata=undoManager.undoMetadata().last,
-              let operations=self.operationReferences(metadata),operations.last==operationID,
-              let first=operations.first else {throw Failure.unboundOwnedHistory}
-        return OwnedCommandGroup(ownerID:historyOwnerID,reference:first,operationIDs:operations)
-    }
-
-    /// Contentless current capabilities from the actual maintained undo and
-    /// redo StackItems. Hosts still authenticate receipt/erasure scope and keep
-    /// original pending packets separately. Reading never closes capture,
-    /// exports an archive, or grants inverse authority.
-    public func ownedHistoryGroups() throws -> [OwnedCommandGroup] {
-        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
-        let undo = undoManager.undoMetadata(), redo = undoManager.redoMetadata()
-        guard undo.count <= 4096, redo.count <= 4096, undo.count + redo.count <= 4096 else { throw Failure.conflictingOwnedCommand }
-        var groups: [OwnedCommandGroup] = [], references = Set<UUID>(), identifiers = Set<UUID>()
-        for metadata in undo + redo {
-            guard let operations = operationReferences(metadata), let reference = operations.first,
-                  references.insert(reference).inserted,
-                  identifiers.count + operations.count <= 16_384 else { throw Failure.unboundOwnedHistory }
-            for id in operations {
-                guard identifiers.insert(id).inserted else { throw Failure.unboundOwnedHistory }
-            }
-            groups.append(OwnedCommandGroup(ownerID: historyOwnerID, reference: reference, operationIDs: operations))
-        }
-        return groups
-    }
-
-    /// Trusted whole-group transition. Hosts authenticate donor dependencies,
-    /// actor/scope and checkpoint binding independently. It changes no document
-    /// bytes or source fact, and never installs a filtered serialized manager.
-    @discardableResult
-    public func retireOwnedHistoryGroups(_ groups: [OwnedCommandGroup]) throws -> (undo: Int, redo: Int) {
-        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0, groups.count <= 16_384 else { throw Failure.conflictingOwnedCommand }
-        var requested: [UUID: [UUID]] = [:]
-        for group in groups {
-            guard group.ownerID == historyOwnerID, group.operationIDs.first == group.reference,
-                  !group.operationIDs.isEmpty, group.operationIDs.count <= 4096,
-                  Set(group.operationIDs).count == group.operationIDs.count,
-                  requested.updateValue(group.operationIDs, forKey: group.reference) == nil else { throw Failure.conflictingOwnedCommand }
-        }
-        var undo: [Int] = [], redo: [Int] = [], seen = Set<UUID>(), found = Set<UUID>()
-        for (isUndo, stack) in [(true, undoManager.undoMetadata()), (false, undoManager.redoMetadata())] {
-            for (index, metadata) in stack.enumerated() {
-                guard let operations = operationReferences(metadata), let reference = operations.first,
-                      seen.insert(reference).inserted else { throw Failure.unboundOwnedHistory }
-                guard let expected = requested[reference] else { continue }
-                guard operations == expected else { throw Failure.conflictingOwnedCommand }
-                found.insert(reference)
-                if isUndo { undo.append(index) } else { redo.append(index) }
-            }
-        }
-        guard found.count == requested.count else { throw Failure.unboundOwnedHistory }
-        let before = try encodeUpdate()
-        let retired = try undoManager.retireHistoryItems(undoIndices: undo, redoIndices: redo)
-        guard try encodeUpdate() == before else { throw Failure.conflictingOwnedCommand }
-        return retired
-    }
-
-    public struct OwnedHistoryEffect: Sendable {
-        public let ownerID: UUID
-        public enum Kind:String,Sendable { case undo,redo }
-        public let kind:Kind
-        /// Actual sender frontier captured before the same manager inverse.
-        public let beforeSnapshot: Data
-        /// Actual maintained synchronization ReplaceStep, independently applied
-        /// to the pre-tree. It observes the effect; receipts still prove ownership.
-        public let steps: Data
-        public let update: Data
-        public let reference: UUID
-        public let operationIDs: [UUID]
-    }
-
-    /// The actual Popped event identifies the consumed group, including skipped
-    /// obsolete items. Receipts remain the host's independent authority.
-    public func undoWithReference() throws -> OwnedHistoryEffect? { try ownedHistory(redo:false) }
-    public func redoWithReference() throws -> OwnedHistoryEffect? { try ownedHistory(redo:true) }
-    private func ownedHistory(redo: Bool) throws -> OwnedHistoryEffect? {
-        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
-        let metadata = redo ? undoManager.redoMetadata() : undoManager.undoMetadata()
-        for object in metadata { guard self.operationReferences(object) != nil else { throw Failure.unboundOwnedHistory } }
-        let bridge = try PMYXmlBridge.canonical()
-        let beforeTree = try JSONSerialization.jsonObject(with:snapshot()) as! [String:Any]
-        let beforePM = try bridge.document(fromSnapshot:beforeTree)
-        let beforeSnapshot = try captureSenderSnapshot()
-        guard let update = try performHistory(redo:redo) else { return nil }
-        guard let operations = lastHistoryOperations,let reference = operations.first else { throw Failure.unboundOwnedHistory }
-        _ = try authoredDocument()
-        let afterTree = try JSONSerialization.jsonObject(with:snapshot()) as! [String:Any]
-        let afterPM = try bridge.document(fromSnapshot:afterTree)
-        // y-tiptap's _typeChanged/_forceRerender synchronizes the entire current
-        // fragment with one transaction.replace(0, old.content.size, new Slice).
-        // This is a read observer of the actual effect, never a fabricated CRDT
-        // inverse, command rebase or provenance authority.
-        let step = PMStep.replace(from:0,to:beforePM.content.size,
-                                  slice:PMSlice(afterPM.content,openStart:0,openEnd:0))
-        var observedSteps=[step.json()]
-        if !pmCompareDeep(beforePM.attrs["relaymark"] ?? [:],afterPM.attrs["relaymark"] ?? [:]) {
-            let metadataStep=PMStep.docAttr(name:"relaymark",value:afterPM.attrs["relaymark"] ?? [:])
-            guard try metadataStep.apply(step.apply(beforePM)).eq(afterPM) else {throw Failure.unsupportedProseEdit}
-            observedSteps.append(metadataStep.json())
-        } else {guard try step.apply(beforePM).eq(afterPM) else {throw Failure.unsupportedProseEdit}}
-        let steps = try JSONSerialization.data(withJSONObject:observedSteps,options:[.sortedKeys])
-        return OwnedHistoryEffect(ownerID:historyOwnerID,kind:redo ? .redo : .undo,beforeSnapshot:beforeSnapshot,steps:steps,update:update,reference:reference,operationIDs:operations)
-    }
-    private var lastHistoryOperations: [UUID]?
-
-    private func operationReferences(_ object: NSObject?) -> [UUID]? {
-        guard let data=object as? NSData,let value=(try? JSONSerialization.jsonObject(with:data as Data)) as? [String:Any] else {return nil}
-        return Self.operationReferences(value,ownerID:historyOwnerID)
-    }
-    private static func operationReferences(_ value: [String:Any], ownerID: UUID) -> [UUID]? {
-        guard Set(value.keys)==["operation_ids","owner_id"],value["owner_id"] as? String==ownerID.uuidString.lowercased(),let ids=value["operation_ids"] as? [String],
-              !ids.isEmpty,ids.count<=4096 else { return nil }
-        let operations=ids.compactMap(UUID.init(uuidString:))
-        guard operations.count==ids.count,Set(operations).count==operations.count,
-              operations.map({$0.uuidString.lowercased()})==ids else {return nil}
-        return operations
-    }
-    private func operationMetadata(_ operationIDs: [UUID]) -> Data {
-        let ids=operationIDs.map{"\""+$0.uuidString.lowercased()+"\""}.joined(separator:",")
-        return Data(("{\"owner_id\":\""+historyOwnerID.uuidString.lowercased()+"\",\"operation_ids\":["+ids+"]}").utf8)
-    }
-    private func bindStackMetadata(current: NSObject? = nil, extending: Bool = false) -> NSObject? {
-        if let capture=self.historyCapture {
-            let placeholder=NSMutableData(data:Data("null".utf8))
-            capture.inverseMetadata.append(placeholder)
-            return placeholder
-        }
-        guard let id=self.ownedOperationID else { return nil }
-        if extending {
-            guard var operations=self.operationReferences(current),operations.count<4096 else {return nil}
-            if !operations.contains(id){operations.append(id)}
-            return self.operationMetadata(operations) as NSData
-        }
-        return self.operationMetadata([id]) as NSData
-    }
-    private func installHistoryObservers() {
-        historySubscriptions = [
-            undoManager.observeAdded { [weak self] _, current in
-                guard let self else { return current }; return self.bindStackMetadata()
-            },
-            undoManager.observeUpdated { [weak self] _, current in
-                guard let self else { return current }; return self.bindStackMetadata(current:current,extending:true)
-            },
-            undoManager.observePopped { [weak self] _, current in
-                guard let self,let capture=self.historyCapture else { return current }
-                capture.operations=self.operationReferences(current)
-                let bytes=capture.operations.map(self.operationMetadata) ?? Data("null".utf8)
-                for inverse in capture.inverseMetadata { inverse.setData(bytes) }
-                return current
-            }
-        ]
-    }
     private func performHistory(redo: Bool) throws -> Data? {
-        guard ownedOperationID == nil, historyCapture == nil, undoGroupDepth == 0 else { throw Failure.conflictingOwnedCommand }
-        let before=stateVector()
-        wrapUndo()
-        let capture=HistoryCapture();historyCapture=capture;lastHistoryOperations=nil
-        defer { historyCapture=nil }
+        guard undoGroupDepth == 0, editorCommandDepth == 0 else { throw Failure.unsupportedProseEdit }
+        let before = stateVector()
+        undoManager.wrap()
         guard try redo ? undoManager.redo() : undoManager.undo() else { return nil }
-        wrapUndo();lastHistoryOperations=capture.operations
-        return try encodeUpdate(since:before)
+        undoManager.wrap()
+        return try encodeUpdate(since: before)
     }
 
-    /// Ordinary undo uses the same manager; it retains an operation reference when
-    /// available without inventing one for unbound historical work.
-    public func undo() throws -> Data? { try performHistory(redo:false) }
-    public func redo() throws -> Data? { try performHistory(redo:true) }
+    /// Plain Yrs undo of this document's own local edits; returns the update to persist and send.
+    public func undo() throws -> Data? { try performHistory(redo: false) }
+    public func redo() throws -> Data? { try performHistory(redo: true) }
 
     /// Portable Yjs relative position; byte format is owned by Yrs, not RelayMark.
     public func anchor(path: [Int], index: Int, association: Int = 0) throws -> Data {

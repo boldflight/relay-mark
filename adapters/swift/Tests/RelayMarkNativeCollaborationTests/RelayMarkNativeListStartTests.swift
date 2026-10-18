@@ -23,7 +23,7 @@ final class RelayMarkNativeListStartTests: XCTestCase {
             XCTAssertEqual(resolved.path, spec["path"] as? [Int])
             XCTAssertEqual(resolved.index, spec["index"] as? Int)
         }
-        let peer = try RelayMarkCollaborationDocument()
+        let peer = RelayMarkNativeDocument()
         try peer.applyUpdate(bytes(fixture, "seed")); try peer.applyUpdate(update)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: peer.snapshot()) as? NSDictionary, try JSONSerialization.jsonObject(with: doc.snapshot()) as? NSDictionary)
         _ = try XCTUnwrap(doc.undo()); XCTAssertEqual(try doc.snapshot(), before)

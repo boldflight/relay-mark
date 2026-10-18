@@ -25,7 +25,7 @@ final class RelayMarkNativeTableProbeTests: XCTestCase {
             let before = try native.encodeUpdate()
             XCTAssertThrowsError(try native.replaceBasicMarkdownProse(start: 0, end: 0, text: "must not flatten"))
             XCTAssertEqual(try native.encodeUpdate(), before, name)
-            let reference = try RelayMarkCollaborationDocument()
+            let reference = RelayMarkNativeDocument()
             try reference.applyUpdate(before)
             XCTAssertEqual(try JSONSerialization.jsonObject(with: reference.snapshot()) as? NSDictionary,
                            item["snapshot"] as? NSDictionary, name)

@@ -23,7 +23,7 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         let initial = try fixture()
         let native = RelayMarkNativeDocument()
         let peer = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         for replica in [native, peer] { try replica.applyUpdate(initial) }
         try browser.applyUpdate(initial)
         let marked = try native.formatText(at: 1, length: 3,
@@ -32,15 +32,9 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         try browser.applyUpdate(marked)
         let originalLeaf = try native.anchor(path: [0, 0], index: 1)
         let adjacentAtom = try native.anchor(path: [0, 1], index: 0)
-        let observation = try native.captureContentEditObservation()
         let inserted = try RelayMarkNativeInlineAtomMutation.insert(
             document: native, blockID: "b00000000000040008000000000000031",
             childIndex: 0, utf16Offset: 2, expectedLeafText: "Meet ", atom: tag())
-        let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: inserted.steps) as? [[String: Any]])
-        XCTAssertEqual(steps.first?["stepType"] as? String, "replace")
-        let witness = try XCTUnwrap(JSONSerialization.jsonObject(with:
-            native.buildContentEditWitness(observation, steps: inserted.steps, update: inserted.update)) as? [String: Any])
-        XCTAssertEqual((witness["text_items"] as? [String: Any])?["runs"] as? [[String: Int]], [])
         try peer.applyUpdate(inserted.update)
         try browser.applyUpdate(inserted.update)
 
@@ -106,7 +100,7 @@ final class RelayMarkNativeInlineAtomMutationTests: XCTestCase {
         let initial = try fixture()
         let native = RelayMarkNativeDocument()
         let peer = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         for replica in [native, peer] { try replica.applyUpdate(initial) }
         try browser.applyUpdate(initial)
 

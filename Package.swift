@@ -22,14 +22,7 @@ let package = Package(
         .target(
             name: "RelayMarkCollaboration",
             dependencies: ["RelayMarkProseProjection"],
-            path: "adapters/swift/Sources/RelayMarkCollaboration",
-            resources: [.process("Resources")]
-        ),
-        .testTarget(
-            name: "RelayMarkCollaborationTests",
-            dependencies: ["RelayMarkCollaboration"],
-            path: "adapters/swift/Tests/RelayMarkCollaborationTests",
-            resources: [.process("Fixtures")]
+            path: "adapters/swift/Sources/RelayMarkCollaboration"
         ),
         .target(
             name: "RelayMarkNativeCollaboration",

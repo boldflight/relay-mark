@@ -38,7 +38,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
         let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"])))
         let native = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         try native.applyUpdate(seed)
         try browser.applyUpdate(seed)
         XCTAssertFalse(native.supportsOrdinaryProseEditing())
@@ -74,7 +74,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
         let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(fixture["update"])))
         let native = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         try native.applyUpdate(seed)
         try browser.applyUpdate(seed)
         let unlinked = try native.taskItems()[1]
@@ -96,7 +96,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
     }
 
     func testTaskListRejectsUnsupportedMetadataWithoutMutatingReplica() throws {
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"taskList","children":[{"kind":"element","name":"taskItem","attributes":{"checked":true,"lastText":"shadow"},"children":[{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"No"}]}]}]}]}]}"#.utf8))
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(browser.encodeUpdate())
@@ -106,7 +106,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
     }
 
     func testBasicMarkdownHeadingEditPreservesTagAndHeadingID() throws {
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":2,"headingId":"agenda"},"children":[{"kind":"text","delta":[{"insert":"Agenda"}]}]},{"kind":"element","name":"paragraph","children":[{"kind":"text","delta":[{"insert":"Notes"}]}]}]}"#.utf8))
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(browser.encodeUpdate())
@@ -129,7 +129,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
     }
 
     func testBasicMarkdownEmptyHeadingAcceptsFirstTextWithoutReplacingElement() throws {
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":1,"headingId":"empty"},"children":[]}]}"#.utf8))
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(browser.encodeUpdate())
@@ -141,7 +141,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
     }
 
     func testBasicMarkdownHardBreakEditPreservesSurroundingTextAndBrowserParity() throws {
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         _ = try browser.edit(Data(#"{"kind":"insertNodes","path":[],"index":0,"nodes":[{"kind":"element","name":"heading","attributes":{"level":3,"headingId":"two-lines"},"children":[{"kind":"text","delta":[{"insert":"One"}]},{"kind":"element","name":"hardBreak","children":[]},{"kind":"text","delta":[{"insert":"Two"}]}]}]}"#.utf8))
         let native = RelayMarkNativeDocument()
         try native.applyUpdate(browser.encodeUpdate())
@@ -171,7 +171,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
 
     func testProseFormattingIsOnePortableMarkOnlyTransactionAcrossParagraphs() throws {
         let native = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         let seed = try native.replaceProse(start: 0, end: 0, text: "Hello\nWorld")
         try browser.applyUpdate(seed)
         let beforeText = String(try native.proseProjection().text.characters)
@@ -220,7 +220,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
 
     func testProseFormattingCanClearOneMarkWithoutRemovingAnother() throws {
         let native = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         try browser.applyUpdate(native.replaceProse(start: 0, end: 0, text: "Marked"))
         try browser.applyUpdate(native.formatProse(start: 0, end: 6,
                                                     attributes: ["bold": [:], "italic": [:]]))
@@ -237,7 +237,7 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
 
     func testProseFormattingSupportsPortableStrikeLinkAndExclusiveCode() throws {
         let native = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         try browser.applyUpdate(native.replaceProse(start: 0, end: 0, text: "Alpha"))
         try browser.applyUpdate(native.formatProse(start: 0, end: 5, attributes: ["strike": [:]]))
         try browser.applyUpdate(native.formatProse(start: 0, end: 5,
@@ -262,9 +262,9 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
         XCTAssertTrue(try native.proseProjection().isEditable)
     }
 
-    func testAwarenessInteroperatesWithJavaScriptYjsAndStaysEphemeral() throws {
+    func testAwarenessInteroperatesBetweenReplicasAndStaysEphemeral() throws {
         let native = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         let seed = try native.replaceProse(start: 0, end: 0, text: "Hello")
         try browser.applyUpdate(seed)
         let documentBefore = try native.encodeUpdate()
@@ -272,22 +272,21 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
 
         let nativePresence = try native.presence.setPresence(name: "Native", anchor: nativeAnchor, head: nativeAnchor,
                                                              userID: "native-user-123")
-        try browser.applyPresence(nativePresence, origin: "native-channel")
-        let browserView = try XCTUnwrap(browser.collaborators().first)
+        try browser.presence.applyPresence(nativePresence, origin: "native-channel")
+        let browserView = try XCTUnwrap(browser.presence.collaborators().first)
         XCTAssertEqual(browserView.name, "Native")
         XCTAssertEqual(browserView.userID, "native-user-123")
         XCTAssertEqual(browserView.anchor, nativeAnchor)
-        let browserSnapshot = try browser.presenceSnapshot()
+        let browserSnapshot = try browser.presence.snapshot()
         let nativeMirror = RelayMarkNativeDocument()
         try nativeMirror.presence.apply(snapshot: .init(update: browserSnapshot.update, origins: browserSnapshot.origins))
         XCTAssertEqual(try nativeMirror.presence.collaborators().first?.name, "Native")
         XCTAssertEqual(try nativeMirror.presence.collaborators().first?.userID, "native-user-123")
 
         let browserAnchor = try browser.anchor(path: [0, 0], index: 3)
-        for bytes in try browser.setPresence(name: "Browser", anchor: browserAnchor, head: browserAnchor,
-                                             userID: "browser-user-456") {
-            try native.presence.applyPresence(bytes, origin: "browser-channel")
-        }
+        try native.presence.applyPresence(browser.presence.setPresence(name: "Browser", anchor: browserAnchor,
+                                                                       head: browserAnchor, userID: "browser-user-456"),
+                                          origin: "browser-channel")
         let nativeView = try XCTUnwrap(native.presence.collaborators().first)
         XCTAssertEqual(nativeView.name, "Browser")
         XCTAssertEqual(nativeView.userID, "browser-user-456")
@@ -303,9 +302,24 @@ final class RelayMarkNativeDocumentTests: XCTestCase {
         XCTAssertThrowsError(try mounted.presence.apply(snapshot: invalid))
         try native.presence.removePresence(origin: "browser-channel")
         XCTAssertTrue(try native.presence.collaborators().isEmpty)
-        try browser.applyPresence(native.presence.setPresence(name: nil), origin: "native-channel")
-        XCTAssertTrue(try browser.collaborators().isEmpty)
+        try browser.presence.applyPresence(native.presence.setPresence(name: nil), origin: "native-channel")
+        XCTAssertTrue(try browser.presence.collaborators().isEmpty)
         XCTAssertEqual(try native.encodeUpdate(), documentBefore)
+    }
+
+    func testEditorTypingJoinsOneUndoItemWhileCommandsStandAlone() throws {
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(native.editorCommand(separateUndoItem: true) { try native.replaceProse(start: 0, end: 0, text: "Title") })
+        for (offset, character) in ["H", "i"].enumerated() {
+            try peer.applyUpdate(native.editorCommand { try native.replaceProse(start: 5 + offset, end: 5 + offset, text: character) })
+        }
+        try native.applyUpdate(peer.replaceProse(start: 0, end: 0, text: ">"))
+        try peer.applyUpdate(XCTUnwrap(native.undo()))
+        // One undo removes the whole typing burst but never the peer's edit.
+        XCTAssertEqual(String(try native.proseProjection().text.characters), ">Title")
+        try peer.applyUpdate(XCTUnwrap(native.undo()))
+        XCTAssertEqual(String(try native.proseProjection().text.characters), ">")
+        XCTAssertEqual(try native.snapshot(), try peer.snapshot())
     }
 
     func testRemoteAwarenessExpiresWithoutChangingDocument() throws {

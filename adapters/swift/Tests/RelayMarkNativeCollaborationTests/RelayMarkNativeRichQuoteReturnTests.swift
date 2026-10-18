@@ -31,14 +31,10 @@ final class RelayMarkNativeRichQuoteReturnTests: XCTestCase {
                        quote.childBlocks.map(\.id) + [first.blockID])
         XCTAssertEqual(after.blocks[2].childBlocks.last?.plainText, "")
 
-        var secondResult: RelayMarkNativeRichReturn.Result?
-        _ = try native.performOwnedCommand(operationID: UUID(), separateHistoryItem: true) {
-            let result = try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 2], utf16Offset: 0,
+        let second = try native.editorCommand(separateUndoItem: true) {
+            try RelayMarkNativeRichReturn.apply(document: native, blockPath: [2, 2], utf16Offset: 0,
                 expectedSnapshot: native.snapshot())
-            secondResult = result
-            return result.change.update
         }
-        let second = try XCTUnwrap(secondResult)
         XCTAssertEqual(second.kind, .exit)
         XCTAssertEqual(second.blockID, first.blockID)
         try peer.applyUpdate(second.change.update)

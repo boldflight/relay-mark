@@ -4,7 +4,7 @@ import RelayMarkSwift
 
 @Suite("Packaged canonical File conversion")
 struct RelayMarkFileRuntimeTests {
-    @Test("A canonical empty File survives both packaged Swift grammar producers with its exact prose")
+    @Test("A canonical empty File survives the packaged Swift grammar with its exact prose")
     func fileOmittedPMContentPreservesDescriptorAndProse() throws {
         let expected: [String: Any] = ["type": "relaymark.document", "blocks": [
             ["id": "b00000000000040008000000000000061", "type": "relay.file_ref",
@@ -32,14 +32,6 @@ struct RelayMarkFileRuntimeTests {
         let roundTrip = try RelayMarkSourceCodec.snapshotToDocument(snapshot)
         let roundTripObject = try #require(JSONSerialization.jsonObject(with: roundTrip) as? [String: Any])
         #expect(NSDictionary(dictionary: roundTripObject).isEqual(to: expected))
-        // A second public producer loads the distinct content-edit-runtime bundle.
-        // It confers no receipt, source authority or document persistence.
-        let imported = try RelayMarkContentEditCodec.importAggregateSettingsSnapshot(snapshot)
-        let result = try #require(JSONSerialization.jsonObject(with: imported) as? [String: Any])
-        let document = try #require(result["document"] as? [String: Any])
-        #expect(NSDictionary(dictionary: document).isEqual(to: expected))
-        #expect((result["normalizations"] as? [Any])?.isEmpty == true)
-        #expect(result["requires_physical_history_cut"] as? Bool == false)
         print("FILE_RUNTIME_DONE:exact-descriptor-prose-and-outer-identities")
     }
 }

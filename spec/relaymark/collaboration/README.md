@@ -127,6 +127,8 @@ Presence uses standard y-protocols awareness binary updates, not a custom cursor
 
 The browser uses one bounded extension helper for online and offline editing. It omits unsupported nodes/marks, slash/entity insertion extensions, form extensions, and native ProseMirror undo while Yjs owns history. The native projection rejects invalid heading levels/list starts and unsupported attributes. Replica support is broader than editable projection support; preserving unknown binary content is not proof of authoring parity.
 
+> The Swift JavaScriptCore replica (`RelayMarkCollaborationDocument`) and its `RelayMarkCollaborationTests` round trip were removed on October 19, 2026 under Relay's standard collaboration plan. The native client uses YSwift/Yrs only; the Swift steps below are historical.
+
 `fixtures/convergence-v1.json` is canonical. Its Swift resource copy is checked byte-for-byte by the Node test. It records seeds, incremental updates, delivery orders, expected structural/mark semantics, and unchanged state vectors around a real deletion. Ordinary verification never regenerates it.
 
 ```sh

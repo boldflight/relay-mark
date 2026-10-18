@@ -10,7 +10,7 @@ final class RelayMarkNativeInlineMarkTests: XCTestCase {
         let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let item = try XCTUnwrap((fixture["cases"] as? [[String: Any]])?.first)
         let seed = try XCTUnwrap(Data(base64Encoded: try XCTUnwrap(item["update"] as? String)))
-        let native = RelayMarkNativeDocument(), peer = try RelayMarkCollaborationDocument()
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         try native.applyUpdate(seed); try peer.applyUpdate(seed)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary, item["snapshot"] as? NSDictionary)
         let anchor = try native.anchor(path: [0, 0], index: 9)
@@ -21,7 +21,7 @@ final class RelayMarkNativeInlineMarkTests: XCTestCase {
         XCTAssertEqual(try native.resolve(anchor: anchor)?.index, 9)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
                        try JSONSerialization.jsonObject(with: peer.snapshot()) as? NSDictionary)
-        for remote in try peer.replaceProse(start: 0, end: 0, text: "Peer ") { try native.applyUpdate(remote) }
+        try native.applyUpdate(peer.replaceProse(start: 0, end: 0, text: "Peer "))
         XCTAssertEqual(try native.resolve(anchor: anchor)?.index, 14)
         try peer.applyUpdate(XCTUnwrap(native.undo()))
         XCTAssertTrue(String(try native.proseProjection().text.characters).hasPrefix("Peer Strike 🌍"))
@@ -36,7 +36,7 @@ final class RelayMarkNativeInlineMarkTests: XCTestCase {
     }
 
     func testReplacementAndInteriorTypingPreserveCodeInOneUndoItem() throws {
-        let native = RelayMarkNativeDocument(), peer = try RelayMarkCollaborationDocument()
+        let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
         _ = try native.replaceProse(start: 0, end: 0, text: "code")
         _ = try native.formatProse(start: 0, end: 4, attributes: ["code": [:]])
         try peer.applyUpdate(native.encodeUpdate())
@@ -53,13 +53,5 @@ final class RelayMarkNativeInlineMarkTests: XCTestCase {
         XCTAssertEqual(String(try native.proseProjection().text.characters), "code")
         XCTAssertEqual(try JSONSerialization.jsonObject(with: native.snapshot()) as? NSDictionary,
                        try JSONSerialization.jsonObject(with: peer.snapshot()) as? NSDictionary)
-    }
-
-    func testAdditiveFormattingMetadataRoundtrip() throws {
-        for mark in [RelayMarkLocalTransaction.NativeFormatting.Mark.strike, .code] {
-            let value = RelayMarkLocalTransaction.NativeFormatting(startUTF16: 1, lengthUTF16: 2, mark: mark, enabled: true)
-            XCTAssertEqual(try JSONDecoder().decode(RelayMarkLocalTransaction.NativeFormatting.self,
-                from: JSONEncoder().encode(value)), value)
-        }
     }
 }

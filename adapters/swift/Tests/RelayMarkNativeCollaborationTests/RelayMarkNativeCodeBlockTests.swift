@@ -27,7 +27,7 @@ final class RelayMarkNativeCodeBlockTests: XCTestCase {
             XCTAssertEqual(resolved.path, [0, 0]); XCTAssertEqual(resolved.index, spec["index"] as? Int)
         }
         XCTAssertEqual(try doc.resolve(anchor: blockAnchor)?.path, [0])
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         try browser.applyUpdate(bytes(fixture, "seed")); try browser.applyUpdate(update)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: browser.snapshot()) as? NSDictionary, fixture["after"] as? NSDictionary)
         _ = try XCTUnwrap(doc.undo()); XCTAssertEqual(try doc.snapshot(), before)
@@ -64,7 +64,7 @@ final class RelayMarkNativeCodeBlockTests: XCTestCase {
             var nodes = [node]
             if mutation == "mixed" { nodes.append(["kind": "element", "name": "paragraph", "children": []]) }
             if mutation == "nested" { nodes = [["kind": "element", "name": "blockquote", "children": nodes]] }
-            let source = try RelayMarkCollaborationDocument()
+            let source = RelayMarkNativeDocument()
             _ = try source.edit(JSONSerialization.data(withJSONObject: ["kind": "insertNodes", "path": [], "index": 0, "nodes": nodes]))
             let invalid = RelayMarkNativeDocument(); try invalid.applyUpdate(source.encodeUpdate())
             let checkpoint = try invalid.encodeUpdate()

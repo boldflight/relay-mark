@@ -23,7 +23,7 @@ final class RelayMarkNativeQuoteReturnTests: XCTestCase {
         _ = try XCTUnwrap(doc.undo()); XCTAssertEqual(try doc.snapshot(), empty)
         _ = try XCTUnwrap(doc.undo()); XCTAssertEqual(try doc.snapshot(), original)
         _ = try XCTUnwrap(doc.redo()); _ = try XCTUnwrap(doc.redo())
-        let peer = try RelayMarkCollaborationDocument(); try peer.applyUpdate(seed)
+        let peer = RelayMarkNativeDocument(); try peer.applyUpdate(seed)
         try peer.applyUpdate(append); try peer.applyUpdate(typed)
         XCTAssertEqual(try JSONSerialization.jsonObject(with: peer.snapshot()) as? NSDictionary, fixture["after"] as? NSDictionary)
         let reopened = RelayMarkNativeDocument(); try reopened.applyUpdate(doc.encodeUpdate())

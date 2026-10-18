@@ -37,7 +37,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         // The browser Accept test replaces its atom with parsed Markdown, whose
         // first paragraph carries three text runs and a strong mark on "this".
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         let baseline = try fixture()
         for replica in [native, peer] { try replica.applyUpdate(baseline) }
         try browser.applyUpdate(baseline)
@@ -74,7 +74,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
 
     func testAcceptOneHeadingKeepsBrowserHeadingShapeAndRestoresSuggestionOnUndo() throws {
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         let baseline = try fixture()
         for replica in [native, peer] { try replica.applyUpdate(baseline) }
         try browser.applyUpdate(baseline)
@@ -145,7 +145,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         ]
         for scenario in cases {
             let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
-            let browser = try RelayMarkCollaborationDocument()
+            let browser = RelayMarkNativeDocument()
             let baseline = try fixture()
             for replica in [native, peer] { try replica.applyUpdate(baseline) }
             try browser.applyUpdate(baseline)
@@ -207,7 +207,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         ]
         for scenario in cases {
             let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
-            let browser = try RelayMarkCollaborationDocument()
+            let browser = RelayMarkNativeDocument()
             let baseline = try fixture()
             for replica in [native, peer] { try replica.applyUpdate(baseline) }
             try browser.applyUpdate(baseline)
@@ -275,8 +275,6 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
         let before = try native.snapshot()
         try peer.applyUpdate(native.encodeUpdate())
         let accepted = try accept(native, content: content)
-        let steps = try XCTUnwrap(JSONSerialization.jsonObject(with: accepted.steps) as? [[String: Any]])
-        XCTAssertEqual(steps.first?["stepType"] as? String, "replace")
         try peer.applyUpdate(accepted.update)
         let ast = try RelayMarkNativeDocumentProjection.project(document: native)
         XCTAssertEqual(ast.blocks.map(\.type), ["paragraph", "relay.callout", "table", "image", "paragraph"])
@@ -312,7 +310,7 @@ final class RelayMarkNativeAgentSuggestionMutationTests: XCTestCase {
     func testDismissReplaysAndOneUndoRestoresSuggestionBetweenAdjacentProse() throws {
         let update = try fixture()
         let native = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
-        let browser = try RelayMarkCollaborationDocument()
+        let browser = RelayMarkNativeDocument()
         try native.applyUpdate(update)
         try peer.applyUpdate(update)
         try browser.applyUpdate(update)
