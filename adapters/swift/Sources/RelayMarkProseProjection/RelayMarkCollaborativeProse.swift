@@ -181,6 +181,9 @@ public struct RelayMarkCollaborativeProse {
         var authoredWidgets: [AuthoredWidget] = []
         var spans: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
+        /// Block identities and destination names (heading anchors, Anchor names) in this node.
+        var identities: [String] = []
+        var anchors: [String] = []
     }
     private var chunks: [Chunk]
     /// Where each chunk's text begins in `text`. Chunks with text are joined by one separator.
@@ -192,6 +195,31 @@ public struct RelayMarkCollaborativeProse {
     private var rangeCount: Int
     /// Presentation identities below this are in use; a re-projected node starts here.
     public private(set) var identityLimit: Int
+    /// How many nodes carry each block identity and destination name, kept
+    /// from node splices so uniqueness is checked without reading the paper.
+    private var identityCounts: [String: Int] = [:]
+    private var anchorCounts: [String: Int] = [:]
+
+    /// How many nodes carry a block identity, and a destination name.
+    public func identityCount(_ id: String) -> Int { identityCounts[id] ?? 0 }
+    public func anchorCount(_ name: String) -> Int { anchorCounts[name] ?? 0 }
+
+    /// Whether a block identity is used by a node outside the top-level nodes in `range`.
+    public func identityUsed(_ id: String, outside range: Range<Int>) -> Bool {
+        (identityCounts[id] ?? 0) > chunks[range].reduce(0) { $0 + $1.identities.filter { $0 == id }.count }
+    }
+
+    /// Whether a destination name is used outside the top-level nodes in `range`.
+    public func anchorUsed(_ name: String, outside range: Range<Int>) -> Bool {
+        (anchorCounts[name] ?? 0) > chunks[range].reduce(0) { $0 + $1.anchors.filter { $0 == name }.count }
+    }
+
+    private mutating func count(_ chunks: some Sequence<Chunk>, by delta: Int) {
+        for chunk in chunks {
+            for id in chunk.identities { identityCounts[id, default: 0] += delta; if identityCounts[id] == 0 { identityCounts[id] = nil } }
+            for name in chunk.anchors { anchorCounts[name, default: 0] += delta; if anchorCounts[name] == 0 { anchorCounts[name] = nil } }
+        }
+    }
 
     private static func global(_ path: [Int], _ chunk: Int) -> [Int] {
         path.isEmpty ? path : [chunk] + path.dropFirst()
@@ -311,6 +339,7 @@ public struct RelayMarkCollaborativeProse {
         restrictedStarts = nil
         rootSupported = root?["kind"] as? String == "fragment"
         identityLimit = identity
+        count(chunks, by: 1)
     }
 
     private static func project(_ node: [String: Any], dialect: Dialect,
@@ -755,6 +784,15 @@ public struct RelayMarkCollaborativeProse {
         chunk.mediaAtoms = mediaAtoms; chunk.suggestionAtoms = suggestionAtoms
         chunk.authoredWidgets = authoredWidgets
         chunk.spans = mapped; chunk.boundaries = boundaries
+        func names(_ node: [String: Any]) {
+            let attributes = node["attributes"] as? [String: Any] ?? [:]
+            if let id = attributes["relaymarkId"] as? String { chunk.identities.append(id) }
+            let name = node["name"] as? String
+            if name == "heading", let anchor = attributes["headingId"] as? String { chunk.anchors.append(anchor) }
+            if name == "relayAnchor", let anchor = attributes["name"] as? String { chunk.anchors.append(anchor) }
+            for child in node["children"] as? [[String: Any]] ?? [] { names(child) }
+        }
+        names(node)
         return (chunk, value, identity)
     }
 
@@ -1159,6 +1197,7 @@ extension RelayMarkCollaborativeProse {
         text.replaceSubrange(lower..<text.utf16.index(lower, offsetBy: oldEnd - oldStart), with: inserted)
         unsupportedChunks += replacement.chunks.filter { !$0.supported }.count - chunks[range].filter { !$0.supported }.count
         rangeCount += replacement.chunks.reduce(0) { $0 + $1.ranges.count } - chunks[range].reduce(0) { $0 + $1.ranges.count }
+        count(chunks[range], by: -1); count(replacement.chunks, by: 1)
         chunks.replaceSubrange(range, with: replacement.chunks)
         // Every node involved holds text, so a separator precedes each but the paper's first;
         // past the replacement only the next node's separator can change.

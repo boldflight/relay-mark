@@ -123,4 +123,46 @@ final class RelayMarkNativeWindowedCommandTests: XCTestCase {
         for operation in Operation.allCases { XCTAssertGreaterThan(changed[operation] ?? 0, 0, "\(operation) never changed the paper") }
         XCTAssertLessThan(refused, compared / 4)
     }
+
+    /// Every block identity and destination name in the paper, in order.
+    private func identities(_ document: RelayMarkNativeDocument) throws -> (ids: [String], anchors: [String]) {
+        var ids: [String] = [], anchors: [String] = []
+        func visit(_ node: [String: Any]) {
+            let attributes = node["attributes"] as? [String: Any] ?? [:]
+            if let id = attributes["relaymarkId"] as? String { ids.append(id) }
+            if node["name"] as? String == "heading", let anchor = attributes["headingId"] as? String { anchors.append(anchor) }
+            for child in node["children"] as? [[String: Any]] ?? [] { visit(child) }
+        }
+        visit(try XCTUnwrap(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any]))
+        return (ids, anchors)
+    }
+
+    func testPastingACopyOfABlockElsewhereKeepsIdentitiesUnique() throws {
+        let (whole, windowed) = try replicas()
+        // An edit gives the first heading an anchor; both replicas then hold the same paper.
+        let named = try RelayMarkNativeRichEditing.replace(document: whole, range: NSRange(location: 1, length: 0),
+            runs: [("x", [:])], expectedSnapshot: whole.snapshot())
+        try windowed.applyUpdate(named.update)
+        let heading = try XCTUnwrap((try JSONSerialization.jsonObject(with: whole.snapshot()) as? [String: Any])?["children"]
+            as? [[String: Any]]).first?["attributes"] as? [String: Any]
+        let id = try XCTUnwrap(heading?["relaymarkId"] as? String), anchor = try XCTUnwrap(heading?["headingId"] as? String)
+        let copy: [String: Any] = ["slice": ["content": [["type": "heading", "attrs": ["level": 1, "headingId": anchor, "relaymarkId": id],
+                                                          "content": [["type": "text", "text": "Copy"]]]],
+                                             "openStart": 0, "openEnd": 0], "normalizations": [[String: Any]]()]
+        let slice = try JSONSerialization.data(withJSONObject: copy)
+        // Pasted into the last paragraph, far from the original heading's window.
+        let end = String(try windowed.richProseProjection().text.characters).utf16.count
+        let paper = try windowed.richProseProjection()
+        let range = NSRange(location: end - 3, length: 0)
+        XCTAssertFalse(paper.topLevelIndex(atUTF16: range.location).map { $0 <= 1 } ?? true)
+        _ = try RelayMarkNativeRichEditing.insertDocumentSlice(document: whole, range: range, clipboardSlice: slice,
+                                                               expectedSnapshot: whole.snapshot())
+        let pasted = try RelayMarkNativeRichEditing.insertDocumentSlice(document: windowed, range: range, clipboardSlice: slice, paper: paper)
+        XCTAssertNotNil(pasted.topLevel, "the paste ran on a window")
+        XCTAssertEqual(try shape(windowed), try shape(whole))
+        let result = try identities(windowed)
+        XCTAssertEqual(Set(result.ids).count, result.ids.count, "a block identity is duplicated")
+        XCTAssertEqual(Set(result.anchors).count, result.anchors.count, "a heading anchor is duplicated")
+        XCTAssertTrue(result.anchors.contains(anchor) && result.ids.contains(id), "the original keeps its identity")
+    }
 }

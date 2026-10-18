@@ -64,7 +64,23 @@ final class RelayMarkNativeTopLevelProjectionTests: XCTestCase {
     }
 
     private func assertEquivalent(_ incremental: RelayMarkCollaborativeProse, _ full: RelayMarkCollaborativeProse,
-                                  _ message: String, file: StaticString = #filePath, line: UInt = #line) {
+                                  _ message: String, document: RelayMarkNativeDocument? = nil,
+                                  file: StaticString = #filePath, line: UInt = #line) {
+        // The uniqueness index follows the splices exactly.
+        if let document, let snapshot = try? JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any] {
+            var ids: [String] = [], anchors: [String] = []
+            func visit(_ node: [String: Any]) {
+                let attributes = node["attributes"] as? [String: Any] ?? [:]
+                if let id = attributes["relaymarkId"] as? String { ids.append(id) }
+                if node["name"] as? String == "heading", let anchor = attributes["headingId"] as? String { anchors.append(anchor) }
+                for child in node["children"] as? [[String: Any]] ?? [] { visit(child) }
+            }
+            visit(snapshot)
+            for id in Set(ids) { XCTAssertEqual(incremental.identityCount(id), ids.filter { $0 == id }.count, message, file: file, line: line) }
+            for anchor in Set(anchors) {
+                XCTAssertEqual(incremental.anchorCount(anchor), anchors.filter { $0 == anchor }.count, message, file: file, line: line)
+            }
+        }
         let lhs = canonical(incremental), rhs = canonical(full)
         XCTAssertEqual(lhs.count, rhs.count, message, file: file, line: line)
         for (left, right) in zip(lhs, rhs) where left != right {
@@ -104,7 +120,7 @@ final class RelayMarkNativeTopLevelProjectionTests: XCTestCase {
             let touched = try XCTUnwrap(document.topLevelNodesTouchedByLastUpdate(), "offset \(offset)")
             let partial = try document.richProseProjection(topLevel: touched.after, identityBase: projection.identityLimit)
             XCTAssertNotNil(projection.replaceTopLevelNodes(touched.before, with: partial), "offset \(offset)")
-            assertEquivalent(projection, try document.richProseProjection(), "offset \(offset) case \(offset % 4)")
+            assertEquivalent(projection, try document.richProseProjection(), "offset \(offset) case \(offset % 4)", document: document)
             applied += 1
         }
         XCTAssertGreaterThan(applied, 15)
