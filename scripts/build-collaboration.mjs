@@ -35,6 +35,10 @@ await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'es
 await mkdir('adapters/swift/Sources/RelayMarkSwift/Resources', { recursive: true })
 await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'iife', globalName: 'RelayMarkSourceRuntime', platform: 'browser', target: 'es2023', supported: { 'template-literal': false }, minify: true, legalComments: 'inline', outfile: 'adapters/swift/Sources/RelayMarkSwift/Resources/document-source.js' })
 
+// Editor-only schema and table helpers for stock-binding TipTap hosts. The
+// shipped schema and HTML rules modules stay shared siblings, not inlined.
+await build({ entryPoints: ['src/editor.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2020', external: ['prosemirror-model', 'prosemirror-tables', './document-html-rules.js', './editor-schema.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/editor.js' })
+
 await build({ entryPoints: ['src/document-url.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-url.js' })
 
 // The headless proof owns ephemeral replay docs only. Constructor-generated
