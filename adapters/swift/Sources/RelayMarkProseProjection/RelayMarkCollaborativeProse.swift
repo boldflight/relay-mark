@@ -184,7 +184,9 @@ public struct RelayMarkCollaborativeProse {
     }
     private var chunks: [Chunk]
     /// Where each chunk's text begins in `text`. Chunks with text are joined by one separator.
-    private var starts: [Int]
+    private var starts: NodeStarts
+    /// A restricted projection's starts, fixed in the paper's offsets.
+    private var restrictedStarts: [Int]?
     private var rootSupported: Bool
     private var unsupportedChunks: Int
     private var rangeCount: Int
@@ -203,9 +205,23 @@ public struct RelayMarkCollaborativeProse {
     private func gather<T>(_ items: KeyPath<Chunk, [T]>, _ place: (T, Int, Int) -> T) -> [T] {
         var result: [T] = []
         for (index, chunk) in chunks.enumerated() {
-            for item in chunk[keyPath: items] { result.append(place(item, starts[index], index)) }
+            let start = restrictedStarts?[index] ?? starts[index]
+            for item in chunk[keyPath: items] { result.append(place(item, start, index + firstNode)) }
         }
         return result
+    }
+
+    /// The paper's index of this projection's first top-level node; nonzero only when restricted.
+    private var firstNode = 0
+
+    /// The metadata of just the top-level nodes in `range`, in the paper's
+    /// offsets and paths, at a cost that follows those nodes. Only the
+    /// metadata collections and block lists are meaningful on the result.
+    public func restricted(toTopLevel range: Range<Int>) -> RelayMarkCollaborativeProse {
+        var copy = self
+        copy.chunks = Array(chunks[range]); copy.restrictedStarts = range.map { starts[$0] }
+        copy.firstNode = firstNode + range.lowerBound
+        return copy
     }
 
     private static let markupNames: Set<String> = ["horizontalRule", "relayButton", "relayAnchor", "relayConnection",
@@ -277,20 +293,22 @@ public struct RelayMarkCollaborativeProse {
         let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
         if dialect == .rich, !codecValidated { _ = try RelayMarkSourceCodec.snapshotToDocument(snapshot) }
         var value = AttributedString(), length = 0, identity = identityBase
-        chunks = []; starts = []; unsupportedChunks = 0; rangeCount = 0
+        chunks = []; unsupportedChunks = 0; rangeCount = 0
+        var widths: [Int] = [], separated: [Bool] = []
         for node in root?["children"] as? [[String: Any]] ?? [] {
             let (chunk, part, next) = try Self.project(node, dialect: dialect, identityStart: identity)
             identity = next
-            if !chunk.ranges.isEmpty {
-                if rangeCount > 0 { value.append(AttributedString("\n")); length += 1 }
-                rangeCount += chunk.ranges.count
-            }
-            starts.append(length)
+            let separator = !chunk.ranges.isEmpty && rangeCount > 0
+            if separator { value.append(AttributedString("\n")); length += 1 }
+            rangeCount += chunk.ranges.count
+            widths.append(chunk.length + (separator ? 1 : 0)); separated.append(separator)
             value.append(part); length += chunk.length
             if !chunk.supported { unsupportedChunks += 1 }
             chunks.append(chunk)
         }
         text = value
+        starts = NodeStarts(widths: widths, separated: separated)
+        restrictedStarts = nil
         rootSupported = root?["kind"] as? String == "fragment"
         identityLimit = identity
     }
@@ -745,7 +763,8 @@ public struct RelayMarkCollaborativeProse {
         var result: [TextRange] = []
         for (index, chunk) in chunks.enumerated() {
             let start = starts[index]
-            guard start <= NSMaxRange(range), start + chunk.length >= range.location else { continue }
+            guard start <= NSMaxRange(range) else { break }
+            guard start + chunk.length >= range.location else { continue }
             for span in chunk.spans where span.text {
                 let intersection = NSIntersectionRange(range, NSRange(location: span.range.location + start, length: span.range.length))
                 guard intersection.length > 0 else { continue }
@@ -758,13 +777,10 @@ public struct RelayMarkCollaborativeProse {
 
     /// The chunks whose text contains `offset`, at either edge; usually one.
     private func chunks(touching offset: Int) -> [Int] {
-        var low = 0, high = starts.count
-        while low < high {
-            let middle = (low + high) / 2
-            if starts[middle] <= offset { low = middle + 1 } else { high = middle }
-        }
+        guard !chunks.isEmpty else { return [] }
+        var index = min(starts.lastIndex(beginningAtOrBefore: offset), chunks.count - 1)
+        if index >= 0, starts[index] > offset { index -= 1 }
         var found: [Int] = []
-        var index = low - 1
         while index >= 0, starts[index] + chunks[index].length >= offset {
             found.insert(index, at: 0); index -= 1
         }
@@ -957,7 +973,7 @@ extension RelayMarkCollaborativeProse {
         }
         chunk.length += delta
         chunks[index] = chunk
-        for later in starts.indices.dropFirst(index + 1) { starts[later] += delta }
+        starts.add(delta, at: index)
     }
 
     /// Re-projects one text leaf from its current authored runs, for a peer's
@@ -1040,15 +1056,21 @@ extension RelayMarkCollaborativeProse {
     /// of just the nodes now there, numbered from `identityLimit`. Only those
     /// nodes' text and metadata change; later nodes move by their start alone.
     /// Returns the text range replaced and the range now holding its
-    /// replacement, separators included; nil, unchanged, unless every node
-    /// involved holds text.
+    /// replacement, separators included, and `content`, the replaced nodes'
+    /// own offsets before the change: metadata before it stays, metadata
+    /// inside it is replaced, and metadata after it moves. Nil, unchanged,
+    /// unless every node involved holds text.
     public mutating func replaceTopLevelNodes(_ range: Range<Int>, with replacement: RelayMarkCollaborativeProse)
-        -> (old: NSRange, new: NSRange)? {
+        -> (old: NSRange, new: NSRange, content: NSRange)? {
         guard range.lowerBound >= 0, range.upperBound <= chunks.count, replacement.rootSupported,
               replacement.identityLimit >= identityLimit,
               chunks[range].allSatisfy({ !$0.ranges.isEmpty }),
               replacement.chunks.allSatisfy({ !$0.ranges.isEmpty }),
               chunks.count - range.count + replacement.chunks.count > 0 else { return nil }
+        let contentStart = range.isEmpty
+            ? (range.lowerBound > 0 ? starts[range.lowerBound - 1] + chunks[range.lowerBound - 1].length + 1 : 0)
+            : starts[range.lowerBound]
+        let contentEnd = range.isEmpty ? contentStart : starts[range.upperBound - 1] + chunks[range.upperBound - 1].length + 1
         // Separators sit before every node but the first, so the replaced text
         // takes the separator before it, or after it at the paper's start.
         let oldStart: Int, oldEnd: Int
@@ -1073,25 +1095,106 @@ extension RelayMarkCollaborativeProse {
         unsupportedChunks += replacement.chunks.filter { !$0.supported }.count - chunks[range].filter { !$0.supported }.count
         rangeCount += replacement.chunks.reduce(0) { $0 + $1.ranges.count } - chunks[range].reduce(0) { $0 + $1.ranges.count }
         chunks.replaceSubrange(range, with: replacement.chunks)
-        starts.replaceSubrange(range, with: Array(repeating: 0, count: replacement.chunks.count))
-        // Later starts follow the separator rule; a node without text takes none.
-        var previous = range.lowerBound - 1
-        while previous >= 0, chunks[previous].ranges.isEmpty { previous -= 1 }
-        var position = range.lowerBound > 0 ? starts[range.lowerBound - 1] + chunks[range.lowerBound - 1].length : 0
-        var separated = previous >= 0
-        for index in range.lowerBound..<chunks.count {
-            if !chunks[index].ranges.isEmpty { if separated { position += 1 }; separated = true }
-            starts[index] = position
-            position += chunks[index].length
+        // Every node involved holds text, so a separator precedes each but the paper's first;
+        // past the replacement only the next node's separator can change.
+        let replaced = range.lowerBound..<min(chunks.count, range.lowerBound + replacement.chunks.count + 1)
+        var widths: [Int] = [], separated: [Bool] = []
+        var any = (0..<range.lowerBound).reversed().contains { !chunks[$0].ranges.isEmpty }
+        for index in replaced {
+            let separator = !chunks[index].ranges.isEmpty && any
+            any = any || !chunks[index].ranges.isEmpty
+            widths.append(chunks[index].length + (separator ? 1 : 0)); separated.append(separator)
         }
+        starts.replace(range.lowerBound..<min(starts.count, range.upperBound + 1), widths: widths, separated: separated)
         identityLimit = replacement.identityLimit
         return (NSRange(location: oldStart, length: oldEnd - oldStart),
-                NSRange(location: oldStart, length: inserted.utf16.count))
+                NSRange(location: oldStart, length: inserted.utf16.count),
+                NSRange(location: contentStart, length: contentEnd - contentStart))
     }
 
     /// One chunk's own text, without separators.
     private func chunkText(_ index: Int) -> AttributedSubstring {
         let lower = text.utf16.index(text.startIndex, offsetBy: starts[index])
         return text[lower..<text.utf16.index(lower, offsetBy: chunks[index].length)]
+    }
+}
+
+/// Where each top-level node's text begins. Node widths (length plus the
+/// separator before it) live in buckets with running sums, so a typed
+/// character or an inserted node touches one bucket and a lookup walks the
+/// bucket sums, never every node.
+private struct NodeStarts {
+    private struct Bucket {
+        var widths: [Int]
+        var separated: [Bool]
+        var sum: Int
+    }
+    private static let bucketSize = 256
+    private var buckets: [Bucket] = []
+    private(set) var count = 0
+
+    init(widths: [Int], separated: [Bool]) {
+        buckets = Self.buckets(widths[...], separated[...])
+        count = widths.count
+    }
+
+    private static func buckets(_ widths: ArraySlice<Int>, _ separated: ArraySlice<Bool>) -> [Bucket] {
+        stride(from: widths.startIndex, to: widths.endIndex, by: bucketSize).map { start in
+            let end = min(widths.endIndex, start + bucketSize)
+            return Bucket(widths: Array(widths[start..<end]), separated: Array(separated[start..<end]),
+                          sum: widths[start..<end].reduce(0, +))
+        }
+    }
+
+    /// The bucket holding node `index`, the bucket's first node and the width before it.
+    private func locate(_ index: Int) -> (bucket: Int, first: Int, before: Int) {
+        var first = 0, before = 0
+        for (position, bucket) in buckets.enumerated() {
+            if index < first + bucket.widths.count { return (position, first, before) }
+            first += bucket.widths.count; before += bucket.sum
+        }
+        return (buckets.count, first, before)
+    }
+
+    subscript(index: Int) -> Int {
+        let (position, first, before) = locate(index)
+        let bucket = buckets[position]
+        return bucket.widths[..<(index - first)].reduce(before, +) + (bucket.separated[index - first] ? 1 : 0)
+    }
+
+    mutating func add(_ delta: Int, at index: Int) {
+        let (position, first, _) = locate(index)
+        buckets[position].widths[index - first] += delta
+        buckets[position].sum += delta
+    }
+
+    /// Replaces the widths of the nodes in `range`, touching only the buckets around it.
+    mutating func replace(_ range: Range<Int>, widths: [Int], separated: [Bool]) {
+        guard !buckets.isEmpty else {
+            buckets = Self.buckets(widths[...], separated[...]); count = widths.count; return
+        }
+        var (low, first, _) = locate(range.lowerBound)
+        if low == buckets.count { low -= 1; first -= buckets[low].widths.count }
+        var high = low, end = first + buckets[low].widths.count
+        while end < range.upperBound, high + 1 < buckets.count { high += 1; end += buckets[high].widths.count }
+        var flatWidths = buckets[low...high].flatMap(\.widths), flatSeparated = buckets[low...high].flatMap(\.separated)
+        let local = (range.lowerBound - first)..<(range.upperBound - first)
+        flatWidths.replaceSubrange(local, with: widths); flatSeparated.replaceSubrange(local, with: separated)
+        buckets.replaceSubrange(low...high, with: Self.buckets(flatWidths[...], flatSeparated[...]))
+        count += widths.count - range.count
+    }
+
+    /// The last node whose width, its separator included, begins at or before `offset`.
+    func lastIndex(beginningAtOrBefore offset: Int) -> Int {
+        var first = 0, before = 0
+        for bucket in buckets {
+            if before + bucket.sum <= offset { first += bucket.widths.count; before += bucket.sum; continue }
+            for width in bucket.widths {
+                guard before + width <= offset else { return first }
+                before += width; first += 1
+            }
+            return first
+        }
+        return first
     }
 }
