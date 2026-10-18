@@ -137,7 +137,18 @@ public final class RelayMarkNativeDocument {
     /// untouched, so a host re-projects only these. Nil when unknown.
     public func topLevelNodesTouchedByLastUpdate() -> (before: Range<Int>, after: Range<Int>)? {
         guard let lastUpdate, lastUpdate.revision == revision, let footprint = lastUpdate.footprint else { return nil }
-        return document.transactSync { transaction -> (before: Range<Int>, after: Range<Int>)? in
+        return topLevelNodesTouched(by: footprint, rootCountBefore: lastUpdate.rootCount)
+    }
+
+    /// The same for a local change this replica just made, given the paper's
+    /// top-level count before it: only the nodes the update itself touched.
+    public func topLevelNodesTouched(by update: Data, rootCountBefore: Int) -> (before: Range<Int>, after: Range<Int>)? {
+        RelayMarkUpdateFootprint(update).flatMap { topLevelNodesTouched(by: $0, rootCountBefore: rootCountBefore) }
+    }
+
+    private func topLevelNodesTouched(by footprint: RelayMarkUpdateFootprint,
+                                      rootCountBefore: Int) -> (before: Range<Int>, after: Range<Int>)? {
+        document.transactSync { transaction -> (before: Range<Int>, after: Range<Int>)? in
             let count = Int(self.root.length(in: transaction))
             var lower = count, upper = 0
             for (index, id) in footprint.touched.enumerated() {
@@ -152,7 +163,7 @@ public final class RelayMarkNativeDocument {
                 lower = min(lower, top); upper = max(upper, min(top + 1, count))
             }
             guard lower <= upper else { return (0..<0, 0..<0) }
-            let before = lastUpdate.rootCount - (count - upper)
+            let before = rootCountBefore - (count - upper)
             guard before >= lower else { return nil }
             return (lower..<before, lower..<upper)
         }
