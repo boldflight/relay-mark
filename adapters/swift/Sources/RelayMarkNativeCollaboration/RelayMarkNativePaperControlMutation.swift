@@ -24,7 +24,7 @@ public enum RelayMarkNativePaperControlMutation {
                               expectedPreviousID: String?, expectedNextID: String?,
                               block: Block) throws -> RelayMarkNativeRichEditing.Change {
         let (root, blocks, _) = try current(document)
-        guard index >= 0, index <= blocks.count, blocks.count < 4_096,
+        guard index >= 0, index <= blocks.count, blocks.count < RelayMarkNativeDocument.maximumBlocks,
               (index == 0 ? expectedPreviousID == nil : blockID(blocks[index - 1]) == expectedPreviousID),
               (index == blocks.count ? expectedNextID == nil : blockID(blocks[index]) == expectedNextID) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit

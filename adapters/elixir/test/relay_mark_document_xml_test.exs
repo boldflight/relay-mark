@@ -219,6 +219,33 @@ defmodule RelayMark.DocumentXMLTest do
     assert {:error, _} = RelayMark.DocumentXML.to_document(bad)
   end
 
+  test "a long paper decodes and only an implausible block count is refused" do
+    blocks =
+      for n <- 1..10_000 do
+        suffix = n |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(15, "0")
+
+        %{
+          "id" => "b00000000000040008" <> suffix,
+          "type" => "paragraph",
+          "content" => [%{"type" => "text", "text" => "Line #{n}"}]
+        }
+      end
+
+    assert {:ok, snapshot} =
+             RelayMark.DocumentXML.from_document(%{
+               "type" => "relaymark.document",
+               "blocks" => blocks
+             })
+
+    assert {:ok, %{"blocks" => decoded}} = RelayMark.DocumentXML.to_document(snapshot)
+    assert length(decoded) == 10_000
+
+    oversized = Map.update!(snapshot, "children", &List.flatten(List.duplicate(&1, 14)))
+
+    assert {:error, [%{"reason" => ":block_limit"}]} =
+             RelayMark.DocumentXML.to_document(oversized)
+  end
+
   test "unknown nodes and copied block identities fail before construction" do
     ast = %{
       "type" => "relaymark.document",

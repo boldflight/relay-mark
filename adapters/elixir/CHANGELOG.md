@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.7.0
+
+- Raises the document bound from 4,096 to 131,072 identified blocks, counted
+  at every nesting level, as the specification now states. It is a sanity
+  bound; a host's state budget is reached first. Documents between the two
+  bounds that 0.6 refused as `:block_limit` now decode.
+- Ships `priv/collaboration/editor.js`, a 1.4 KB ESM module with the canonical
+  editor schema factory and covered table-row normalizer for TipTap hosts
+  that bind stock y-prosemirror, without the content-edit proof bundle.
+- Keeps canonical contract 1 and the physical schema unchanged.
+
 ## 0.6.6
 
 - Restores canonical marked-paper history after the server codec sorts mark

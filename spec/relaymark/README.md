@@ -158,6 +158,12 @@ namespaced `type`. Implementations MAY generate ids during compilation, but a
 runtime that round-trips a document SHOULD preserve existing ids when source
 contains or maps to them.
 
+A document holds at most 131,072 identified blocks, counted at every nesting
+level. This is a sanity bound, not a product limit: a host's own state budget
+should be reached first. Runtimes MUST NOT refuse a document below it for its
+block count, and an editing command MUST NOT refuse to add a block below it.
+Commands keep their own smaller per-command bounds.
+
 Inline Relay references such as `relay.entity_ref` and `relay.product_ref` MAY
 also have an `id`. Implementations MUST discriminate block and inline nodes by
 their registered `type`, not by the presence of `id`. The portable block

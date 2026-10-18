@@ -37,7 +37,7 @@ public enum RelayMarkNativeMediaMutation {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let (root, blocks) = try snapshot(document)
-        guard index >= 0, index <= blocks.count, blocks.count < 4_096,
+        guard index >= 0, index <= blocks.count, blocks.count < RelayMarkNativeDocument.maximumBlocks,
               (index == 0 ? expectedPreviousID == nil : blockID(blocks[index - 1]) == expectedPreviousID),
               (index == blocks.count ? expectedNextID == nil : blockID(blocks[index]) == expectedNextID) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit

@@ -12,6 +12,9 @@ defmodule RelayMark.DocumentXML do
   @settings_prefix @encoding["field_prefix"]
   @settings_attribute @encoding["logical_attribute"]
   @settings_presence @encoding["presence"]
+  # A sanity bound, not a product limit: a host's paper state budget (16 MiB
+  # in Relay) is spent long before this many identified blocks.
+  @max_blocks 131_072
   @ids ~r/^b[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$/
   @uuid ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
   @metadata ~w(frontmatter annotations resources meta)
@@ -411,7 +414,7 @@ defmodule RelayMark.DocumentXML do
     only!(metadata, @metadata)
     validate_json!(metadata, 0)
     nodes = descendant_blocks(children, 0)
-    require!(length(nodes) <= 4096, :block_limit)
+    require!(length(nodes) <= @max_blocks, :block_limit)
 
     ids =
       Enum.map(nodes, fn node -> attrs(node)["relaymarkId"] end)
