@@ -719,14 +719,17 @@ public final class RelayMarkNativeDocument {
         return result
     }
 
+    /// The update returned is the undo or redo transaction's own, so saving and
+    /// sending it costs the change; it is located like an applied update.
     private func performHistory(redo: Bool) throws -> Data? {
         guard undoGroupDepth == 0, editorCommandDepth == 0 else { throw Failure.unsupportedProseEdit }
-        let before = stateVector()
+        let rootCount = Int(root.length())
         undoManager.wrap()
         revision &+= 1
-        guard try redo ? undoManager.redo() : undoManager.undo() else { return nil }
+        guard let update = try redo ? undoManager.redoUpdate() : undoManager.undoUpdate() else { return nil }
         undoManager.wrap()
-        return try encodeUpdate(since: before)
+        lastUpdate = (revision, rootCount, RelayMarkUpdateFootprint(update))
+        return update
     }
 
     /// Plain Yrs undo of this document's own local edits; returns the update to persist and send.
