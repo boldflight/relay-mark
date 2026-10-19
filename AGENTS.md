@@ -2,6 +2,15 @@
 
 Portable document grammar, reference runtime and generic Swift/Elixir adapters. The specification and conformance fixtures under `spec/relaymark/` own cross-runtime meaning; keep hosts and product authorization outside that grammar.
 
+## Stage: early MVP, no ceremony
+
+Relay is an early MVP built by Douglas and agents, with no external users or integrators. Every change may be breaking, and that's fine.
+- Change the server and every client (web, relay-kit, relay-mark, relay-swift) together.
+- Rip out old paths. Don't add compatibility shims, dual protocols, capability negotiation for old clients, deprecation periods, or migration paths for disposable local or test data.
+- relay-kit and relay-mark stay 0.x and bump only the patch digit (0.7.1 → 0.7.2), even for breaking changes.
+- Quality still matters: correctness, authorization and privacy, the performance gates, causal fixes, and tests that earn their place.
+- Ask Douglas before adding any compatibility or versioning machinery.
+
 ## Document and host boundaries
 
 Agent Paper is the editable RelayMark surface: authored prose, semantic entity references, governed layers, inline AI suggestions, action reviews and activity states. Web uses TipTap; native clients use an equivalent native editor. Headers, publish/info controls, navigation, containers, footers, previews and collection engines belong to hosts and must not enter the portable grammar.
