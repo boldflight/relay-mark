@@ -8,3 +8,7 @@ adapters/swift/.build/
 adapters/elixir/_build/
 adapters/elixir/deps/
 adapters/elixir/doc/
+
+# Local Hex package builds and Swift resolution output
+adapters/elixir/relay_mark_elixir-*
+/Package.resolved
