@@ -12,15 +12,7 @@ await writeFile('adapters/swift/Sources/RelayMarkNativeCollaboration/ProseMirror
 const directives = await Promise.all((await readdir('spec/relaymark/directives')).filter(name => name.endsWith('.json')).sort().map(async name => JSON.parse(await readFile('spec/relaymark/directives/'+name,'utf8'))))
 await writeFile('src/directive-registry.js', '// Generated from spec/relaymark/directives. Never edit independently.\nexport const directiveSpecifications = '+JSON.stringify(directives)+';\n')
 
-// Ship caller-owned adapters as modules importing the host's single Yjs instance.
 await mkdir('adapters/elixir/priv/collaboration', { recursive: true })
-for (const name of ['text-items.js', 'prose-operation.js', 'prose-lineage.js', 'history-lineage.js', 'placement-lineage.js', 'format-attribution-cut.js', 'format-attribution.js', 'format-attribution-replay.js', 'attribution-record-codec.js', 'collaboration-runtime.js']) {
-  if(name==='prose-lineage.js') await writeFile(`adapters/elixir/priv/collaboration/${name}`, (await readFile(`adapters/collaboration/${name}`,'utf8')).replace('../../src/document-inline.js','./document-inline.js'))
-  else await copyFile(`adapters/collaboration/${name}`, `adapters/elixir/priv/collaboration/${name}`)
-}
-// Browser build tools must apply this same exact-version hook to host Yjs.
-await copyFile('scripts/yjs-history-hook.mjs', 'adapters/elixir/priv/collaboration/yjs-history-hook.mjs')
-await copyFile('scripts/y-tiptap-history-selection.mjs', 'adapters/elixir/priv/collaboration/y-tiptap-history-selection.mjs')
 
 // Canonical portable contract/grammar adapters are shipped, not imported from a Git checkout's src tree.
 for (const name of ['document-html-rules.js', 'editor-schema.js', 'contract.js', 'document-directives.js', 'registry.js', 'directive-registry.js', 'document-adapter.js', 'document-inline.js', 'document-links.js', 'document-atoms.js', 'document-reference.js', 'document-controls.js', 'document-suggestion.js']) {

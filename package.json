@@ -7,7 +7,7 @@
     "relaymark": "./bin/relaymark.mjs"
   },
   "scripts": {
-    "test": "node --import ./scripts/prepare-test-yjs.mjs --test",
+    "test": "node --test",
     "test:swift": "swift test",
     "test:elixir": "cd adapters/elixir && mix test",
     "test:adapters": "npm run test:swift && npm run test:elixir",

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Removes the custom history and attribution adapters retired by Relay's
+  October 18 standard collaboration decision (`adapters/collaboration`: text
+  items, prose operations and lineage, history and placement lineage, format
+  attribution, attribution records and the collaboration runtime), the Yjs
+  history hook and y-tiptap history-selection patches with the test loader that
+  applied them, their generators, probes, docs, tests and fixtures. Tests now run
+  against stock Yjs and y-tiptap, as the web editor does.
 - Removes the dead content-edit proof runtime: witness preparation, the
   command producer, mutation replay and its observer, owned command groups and
   history persistence, reviewed recovery, document patches and source

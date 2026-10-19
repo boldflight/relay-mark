@@ -41,10 +41,6 @@ prosemirror-commands 1.7.2. When TipTap moves ProseMirror, port the upstream
 changes, and regenerate the browser reference fixtures in Elixir. They must
 not change unless the upstream behaviour did.
 
-`scripts/yjs-history-hook.mjs` pins the SHA-256 of that Yjs build, and
-`history-lineage.js` names the one supported Yjs version. History snapshots
-written under Yjs 13.6.32 remain restorable.
-
 Schema negotiation must be exact before binding an editor. A client must not silently accept an unknown schema, switch root fields, flatten unknown content, or recreate another incarnation from rendered text. Changing document identity, incarnation, accepted grammar, or semantics requires an explicit migration/negotiation decision. Compatible adapter distribution releases do not themselves change these identities.
 
 ## XML and source representation

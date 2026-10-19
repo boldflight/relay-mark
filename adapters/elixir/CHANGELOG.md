@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Stops packaging the custom history and attribution adapters
+  (`text-items.js`, `prose-operation.js`, `prose-lineage.js`,
+  `history-lineage.js`, `placement-lineage.js`, `format-attribution*.js`,
+  `attribution-record-codec.js`, `collaboration-runtime.js`) and the
+  `yjs-history-hook.mjs` and `y-tiptap-history-selection.mjs` build patches.
+  No consumer imported them.
 - Removes `RelayMark.ContentEdit` and its packaged proof bundles
   (`content-edit-runtime.js`, `content-edit.js`, `content-edit-mutation.js`,
   `content-edit-observer.js`, `owned-command-group.js`,

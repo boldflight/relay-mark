@@ -50,12 +50,6 @@ defmodule RelayMark.PackagedSpecTest do
     assert actual == expected
   end
 
-  test "Hex package ships the canonical pure text-item adapter" do
-    canonical = Path.expand("../../collaboration/text-items.js", __DIR__)
-    packaged = Path.expand("../priv/collaboration/text-items.js", __DIR__)
-    assert File.read!(packaged) == File.read!(canonical)
-  end
-
   test "Hex package ships exact canonical contract and rich adapter modules" do
     for name <-
           ~w(contract.js document-adapter.js document-inline.js document-atoms.js document-reference.js document-controls.js document-suggestion.js) do
