@@ -15,10 +15,26 @@ public enum RelayMarkContentEditCodec {
     /// Logical PM attributes and physical XML fields share the browser codec.
     /// This is stateless grammar conversion, with no source or edit authority.
     public static func encodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
-        try documentAttributes(operation: "encodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
+        if !settingsPolicy.nodes.contains(nodeName) { return try unrelated(attributes).filter { !($0.value is NSNull) } }
+        return try documentAttributes(operation: "encodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
     }
     public static func decodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
-        try documentAttributes(operation: "decodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
+        if !settingsPolicy.nodes.contains(nodeName) { return try unrelated(attributes) }
+        return try documentAttributes(operation: "decodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
+    }
+
+    /// spec/relaymark/xml-attribute-encoding.json: only these nodes carry
+    /// encoded settings fields. Every other node's attributes pass through as
+    /// the shared codec passes them, so a block's attributes need no runtime call.
+    static let settingsPolicy = (nodes: Set(["questionBlock", "questionOption"]), attribute: "settings", prefix: "settings:")
+
+    /// The shared codec's check for a node without settings: no settings fields.
+    private static func unrelated(_ attributes: [String: Any]) throws -> [String: Any] {
+        guard attributes[settingsPolicy.attribute] == nil,
+              !attributes.keys.contains(where: { $0.hasPrefix(settingsPolicy.prefix) }) else {
+            throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
+        }
+        return attributes
     }
     private static func documentAttributes(operation: String, nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
         let result = try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
