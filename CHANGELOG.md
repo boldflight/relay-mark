@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Removes the dead content-edit proof runtime: witness preparation, the
+  command producer, mutation replay and its observer, owned command groups and
+  history persistence, reviewed recovery, document patches and source
+  identities, with their tests and recorded fixtures. The native editing
+  runtime keeps HTML and clipboard import, the attribute codec, maintained
+  commands, clipboard navigation plans and the causal write plan
+  (`spec/relaymark/collaboration/content-edit.md`).
 - Native editing takes the `ai_authored{run_id}` mark. The rich prose
   projection carries it as `RelayMarkAIAuthoredAttribute` (the run id), the
   native AST projection and `RelayMarkInline.runID` keep it, and the portable

@@ -284,7 +284,3 @@ function markdown(n){const p=n.props||{};switch(n.type){case 'paragraph':case 'r
 import {importPublication} from './form-publication-import.js';
 /** Finite saved publication conversion. Optional source is only the same immutable release body. */
 export function importFormPublication(publication,options){return importPublication(publication,options,{importSource:importDocumentSource,identity:id,normalize:normalizeDocument});}
-
-export {classifyContentEditReference,foldSourceReferences,partitionReviewedRecoveryDestinations} from './document-source-identities.js';
-
-export {resolveContentEditTextItems,sourceSelectorWindows,validateSourceReadSelector} from './content-edit-witness.js';

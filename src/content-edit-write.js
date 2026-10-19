@@ -65,10 +65,3 @@ export function contentEditWritePlan(before,after,retained_ranges){
  }
  return {...prepared,causal_targets:[...new Set(causal_targets)]};
 }
-/** One callback implementation shared by validated public writers and replay. */
-export function contentEditWriteCallbacks(prepared,after){
- const targets=new Set(prepared.causal_targets),needed=new WeakMap();
- function visit(node){let changed=targets.has(node.attrs.relaymarkId);node.forEach(child=>{if(visit(child))changed=true});needed.set(node,changed);return changed}
- visit(after);
- return {requiresWrite:node=>needed.get(node)===true,planText:(sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)=>planContentEditTextWrite(prepared,sourceParent,sourceGroup,targetParent,targetGroup,sourceSpan)};
-}

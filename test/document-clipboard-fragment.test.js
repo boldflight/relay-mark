@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {importClipboardHTML,createCanonicalEditorSchema} from '../src/content-edit.js';
+import {importClipboardHTML} from '../src/content-edit.js'
+import {createCanonicalEditorSchema} from '../src/editor-model.js';
 import {Slice} from 'prosemirror-model';
 import {Transform} from 'prosemirror-transform';
 const schema=createCanonicalEditorSchema();

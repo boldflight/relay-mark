@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseDocument} from '../src/document-source.js';
 import {relayMarkToProseMirror} from '../src/document-adapter.js';
-import {createContentEditCommand,createCanonicalEditorSchema} from '../src/content-edit.js';
+import {createContentEditCommand} from '../src/content-edit.js'
+import {createCanonicalEditorSchema} from '../src/editor-model.js';
 import {Step} from 'prosemirror-transform';
 
 const schema=createCanonicalEditorSchema();

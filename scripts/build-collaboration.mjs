@@ -1,7 +1,5 @@
 import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises'
 import { build } from 'esbuild'
-import { historyHookPlugin } from './yjs-history-hook.mjs'
-import { historySelectionPlugin } from './y-tiptap-history-selection.mjs'
 import {writeContractBindings} from './canonical-contract-bindings.mjs'
 await writeContractBindings()
 const attributeEncoding = JSON.parse(await readFile('spec/relaymark/xml-attribute-encoding.json','utf8'))
@@ -40,22 +38,6 @@ await build({ entryPoints: ['src/editor.js'], bundle: true, format: 'esm', platf
 
 await build({ entryPoints: ['src/document-url.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-url.js' })
 
-// The headless proof owns ephemeral replay docs only. Constructor-generated
-// clients are never used: trusted retained bytes load first and the independently
-// observed command writer is assigned before execution. No keys/GUIDs or new
-// external identities are created by this deterministic constructor hook.
-const replayConstructorRandom={name:'ephemeral-replay-constructor',setup(b){b.onResolve({filter:/^lib0\/webcrypto$/},()=>({path:'ephemeral-constructor-random',namespace:'relaymark-proof'}));b.onLoad({filter:/.*/,namespace:'relaymark-proof'},()=>({contents:'export const getRandomValues = a => { a.fill(0); return a }; export const subtle = undefined;',loader:'js'}));}};
-// Maintained PM/Yjs proof runtime: no host authorization or durable replica.
-
-await build({ plugins:[historyHookPlugin,historySelectionPlugin,replayConstructorRandom],inject:['src/document-html-platform.js'],entryPoints:['src/content-edit.js'],supported:{'template-literal':false},bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-runtime.js' })
-await copyFile('adapters/elixir/priv/collaboration/content-edit-runtime.js','adapters/swift/Sources/RelayMarkSwift/Resources/content-edit-runtime.js')
-await build({ inject:['src/document-html-platform.js'],entryPoints:['src/content-edit.js'],supported:{'template-literal':false},bundle:true,format:'esm',platform:'browser',target:'es2020',external:['prosemirror-model','prosemirror-transform','prosemirror-state','prosemirror-commands','prosemirror-schema-list','prosemirror-tables','yjs','@tiptap/y-tiptap'],minify:true,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit.js' })
-
-// Read-only complete original-update observer shares the host maintained Yjs instance.
-await build({entryPoints:['adapters/collaboration/content-edit-observer.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-observer.js'});
-
-await build({entryPoints:['adapters/collaboration/content-edit-mutation.js'],supported:{'template-literal':false},minifyWhitespace:true,bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs','@tiptap/y-tiptap','prosemirror-model','prosemirror-transform','prosemirror-state','prosemirror-commands','prosemirror-schema-list','prosemirror-tables'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/content-edit-mutation.js'});
-
-await build({entryPoints:['adapters/collaboration/owned-command-group.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/owned-command-group.js'});
-
-await build({entryPoints:['adapters/collaboration/owned-history-branches.js'],bundle:true,format:'esm',platform:'browser',target:'es2020',external:['yjs'],minify:false,legalComments:'inline',outfile:'adapters/elixir/priv/collaboration/owned-history-branches.js'});
+// Native editing runtime (Swift): HTML and clipboard import, the attribute
+// codec, maintained commands, clipboard navigation plans and the causal write plan.
+await build({ inject:['src/document-html-platform.js'],entryPoints:['src/content-edit.js'],supported:{'template-literal':false},bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/swift/Sources/RelayMarkSwift/Resources/content-edit-runtime.js' })

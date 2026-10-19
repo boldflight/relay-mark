@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Removes `RelayMark.ContentEdit` and its packaged proof bundles
+  (`content-edit-runtime.js`, `content-edit.js`, `content-edit-mutation.js`,
+  `content-edit-observer.js`, `owned-command-group.js`,
+  `owned-history-branches.js`), and with them the `quicksand` dependency.
+  No consumer called them.
 - `priv/collaboration/document-source.js` and `document-inline.js` accept
   `ai_authored` in the portable snapshot (`snapshotToDocument`) and in
   `validateTextAttributes`, which refused it in 0.7.1.

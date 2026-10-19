@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCanonicalEditorSchema,planClipboardAnchorAllocation,planClipboardHeadingNavigation,planReviewedHeadingNavigation} from '../src/content-edit.js';
+import {planClipboardAnchorAllocation,planClipboardHeadingNavigation} from '../src/content-edit.js'
+import {createCanonicalEditorSchema} from '../src/editor-model.js';
 import {parseDocument} from '../src/document-source.js';
 import {relayMarkToProseMirror} from '../src/document-adapter.js';
 import {Transform,Step} from 'prosemirror-transform';
@@ -49,7 +50,6 @@ test('clipboard inside retained paragraph repairs copied Anchor/link/Button and 
  assert.equal(doc.child(0).eq(schema.nodeFromJSON(input.before_document).child(0)),true);
  assert.equal(doc.child(1).eq(schema.nodeFromJSON(input.before_document).child(1)),true);
  assert.match(doc.textContent,/Prefix /);assert.match(doc.textContent,/suffix/);
- assert.throws(()=>planReviewedHeadingNavigation({archive_document:{type:"doc",content:input.clipboard_slice.content},before_document:input.before_document,block_indices:input.clipboard_slice.content.map((_,i)=>i),steps:input.steps}),/Unavailable reviewed navigation placement/);
 });
 test('clipboard does not infer source correspondence from matching text or reused structural identity',()=>{
  const input=placement(),reused=structuredClone(input);
