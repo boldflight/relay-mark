@@ -66,7 +66,7 @@
       "type": "string",
       "anyOf": [
         {
-          "enum": ["text", "hard_break", "soft_break", "link", "emphasis", "strong", "strikethrough", "code_span", "underline", "highlight", "superscript", "subscript"]
+          "enum": ["text", "hard_break", "soft_break", "link", "emphasis", "strong", "strikethrough", "code_span", "underline", "highlight", "superscript", "subscript", "ai_authored"]
         },
         {
           "pattern": "^relay\\.[a-z][a-z0-9_]*_ref$",
@@ -218,6 +218,11 @@
         },
         "href": {
           "type": "string"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
         },
         "props": {
           "type": "object",

@@ -955,6 +955,18 @@
       "excludes": [
         "subscript"
       ]
+    },
+    {
+      "name": "ai_authored",
+      "inclusive": false,
+      "attrs": {
+        "run_id": {
+          "default": null
+        }
+      },
+      "excludes": [
+        "ai_authored"
+      ]
     }
   ]
 }

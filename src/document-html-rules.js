@@ -67,6 +67,7 @@ node('relayConnection','div[data-relay-connection]',['data-relay-connection'],e=
 for(const shape of canonicalDirectiveNodes)node(shape.name,`section[data-relay-directive="${shape.type}"]`,['data-relay-directive'],()=>{throw TypeError('Missing authored directive HTML attributes');});
 const marks=[];
 for(const[name,tag]of [['bold','strong'],['italic','em'],['strike','s'],['underline','u'],['highlight','mark'],['superscript','sup'],['subscript','sub'],['code','code']])marks.push({name,tag,allowed:[],getAttrs:()=>({})});
+marks.push({name:'ai_authored',tag:'span[data-ai-authored]',allowed:['data-ai-authored','data-run-id'],getAttrs:element=>({run_id:attr(element,'data-run-id')})});
 marks.push({name:'link',tag:'a',allowed:['href','target','rel','class','title'],getAttrs:element=>{const result={...linkDefaults,href:attr(element,'href')};for(const name of ['target','rel','class','title'])if(element.hasAttribute(name))result[name]=attr(element,name);validateLinkAttributes(result);return result;}});
 export function canonicalHTMLNodeRules(name){return defs.filter(def=>def.name===name).map(({tag,getAttrs,contentElement,preserveWhitespace})=>({tag,getAttrs,priority:60,...(contentElement?{contentElement}:{}),...(preserveWhitespace?{preserveWhitespace}: {})}));}
 export function canonicalHTMLMarkRules(name){return marks.filter(def=>def.name===name).map(({tag,getAttrs})=>({tag,getAttrs,priority:60}));}

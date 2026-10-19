@@ -1,0 +1,89 @@
+{
+  "description": "Text an agent run wrote (plan M5c): the ai_authored{run_id} mark in every runtime. Rendering marks it with data-ai-authored; canonical text and Markdown keep only the words.",
+  "ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000a01",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Mine, then "
+          },
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "ai_authored",
+                "run_id": "4f1c2b7a-5d6e-4f80-9a1b-2c3d4e5f6a7b",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "generated"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "ai_authored",
+            "run_id": "4f1c2b7a-5d6e-4f80-9a1b-2c3d4e5f6a7b",
+            "content": [
+              {
+                "type": "text",
+                "text": " notes"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "prosemirror": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000a01"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Mine, then "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "ai_authored",
+                "attrs": {
+                  "run_id": "4f1c2b7a-5d6e-4f80-9a1b-2c3d4e5f6a7b"
+                }
+              }
+            ],
+            "text": "generated"
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "ai_authored",
+                "attrs": {
+                  "run_id": "4f1c2b7a-5d6e-4f80-9a1b-2c3d4e5f6a7b"
+                }
+              }
+            ],
+            "text": " notes"
+          }
+        ]
+      }
+    ]
+  },
+  "html": "<p>Mine, then <strong><span data-ai-authored=\"\" data-run-id=\"4f1c2b7a-5d6e-4f80-9a1b-2c3d4e5f6a7b\">generated</span></strong><span data-ai-authored=\"\" data-run-id=\"4f1c2b7a-5d6e-4f80-9a1b-2c3d4e5f6a7b\"> notes</span></p>",
+  "markdown": "Mine, then **generated** notes\n"
+}

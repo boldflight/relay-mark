@@ -96,6 +96,12 @@ defmodule RelayMark.DocumentRenderer do
       attrs = run["attributes"] || %{}
       text = escape(run["insert"])
 
+      # Text an agent run wrote (innermost, as the last mark in schema order).
+      text =
+        if ai = attrs["ai_authored"],
+          do: tag("span", [{"data-ai-authored", ""}, {"data-run-id", ai["run_id"]}], text),
+          else: text
+
       text =
         Enum.reduce(Enum.reverse(@mark_tags), text, fn {mark, tag}, html ->
           if Map.has_key?(attrs, mark), do: tag(tag, [], html), else: html

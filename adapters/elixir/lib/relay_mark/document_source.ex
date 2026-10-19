@@ -1209,6 +1209,10 @@ defmodule RelayMark.DocumentSource do
             f = String.duplicate("`", longest_ticks(text) + 1)
             f <> text <> f
 
+          # Agent authorship is not source text: the words alone.
+          "ai_authored" ->
+            markdown_inline(n["content"])
+
           type ->
             delimiter =
               case type do

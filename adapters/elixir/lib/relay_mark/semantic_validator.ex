@@ -15,6 +15,7 @@ defmodule RelayMark.SemanticValidator do
                              "highlight",
                              "superscript",
                              "subscript",
+                             "ai_authored",
                              "code_span"
                            ])
 

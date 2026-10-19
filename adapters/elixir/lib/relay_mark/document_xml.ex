@@ -27,7 +27,8 @@ defmodule RelayMark.DocumentXML do
     {"underline", "underline"},
     {"highlight", "highlight"},
     {"superscript", "superscript"},
-    {"subscript", "subscript"}
+    {"subscript", "subscript"},
+    {"ai_authored", "ai_authored"}
   ]
 
   @names %{
@@ -1115,22 +1116,36 @@ defmodule RelayMark.DocumentXML do
     {mark, _} =
       Enum.find(@marks, fn {_pm, ast} -> ast == node["type"] end) || require!(false, :inline_type)
 
-    only!(node, if(mark == "link", do: ~w(type href props content), else: ~w(type content)))
+    only!(
+      node,
+      case mark do
+        "link" -> ~w(type href props content)
+        "ai_authored" -> ~w(type run_id content)
+        _ -> ~w(type content)
+      end
+    )
+
     require!(length(content(node)) == 1 and not Map.has_key?(marks, mark), :mark_children)
 
     attrs =
-      if mark == "link" do
-        case RelayMark.Link.attributes(node["href"], Map.get(node, "props", %{})) do
-          {:ok, attributes} -> attributes
-          {:error, _} -> require!(false, :link_attributes)
-        end
-      else
-        %{}
+      case mark do
+        "link" ->
+          case RelayMark.Link.attributes(node["href"], Map.get(node, "props", %{})) do
+            {:ok, attributes} -> attributes
+            {:error, _} -> require!(false, :link_attributes)
+          end
+
+        "ai_authored" ->
+          %{"run_id" => node["run_id"]}
+
+        _ ->
+          %{}
       end
 
     encode_inline_node(hd(content(node)), Map.put(marks, mark, attrs))
   end
 
+  # The agent run that wrote the text (plan M5c); only servers add the mark.
   # Maintained PM fragments join adjacent equal-mark text. CRDT item splitting
   # changes physical runs, never the authored inline semantics or item identities.
   defp decode_inline(nodes) do
@@ -1199,8 +1214,13 @@ defmodule RelayMark.DocumentXML do
             wrapper = %{"type" => ast, "href" => value["href"], "content" => [leaf]}
             if props == %{}, do: wrapper, else: Map.put(wrapper, "props", props)
           else
-            require!(value == %{}, :mark_attributes)
-            %{"type" => ast, "content" => [leaf]}
+            if pm == "ai_authored" do
+              only!(value, ~w(run_id))
+              %{"type" => ast, "run_id" => value["run_id"], "content" => [leaf]}
+            else
+              require!(value == %{}, :mark_attributes)
+              %{"type" => ast, "content" => [leaf]}
+            end
           end
         else
           leaf

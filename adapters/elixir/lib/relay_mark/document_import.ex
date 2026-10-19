@@ -6,7 +6,7 @@ defmodule RelayMark.DocumentImport do
     "relaymark.scripture_release.v1" => "relaymark.scripture_release",
     "relaymark.scripture_span.v1" => "relaymark.scripture_span"
   }
-  @inline ~w(text hard_break soft_break link emphasis strong strikethrough underline highlight superscript subscript code_span relay.entity_ref relay.tag_ref)
+  @inline ~w(text hard_break soft_break link emphasis strong strikethrough underline highlight superscript subscript ai_authored code_span relay.entity_ref relay.tag_ref)
   def import(document, options \\ []) do
     namespace = Keyword.fetch!(options, :namespace)
     true = is_binary(namespace) and namespace != ""

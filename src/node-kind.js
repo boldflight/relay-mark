@@ -12,6 +12,7 @@ const commonMarkInlineTypes = new Set([
   "highlight",
   "superscript",
   "subscript",
+  "ai_authored",
   "code_span"
 ]);
 

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.7.1
+
+- Adds the non-inclusive `ai_authored` mark (attribute `run_id`, 1 to 64
+  characters) for agent-written text. The AST carries it as an
+  `ai_authored` inline wrapper with `run_id`; HTML renders it as
+  `span[data-ai-authored][data-run-id]`; Markdown and canonical text keep
+  only the words. The editor schema hash changes; contract 1 is otherwise
+  unchanged.
+
 ## 0.7.0
 
 - Raises the document bound from 4,096 to 131,072 identified blocks, counted
