@@ -188,7 +188,7 @@ public enum RelayMarkContent: Codable, Equatable, Sendable {
 
     private static func isInlineType(_ type: String) -> Bool {
         switch type {
-        case "text", "hard_break", "soft_break", "link", "emphasis", "strong", "strikethrough", "code_span", "underline", "highlight", "superscript", "subscript":
+        case "text", "hard_break", "soft_break", "link", "emphasis", "strong", "strikethrough", "code_span", "underline", "highlight", "superscript", "subscript", "ai_authored":
             return true
         case "relay.evidence_ref", "relay.file_ref", "relay.note_ref", "relay.url_ref":
             return false
@@ -204,8 +204,15 @@ public struct RelayMarkInline: Codable, Equatable, Sendable {
     public let id: String?
     public let label: String?
     public let href: String?
+    /// The agent run that wrote an `ai_authored` wrapper's text.
+    public let runID: String?
     public let props: [String: RelayMarkValue]
     public let content: [RelayMarkInline]
+
+    enum CodingKeys: String, CodingKey {
+        case type, text, id, label, href, props, content
+        case runID = "run_id"
+    }
 
     public var plainText: String {
         if let text { return text }
@@ -220,6 +227,7 @@ public struct RelayMarkInline: Codable, Equatable, Sendable {
         id = try container.decodeIfPresent(String.self, forKey: .id)
         label = try container.decodeIfPresent(String.self, forKey: .label)
         href = try container.decodeIfPresent(String.self, forKey: .href)
+        runID = try container.decodeIfPresent(String.self, forKey: .runID)
         props = try container.decodeIfPresent([String: RelayMarkValue].self, forKey: .props) ?? [:]
         content = try container.decodeIfPresent([RelayMarkInline].self, forKey: .content) ?? []
     }

@@ -11,3 +11,10 @@ public struct RelayMarkOfferedMarksAttribute: AttributedStringKey {
     public typealias Value = Set<RelayMarkOfferedMark>
     public static let name = "relay.rich.offeredMarks"
 }
+
+/// Text an agent run wrote: the `ai_authored` mark's `run_id`. Hosts show it
+/// apart from a person's words; it is never part of a person's own input.
+public struct RelayMarkAIAuthoredAttribute: AttributedStringKey {
+    public typealias Value = String
+    public static let name = "relay.rich.aiAuthored"
+}

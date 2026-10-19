@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `priv/collaboration/document-source.js` and `document-inline.js` accept
+  `ai_authored` in the portable snapshot (`snapshotToDocument`) and in
+  `validateTextAttributes`, which refused it in 0.7.1.
+
 ## 0.7.1
 
 - Adds the non-inclusive `ai_authored` mark (attribute `run_id`, 1 to 64

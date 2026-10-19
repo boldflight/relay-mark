@@ -930,9 +930,11 @@ public final class RelayMarkNativeDocument {
     /// Marks follow ProseMirror's stored marks: the preceding character's marks
     /// continue, except a link, which does not extend past its end. Explicit
     /// `attributes` (a stored typing style) win. Cost depends on the leaf only.
+    /// What a person types is theirs: it never carries ai_authored.
     public func typeText(_ text: String, replacing length: Int, at index: Int, path: [Int],
                          attributes explicit: [String: Any]? = nil) throws -> (update: Data, attributes: [String: Any]) {
-        if let explicit {
+        if var explicit {
+            explicit.removeValue(forKey: "ai_authored")
             guard JSONSerialization.isValidJSONObject(explicit) else { throw Failure.unsupportedProseEdit }
             return (try replaceText(at: index, length: length, with: text, path: path, insertionRuns: [(text, explicit)]), explicit)
         }
@@ -957,6 +959,7 @@ public final class RelayMarkNativeDocument {
                 offset = end
             }
             var marks = before ?? runs.first?.attributes ?? [:]
+            marks.removeValue(forKey: "ai_authored")
             if let link = marks["link"] as? NSDictionary, before == nil || (after?["link"] as? NSDictionary) != link {
                 marks.removeValue(forKey: "link")
             }

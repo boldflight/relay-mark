@@ -22,3 +22,13 @@ test('ai_authored needs its run', () => {
     assert.throws(() => relayMarkToProseMirror(ast))
   }
 })
+
+test('ai_authored survives the portable snapshot and is valid typing context', async () => {
+  const {documentToSnapshot, snapshotToDocument} = await import('../src/document-snapshot.js')
+  const {validateTextAttributes} = await import('../src/document-inline.js')
+  const snapshot = documentToSnapshot(fixture.ast)
+  assert.deepEqual(snapshot.children[0].children[0].delta[2].attributes, {ai_authored: {run_id: fixture.ast.blocks[0].content[2].run_id}})
+  assert.deepEqual(snapshotToDocument(snapshot).blocks, fixture.ast.blocks)
+  assert.equal(validateTextAttributes({bold: {}, ai_authored: {run_id: 'run'}}), true)
+  assert.throws(() => validateTextAttributes({ai_authored: {}}))
+})

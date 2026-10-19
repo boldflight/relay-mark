@@ -399,7 +399,7 @@ public struct RelayMarkCollaborativeProse {
     private static func projectedText(text insert:String,attributes:[String:Any],dialect:Dialect,codeBlock:Bool) throws -> AttributedString {
         let offered = Set(RelayMarkOfferedMark.allCases.map(\.rawValue))
         let allowed = Set(["bold", "italic", "strike", "code", "link"])
-            .union(dialect == .rich ? offered : [])
+            .union(dialect == .rich ? offered.union(["ai_authored"]) : [])
         if !Set(attributes.keys).isSubset(of: allowed) { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
         if codeBlock && !attributes.isEmpty { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
         if attributes["code"] != nil && (attributes.count > 1 || insert.contains("\r") || insert.contains("\n")) { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
@@ -422,6 +422,11 @@ public struct RelayMarkCollaborativeProse {
         if attributes["code"] != nil { intent.insert(.code) }
         part.inlinePresentationIntent = intent
         if !offeredMarks.isEmpty { part[RelayMarkOfferedMarksAttribute.self] = offeredMarks }
+        if let authored = attributes["ai_authored"] {
+            guard let run = authored as? [String: Any], run.count == 1, let id = run["run_id"] as? String,
+                  (1...64).contains(id.utf16.count) else { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+            part[RelayMarkAIAuthoredAttribute.self] = id
+        }
         if let mark = attributes["link"] {
             if let link = mark as? [String: Any], let href = link["href"] as? String,
                 Set(link.keys).isSubset(of: dialect == .rich

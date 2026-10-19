@@ -283,19 +283,26 @@ public enum RelayMarkNativeDocumentProjection {
     }
 
     /// TipTap's mark rank is link, bold, code, italic, strike, underline,
-    /// highlight, superscript, subscript. Code excludes all other marks.
+    /// highlight, superscript, subscript, ai_authored. Code excludes all other marks.
     /// Portable wrappers follow that outer-to-inner rank so the
     /// inverse can restore one exact normalized ProseMirror text run.
     private static func markedText(_ text: String, attributes raw: Any?) throws -> [String: Any] {
         let attrs = try object(raw ?? [String: Any](),
                                keys: ["link", "bold", "code", "italic", "strike", "underline",
-                                      "highlight", "superscript", "subscript"])
+                                      "highlight", "superscript", "subscript", "ai_authored"])
         try require(attrs["code"] == nil || attrs.count == 1, "code mark combination")
         for key in ["bold", "code", "italic", "strike", "underline", "highlight", "superscript", "subscript"]
             where attrs[key] != nil {
             try require(try object(attrs[key]!, keys: []).isEmpty, "mark attributes")
         }
         var result: [String: Any] = ["type": "text", "text": text]
+        if let authored = attrs["ai_authored"] {
+            let run = try object(authored, keys: ["run_id"])
+            guard let id = run["run_id"] as? String, (1...64).contains(id.utf16.count) else {
+                throw Failure.unsupported("ai_authored run")
+            }
+            result = ["type": "ai_authored", "run_id": id, "content": [result]]
+        }
         for key in ["subscript", "superscript", "highlight", "underline", "strike", "italic", "code", "bold", "link"]
             where attrs[key] != nil {
             let type: String

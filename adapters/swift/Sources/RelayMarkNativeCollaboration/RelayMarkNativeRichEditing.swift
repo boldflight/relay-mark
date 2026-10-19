@@ -88,9 +88,10 @@ public enum RelayMarkNativeRichEditing {
             }
             guard segments.count <= 4_096 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         }
+        // What a person types or pastes is theirs: only agent runs write ai_authored.
         func inline(_ segment: [(String, [String: Any])]) throws -> [PMNode] {
             try segment.map { text, attributes in
-                schema.text(Array(text.utf16), marks: try PMMark.setFrom(attributes.map { key, value in
+                schema.text(Array(text.utf16), marks: try PMMark.setFrom(attributes.filter { $0.key != "ai_authored" }.map { key, value in
                     guard let type = schema.marks[key] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
                     return type.create(value as? [String: Any] ?? [:])
                 }))
@@ -105,6 +106,9 @@ public enum RelayMarkNativeRichEditing {
             } else if segments.count == 1 {
                 if inheritMarks, runs.count == 1, runs[0].attributes.isEmpty {
                     try transform.insertText(Array(runs[0].text.utf16), from, to, schema: schema)
+                    if let authored = schema.marks["ai_authored"] {
+                        try transform.removeMark(from, from + runs[0].text.utf16.count, type: authored)
+                    }
                 } else {
                     try transform.replaceRange(from, to, PMSlice(PMFragment.fromArray(try inline(segments[0])),
                                                                   openStart: 0, openEnd: 0))
@@ -431,8 +435,9 @@ public enum RelayMarkNativeRichEditing {
             let children = try node.content.children.enumerated().map { index, child in
                 try copied(child, path: path + [index])
             }
+            // Pasted agent text becomes the person's, as typed text does.
             return PMNode(type: node.type, attrs: attrs,
-                content: PMFragment(children), marks: node.marks, text: node.text)
+                content: PMFragment(children), marks: node.marks.filter { $0.type.name != "ai_authored" }, text: node.text)
         }
         let projection = try scope?.projection ?? document.richProseProjection()
         guard projection.isEditable else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Native editing takes the `ai_authored{run_id}` mark. The rich prose
+  projection carries it as `RelayMarkAIAuthoredAttribute` (the run id), the
+  native AST projection and `RelayMarkInline.runID` keep it, and the portable
+  snapshot and typing-attribute validation accept it. Text a person types or
+  pastes through `RelayMarkNativeRichEditing` or `typeText` never carries it, even inside
+  agent text; Return, undo and peers' updates keep it.
 - Removes the Swift collaboration proof machinery under Relay's standard
   collaboration plan: the JavaScriptCore Yjs replica
   (`RelayMarkCollaborationDocument` and `yjs-runtime.js`), the content-edit
