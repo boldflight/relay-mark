@@ -32,9 +32,9 @@ This repository owns the portable RelayMark contract:
   deterministic serialization, capability negotiation, layer composition,
   projections, and conformance.
 - `bin/relaymark.mjs` - small CLI wrapper.
-- `adapters/swift/` - generic Swift value models, Agent Answer validation, and
-  the native attributed-text bridge for Markdown-compatible RelayMark prose,
-  exposed as the root Swift package product `RelayMarkSwift`; the ProseMirror
+- `adapters/swift/` - generic Swift value models, Agent Answer validation and
+  the packaged RelayMark source and HTML codecs, exposed as the root Swift
+  package product `RelayMarkSwift`; the ProseMirror
   port (`RelayMarkModel`), its Yjs binding (`RelayMarkNativeCollaboration`)
   and the native TextKit 2 editor (`RelayMarkEditor`). See
   [native editor architecture](docs/editor-architecture.md).

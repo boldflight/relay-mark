@@ -13,6 +13,13 @@
   dependency; `RelayMarkNativeCollaboration` keeps the Yjs binding.
 - The Swift package's platforms are now macOS, iOS and visionOS 27.0, which
   the editor's TextKit 2 requires.
+- Removes `RelayMarkAttributedTextCodec`, which parsed Markdown with Apple's
+  `AttributedString(markdown:)` beside the canonical engine. Swift reads and
+  writes RelayMark source only through `RelayMarkSourceCodec`.
+- Clipboard HTML from other applications imports with the web editor's TipTap
+  paste rules; a paste service also receives the clipboard's plain text.
+- Large conversions release their JavaScriptCore heap, and writing a paper
+  into the replica no longer holds every node's bridged copy at once.
 
 - Removes the custom history and attribution adapters retired by Relay's
   October 18 standard collaboration decision (`adapters/collaboration`: text
