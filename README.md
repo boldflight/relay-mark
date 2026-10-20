@@ -37,6 +37,8 @@ This repository owns the portable RelayMark contract:
   exposed as the root Swift package product `RelayMarkSwift`.
 - `adapters/elixir/` - generic Elixir value models, document validation, and
   Agent Answer transported-pair validation.
+- `crates/relaymark-core/` - the Rust engine meant to replace the JavaScript
+  and Elixir conversion code (see below).
 
 Relay app integrations belong in client repositories. Generic runtime pieces and
 portable adapters belong here.
@@ -111,6 +113,30 @@ const result = validateTransportedAgentAnswerPair(documentBytes, manifestBytes, 
 
 if (result.diagnostics.length > 0) reject(result.diagnostics);
 ```
+
+## Rust engine (`relaymark-core`)
+
+`crates/relaymark-core` implements every RelayMark conversion once, in Rust, on
+comrak: Markdown to document, the stored `relaymark-ast` source, readable
+Markdown, safe HTML, validation and manifests, ProseMirror and XML snapshot
+conversion, and the finite historical imports. It compiles in the editor
+schema, directive registry and JSON Schemas from `spec/relaymark/`, and its
+output is byte-identical to the JavaScript reference runtime. No platform
+uses it yet; Rustler, uniffi and WebAssembly bindings come next. The pinned
+toolchain is in `rust-toolchain.toml`.
+
+```sh
+cargo test                                   # conformance fixtures, reference oracle
+cargo run --release --example relaymark -- parse < doc.md
+```
+
+`tests/differential.rs` replays calls recorded from the reference runtime
+(`crates/relaymark-core/tools/record.mjs`, driven over a corpus by
+`tools/corpus.mjs`) and requires identical refusals and bytes. The reference
+test suite's calls are committed and always replay; larger corpora replay with
+`RELAYMARK_ORACLE=calls.jsonl cargo test --release --test differential`.
+`examples/bench.rs`, `tools/bench.mjs` and `tools/bench.exs` time the same job
+in each engine.
 
 ## Swift package distribution
 

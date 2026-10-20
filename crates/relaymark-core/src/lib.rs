@@ -19,6 +19,7 @@
 //! compiled in; there is no other copy of it here.
 
 #![forbid(unsafe_code)]
+#![warn(missing_docs)]
 
 mod adapter;
 mod compile;
