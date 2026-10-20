@@ -34,7 +34,10 @@ This repository owns the portable RelayMark contract:
 - `bin/relaymark.mjs` - small CLI wrapper.
 - `adapters/swift/` - generic Swift value models, Agent Answer validation, and
   the native attributed-text bridge for Markdown-compatible RelayMark prose,
-  exposed as the root Swift package product `RelayMarkSwift`.
+  exposed as the root Swift package product `RelayMarkSwift`; the ProseMirror
+  port (`RelayMarkModel`), its Yjs binding (`RelayMarkNativeCollaboration`)
+  and the native TextKit 2 editor (`RelayMarkEditor`). See
+  [native editor architecture](docs/editor-architecture.md).
 - `adapters/elixir/` - generic Elixir value models, document validation, and
   Agent Answer transported-pair validation.
 
@@ -53,6 +56,8 @@ Keep these in this repo:
   and safe missing-anchor fallbacks over already-authorized contributions.
 - A future generic Tiptap/ProseMirror adapter if it only maps RelayMark AST to
   editor nodes and back.
+- The native editor for Apple platforms, which reaches its host only through
+  injected persistence, peers and services.
 
 Keep these in client repos:
 

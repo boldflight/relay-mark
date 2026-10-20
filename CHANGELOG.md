@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Adds `RelayMarkEditor`, the native TextKit 2 editor for RelayMark papers on
+  macOS and iOS, moved from relay-swift: an editor session over one Yjs
+  replica whose edits re-render only the nodes they change, tables as
+  attachments, Find, accessibility, and `RelayMarkEditorServices` for a
+  host's images, rich paste, links and paper controls. It imports no host
+  module. Its tests and 1 KB/1 MB edit-cost gates run here
+  ([native editor architecture](docs/editor-architecture.md)).
+- Splits the ProseMirror port into `RelayMarkModel`, with no Yjs or UI
+  dependency; `RelayMarkNativeCollaboration` keeps the Yjs binding.
+- The Swift package's platforms are now macOS, iOS and visionOS 27.0, which
+  the editor's TextKit 2 requires.
+
 - Removes the custom history and attribution adapters retired by Relay's
   October 18 standard collaboration decision (`adapters/collaboration`: text
   items, prose operations and lineage, history and placement lineage, format

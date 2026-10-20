@@ -31,6 +31,12 @@ layer roles/anchors/fallbacks. These are data-only values. `RelayMarkSwift`
 does not depend on Relay Kit; a UI renderer may depend on both RelayMarkSwift
 and Relay Kit without creating a reverse dependency.
 
+`RelayMarkEditor` is the native editor for these papers: a session over one
+RelayMark Yjs replica, TextKit 2 views for macOS and iOS, and the services
+through which a host supplies persistence, images, rich paste, links and paper
+controls. It imports no host module. See
+[native editor architecture](../../docs/editor-architecture.md).
+
 For durable action rows, `proposalID` is the generator/client identity and
 `proposalRecordID` is the distinct host record address passed to an authorized
 review or undo API. Neither field is an authorization credential.
