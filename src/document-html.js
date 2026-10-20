@@ -4,6 +4,7 @@ import {DOMParser as HTMLDOMParser} from 'linkedom/worker';
 import {DOMParser as PMDOMParser,Slice,Fragment} from 'prosemirror-model';
 import {createCanonicalEditorSchema} from './editor-model.js';
 import {inspectCanonicalHTML} from './document-html-rules.js';
+import {parseForeignClipboard} from './document-html-foreign.js';
 import {proseMirrorToSnapshot} from './document-snapshot.js';
 import {importDocumentSnapshot,utf8Bytes} from './document-source.js';
 import {stableStringify} from './canonical-json.js';
@@ -52,6 +53,30 @@ function validateProjection(document,{sourceNodes,sourceMarks,sourceText,normali
 /** Clipboard-only geometry. Recovery importDocumentHTML remains document-only.
  * Exported context is syntax, never a target/source authority or text lineage. */
 export function importClipboardHTML({html,namespace}){
+ // Clipboard HTML another application wrote is read as the web editor reads a
+ // paste. Relay's own canonical HTML, and any ProseMirror slice, stay exact.
+ try{return importCanonicalClipboardHTML({html,namespace});}
+ catch(error){
+  if(typeof html!=='string'||html.length>4194304||utf8Bytes(html).byteLength>4194304||typeof namespace!=='string'||!namespace)throw error;
+  // Other applications write whole documents, with head, styles and metadata.
+  const dom=new HTMLDOMParser().parseFromString(/<html[\s>]/i.test(html)?html:'<html><head></head><body>'+html+'</body></html>','text/html');
+  // Editor-written HTML (a ProseMirror slice, Relay identities or authored
+  // attributes) keeps its exact import and its refusals.
+  if(!dom.body||[...dom.body.querySelectorAll('*')].some(element=>[...element.attributes].some(({name})=>
+   /^data-(pm-slice|relaymark|authored|relay-)/.test(name))))throw error;
+  return importForeignClipboardHTML(dom);
+ }
+}
+function importForeignClipboardHTML(dom){
+ let slice=Slice.fromJSON(schema,parseForeignClipboard(dom.body));
+ if(!slice.content.size)throw TypeError('Empty clipboard Slice');
+ schema.topNodeType.create(null,slice.content).check();
+ const bounded=Slice.maxOpen(slice.content,false);
+ slice=closeClipboardSlice(slice,bounded.openStart,bounded.openEnd);
+ return {slice:{content:slice.content.toJSON(),openStart:slice.openStart,openEnd:slice.openEnd},
+  normalizations:[{operation:'import_foreign_clipboard_html',source:'clipboard_html'}]};
+}
+function importCanonicalClipboardHTML({html,namespace}){
  const dom=readHTML(html,namespace),identityNormalizations=normalizeClipboardIdentities(dom.body),markers=[...dom.body.querySelectorAll('[data-pm-slice]')];
  if(markers.length>1)throw TypeError('Duplicate clipboard Slice metadata');
  let root=dom.body,declared=null,context=[];

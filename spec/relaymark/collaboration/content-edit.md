@@ -9,7 +9,16 @@ no persistence, transport, identity allocation or authority.
 - `importDocumentHTML` and `importClipboardHTML` convert HTML through the shared
   DOM grammar into a canonical document or clipboard slice. The result grants no
   source, media or edit authority; the host fences the paste and authorizes its
-  references.
+  references. Clipboard HTML the editor wrote (a ProseMirror slice, or HTML
+  carrying RelayMark identities or authored attributes) must import exactly or
+  is refused. HTML other applications wrote is read with the web editor's own
+  paste rules, the `parseHTML` rules of the TipTap 3.31 extensions it uses
+  (`src/document-html-foreign.js`): `b`, `i`, `s`, `u`, `mark`, `sub`, `sup`,
+  `code`, inline `font-weight`, `font-style`, `text-decoration` and
+  `vertical-align`, headings, paragraphs, quotes, lists, task lists, code blocks,
+  tables, rules, breaks, safe links and HTTPS or host media images. Unknown
+  wrappers contribute their content, so Google Docs' `font-weight:normal`
+  wrapper is not bold.
 - `encodeDocumentAttributes` and `decodeDocumentAttributes` convert between
   logical ProseMirror attributes and physical XML fields
   (`spec/relaymark/xml-attribute-encoding.json`).
