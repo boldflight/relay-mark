@@ -113,7 +113,7 @@ impl EditorSchema {
     pub fn normalize(&self, document: &Value) -> Result<Value> {
         let node = self.node_from_json(document)?;
         self.check(&node)?;
-        Ok(node.to_json())
+        Ok(node.into_json())
     }
 
     fn node_from_json(&self, json: &Value) -> Result<PmNode> {
@@ -245,33 +245,33 @@ struct PmNode {
 }
 
 impl PmNode {
-    fn to_json(&self) -> Value {
+    fn into_json(self) -> Value {
         let schema = editor_schema();
-        let mut object = Map::new();
+        let mut object = Map::with_capacity(4);
         object.insert("type".into(), Value::String(schema.nodes[self.kind].name.clone()));
         if !self.attrs.is_empty() {
-            object.insert("attrs".into(), Value::Object(self.attrs.clone()));
+            object.insert("attrs".into(), Value::Object(self.attrs));
         }
         if !self.content.is_empty() {
-            object.insert("content".into(), Value::Array(self.content.iter().map(PmNode::to_json).collect()));
+            object.insert("content".into(), Value::Array(self.content.into_iter().map(PmNode::into_json).collect()));
         }
         if !self.marks.is_empty() {
             let marks = self
                 .marks
-                .iter()
+                .into_iter()
                 .map(|mark| {
-                    let mut json = Map::new();
+                    let mut json = Map::with_capacity(2);
                     json.insert("type".into(), Value::String(schema.marks[mark.rank].name.clone()));
                     if !mark.attrs.is_empty() {
-                        json.insert("attrs".into(), Value::Object(mark.attrs.clone()));
+                        json.insert("attrs".into(), Value::Object(mark.attrs));
                     }
                     Value::Object(json)
                 })
                 .collect();
             object.insert("marks".into(), Value::Array(marks));
         }
-        if let Some(text) = &self.text {
-            object.insert("text".into(), Value::String(text.clone()));
+        if let Some(text) = self.text {
+            object.insert("text".into(), Value::String(text));
         }
         Value::Object(object)
     }

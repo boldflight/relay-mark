@@ -19,12 +19,29 @@ const METADATA_KEYS: [&str; 4] = ["frontmatter", "annotations", "resources", "me
 /// identity, so adjacent equal runs join; block identities, marks, atom
 /// boundaries and envelope values stay exact. Refuses invalid documents.
 pub fn normalize_document(document: &Value) -> Result<Value> {
-    let prosemirror = to_prosemirror(document)?;
-    let normalized = editor_schema().normalize(&prosemirror)?;
-    let blocks = to_relaymark(&normalized)?["blocks"].take();
-    let mut result = document.as_object().cloned().unwrap_or_default();
+    let blocks = normalized_blocks(document)?;
+    let mut result = Map::new();
+    for (key, value) in document.as_object().into_iter().flatten() {
+        result.insert(key.clone(), if key == "blocks" { Value::Null } else { value.clone() });
+    }
     result.insert("blocks".into(), blocks);
     Ok(Value::Object(result))
+}
+
+/// [`normalize_document`] of a document the caller gives up, so its blocks
+/// are freed before the normalized ones are built.
+pub fn normalize_owned_document(document: Value) -> Result<Value> {
+    let blocks = normalized_blocks(&document)?;
+    let Value::Object(mut result) = document else { unreachable!("validated document object") };
+    result.insert("blocks".into(), blocks);
+    Ok(Value::Object(result))
+}
+
+fn normalized_blocks(document: &Value) -> Result<Value> {
+    let prosemirror = to_prosemirror(document)?;
+    let normalized = editor_schema().normalize(&prosemirror)?;
+    drop(prosemirror);
+    Ok(to_relaymark(&normalized)?["blocks"].take())
 }
 
 /// Document AST to its portable XML snapshot.

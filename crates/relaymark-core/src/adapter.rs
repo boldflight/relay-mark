@@ -927,9 +927,13 @@ pub fn to_prosemirror(document: &Value) -> Result<Value> {
     if type_of(document) != Some("relaymark.document") {
         bail!("Expected a canonical RelayMark AST document");
     }
-    let wrapper = json!({"content": document.get("blocks").cloned().unwrap_or(Value::Null)});
-    assert_content_depth(&wrapper, 0)?;
-    let blocks = children(&wrapper, "document", 1)?;
+    let blocks = match document.get("blocks").and_then(Value::as_array) {
+        Some(blocks) if !blocks.is_empty() => blocks,
+        _ => bail!("document requires an array of at least 1 children"),
+    };
+    for block in blocks {
+        assert_content_depth(block, 1)?;
+    }
     let metadata: Map = METADATA_KEYS.iter().filter_map(|k| document.get(*k).map(|v| ((*k).to_owned(), v.clone()))).collect();
     let metadata = Value::Object(metadata);
     assert_authored_metadata(&metadata)?;

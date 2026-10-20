@@ -14,7 +14,7 @@ use crate::jsre::js_regex;
 use crate::links::{link_attributes, safe_image_source, safe_link_href};
 use crate::mdurl;
 use crate::registry::{directive_for_name, directive_for_type, directive_node_for_type};
-use crate::snapshot::normalize_document;
+use crate::snapshot::{normalize_document, normalize_owned_document};
 
 /// Deterministic stable-once block identity for a source position.
 pub fn block_id(namespace: &str, path: &[String]) -> String {
@@ -75,7 +75,7 @@ pub fn exact_interchange(source: &str) -> Option<Result<Value>> {
 pub fn parse_document(source: &str, namespace: Option<&str>) -> Result<Value> {
     let source = normalize_newlines(source);
     if let Some(exact) = exact_interchange(&source) {
-        return normalize_document(&exact?);
+        return normalize_owned_document(exact?);
     }
     let namespace = namespace.unwrap_or(&source).to_owned();
     let mut body = source.as_str();
@@ -100,7 +100,7 @@ pub fn parse_document(source: &str, namespace: Option<&str>) -> Result<Value> {
         document.insert("frontmatter".into(), Value::Object(frontmatter));
     }
     document.insert("blocks".into(), Value::Array(blocks));
-    normalize_document(&Value::Object(document))
+    normalize_owned_document(Value::Object(document))
 }
 
 pub fn normalize_newlines(source: &str) -> String {
