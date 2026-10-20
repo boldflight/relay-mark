@@ -25,7 +25,7 @@ public final class RelayMarkEditorSession {
 
     func noteFallback(_ path: StaticString) {
         fallbackEdits += 1
-        Logger(subsystem: "com.boldflight.relay", category: "PaperEditing")
+        Logger(subsystem: "RelayMarkEditor", category: "Editing")
             .debug("Whole-paper edit path \(path, privacy: .public) (\(self.fallbackEdits, privacy: .public) this session)")
     }
     public private(set) var isSupported: Bool
@@ -204,7 +204,7 @@ public final class RelayMarkEditorSession {
               let item = nativeTaskItems.first(where: { $0.firstParagraphRange.location == offset }) else { return false }
         if item.entityID != nil {
             guard let onLinkedTaskItem else {
-                failure = "This linked Task needs its authorized domain update capability. The checkbox has not changed."
+                failure = "This task is linked to an item its host updates, and no host is handling it. The checkbox has not changed."
                 return false
             }
             return onLinkedTaskItem(item)
