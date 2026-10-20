@@ -140,15 +140,11 @@ every compatible change. Published semantic-version tags remain the stable
 distribution boundary for external or intentionally frozen consumers, which
 may use a compatible range and commit `Package.resolved`. The repository root
 is the only Swift package manifest and remains the focused adapter-development
-entry point. It requires Swift tools 6.3 for the Xcode 26.5 production baseline
-and is also verified
-using the current Swift 6.4 beta toolchain.
-
-SwiftPM does not provide named `PackageDescription` enum cases for every Apple
-OS patch release, so both package manifests use the supported string form for
-their `26.5` deployment floors. `swift package dump-package` must preserve
-`26.5`; local verification uses Xcode 27 beta, while Xcode 26.5/Swift 6.3
-remains the production CI compatibility gate.
+entry point. It requires Xcode 27.1 (Swift 6.4) and supports macOS, iOS and
+visionOS 27.0 or newer, the floor the native editor's TextKit 2 needs. Local,
+CI and release builds use the same Xcode; there is no older-Xcode
+compatibility gate. If the hosted CI runner lacks Xcode 27.1, its Swift job
+fails and `swift test` run locally is the check.
 
 Routine releases are made directly from `main`. Branches and pull requests are
 optional, not release prerequisites. Any verified `main` commit may receive an

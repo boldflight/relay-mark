@@ -39,13 +39,22 @@ jobs:
           npm run conformance
 
   swift-adapter:
-    name: Swift 6.3 adapter
+    name: Swift 6.4 adapter
     runs-on: macos-26
     timeout-minutes: 15
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
 
     steps:
+      # Relay builds with Xcode 27.1 everywhere. Without it on the hosted image
+      # this job fails; the Swift checks then run locally, never on older Xcode.
+      - name: Require Xcode 27.1
+        run: |
+          if [ ! -d "$DEVELOPER_DIR" ]; then
+            echo "::error::Xcode 27.1 is not installed on this runner ($DEVELOPER_DIR). Run the Swift checks locally (swift test) until the hosted image provides it."
+            exit 1
+          fi
+
       - name: Check out repository
         uses: actions/checkout@v6
 

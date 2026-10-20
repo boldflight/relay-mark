@@ -11,9 +11,8 @@ Markdown and HTML conversion go through the packaged RelayMark engine
 there is no second Swift Markdown parser. Host apps resolve entity identities
 and choose their native editor and chip presentation.
 
-The package requires Swift tools 6.3 to match production Xcode 26.5 and is
-continuously verified with Swift 6.4. It supports macOS, iOS,
-and visionOS 26.5 or newer. Manifest models include generic inline-reference,
+The package builds with Xcode 27.1 (Swift 6.4) and supports macOS, iOS,
+and visionOS 27.0 or newer. Manifest models include generic inline-reference,
 versioned-evidence, action-proposal lifecycle, research-claim, and
 structured-comparison projections. The adapter validates and projects the
 portable `relaymark.agent_answer.v1` profile, applies Scripture evidence rules
