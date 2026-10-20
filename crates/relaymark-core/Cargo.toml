@@ -1,0 +1,18 @@
+[package]
+name = "relaymark-core"
+version = "0.1.0"
+description = "The canonical RelayMark engine: Markdown, stored source, HTML, validation and snapshot conversion"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+comrak = { version = "0.56", default-features = false }
+serde_json = { version = "1", features = ["preserve_order"] }
+regex = "1"
+sha2 = "0.10"
+url = "2"
+unicode-normalization = "0.1"
+ryu-js = "1"
+base64 = "0.22"
