@@ -67,26 +67,43 @@ public enum RelayMarkSourceCodec {
 /// Synchronous stateless package calls share one thread-confined context per
 /// shipped resource. No context crosses threads or owns a live editor replica.
 enum RelayMarkPortableRuntime {
+    /// JavaScriptCore keeps the heap a context grew to until the context is
+    /// released, so a call this large retires its context afterwards; the next
+    /// call starts a fresh one.
+    static let retainedLimit = 256 * 1024
+
     static func call(resource: String, global: String, operation: String, arguments: [Any]) throws -> Data {
         let key="relaymark.canonical.portable."+resource
-        let context:JSContext
-        if let retained=Thread.current.threadDictionary[key] as? JSContext {context=retained}
-        else {
-            guard let path=Bundle.module.url(forResource:resource,withExtension:"js"),
-                  let script=try? String(contentsOf:path,encoding:.utf8),let fresh=JSContext() else {throw RelayMarkSourceCodec.Failure.unavailable}
-            fresh.evaluateScript(script)
-            guard fresh.exception==nil else {throw RelayMarkSourceCodec.Failure.unavailable}
-            Thread.current.threadDictionary[key]=fresh;context=fresh
+        // Releases the call's bridged values, and a retired context, before returning.
+        return try autoreleasepool {
+            let context:JSContext
+            if let retained=Thread.current.threadDictionary[key] as? JSContext {context=retained}
+            else {
+                guard let path=Bundle.module.url(forResource:resource,withExtension:"js"),
+                      let script=try? String(contentsOf:path,encoding:.utf8),let fresh=JSContext() else {throw RelayMarkSourceCodec.Failure.unavailable}
+                fresh.evaluateScript(script)
+                guard fresh.exception==nil else {throw RelayMarkSourceCodec.Failure.unavailable}
+                Thread.current.threadDictionary[key]=fresh;context=fresh
+            }
+            var large = arguments.contains { ($0 as? String).map { $0.utf8.count > retainedLimit } ?? false }
+            defer {
+                // The arguments stay reachable from the global object until cleared.
+                for name in ["relayMarkRuntimeGlobal", "relayMarkRuntimeOperation", "relayMarkRuntimeArguments"] {
+                    context.setObject(JSValue(undefinedIn: context), forKeyedSubscript: name as NSString)
+                }
+                if large { Thread.current.threadDictionary.removeObject(forKey: key) }
+            }
+            context.exception=nil
+            context.setObject(global,forKeyedSubscript:"relayMarkRuntimeGlobal" as NSString)
+            context.setObject(operation,forKeyedSubscript:"relayMarkRuntimeOperation" as NSString)
+            context.setObject(arguments,forKeyedSubscript:"relayMarkRuntimeArguments" as NSString)
+            let result=context.evaluateScript("JSON.stringify(globalThis[relayMarkRuntimeGlobal][relayMarkRuntimeOperation](...relayMarkRuntimeArguments))")
+            if context.exception != nil {
+                throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
+            }
+            guard let encoded=result?.toString(),let data=encoded.data(using:.utf8) else {throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument}
+            if data.count > retainedLimit { large = true }
+            return data
         }
-        context.exception=nil
-        context.setObject(global,forKeyedSubscript:"relayMarkRuntimeGlobal" as NSString)
-        context.setObject(operation,forKeyedSubscript:"relayMarkRuntimeOperation" as NSString)
-        context.setObject(arguments,forKeyedSubscript:"relayMarkRuntimeArguments" as NSString)
-        let result=context.evaluateScript("JSON.stringify(globalThis[relayMarkRuntimeGlobal][relayMarkRuntimeOperation](...relayMarkRuntimeArguments))")
-        if let exception=context.exception {
-            throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
-        }
-        guard let encoded=result?.toString(),let data=encoded.data(using:.utf8) else {throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument}
-        return data
     }
 }
