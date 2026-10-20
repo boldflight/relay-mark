@@ -15,3 +15,8 @@ adapters/elixir/relay_mark_elixir-*
 
 # Rust build output
 /target/
+
+# The relay_mark_elixir NIF build and its compile-time engine copy
+adapters/elixir/native/relaymark/
+adapters/elixir/native/relay_mark_nif/target/
+adapters/elixir/priv/native/

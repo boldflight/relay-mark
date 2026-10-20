@@ -102,6 +102,28 @@ pub fn paper_destinations(document: &Value) -> Result<Vec<Value>> {
     Ok(controls::paper_destinations(&adapter::to_prosemirror(&normalized)?))
 }
 
+/// Canonical `[[Type: id | label]]` source of an inline entity reference.
+pub fn entity_reference_source(entity_type: &str, entity_id: &str, label: &str) -> Result<String> {
+    inline::build_entity_reference_source(Some(&Value::from(entity_type)), Some(&Value::from(entity_id)), Some(&Value::from(label)))
+}
+
+/// Canonical one-line source of an authored Paper control from its
+/// `{"control": ..., <fields>}` properties.
+pub fn paper_control_source(props: &Value) -> Result<String> {
+    let Some(map) = props.as_object() else { return Err(Error::new("Invalid paper control")) };
+    let control = map.get("control").and_then(Value::as_str).unwrap_or_default();
+    let authored = map.iter().filter(|(k, _)| *k != "control").map(|(k, v)| (k.clone(), v.clone())).collect();
+    controls::canonical_control_source(control, &authored)
+}
+
+/// The parts of a strict `@EntityRef(...)` block reference source:
+/// `{id, entityId, label, projection, body, source}`, or `None`.
+pub fn parse_entity_reference(source: &str) -> Option<Value> {
+    let parsed = controls::parse_entity_reference_source(source)?;
+    Some(serde_json::json!({"id": parsed.id, "entityId": parsed.entity_id, "label": parsed.label,
+        "projection": parsed.projection, "body": parsed.body, "source": parsed.source}))
+}
+
 /// Validate editor typing attributes (marks and link properties).
 pub fn validate_text_attributes(attributes: &Value) -> Result<()> {
     inline::validate_text_attributes(attributes)

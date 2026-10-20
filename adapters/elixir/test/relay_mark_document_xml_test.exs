@@ -171,8 +171,8 @@ defmodule RelayMark.DocumentXMLTest do
       | "children" => [Map.put(first, "attributes", %{}) | tl(snapshot["children"])]
     }
 
-    assert {:error, [diagnostic]} = RelayMark.DocumentXML.to_document(bad)
-    assert diagnostic["reason"] == ":block_identity"
+    assert {:error, [%{"code" => "relaymark.document_xml.invalid"}]} =
+             RelayMark.DocumentXML.to_document(bad)
   end
 
   defp whole_numbers(value) when is_map(value),
@@ -242,7 +242,7 @@ defmodule RelayMark.DocumentXMLTest do
 
     oversized = Map.update!(snapshot, "children", &List.flatten(List.duplicate(&1, 14)))
 
-    assert {:error, [%{"reason" => ":block_limit"}]} =
+    assert {:error, [%{"code" => "relaymark.document_xml.invalid"}]} =
              RelayMark.DocumentXML.to_document(oversized)
   end
 

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Every conversion and validation now runs in `relaymark-core`, the canonical
+  RelayMark engine in Rust, through one NIF compiled from source (Rust 1.99.1;
+  the package ships the engine under `native/`). Inputs above 4 KB run on a
+  dirty CPU scheduler. `DocumentSource`, `DocumentRenderer`, `DocumentImport`,
+  `SemanticValidator`, `ManifestProjection`, `FormPublicationImport`,
+  `CollaborativeProse`, `AgentSuggestion`, `Link` and `DocumentDirectives` are
+  gone; `DocumentXML`, `Schema`, `AgentAnswer`, `InlineAtoms`, `PaperControl`
+  and `EntityReference` are thin calls into the engine. The `mdex` and `jsv`
+  dependencies are replaced by `rustler`.
+- Output now matches the JavaScript reference byte for byte: the stored source
+  writes keys in the reference runtime's order rather than sorted, unmarked
+  snapshot text runs carry `"attributes": {}`, Markdown is read as markdown-it
+  reads it, a mark nested in the same mark merges instead of refusing the
+  document, and a historical paragraph without a body imports empty. Error
+  `reason`s are the engine's messages.
+
 - Stops packaging the custom history and attribution adapters
   (`text-items.js`, `prose-operation.js`, `prose-lineage.js`,
   `history-lineage.js`, `placement-lineage.js`, `format-attribution*.js`,

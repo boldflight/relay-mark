@@ -2,7 +2,3 @@
 resolver = "3"
 members = ["crates/relaymark-core"]
 
-[workspace.package]
-edition = "2024"
-rust-version = "1.99"
-license = "MIT"
