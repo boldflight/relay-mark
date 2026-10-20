@@ -68,9 +68,21 @@ public enum RelayMarkSourceCodec {
 /// shipped resource. No context crosses threads or owns a live editor replica.
 enum RelayMarkPortableRuntime {
     /// JavaScriptCore keeps the heap a context grew to until the context is
-    /// released, so a call this large retires its context afterwards; the next
-    /// call starts a fresh one.
+    /// released, so a call this large retires its context once calls pause; the
+    /// next call starts a fresh one. On the main thread, where editing can make
+    /// several in a row, that is after `mainThreadIdle` without another call;
+    /// on any other thread it is at once.
     static let retainedLimit = 256 * 1024
+    static let mainThreadIdle: TimeInterval = 1
+
+    private static func retire(_ key: String, unlessCalledAfter calls: Int) {
+        guard Thread.isMainThread else { Thread.current.threadDictionary.removeObject(forKey: key); return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + mainThreadIdle) {
+            let retained = Thread.main.threadDictionary
+            guard retained[key + ".calls"] as? Int == calls else { return }
+            retained.removeObject(forKey: key)
+        }
+    }
 
     static func call(resource: String, global: String, operation: String, arguments: [Any]) throws -> Data {
         let key="relaymark.canonical.portable."+resource
@@ -91,7 +103,9 @@ enum RelayMarkPortableRuntime {
                 for name in ["relayMarkRuntimeGlobal", "relayMarkRuntimeOperation", "relayMarkRuntimeArguments"] {
                     context.setObject(JSValue(undefinedIn: context), forKeyedSubscript: name as NSString)
                 }
-                if large { Thread.current.threadDictionary.removeObject(forKey: key) }
+                let calls = ((Thread.current.threadDictionary[key + ".calls"] as? Int) ?? 0) &+ 1
+                Thread.current.threadDictionary[key + ".calls"] = calls
+                if large { retire(key, unlessCalledAfter: calls) }
             }
             context.exception=nil
             context.setObject(global,forKeyedSubscript:"relayMarkRuntimeGlobal" as NSString)

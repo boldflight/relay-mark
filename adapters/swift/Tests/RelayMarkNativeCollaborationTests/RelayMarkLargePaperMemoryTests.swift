@@ -24,14 +24,16 @@ struct RelayMarkLargePaperMemoryTests {
     /// The JavaScript heap a large conversion grows stays with its context, so
     /// that context must be released, not kept for the next call. iOS grows it
     /// to several hundred megabytes for this paper; macOS far less.
-    @Test func largeConversionReturnsItsJavaScriptHeap() throws {
+    @Test func largeConversionReturnsItsJavaScriptHeap() async throws {
         _ = try RelayMarkSourceCodec.parseDocument("# Warm", namespace: "warm")
         let baseline = Self.footprint()
         try autoreleasepool { _ = try RelayMarkSourceCodec.parseDocument(Self.source, namespace: "large") }
-        // Released pages return to the system shortly after the context goes.
+        // The context goes once the main thread idles, as it does between the
+        // app's run loop turns; suspending lets the main queue run. A nested
+        // run loop would not: this test is itself a main-queue job.
         var settled = Self.footprint()
         for _ in 0..<50 where settled - baseline >= 100 {
-            Thread.sleep(forTimeInterval: 0.1); settled = Self.footprint()
+            try await Task.sleep(for: .milliseconds(100)); settled = Self.footprint()
         }
         #expect(settled - baseline < 100, "a 1 MB parse kept \(settled - baseline) MB")
     }
