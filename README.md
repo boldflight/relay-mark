@@ -141,10 +141,10 @@ distribution boundary for external or intentionally frozen consumers, which
 may use a compatible range and commit `Package.resolved`. The repository root
 is the only Swift package manifest and remains the focused adapter-development
 entry point. It requires Xcode 27.1 (Swift 6.4) and supports macOS, iOS and
-visionOS 27.0 or newer, the floor the native editor's TextKit 2 needs. Local,
-CI and release builds use the same Xcode; there is no older-Xcode
-compatibility gate. If the hosted CI runner lacks Xcode 27.1, its Swift job
-fails and `swift test` run locally is the check.
+visionOS 27.0 or newer, the floor the native editor's TextKit 2 needs. Local
+and release builds use the same Xcode; there is no older-Xcode compatibility
+gate. GitHub Actions runs no Swift job: `swift test` run locally, with
+Xcode 27.1, is the Swift check, and Xcode Cloud builds the apps that use it.
 
 Routine releases are made directly from `main`. Branches and pull requests are
 optional, not release prerequisites. Any verified `main` commit may receive an
