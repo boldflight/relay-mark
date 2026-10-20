@@ -35,4 +35,18 @@ struct RelayMarkHTMLImportTests {
             try RelayMarkContentEditCodec.importDocumentHTML("<unknown-authored>Keep me</unknown-authored>", namespace: "clipboard-refusal-proof")
         }
     }
+
+    @Test("Clipboard HTML from other applications pastes with the web editor's rules in the packaged runtime")
+    func foreignClipboardHTMLUsesWebPasteRules() throws {
+        // Google Docs wraps its content in a b that is not bold; its spans carry the weights.
+        let html = "<meta charset=\"utf-8\"><b style=\"font-weight:normal;\" id=\"docs-internal-guid-1\"><p><span style=\"font-weight:700\">Bold</span> <i>italic</i></p></b>"
+        let data = try RelayMarkContentEditCodec.importClipboardHTML(html, namespace: "foreign-clipboard")
+        let result = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let slice = try #require(result["slice"] as? [String: Any])
+        let paragraph = try #require((slice["content"] as? [[String: Any]])?.first)
+        let runs = try #require(paragraph["content"] as? [[String: Any]]).map { run in
+            [run["text"] as? String ?? "", ((run["marks"] as? [[String: Any]]) ?? []).compactMap { $0["type"] as? String }.joined()]
+        }
+        #expect(runs == [["Bold", "bold"], [" ", ""], ["italic", "italic"]])
+    }
 }

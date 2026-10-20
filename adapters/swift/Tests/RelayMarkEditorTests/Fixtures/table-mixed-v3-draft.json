@@ -1,0 +1,374 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "provenance": "TipTap 3.30.5 schema; y-tiptap 3.0.9; Yjs 13.6.32; concurrent table update plus Yjs XmlElement paragraphs",
+  "base_table_update_sha256": "956e8391ae8829c41129ce452ffb1622fdf6004ddeaf3e05dd49b79e41883613",
+  "update": "BB+rjsPnCQAHAQdkZWZhdWx0AwV0YWJsZQcAq47D5wkAAwh0YWJsZVJvdwcAq47D5wkBAwt0YWJsZUhlYWRlcgcAq47D5wkCAwlwYXJhZ3JhcGgHAKuOw+cJAwYEAKuOw+cJBAFBKACrjsPnCQMLcmVsYXltYXJrSWQBdyFiMWUwN2EyY2I4OWZmNDY3ZDkxMmI5N2QxNjdiNDMxMjYoAKuOw+cJAgtyZWxheW1hcmtJZAF3IWJkZjUwNDYyNTIwOGM0NWVjODhlZjFmODE3MWJhMTg1NCgAq47D5wkCB2NvbHNwYW4BfQIoAKuOw+cJAgdyb3dzcGFuAX0BKACrjsPnCQIIY29sd2lkdGgBdQJ9uAF9tAIoAKuOw+cJAQtyZWxheW1hcmtJZAF3IWI0ZDc5YmM0ZGVkYzg0MzM3OWQzYjhiNWRlNmE1ODgxNoerjsPnCQEDCHRhYmxlUm93BwCrjsPnCQwDCXRhYmxlQ2VsbAcAq47D5wkNAwlwYXJhZ3JhcGgHAKuOw+cJDgYBAKuOw+cJDwEoAKuOw+cJDgtyZWxheW1hcmtJZAF3IWJmMGIxNTcxZjYwYzc0ZWY0OWQyZWFiY2VlZDkxMjZiOSgAq47D5wkNC3JlbGF5bWFya0lkAXchYjBiMTUyZmMyYWQwNDQxOTVhNjkwZjg1MDg0M2ZmNGIyKACrjsPnCQ0HY29sc3BhbgF9ASgAq47D5wkNB3Jvd3NwYW4BfQGHq47D5wkNAwl0YWJsZUNlbGwHAKuOw+cJFQMJcGFyYWdyYXBoBwCrjsPnCRYGAQCrjsPnCRcBKACrjsPnCRYLcmVsYXltYXJrSWQBdyFiOWI3N2RkN2MyYmRmNDY1NmFjMTcwMDI2M2I0YTJiNTUoAKuOw+cJFQtyZWxheW1hcmtJZAF3IWJmNTJiYjdiODcxYjc0YTFkOGVkZmQ0NzBhZjMzZTBmYSgAq47D5wkVB2NvbHNwYW4BfQEoAKuOw+cJFQdyb3dzcGFuAX0BKACrjsPnCQwLcmVsYXltYXJrSWQBdyFiYzVlNTA3YTY1ZmIyNGM0MzhjYjA0NjA3ZjVkNzZmZTQoAKuOw+cJAAtyZWxheW1hcmtJZAF3IWJlOWU0YzNkNjk3ZWI0YzNmYjg3NjQwNTVmOTMwZTg4ZQqBqNa5BwBHq47D5wkAAwlwYXJhZ3JhcGgHAIGo1rkHAAYEAIGo1rkHARNCZWZvcmUg8J+MjSA8dGFibGU+KACBqNa5BwALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDGHq47D5wkAAwlwYXJhZ3JhcGgoAIGo1rkHFAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwMoeBqNa5BxQDCXBhcmFncmFwaAcAgajWuQcWBgQAgajWuQcXFkFmdGVyIHRoZSBzaGFyZWQgdGFibGUoAIGo1rkHFgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwMwOLp+mkBQAoAKuOw+cJDQhjb2x3aWR0aAF1AX24ASgAq47D5wkVCGNvbHdpZHRoAXUBfbQChKuOw+cJGANCb2ITxObTzgIAIQCrjsPnCRUIY29sd2lkdGgBIQCrjsPnCQ0IY29sd2lkdGgBhKuOw+cJEAVBbGljZYerjsPnCQwDCHRhYmxlUm93BwDE5tPOAgcDCXRhYmxlQ2VsbAcAxObTzgIIAwlwYXJhZ3JhcGgoAMTm084CCQtyZWxheW1hcmtJZAF3IWIyZWQyOGFhY2RlMzI0YjViODIxYmI0OGQzZjRjZmU3YSgAxObTzgIIC3JlbGF5bWFya0lkAXchYmM1N2U3NDA2Njg2MjQwMDVhNTA4NTFmMjA0NzcxMDM3KADE5tPOAggHY29sc3BhbgF9ASgAxObTzgIIB3Jvd3NwYW4BfQEoAMTm084CCAhjb2x3aWR0aAF1AX24AYfE5tPOAggDCXRhYmxlQ2VsbAcAxObTzgIPAwlwYXJhZ3JhcGgoAMTm084CEAtyZWxheW1hcmtJZAF3IWI1OGI1ZDllN2I5OTA0NDYxYTUyMjdhODQ0NGY3YjM2NigAxObTzgIPC3JlbGF5bWFya0lkAXchYjYzOThjZTNlMmJjMTQ4ZmU4MzdiNGUzY2YxNGEzZDhjKADE5tPOAg8HY29sc3BhbgF9ASgAxObTzgIPB3Jvd3NwYW4BfQEoAMTm084CDwhjb2x3aWR0aAF1AX20AigAxObTzgIHC3JlbGF5bWFya0lkAXchYjgxNzgzNDM3NDIzNTRkMWZhOTM1NDU3ZTRkMjY5MmY2AquOw+cJAhABGAHE5tPOAgEAAg==",
+  "raw": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before 🌍 <table>"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "attrs": {
+          "relaymarkId": "be9e4c3d697eb4c3fb8764055f930e88e"
+        },
+        "content": [
+          {
+            "type": "tableRow",
+            "attrs": {
+              "relaymarkId": "b4d79bc4dedc843379d3b8b5de6a58816"
+            },
+            "content": [
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "relaymarkId": "bdf504625208c45ec88ef1f8171ba1854",
+                  "colspan": 2,
+                  "rowspan": 1,
+                  "colwidth": [
+                    120,
+                    180
+                  ]
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b1e07a2cb89ff467d912b97d167b43126"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "attrs": {
+              "relaymarkId": "bc5e507a65fb24c438cb04607f5d76fe4"
+            },
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "b0b152fc2ad044195a690f850843ff4b2",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    120
+                  ]
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "bf0b1571f60c74ef49d2eabceed9126b9"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Alice"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "bf52bb7b871b74a1d8edfd470af33e0fa",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    180
+                  ]
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b9b77dd7c2bdf4656ac1700263b4a2b55"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Bob"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "attrs": {
+              "relaymarkId": "b8178343742354d1fa935457e4d2692f6"
+            },
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "bc57e740668624005a50851f204771037",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    120
+                  ]
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b2ed28aacde324b5b821bb48d3f4cfe7a"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "b6398ce3e2bc148fe837b4e3cf14a3d8c",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    180
+                  ]
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b58b5d9e7b9904461a5227a8444f7b366"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000002"
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000003"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After the shared table"
+          }
+        ]
+      }
+    ]
+  },
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before 🌍 <table>"
+          }
+        ]
+      },
+      {
+        "type": "table",
+        "attrs": {
+          "relaymarkId": "be9e4c3d697eb4c3fb8764055f930e88e"
+        },
+        "content": [
+          {
+            "type": "tableRow",
+            "attrs": {
+              "relaymarkId": "b4d79bc4dedc843379d3b8b5de6a58816"
+            },
+            "content": [
+              {
+                "type": "tableHeader",
+                "attrs": {
+                  "relaymarkId": "bdf504625208c45ec88ef1f8171ba1854",
+                  "colspan": 2,
+                  "rowspan": 1,
+                  "colwidth": [
+                    120,
+                    180
+                  ],
+                  "align": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b1e07a2cb89ff467d912b97d167b43126"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "attrs": {
+              "relaymarkId": "bc5e507a65fb24c438cb04607f5d76fe4"
+            },
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "b0b152fc2ad044195a690f850843ff4b2",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    120
+                  ],
+                  "align": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "bf0b1571f60c74ef49d2eabceed9126b9"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Alice"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "bf52bb7b871b74a1d8edfd470af33e0fa",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    180
+                  ],
+                  "align": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b9b77dd7c2bdf4656ac1700263b4a2b55"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Bob"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "tableRow",
+            "attrs": {
+              "relaymarkId": "b8178343742354d1fa935457e4d2692f6"
+            },
+            "content": [
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "bc57e740668624005a50851f204771037",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    120
+                  ],
+                  "align": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b2ed28aacde324b5b821bb48d3f4cfe7a"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "tableCell",
+                "attrs": {
+                  "relaymarkId": "b6398ce3e2bc148fe837b4e3cf14a3d8c",
+                  "colspan": 1,
+                  "rowspan": 1,
+                  "colwidth": [
+                    180
+                  ],
+                  "align": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b58b5d9e7b9904461a5227a8444f7b366"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000002"
+        }
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000003"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After the shared table"
+          }
+        ]
+      }
+    ]
+  }
+}

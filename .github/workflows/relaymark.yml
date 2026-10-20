@@ -38,25 +38,6 @@ jobs:
           npm test
           npm run conformance
 
-  swift-adapter:
-    name: Swift 6.3 adapter
-    runs-on: macos-26
-    timeout-minutes: 15
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Report toolchain
-        run: |
-          xcodebuild -version
-          xcrun swift --version
-
-      - name: Verify Swift adapter against shared fixtures
-        run: xcrun swift test
-
   elixir-adapter:
     name: Elixir adapter
     runs-on: ubuntu-24.04

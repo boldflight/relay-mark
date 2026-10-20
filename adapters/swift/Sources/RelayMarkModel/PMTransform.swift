@@ -5,7 +5,7 @@ import CoreFoundation
 // replaceRange, deleteRange, replaceRangeWith) and the replace steps and
 // step maps they emit. Control flow mirrors the JavaScript source.
 
-enum PMStep {
+package enum PMStep {
     case addMark(from: Int, to: Int, mark: PMMark)
     case removeMark(from: Int, to: Int, mark: PMMark)
     case attr(pos: Int, name: String, value: Any)
@@ -13,7 +13,7 @@ enum PMStep {
     case replace(from: Int, to: Int, slice: PMSlice, structure: Bool = false)
     case replaceAround(from: Int, to: Int, gapFrom: Int, gapTo: Int, slice: PMSlice, insert: Int, structure: Bool = false)
 
-    func apply(_ doc: PMNode) throws -> PMNode {
+    package func apply(_ doc: PMNode) throws -> PMNode {
         switch self {
         case let .addMark(from, to, mark):
             let old = try doc.slice(from, to), resolved = try doc.resolve(from)
@@ -58,7 +58,7 @@ enum PMStep {
     }
 
     /// Exact maintained Step.toJSON shape, including upstream Slice fields.
-    func json() -> [String:Any] {
+    package func json() -> [String:Any] {
         switch self {
         case let .addMark(from,to,mark):return ["stepType":"addMark","from":from,"to":to,"mark":mark.json()]
         case let .removeMark(from,to,mark):return ["stepType":"removeMark","from":from,"to":to,"mark":mark.json()]
@@ -76,7 +76,7 @@ enum PMStep {
     }
 
     /// StepMap ranges: (start, oldSize, newSize) triples.
-    var ranges: [(Int, Int, Int)] {
+    package var ranges: [(Int, Int, Int)] {
         switch self {
         case .docAttr,.attr, .addMark, .removeMark: return []
         case let .replace(from, to, slice, _):
@@ -87,7 +87,7 @@ enum PMStep {
     }
 
     /// StepMap.map with ProseMirror's default association of 1.
-    func map(_ pos: Int, assoc: Int = 1) -> Int {
+    package func map(_ pos: Int, assoc: Int = 1) -> Int {
         var diff = 0
         for (start, oldSize, newSize) in ranges {
             let adjusted = start
@@ -113,23 +113,23 @@ private func pmMapInlineFragment(_ fragment: PMFragment, parent: PMNode,
     })
 }
 
-struct PMTransform {
-    private(set) var doc: PMNode
-    private(set) var steps: [PMStep] = []
+package struct PMTransform {
+    package private(set) var doc: PMNode
+    package private(set) var steps: [PMStep] = []
 
-    init(_ doc: PMNode) { self.doc = doc }
+    package init(_ doc: PMNode) { self.doc = doc }
 
-    mutating func step(_ step: PMStep) throws {
+    package mutating func step(_ step: PMStep) throws {
         doc = try step.apply(doc)
         steps.append(step)
     }
 
-    func map(_ pos: Int, assoc: Int = 1) -> Int {
+    package func map(_ pos: Int, assoc: Int = 1) -> Int {
         steps.reduce(pos) { $1.map($0, assoc: assoc) }
     }
 
     // Exact bounded traversal/coalescing from prosemirror-transform 1.12.2 mark.ts.
-    mutating func addMark(_ from: Int, _ to: Int, _ mark: PMMark) throws {
+    package mutating func addMark(_ from: Int, _ to: Int, _ mark: PMMark) throws {
         var removed: [PMStep] = [], added: [PMStep] = [], removing: Int?, adding: Int?
         doc.content.nodesBetween(from, to, { node, pos, parent, _ in
             guard node.isInline, let parent, !mark.isInSet(node.marks), parent.type.allowsMarkType(mark.type) else { return true }
@@ -149,7 +149,7 @@ struct PMTransform {
 
     // Maintained removeMark accepts a concrete Mark, MarkType, or all marks.
     // Type removal must retain each encountered authored attribute payload.
-    mutating func removeMark(_ from: Int, _ to: Int, mark: PMMark? = nil, type: PMMarkType? = nil) throws {
+    package mutating func removeMark(_ from: Int, _ to: Int, mark: PMMark? = nil, type: PMMarkType? = nil) throws {
         var matches: [(mark: PMMark, from: Int, to: Int, step: Int)] = [], visited = 0
         doc.content.nodesBetween(from, to, { node, pos, _, _ in
             guard node.isInline else { return true }; visited += 1
@@ -169,14 +169,14 @@ struct PMTransform {
         for change in matches { try step(.removeMark(from:change.from,to:change.to,mark:change.mark)) }
     }
 
-    mutating func replace(_ from: Int, _ to: Int? = nil, _ slice: PMSlice = .empty,
+    package mutating func replace(_ from: Int, _ to: Int? = nil, _ slice: PMSlice = .empty,
                           sourceTrace: PMClipboardFitTrace? = nil, sourceTape: PMFitTape? = nil) throws {
         if let step = try pmReplaceStep(doc, from, to ?? from, slice, sourceTrace: sourceTrace, sourceTape: sourceTape) { try self.step(step) }
     }
 
-    mutating func delete(_ from: Int, _ to: Int) throws { try replace(from, to, .empty) }
+    package mutating func delete(_ from: Int, _ to: Int) throws { try replace(from, to, .empty) }
 
-    mutating func replaceRange(_ from: Int, _ to: Int, _ slice: PMSlice, sourceTrace: PMClipboardFitTrace? = nil) throws {
+    package mutating func replaceRange(_ from: Int, _ to: Int, _ slice: PMSlice, sourceTrace: PMClipboardFitTrace? = nil) throws {
         var from = from, to = to
         if slice.size == 0 { return try deleteRange(from, to) }
         let from$ = try doc.resolve(from), to$ = try doc.resolve(to)
@@ -250,7 +250,7 @@ struct PMTransform {
         }
     }
 
-    mutating func replaceRangeWith(_ from: Int, _ to: Int, _ node: PMNode) throws {
+    package mutating func replaceRangeWith(_ from: Int, _ to: Int, _ node: PMNode) throws {
         var from = from, to = to
         if !node.isInline, from == to, try doc.resolve(from).parent.content.size > 0,
            let point = try pmInsertPoint(doc, from, node.type) {
@@ -260,7 +260,7 @@ struct PMTransform {
         try replaceRange(from, to, PMSlice(PMFragment.from(node), openStart: 0, openEnd: 0))
     }
 
-    mutating func deleteRange(_ from: Int, _ to: Int) throws {
+    package mutating func deleteRange(_ from: Int, _ to: Int) throws {
         var from = from, to = to
         var from$ = try doc.resolve(from), to$ = try doc.resolve(to)
         if from$.parent.isTextblock, to$.parent.isTextblock, from$.start() != to$.start(),
@@ -303,7 +303,7 @@ struct PMTransform {
     }
 
     /// Transaction.insertText with explicit or inherited marks.
-    mutating func insertText(_ text: [UInt16], _ from: Int, _ to: Int, schema: PMSchema, marks: [PMMark]? = nil) throws {
+    package mutating func insertText(_ text: [UInt16], _ from: Int, _ to: Int, schema: PMSchema, marks: [PMMark]? = nil) throws {
         if text.isEmpty { return try deleteRange(from, to) }
         let from$ = try doc.resolve(from), to$ = try doc.resolve(to)
         let marks = marks ?? (to == from ? from$.marks() : (from$.marksAcross(to$) ?? []))
@@ -311,7 +311,7 @@ struct PMTransform {
     }
 }
 
-func pmReplaceStep(_ doc: PMNode, _ from: Int, _ to: Int, _ slice: PMSlice,
+package func pmReplaceStep(_ doc: PMNode, _ from: Int, _ to: Int, _ slice: PMSlice,
                    sourceTrace: PMClipboardFitTrace? = nil, sourceTape: PMFitTape? = nil) throws -> PMStep? {
     if from == to && slice.size == 0 { return nil }
     let from$ = try doc.resolve(from), to$ = try doc.resolve(to)
@@ -325,14 +325,14 @@ func pmReplaceStep(_ doc: PMNode, _ from: Int, _ to: Int, _ slice: PMSlice,
     return try PMFitter(from$, to$, slice, sourceTrace: sourceTrace, sourceTape: tape).fit()
 }
 
-func pmFitsTrivially(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ slice: PMSlice) -> Bool {
+package func pmFitsTrivially(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ slice: PMSlice) -> Bool {
     slice.openStart == 0 && slice.openEnd == 0 && from$.start() == to$.start() &&
         from$.parent.canReplace(from$.index(), to$.index(), slice.content)
 }
 
 private func pmDefinesContent(_ type: PMNodeType) -> Bool { type.flag("defining") || type.flag("definingForContent") }
 
-func pmCoveredDepths(_ from$: PMResolvedPos, _ to$: PMResolvedPos) -> [Int] {
+package func pmCoveredDepths(_ from$: PMResolvedPos, _ to$: PMResolvedPos) -> [Int] {
     var result: [Int] = []
     var d = min(from$.depth, to$.depth)
     while d >= 0 {
@@ -370,7 +370,7 @@ private func pmCloseFragment(_ fragment: PMFragment, _ depth: Int, _ oldOpen: In
     return fragment
 }
 
-func pmInsertPoint(_ doc: PMNode, _ pos: Int, _ nodeType: PMNodeType) throws -> Int? {
+package func pmInsertPoint(_ doc: PMNode, _ pos: Int, _ nodeType: PMNodeType) throws -> Int? {
     let pos$ = try doc.resolve(pos)
     if pos$.parent.canReplaceWith(pos$.index(), pos$.index(), nodeType) { return pos }
     if pos$.parentOffset == 0 {
@@ -397,24 +397,24 @@ func pmInsertPoint(_ doc: PMNode, _ pos: Int, _ nodeType: PMNodeType) throws -> 
 // MARK: Fitter
 
 private struct PMFittable {
-    let sliceDepth: Int
-    let frontierDepth: Int
-    let parent: PMNode?
-    var inject: PMFragment?
-    var wrap: [PMNodeType]?
+    package let sliceDepth: Int
+    package let frontierDepth: Int
+    package let parent: PMNode?
+    package var inject: PMFragment?
+    package var wrap: [PMNodeType]?
 }
 
 private final class PMFitter {
-    let from$: PMResolvedPos
-    let to$: PMResolvedPos
-    var unplaced: PMSlice
-    var frontier: [(type: PMNodeType, match: PMContentMatch)] = []
-    var placed: PMFragment = .empty
-    let sourceTrace: PMClipboardFitTrace?
-    var unplacedTape: PMFitTape?
-    var placedTape: PMFitTape?
+    package let from$: PMResolvedPos
+    package let to$: PMResolvedPos
+    package var unplaced: PMSlice
+    package var frontier: [(type: PMNodeType, match: PMContentMatch)] = []
+    package var placed: PMFragment = .empty
+    package let sourceTrace: PMClipboardFitTrace?
+    package var unplacedTape: PMFitTape?
+    package var placedTape: PMFitTape?
 
-    init(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ unplaced: PMSlice,
+    package init(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ unplaced: PMSlice,
          sourceTrace: PMClipboardFitTrace? = nil, sourceTape: PMFitTape? = nil) throws {
         self.from$ = from$
         self.to$ = to$
@@ -434,9 +434,9 @@ private final class PMFitter {
         }
     }
 
-    var depth: Int { frontier.count - 1 }
+    package var depth: Int { frontier.count - 1 }
 
-    func fit() throws -> PMStep? {
+    package func fit() throws -> PMStep? {
         while unplaced.size > 0 {
             if let fit = findFittable() { try placeNodes(fit) }
             else if !openMore() { dropNode() }
@@ -743,7 +743,7 @@ private func pmInvalidMarks(_ type: PMNodeType, _ fragment: PMFragment, _ start:
 
 // prosemirror-model 1.25.12 Node/Mark/Slice.toJSON, matching the browser wire.
 extension PMNode {
-    func json() -> [String:Any] {
+    package func json() -> [String:Any] {
         var result:[String:Any]=["type":type.name]
         if !attrs.isEmpty { result["attrs"]=attrs }
         if content.size != 0 { result["content"]=content.children.map { $0.json() } }
@@ -752,13 +752,13 @@ extension PMNode {
     }
 }
 extension PMMark {
-    func json() -> [String:Any] {
+    package func json() -> [String:Any] {
         var result:[String:Any]=["type":type.name]
         if !attrs.isEmpty { result["attrs"]=attrs };return result
     }
 }
 extension PMSlice {
-    func json() -> Any {
+    package func json() -> Any {
         if content.size == 0 { return NSNull() }
         var result:[String:Any]=["content":content.children.map { $0.json() }]
         if openStart>0 { result["openStart"]=openStart }
@@ -770,7 +770,7 @@ extension PMSlice {
 // canonical command result. Closed-document validation remains in the shared
 // schema/command owner; open Slice nodes are intentionally decoded as partial.
 extension PMStep {
-    static func fromJSON(_ json: [String: Any], schema: PMSchema) throws -> PMStep {
+    package static func fromJSON(_ json: [String: Any], schema: PMSchema) throws -> PMStep {
         func number(_ key: String) throws -> Int {
             guard let value = json[key] as? NSNumber, CFGetTypeID(value) != CFBooleanGetTypeID(),
                   value.doubleValue.isFinite, value.doubleValue.rounded() == value.doubleValue,
@@ -802,11 +802,11 @@ extension PMStep {
 
 // Same maintained partial Node/Mark decoder used by Step and clipboard Slice.
 private enum PMJSON {
-    static func mark(_ json: [String: Any], schema: PMSchema) throws -> PMMark {
+    package static func mark(_ json: [String: Any], schema: PMSchema) throws -> PMMark {
             guard let name = json["type"] as? String, let type = schema.marks[name] else { throw PMReplaceError(message: "Unknown mark") }
             return type.create(json["attrs"] as? [String: Any])
         }
-    static func node(_ json: [String: Any], schema: PMSchema) throws -> PMNode {
+    package static func node(_ json: [String: Any], schema: PMSchema) throws -> PMNode {
             guard let name = json["type"] as? String, let type = schema.nodes[name] else { throw PMReplaceError(message: "Unknown node") }
             let marks = try (json["marks"] as? [[String: Any]] ?? []).map { try mark($0, schema: schema) }
             if type.isText {
@@ -817,7 +817,7 @@ private enum PMJSON {
         }
  }
 extension PMSlice {
-    static func fromJSON(_ value: [String: Any], schema: PMSchema) throws -> PMSlice {
+    package static func fromJSON(_ value: [String: Any], schema: PMSchema) throws -> PMSlice {
         let content = try (value["content"] as? [[String: Any]] ?? []).map { try PMJSON.node($0, schema: schema) }
         return PMSlice(PMFragment.fromArray(content), openStart: value["openStart"] as? Int ?? 0,
                        openEnd: value["openEnd"] as? Int ?? 0)
@@ -827,36 +827,36 @@ extension PMSlice {
 // Ephemeral positional source correspondence owned by the maintained fitter.
 // Numbers denote original PM fragment tokens (UTF-16 units for text), never
 // equality of source text, node object identity, or a persisted ancestry claim.
-final class PMFitTape {
-    private(set) var units: [Int?]
-    private(set) var valid = true
-    init(_ units: [Int?]) { self.units = units }
-    func copy() -> PMFitTape { let result = PMFitTape(units); result.valid = valid; return result }
-    func part(_ from: Int, _ to: Int) -> PMFitTape {
+package final class PMFitTape {
+    package private(set) var units: [Int?]
+    package private(set) var valid = true
+    package init(_ units: [Int?]) { self.units = units }
+    package func copy() -> PMFitTape { let result = PMFitTape(units); result.valid = valid; return result }
+    package func part(_ from: Int, _ to: Int) -> PMFitTape {
         guard valid, from >= 0, to >= from, to <= units.count else {
             let result = PMFitTape([]); result.valid = false; return result
         }
         return PMFitTape(Array(units[from..<to]))
     }
-    func replace(_ from: Int, _ to: Int, with other: PMFitTape) {
+    package func replace(_ from: Int, _ to: Int, with other: PMFitTape) {
         guard valid, other.valid, from >= 0, to >= from, to <= units.count else { valid = false; return }
         units.replaceSubrange(from..<to, with: other.units)
     }
-    func remove(_ from: Int, _ to: Int) { replace(from, to, with: PMFitTape([])) }
-    func append(_ other: PMFitTape) { replace(units.count, units.count, with: other) }
-    func prependGenerated(_ count: Int) {
+    package func remove(_ from: Int, _ to: Int) { replace(from, to, with: PMFitTape([])) }
+    package func append(_ other: PMFitTape) { replace(units.count, units.count, with: other) }
+    package func prependGenerated(_ count: Int) {
         guard count >= 0 else { valid = false; return }
         replace(0, 0, with: PMFitTape(Array(repeating: nil, count: count)))
     }
-    func appendGenerated(_ count: Int) {
+    package func appendGenerated(_ count: Int) {
         guard count >= 0 else { valid = false; return }
         append(PMFitTape(Array(repeating: nil, count: count)))
     }
-    func stripWrapper() {
+    package func stripWrapper() {
         guard units.count >= 2 else { valid = false; return }
         units.removeLast(); units.removeFirst()
     }
-    func contentAt(_ fragment: PMFragment, _ depth: Int) -> PMFitTape {
+    package func contentAt(_ fragment: PMFragment, _ depth: Int) -> PMFitTape {
         var nodeContent = fragment, result = copy()
         for _ in 0..<depth {
             guard let first = nodeContent.firstChild, !first.isLeaf else {
@@ -868,29 +868,29 @@ final class PMFitTape {
     }
 }
 
-final class PMClipboardFitTrace {
-    struct SourceNode {
-        let path: [Int], from: Int, to: Int, contentFrom: Int, contentTo: Int, type: String
-        func json() -> [String: Any] {
+package final class PMClipboardFitTrace {
+    package struct SourceNode {
+        package let path: [Int], from: Int, to: Int, contentFrom: Int, contentTo: Int, type: String
+        package func json() -> [String: Any] {
             ["source_path": path, "from": from, "to": to,
              "content_from": contentFrom, "content_to": contentTo, "type": type]
         }
     }
-    struct Placement: Equatable {
-        var sourceFrom: Int, sourceTo: Int, targetFrom: Int, targetTo: Int
-        func json() -> [String: Any] {
+    package struct Placement: Equatable {
+        package var sourceFrom: Int, sourceTo: Int, targetFrom: Int, targetTo: Int
+        package func json() -> [String: Any] {
             ["source_from": sourceFrom, "source_to": sourceTo,
              "target_from": targetFrom, "target_to": targetTo]
         }
     }
-    let original: PMSlice
-    private(set) var nodes: [SourceNode] = []
-    private(set) var placements: [Placement] = []
+    package let original: PMSlice
+    package private(set) var nodes: [SourceNode] = []
+    package private(set) var placements: [Placement] = []
     private var nodesAtStart: [Int: SourceNode] = [:]
-    private(set) var events: [[String: Any]] = []
-    private(set) var resultStep: PMStep?
-    private(set) var omitted: [Int] = []
-    init(_ original: PMSlice) throws {
+    package private(set) var events: [[String: Any]] = []
+    package private(set) var resultStep: PMStep?
+    package private(set) var omitted: [Int] = []
+    package init(_ original: PMSlice) throws {
         guard original.content.size > 0, original.content.size <= 1_000_000 else {
             throw PMReplaceError(message: "Clipboard trace token budget")
         }
@@ -911,23 +911,23 @@ final class PMClipboardFitTrace {
         try visit(original.content, [], 0)
         nodesAtStart = Dictionary(uniqueKeysWithValues: nodes.map { ($0.from, $0) })
     }
-    func freshTape() -> PMFitTape { PMFitTape((0..<original.content.size).map { Optional($0) }) }
-    func beginAttempt() { events = []; placements = []; omitted = []; resultStep = nil }
-    func opened(_ tape: PMFitTape?) {
+    package func freshTape() -> PMFitTape { PMFitTape((0..<original.content.size).map { Optional($0) }) }
+    package func beginAttempt() { events = []; placements = []; omitted = []; resultStep = nil }
+    package func opened(_ tape: PMFitTape?) {
         guard let tape, let first = tape.units.first, let token = first,
               let node = nodesAtStart[token] else { return }
         events.append(["kind": "open_wrapper", "source_path": node.path])
     }
-    func dropped(_ tape: PMFitTape?, reason: String) {
+    package func dropped(_ tape: PMFitTape?, reason: String) {
         guard let tape else { return }
         events.append(["kind": reason, "source_tokens": tape.units.compactMap { $0 }])
     }
-    func filtered(_ tape: PMFitTape?, marks: [PMMark]) {
+    package func filtered(_ tape: PMFitTape?, marks: [PMMark]) {
         guard let tape, !marks.isEmpty else { return }
         events.append(["kind": "filtered_marks", "source_tokens": tape.units.compactMap { $0 },
                        "marks": marks.map { $0.json() }])
     }
-    func finish(_ step: PMStep, tape: PMFitTape) throws {
+    package func finish(_ step: PMStep, tape: PMFitTape) throws {
         let slice: PMSlice, start: Int, gap: Int, insert: Int
         switch step {
         case let .replace(from, _, value, _): slice = value; start = from; gap = 0; insert = Int.max
@@ -956,7 +956,7 @@ final class PMClipboardFitTrace {
         }
         placements = result; omitted = (0..<original.content.size).filter { !seen.contains($0) }; resultStep = step
     }
-    func json() throws -> [String: Any] {
+    package func json() throws -> [String: Any] {
         guard let resultStep else { throw PMReplaceError(message: "Clipboard trace not committed") }
         return ["source_nodes": nodes.map { $0.json() }, "placements": placements.map { $0.json() },
                 "omitted_source_tokens": omitted, "events": events, "step": resultStep.json()]

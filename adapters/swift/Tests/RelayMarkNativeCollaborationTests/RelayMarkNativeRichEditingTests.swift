@@ -1,6 +1,7 @@
 import Foundation
 import XCTest
 import RelayMarkSwift
+@testable import RelayMarkModel
 @testable import RelayMarkNativeCollaboration
 
 @MainActor

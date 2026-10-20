@@ -6,16 +6,13 @@ This adapter maps the Agent Paper RelayMark document to portable Swift values.
 Native app screens and their headers, navigation, sheets, footers, previews,
 and collection engines remain host UI outside Agent Paper.
 
-The adapter also provides `RelayMarkAttributedTextCodec`, a product-neutral
-authoring bridge between Markdown-compatible RelayMark prose source and
-Foundation `AttributedString`. It round-trips headings, lists, emphasis, code,
-links, and canonical `relay:` entity references. The canonical interchange is
-still `RelayMarkDocument`; host apps resolve entity identities and choose their
-native editor and chip presentation.
+Markdown and HTML conversion go through the packaged RelayMark engine
+(`RelayMarkSourceCodec`, `RelayMarkContentEditCodec`), the same one web uses;
+there is no second Swift Markdown parser. Host apps resolve entity identities
+and choose their native editor and chip presentation.
 
-The package requires Swift tools 6.3 to match production Xcode 26.5 and is
-continuously verified with Swift 6.4. It supports macOS, iOS,
-and visionOS 26.5 or newer. Manifest models include generic inline-reference,
+The package builds with Xcode 27.1 (Swift 6.4) and supports macOS, iOS,
+and visionOS 27.0 or newer. Manifest models include generic inline-reference,
 versioned-evidence, action-proposal lifecycle, research-claim, and
 structured-comparison projections. The adapter validates and projects the
 portable `relaymark.agent_answer.v1` profile, applies Scripture evidence rules
@@ -30,6 +27,12 @@ view binding manifests, open renderer capability IDs, and portable semantic
 layer roles/anchors/fallbacks. These are data-only values. `RelayMarkSwift`
 does not depend on Relay Kit; a UI renderer may depend on both RelayMarkSwift
 and Relay Kit without creating a reverse dependency.
+
+`RelayMarkEditor` is the native editor for these papers: a session over one
+RelayMark Yjs replica, TextKit 2 views for macOS and iOS, and the services
+through which a host supplies persistence, images, rich paste, links and paper
+controls. It imports no host module. See
+[native editor architecture](../../docs/editor-architecture.md).
 
 For durable action rows, `proposalID` is the generator/client identity and
 `proposalRecordID` is the distinct host record address passed to an authorized

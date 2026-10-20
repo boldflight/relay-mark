@@ -1,19 +1,21 @@
-// swift-tools-version: 6.3
+// swift-tools-version: 6.4
 
 import PackageDescription
 
 let package = Package(
     name: "RelayMark",
     platforms: [
-        .macOS("26.5"),
-        .iOS("26.5"),
-        .visionOS("26.5")
+        .macOS("27.0"),
+        .iOS("27.0"),
+        .visionOS("27.0")
     ],
     products: [
         .library(name: "RelayMarkSwift", targets: ["RelayMarkSwift"]),
         .library(name: "RelayMarkCollaboration", targets: ["RelayMarkCollaboration"]),
         .library(name: "RelayMarkProseProjection", targets: ["RelayMarkProseProjection"]),
-        .library(name: "RelayMarkNativeCollaboration", targets: ["RelayMarkNativeCollaboration"])
+        .library(name: "RelayMarkModel", targets: ["RelayMarkModel"]),
+        .library(name: "RelayMarkNativeCollaboration", targets: ["RelayMarkNativeCollaboration"]),
+        .library(name: "RelayMarkEditor", targets: ["RelayMarkEditor"])
     ],
     dependencies: [
         .package(url: "https://github.com/boldflight/yswift.git", revision: "6c8f3baa6fbd8706a9cdd0ea989dd6df34590789")
@@ -25,10 +27,31 @@ let package = Package(
             path: "adapters/swift/Sources/RelayMarkCollaboration"
         ),
         .target(
+            name: "RelayMarkModel",
+            path: "adapters/swift/Sources/RelayMarkModel"
+        ),
+        .testTarget(
+            name: "RelayMarkModelTests",
+            dependencies: ["RelayMarkModel"],
+            path: "adapters/swift/Tests/RelayMarkModelTests"
+        ),
+        .target(
             name: "RelayMarkNativeCollaboration",
-            dependencies: ["RelayMarkProseProjection", "RelayMarkSwift", .product(name: "YSwift", package: "yswift")],
+            dependencies: ["RelayMarkModel", "RelayMarkProseProjection", "RelayMarkSwift", .product(name: "YSwift", package: "yswift")],
             path: "adapters/swift/Sources/RelayMarkNativeCollaboration"
         ),
+        .target(
+            name: "RelayMarkEditor",
+            dependencies: ["RelayMarkCollaboration", "RelayMarkNativeCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
+            path: "adapters/swift/Sources/RelayMarkEditor"
+        ),
+        .testTarget(
+            name: "RelayMarkEditorTests",
+            dependencies: ["RelayMarkEditor", "RelayMarkNativeCollaboration", "RelayMarkCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
+            path: "adapters/swift/Tests/RelayMarkEditorTests",
+            resources: [.copy("Fixtures")]
+        ),
+
         .target(
             name: "RelayMarkProseProjection",
             dependencies: ["RelayMarkSwift"],
@@ -36,7 +59,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RelayMarkNativeCollaborationTests",
-            dependencies: ["RelayMarkNativeCollaboration", "RelayMarkCollaboration"],
+            dependencies: ["RelayMarkModel", "RelayMarkNativeCollaboration", "RelayMarkCollaboration"],
             path: "adapters/swift/Tests/RelayMarkNativeCollaborationTests",
             resources: [.process("Fixtures")]
         ),

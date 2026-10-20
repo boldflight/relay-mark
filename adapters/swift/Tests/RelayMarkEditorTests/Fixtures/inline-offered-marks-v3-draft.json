@@ -1,0 +1,288 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91505,
+  "source": "Community TipTap StarterKit/PaperHeading/Highlight/Superscript/Subscript + stable relaymarkId attrs + y-tiptap + Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000015"
+        },
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "underline"
+              }
+            ],
+            "text": "Underlined"
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "highlight"
+              }
+            ],
+            "text": "Highlighted"
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "superscript"
+              }
+            ],
+            "text": "Superscript"
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "subscript"
+              }
+            ],
+            "text": "Subscript"
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              },
+              {
+                "type": "underline"
+              },
+              {
+                "type": "highlight"
+              },
+              {
+                "type": "superscript"
+              },
+              {
+                "type": "subscript"
+              }
+            ],
+            "text": "All offered"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000016",
+          "level": 2,
+          "headingId": "offered-marks"
+        },
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "italic"
+              },
+              {
+                "type": "highlight"
+              }
+            ],
+            "text": "Head highlight"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000017"
+        },
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "link",
+                "attrs": {
+                  "href": "relay:entity/12345678-1234-4234-8234-123456789abc",
+                  "target": "_blank",
+                  "rel": "noopener noreferrer nofollow",
+                  "class": null,
+                  "title": null
+                }
+              },
+              {
+                "type": "underline"
+              },
+              {
+                "type": "highlight"
+              }
+            ],
+            "text": "Entity link"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000015",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "underline",
+            "content": [
+              {
+                "type": "text",
+                "text": "Underlined"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "highlight",
+            "content": [
+              {
+                "type": "text",
+                "text": "Highlighted"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "superscript",
+            "content": [
+              {
+                "type": "text",
+                "text": "Superscript"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "subscript",
+            "content": [
+              {
+                "type": "text",
+                "text": "Subscript"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": " "
+          },
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "underline",
+                "content": [
+                  {
+                    "type": "highlight",
+                    "content": [
+                      {
+                        "type": "superscript",
+                        "content": [
+                          {
+                            "type": "subscript",
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "All offered"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000016",
+        "type": "heading",
+        "props": {
+          "level": 2,
+          "headingId": "offered-marks"
+        },
+        "content": [
+          {
+            "type": "emphasis",
+            "content": [
+              {
+                "type": "highlight",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Head highlight"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000017",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "link",
+            "href": "relay:entity/12345678-1234-4234-8234-123456789abc",
+            "content": [
+              {
+                "type": "underline",
+                "content": [
+                  {
+                    "type": "highlight",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Entity link"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "update": "ATLxygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDxygUABgYA8coFAQl1bmRlcmxpbmUCe32E8coFAgpVbmRlcmxpbmVkhvHKBQwJdW5kZXJsaW5lBG51bGyE8coFDQEghvHKBQ4JaGlnaGxpZ2h0Ant9hPHKBQ8LSGlnaGxpZ2h0ZWSG8coFGgloaWdobGlnaHQEbnVsbITxygUbASCG8coFHAtzdXBlcnNjcmlwdAJ7fYTxygUdC1N1cGVyc2NyaXB0hvHKBSgLc3VwZXJzY3JpcHQEbnVsbITxygUpASCG8coFKglzdWJzY3JpcHQCe32E8coFKwlTdWJzY3JpcHSG8coFNAlzdWJzY3JpcHQEbnVsbITxygU1ASCG8coFNgRib2xkAnt9hvHKBTcJdW5kZXJsaW5lAnt9hvHKBTgJaGlnaGxpZ2h0Ant9hvHKBTkLc3VwZXJzY3JpcHQCe32G8coFOglzdWJzY3JpcHQCe32E8coFOwtBbGwgb2ZmZXJlZIbxygVGBGJvbGQEbnVsbIbxygVHCXVuZGVybGluZQRudWxshvHKBUgJaGlnaGxpZ2h0BG51bGyG8coFSQtzdXBlcnNjcmlwdARudWxshvHKBUoJc3Vic2NyaXB0BG51bGwoAPHKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTWH8coFAAMHaGVhZGluZwcA8coFTQYGAPHKBU4GaXRhbGljAnt9hvHKBU8JaGlnaGxpZ2h0Ant9hPHKBVAOSGVhZCBoaWdobGlnaHSG8coFXgZpdGFsaWMEbnVsbIbxygVfCWhpZ2hsaWdodARudWxsKADxygVNC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDE2KADxygVNBWxldmVsAX0CKADxygVNCWhlYWRpbmdJZAF3DW9mZmVyZWQtbWFya3OH8coFTQMJcGFyYWdyYXBoBwDxygVkBgYA8coFZQRsaW5rjQF7ImhyZWYiOiJyZWxheTplbnRpdHkvMTIzNDU2NzgtMTIzNC00MjM0LTgyMzQtMTIzNDU2Nzg5YWJjIiwidGFyZ2V0IjoiX2JsYW5rIiwicmVsIjoibm9vcGVuZXIgbm9yZWZlcnJlciBub2ZvbGxvdyIsImNsYXNzIjpudWxsLCJ0aXRsZSI6bnVsbH2G8coFZgl1bmRlcmxpbmUCe32G8coFZwloaWdobGlnaHQCe32E8coFaAtFbnRpdHkgbGlua4bxygVzBGxpbmsEbnVsbIbxygV0CXVuZGVybGluZQRudWxshvHKBXUJaGlnaGxpZ2h0BG51bGwoAPHKBWQLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTcA"
+}

@@ -1,0 +1,326 @@
+{
+  "schema": "relaymark-prosemirror-v3",
+  "root": "default",
+  "source": "Community TipTap Blockquote block+ and Yjs with nested authored blocks",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "blockquote",
+        "attrs": {
+          "relaymarkId": "bffbff7cf14bf450b928a90419428e022"
+        },
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "relaymarkId": "b4ab0a71d4e2e4b8dbe4e7e343a008a5a",
+              "level": 2,
+              "headingId": "h-2ee26f61-087f-4f84-a012-8d63808b3cf9"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Quoted heading"
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "attrs": {
+              "relaymarkId": "b04e5202cd66b4ffeb8dea9ed24759ea1"
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "attrs": {
+                  "relaymarkId": "bfde9c90753024bf6bab6f32941ad134d"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": "b5025cd8796a6464992016f8e1a54e1c5"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Quoted item"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "codeBlock",
+                    "attrs": {
+                      "relaymarkId": "b2c901348d87644ca9a315b6c37f14cf8",
+                      "language": "swift"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "let count = 1"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "blockquote",
+            "attrs": {
+              "relaymarkId": "bd600d96fc40d406cab5989b4b1300189"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b52978d583c284def9ec7fb85a1893f0c"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Nested quote"
+                  }
+                ]
+              },
+              {
+                "type": "heading",
+                "attrs": {
+                  "relaymarkId": "bcc53a71d332644d498b505aa27f9f455",
+                  "level": 3,
+                  "headingId": "h-8d527da6-3f68-4cab-a25b-55e3d3ac356e"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Nested heading"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "image",
+            "attrs": {
+              "relaymarkId": "b8e124f60933e481ab4ee42ed843cf5ad",
+              "src": "https://example.com/quoted.png",
+              "alt": "Quoted image",
+              "title": null,
+              "width": null,
+              "height": null
+            }
+          },
+          {
+            "type": "callout",
+            "attrs": {
+              "relaymarkId": "b805b526b63b54e5fbeb9d8cfd8fdf7a9",
+              "tone": "warning",
+              "emphasis": "soft"
+            },
+            "content": [
+              {
+                "type": "heading",
+                "attrs": {
+                  "relaymarkId": "b9790ffb03bef4e99a7a00d14fe95e2f4",
+                  "level": 4,
+                  "headingId": "h-56ccf353-40c3-4732-9e1b-b6ccf25099d8"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Callout heading"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "bf1974e2e31c14e31883d631c3c32b1be"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Callout body"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "horizontalRule",
+            "attrs": {
+              "relaymarkId": "b0ef6a150a9e74ca8a8708bff7c6e067f"
+            }
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "bfd3bc63057d44b968b3c00b2de4cf7b6"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Tail"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "update": "ATmonJfJBgAHAQdkZWZhdWx0AwpibG9ja3F1b3RlBwConJfJBgADB2hlYWRpbmcHAKicl8kGAQYEAKicl8kGAg5RdW90ZWQgaGVhZGluZygAqJyXyQYBC3JlbGF5bWFya0lkAXchYjRhYjBhNzFkNGUyZTRiOGRiZTRlN2UzNDNhMDA4YTVhKAConJfJBgEFbGV2ZWwBfQIoAKicl8kGAQloZWFkaW5nSWQBdyZoLTJlZTI2ZjYxLTA4N2YtNGY4NC1hMDEyLThkNjM4MDhiM2NmOYeonJfJBgEDCmJ1bGxldExpc3QHAKicl8kGFAMIbGlzdEl0ZW0HAKicl8kGFQMJcGFyYWdyYXBoBwConJfJBhYGBAConJfJBhcLUXVvdGVkIGl0ZW0oAKicl8kGFgtyZWxheW1hcmtJZAF3IWI1MDI1Y2Q4Nzk2YTY0NjQ5OTIwMTZmOGUxYTU0ZTFjNYeonJfJBhYDCWNvZGVCbG9jawcAqJyXyQYkBgQAqJyXyQYlDWxldCBjb3VudCA9IDEoAKicl8kGJAtyZWxheW1hcmtJZAF3IWIyYzkwMTM0OGQ4NzY0NGNhOWEzMTViNmMzN2YxNGNmOCgAqJyXyQYkCGxhbmd1YWdlAXcFc3dpZnQoAKicl8kGFQtyZWxheW1hcmtJZAF3IWJmZGU5YzkwNzUzMDI0YmY2YmFiNmYzMjk0MWFkMTM0ZCgAqJyXyQYUC3JlbGF5bWFya0lkAXchYjA0ZTUyMDJjZDY2YjRmZmViOGRlYTllZDI0NzU5ZWExh6icl8kGFAMKYmxvY2txdW90ZQcAqJyXyQY3AwlwYXJhZ3JhcGgHAKicl8kGOAYEAKicl8kGOQxOZXN0ZWQgcXVvdGUoAKicl8kGOAtyZWxheW1hcmtJZAF3IWI1Mjk3OGQ1ODNjMjg0ZGVmOWVjN2ZiODVhMTg5M2YwY4eonJfJBjgDB2hlYWRpbmcHAKicl8kGRwYEAKicl8kGSA5OZXN0ZWQgaGVhZGluZygAqJyXyQZHC3JlbGF5bWFya0lkAXchYmNjNTNhNzFkMzMyNjQ0ZDQ5OGI1MDVhYTI3ZjlmNDU1KAConJfJBkcFbGV2ZWwBfQMoAKicl8kGRwloZWFkaW5nSWQBdyZoLThkNTI3ZGE2LTNmNjgtNGNhYi1hMjViLTU1ZTNkM2FjMzU2ZSgAqJyXyQY3C3JlbGF5bWFya0lkAXchYmQ2MDBkOTZmYzQwZDQwNmNhYjU5ODliNGIxMzAwMTg5h6icl8kGNwMFaW1hZ2UoAKicl8kGWwtyZWxheW1hcmtJZAF3IWI4ZTEyNGY2MDkzM2U0ODFhYjRlZTQyZWQ4NDNjZjVhZCgAqJyXyQZbA3NyYwF3Hmh0dHBzOi8vZXhhbXBsZS5jb20vcXVvdGVkLnBuZygAqJyXyQZbA2FsdAF3DFF1b3RlZCBpbWFnZYeonJfJBlsDB2NhbGxvdXQHAKicl8kGXwMHaGVhZGluZwcAqJyXyQZgBgQAqJyXyQZhD0NhbGxvdXQgaGVhZGluZygAqJyXyQZgC3JlbGF5bWFya0lkAXchYjk3OTBmZmIwM2JlZjRlOTlhN2EwMGQxNGZlOTVlMmY0KAConJfJBmAFbGV2ZWwBfQQoAKicl8kGYAloZWFkaW5nSWQBdyZoLTU2Y2NmMzUzLTQwYzMtNDczMi05ZTFiLWI2Y2NmMjUwOTlkOIeonJfJBmADCXBhcmFncmFwaAcAqJyXyQZ0BgQAqJyXyQZ1DENhbGxvdXQgYm9keSgAqJyXyQZ0C3JlbGF5bWFya0lkAXchYmYxOTc0ZTJlMzFjMTRlMzE4ODNkNjMxYzNjMzJiMWJlKAConJfJBl8LcmVsYXltYXJrSWQBdyFiODA1YjUyNmI2M2I1NGU1ZmJlYjlkOGNmZDhmZGY3YTkoAKicl8kGXwR0b25lAXcHd2FybmluZygAqJyXyQZfCGVtcGhhc2lzAXcEc29mdIeonJfJBl8DDmhvcml6b250YWxSdWxlKAConJfJBoYBC3JlbGF5bWFya0lkAXchYjBlZjZhMTUwYTllNzRjYThhODcwOGJmZjdjNmUwNjdmh6icl8kGhgEDCXBhcmFncmFwaAcAqJyXyQaIAQYEAKicl8kGiQEEVGFpbCgAqJyXyQaIAQtyZWxheW1hcmtJZAF3IWJmZDNiYzYzMDU3ZDQ0Yjk2OGIzYzAwYjJkZTRjZjdiNigAqJyXyQYAC3JlbGF5bWFya0lkAXchYmZmYmZmN2NmMTRiZjQ1MGI5MjhhOTA0MTk0MjhlMDIyAA==",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "bffbff7cf14bf450b928a90419428e022",
+        "type": "quote",
+        "content": [
+          {
+            "id": "b4ab0a71d4e2e4b8dbe4e7e343a008a5a",
+            "type": "heading",
+            "props": {
+              "level": 2,
+              "headingId": "h-2ee26f61-087f-4f84-a012-8d63808b3cf9"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "Quoted heading"
+              }
+            ]
+          },
+          {
+            "id": "b04e5202cd66b4ffeb8dea9ed24759ea1",
+            "type": "list",
+            "props": {
+              "kind": "bullet"
+            },
+            "content": [
+              {
+                "id": "bfde9c90753024bf6bab6f32941ad134d",
+                "type": "list_item",
+                "content": [
+                  {
+                    "id": "b5025cd8796a6464992016f8e1a54e1c5",
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Quoted item"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "b2c901348d87644ca9a315b6c37f14cf8",
+                    "type": "code",
+                    "props": {
+                      "language": "swift"
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "let count = 1"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "bd600d96fc40d406cab5989b4b1300189",
+            "type": "quote",
+            "content": [
+              {
+                "id": "b52978d583c284def9ec7fb85a1893f0c",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Nested quote"
+                  }
+                ]
+              },
+              {
+                "id": "bcc53a71d332644d498b505aa27f9f455",
+                "type": "heading",
+                "props": {
+                  "level": 3,
+                  "headingId": "h-8d527da6-3f68-4cab-a25b-55e3d3ac356e"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Nested heading"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "b8e124f60933e481ab4ee42ed843cf5ad",
+            "type": "image",
+            "props": {
+              "src": "https://example.com/quoted.png",
+              "alt": "Quoted image",
+              "title": null
+            },
+            "content": []
+          },
+          {
+            "id": "b805b526b63b54e5fbeb9d8cfd8fdf7a9",
+            "type": "relay.callout",
+            "props": {
+              "tone": "warning",
+              "emphasis": "soft"
+            },
+            "content": [
+              {
+                "id": "b9790ffb03bef4e99a7a00d14fe95e2f4",
+                "type": "heading",
+                "props": {
+                  "level": 4,
+                  "headingId": "h-56ccf353-40c3-4732-9e1b-b6ccf25099d8"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Callout heading"
+                  }
+                ]
+              },
+              {
+                "id": "bf1974e2e31c14e31883d631c3c32b1be",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Callout body"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "b0ef6a150a9e74ca8a8708bff7c6e067f",
+            "type": "horizontal_rule",
+            "content": []
+          },
+          {
+            "id": "bfd3bc63057d44b968b3c00b2de4cf7b6",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Tail"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

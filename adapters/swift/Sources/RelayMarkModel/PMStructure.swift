@@ -5,20 +5,20 @@ import Foundation
 // prosemirror-commands and TipTap keymaps. The canonical schema declares no
 // linebreakReplacement, so join's newline conversion paths are absent.
 
-struct PMNodeRange {
-    let from$: PMResolvedPos
-    let to$: PMResolvedPos
-    let depth: Int
+package struct PMNodeRange {
+    package let from$: PMResolvedPos
+    package let to$: PMResolvedPos
+    package let depth: Int
 
-    var start: Int { from$.before(depth + 1) }
-    var end: Int { to$.after(depth + 1) }
-    var parent: PMNode { from$.node(depth) }
-    var startIndex: Int { from$.index(depth) }
-    var endIndex: Int { to$.indexAfter(depth) }
+    package var start: Int { from$.before(depth + 1) }
+    package var end: Int { to$.after(depth + 1) }
+    package var parent: PMNode { from$.node(depth) }
+    package var startIndex: Int { from$.index(depth) }
+    package var endIndex: Int { to$.indexAfter(depth) }
 }
 
 extension PMResolvedPos {
-    func blockRange(_ other: PMResolvedPos? = nil, _ predicate: ((PMNode) -> Bool)? = nil) -> PMNodeRange? {
+    package func blockRange(_ other: PMResolvedPos? = nil, _ predicate: ((PMNode) -> Bool)? = nil) -> PMNodeRange? {
         let other = other ?? self
         if other.pos < pos { return other.blockRange(self, predicate) }
         var d = depth - (parent.inlineContent || pos == other.pos ? 1 : 0)
@@ -31,10 +31,10 @@ extension PMResolvedPos {
         return nil
     }
 
-    func sameParent(_ other: PMResolvedPos) -> Bool { pos - parentOffset == other.pos - other.parentOffset }
+    package func sameParent(_ other: PMResolvedPos) -> Bool { pos - parentOffset == other.pos - other.parentOffset }
 }
 
-func pmContentBetween(_ doc: PMNode, _ from: Int, _ to: Int) throws -> Bool {
+package func pmContentBetween(_ doc: PMNode, _ from: Int, _ to: Int) throws -> Bool {
     let from$ = try doc.resolve(from)
     var dist = to - from, depth = from$.depth
     while dist > 0 && depth > 0 && from$.indexAfter(depth) == from$.node(depth).childCount {
@@ -56,7 +56,7 @@ private func pmCanCut(_ node: PMNode, _ start: Int, _ end: Int) -> Bool {
     (start == 0 || node.canReplace(start, node.childCount)) && (end == node.childCount || node.canReplace(0, end))
 }
 
-func pmLiftTarget(_ range: PMNodeRange) -> Int? {
+package func pmLiftTarget(_ range: PMNodeRange) -> Int? {
     let content = range.parent.content.cutByIndex(range.startIndex, range.endIndex)
     var depth = range.depth, contentBefore = 0, contentAfter = 0
     while true {
@@ -82,25 +82,25 @@ private func pmCanAppend(_ a: PMNode, _ b: PMNode) -> Bool {
     return match.validEnd
 }
 
-func pmJoinable(_ a: PMNode?, _ b: PMNode?) -> Bool {
+package func pmJoinable(_ a: PMNode?, _ b: PMNode?) -> Bool {
     guard let a, let b, !a.isLeaf else { return false }
     return pmCanAppend(a, b)
 }
 
-func pmCanJoin(_ doc: PMNode, _ pos: Int) -> Bool {
+package func pmCanJoin(_ doc: PMNode, _ pos: Int) -> Bool {
     guard let pos$ = try? doc.resolve(pos) else { return false }
     let index = pos$.index()
     return pmJoinable(pos$.nodeBefore, pos$.nodeAfter) && pos$.parent.canReplace(index, index + 1)
 }
 
 extension PMTransform {
-    mutating func replaceWith(_ from: Int, _ to: Int, _ content: PMFragment) throws {
+    package mutating func replaceWith(_ from: Int, _ to: Int, _ content: PMFragment) throws {
         try replace(from, to, PMSlice(content, openStart: 0, openEnd: 0))
     }
 
-    mutating func insert(_ pos: Int, _ content: PMFragment) throws { try replaceWith(pos, pos, content) }
+    package mutating func insert(_ pos: Int, _ content: PMFragment) throws { try replaceWith(pos, pos, content) }
 
-    mutating func lift(_ range: PMNodeRange, _ target: Int) throws {
+    package mutating func lift(_ range: PMNodeRange, _ target: Int) throws {
         let from$ = range.from$, to$ = range.to$, depth = range.depth
         let gapStart = from$.before(depth + 1), gapEnd = to$.after(depth + 1)
         var start = gapStart, end = gapEnd
@@ -134,7 +134,7 @@ extension PMTransform {
                                 insert: before.size - openStart, structure: true))
     }
 
-    mutating func join(_ pos: Int, depth: Int = 1) throws {
+    package mutating func join(_ pos: Int, depth: Int = 1) throws {
         let before$ = try doc.resolve(pos - depth), beforeType = before$.node().type
         let mapFrom = steps.count
         if beforeType.inlineContent {
@@ -145,7 +145,7 @@ extension PMTransform {
     }
 
     /// Maps through the steps added since `from`.
-    func map(_ pos: Int, from: Int, assoc: Int = 1) -> Int {
+    package func map(_ pos: Int, from: Int, assoc: Int = 1) -> Int {
         steps[from...].reduce(pos) { $1.map($0, assoc: assoc) }
     }
 
@@ -188,7 +188,7 @@ extension PMTransform {
         for replacement in replacements.reversed() { try step(replacement) }
     }
 
-    mutating func setNodeMarkup(_ pos: Int, type: PMNodeType? = nil, attrs: [String: Any]? = nil,
+    package mutating func setNodeMarkup(_ pos: Int, type: PMNodeType? = nil, attrs: [String: Any]? = nil,
                                 marks: [PMMark]? = nil) throws {
         guard let node = doc.nodeAt(pos) else { throw PMReplaceError(message: "No node at given position") }
         let type = type ?? node.type

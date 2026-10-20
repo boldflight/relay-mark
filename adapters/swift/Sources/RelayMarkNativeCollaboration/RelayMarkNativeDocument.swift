@@ -1,4 +1,5 @@
 import Foundation
+import RelayMarkModel
 import CoreFoundation
 import RelayMarkProseProjection
 import YSwift
@@ -334,9 +335,12 @@ public final class RelayMarkNativeDocument {
 
     /// The same lossless XML JSON shape used by the existing collaboration adapter.
     public func snapshot() throws -> Data {
-        var object = try snapshot(root)
-        try addMetadata(to: &object)
-        return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        // The whole paper's bridged tree is released once it is encoded.
+        try autoreleasepool {
+            var object = try snapshot(root)
+            try addMetadata(to: &object)
+            return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+        }
     }
 
     /// The same shape for just the top-level nodes in `range`, with the paper's
@@ -399,7 +403,8 @@ public final class RelayMarkNativeDocument {
     public func richProseProjection() throws -> RelayMarkCollaborativeProse {
         guard integrationStatus().isComplete else { throw RelayMarkNativeDocumentProjection.Failure.unsupported("incomplete update") }
         let snapshot = try snapshot()
-        _ = try RelayMarkNativeDocumentProjection.project(snapshot: snapshot)
+        // Validation keeps nothing; its parsed copy of the paper is released here.
+        try autoreleasepool { _ = try RelayMarkNativeDocumentProjection.project(snapshot: snapshot) }
         return try RelayMarkCollaborativeProse(snapshot: snapshot, dialect: .rich, codecValidated: true)
     }
 
@@ -1725,7 +1730,11 @@ public final class RelayMarkNativeDocument {
             }
             for (parent, first, removed, nodes) in targets {
                 if removed > 0 { try parent.removeChildren(start: first, length: removed, in: transaction) }
-                for (offset, node) in nodes.enumerated() { try append(node, to: parent, at: first + UInt32(offset)) }
+                // Each node's bridged values are released before the next, so writing
+                // a whole paper never holds all of them at once.
+                for (offset, node) in nodes.enumerated() {
+                    try autoreleasepool { try append(node, to: parent, at: first + UInt32(offset)) }
+                }
             }
             return Data(transaction.transactionEncodeUpdate())
         }

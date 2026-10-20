@@ -1,0 +1,2247 @@
+{
+  "interior_flat_ordered": {
+    "source": "Relay v3 TipTap/UniqueID Enter + community y-tiptap/Yjs",
+    "accepted": true,
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "orderedList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7,
+            "type": null
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "bold"
+                        }
+                      ],
+                      "text": "Second 🌍"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "orderedList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7,
+            "type": null
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "bold"
+                        }
+                      ],
+                      "text": "Sec"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000065"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000066"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "marks": [
+                        {
+                          "type": "bold"
+                        }
+                      ],
+                      "text": "ond 🌍"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "before_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "orderedList",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "First"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Second 🌍",
+                          "attributes": {
+                            "bold": {}
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "orderedList",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "First"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Sec",
+                          "attributes": {
+                            "bold": {}
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000065"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000066"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "ond 🌍",
+                          "attributes": {
+                            "bold": {}
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "seed": "ARHQywUABwEHZGVmYXVsdAMLb3JkZXJlZExpc3QHANDLBQADCGxpc3RJdGVtBwDQywUBAwlwYXJhZ3JhcGgHANDLBQIGBADQywUDBUZpcnN0KADQywUCC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAzKADQywUBC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAyh9DLBQEDCGxpc3RJdGVtBwDQywULAwlwYXJhZ3JhcGgHANDLBQwGBgDQywUNBGJvbGQCe32E0MsFDgtTZWNvbmQg8J+MjYbQywUXBGJvbGQEbnVsbCgA0MsFDAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNSgA0MsFCwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNCgA0MsFAAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwMSgA0MsFAAVzdGFydAF9BwA=",
+    "update": "AQjQywUdh9DLBQsDCGxpc3RJdGVtBwDQywUdAwlwYXJhZ3JhcGgHANDLBR4GBgDQywUfBGJvbGQCe32E0MsFIAhvbmQg8J+MjYbQywUmBGJvbGQEbnVsbCgA0MsFHgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NigA0MsFHQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NQHQywUBEgY=",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b00000000000040008000000000000001",
+          "type": "list",
+          "props": {
+            "kind": "ordered",
+            "start": 7
+          },
+          "content": [
+            {
+              "id": "b00000000000040008000000000000002",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000003",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000004",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000005",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "strong",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Sec"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000065",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000066",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "strong",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "ond 🌍"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "anchors": [
+      {
+        "path": [
+          0,
+          1,
+          0,
+          0
+        ],
+        "index": 0
+      },
+      {
+        "path": [
+          0,
+          1,
+          0,
+          0
+        ],
+        "index": 3
+      },
+      {
+        "path": [
+          0,
+          1,
+          0,
+          0
+        ],
+        "index": 3
+      }
+    ]
+  },
+  "interior_nested_ordered": {
+    "source": "Relay v3 TipTap/UniqueID Enter + community y-tiptap/Yjs",
+    "accepted": true,
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "type": "orderedList",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3,
+                    "type": null
+                  },
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Nested 🌍"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "type": "orderedList",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3,
+                    "type": null
+                  },
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Nes"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b00000000000040008000000000000065"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000066"
+                          },
+                          "content": [
+                            {
+                              "type": "text",
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "ted 🌍"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "before_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Outer"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "element",
+                  "name": "orderedList",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3
+                  },
+                  "children": [
+                    {
+                      "kind": "element",
+                      "name": "listItem",
+                      "attributes": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "children": [
+                        {
+                          "kind": "element",
+                          "name": "paragraph",
+                          "attributes": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "children": [
+                            {
+                              "kind": "text",
+                              "delta": [
+                                {
+                                  "insert": "Nested 🌍",
+                                  "attributes": {
+                                    "bold": {}
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Sibling"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Outer"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "element",
+                  "name": "orderedList",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3
+                  },
+                  "children": [
+                    {
+                      "kind": "element",
+                      "name": "listItem",
+                      "attributes": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "children": [
+                        {
+                          "kind": "element",
+                          "name": "paragraph",
+                          "attributes": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "children": [
+                            {
+                              "kind": "text",
+                              "delta": [
+                                {
+                                  "insert": "Nes",
+                                  "attributes": {
+                                    "bold": {}
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "element",
+                      "name": "listItem",
+                      "attributes": {
+                        "relaymarkId": "b00000000000040008000000000000065"
+                      },
+                      "children": [
+                        {
+                          "kind": "element",
+                          "name": "paragraph",
+                          "attributes": {
+                            "relaymarkId": "b00000000000040008000000000000066"
+                          },
+                          "children": [
+                            {
+                              "kind": "text",
+                              "delta": [
+                                {
+                                  "insert": "ted 🌍",
+                                  "attributes": {
+                                    "bold": {}
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Sibling"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "seed": "ARnRywUABwEHZGVmYXVsdAMKYnVsbGV0TGlzdAcA0csFAAMIbGlzdEl0ZW0HANHLBQEDCXBhcmFncmFwaAcA0csFAgYEANHLBQMFT3V0ZXIoANHLBQILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGSH0csFAgMLb3JkZXJlZExpc3QHANHLBQoDCGxpc3RJdGVtBwDRywULAwlwYXJhZ3JhcGgHANHLBQwGBgDRywUNBGJvbGQCe32E0csFDgtOZXN0ZWQg8J+MjYbRywUXBGJvbGQEbnVsbCgA0csFDAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAxMCgA0csFCwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwZigA0csFCgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwZSgA0csFCgVzdGFydAF9AygA0csFAQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwY4fRywUBAwhsaXN0SXRlbQcA0csFHgMJcGFyYWdyYXBoBwDRywUfBgQA0csFIAdTaWJsaW5nKADRywUfC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEyKADRywUeC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDExKADRywUAC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDBiAA==",
+    "update": "AQjRywUrh9HLBQsDCGxpc3RJdGVtBwDRywUrAwlwYXJhZ3JhcGgHANHLBSwGBgDRywUtBGJvbGQCe32E0csFLgh0ZWQg8J+MjYbRywU0BGJvbGQEbnVsbCgA0csFLAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NigA0csFKwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDA2NQHRywUBEgY=",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b0000000000004000800000000000000b",
+          "type": "list",
+          "props": {
+            "kind": "bullet"
+          },
+          "content": [
+            {
+              "id": "b0000000000004000800000000000000c",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b0000000000004000800000000000000d",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "id": "b0000000000004000800000000000000e",
+                  "type": "list",
+                  "props": {
+                    "kind": "ordered",
+                    "start": 3
+                  },
+                  "content": [
+                    {
+                      "id": "b0000000000004000800000000000000f",
+                      "type": "list_item",
+                      "content": [
+                        {
+                          "id": "b00000000000040008000000000000010",
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "strong",
+                              "content": [
+                                {
+                                  "type": "text",
+                                  "text": "Nes"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "b00000000000040008000000000000065",
+                      "type": "list_item",
+                      "content": [
+                        {
+                          "id": "b00000000000040008000000000000066",
+                          "type": "paragraph",
+                          "content": [
+                            {
+                              "type": "strong",
+                              "content": [
+                                {
+                                  "type": "text",
+                                  "text": "ted 🌍"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000011",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000012",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "anchors": [
+      {
+        "path": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "index": 0
+      },
+      {
+        "path": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "index": 3
+      },
+      {
+        "path": [
+          0,
+          0,
+          1,
+          0,
+          0,
+          0
+        ],
+        "index": 3
+      }
+    ]
+  },
+  "exit_flat_ordered": {
+    "source": "Relay v3 TipTap/UniqueID Enter + community y-tiptap/Yjs",
+    "accepted": true,
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "orderedList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7,
+            "type": null
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "orderedList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7,
+            "type": null
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000005"
+          }
+        }
+      ]
+    },
+    "before_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "orderedList",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "First"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "orderedList",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000001",
+            "start": 7
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "First"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "element",
+          "name": "paragraph",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000005"
+          },
+          "children": []
+        }
+      ]
+    },
+    "seed": "AQ3SywUABwEHZGVmYXVsdAMLb3JkZXJlZExpc3QHANLLBQADCGxpc3RJdGVtBwDSywUBAwlwYXJhZ3JhcGgHANLLBQIGBADSywUDBUZpcnN0KADSywUCC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAzKADSywUBC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDAyh9LLBQEDCGxpc3RJdGVtBwDSywULAwlwYXJhZ3JhcGgoANLLBQwLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDUoANLLBQsLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDQoANLLBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDEoANLLBQAFc3RhcnQBfQcA",
+    "update": "AQLSywURh9LLBQADCXBhcmFncmFwaCgA0ssFEQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNQHSywUBCwQ=",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b00000000000040008000000000000001",
+          "type": "list",
+          "props": {
+            "kind": "ordered",
+            "start": 7
+          },
+          "content": [
+            {
+              "id": "b00000000000040008000000000000002",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000003",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "b00000000000040008000000000000005",
+          "type": "paragraph",
+          "content": []
+        }
+      ]
+    },
+    "anchors": []
+  },
+  "exit_flat_bullet": {
+    "source": "Relay v3 TipTap/UniqueID Enter + community y-tiptap/Yjs",
+    "accepted": true,
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000001"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "attrs": {
+            "relaymarkId": "b00000000000040008000000000000005"
+          }
+        }
+      ]
+    },
+    "before_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000001"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "First"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000004"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000005"
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000001"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000002"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000003"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "First"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "kind": "element",
+          "name": "paragraph",
+          "attributes": {
+            "relaymarkId": "b00000000000040008000000000000005"
+          },
+          "children": []
+        }
+      ]
+    },
+    "seed": "AQzTywUABwEHZGVmYXVsdAMKYnVsbGV0TGlzdAcA08sFAAMIbGlzdEl0ZW0HANPLBQEDCXBhcmFncmFwaAcA08sFAgYEANPLBQMFRmlyc3QoANPLBQILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDMoANPLBQELcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDKH08sFAQMIbGlzdEl0ZW0HANPLBQsDCXBhcmFncmFwaCgA08sFDAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNSgA08sFCwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNCgA08sFAAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwMQA=",
+    "update": "AQLTywUQh9PLBQADCXBhcmFncmFwaCgA08sFEAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNQHTywUBCwQ=",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b00000000000040008000000000000001",
+          "type": "list",
+          "props": {
+            "kind": "bullet"
+          },
+          "content": [
+            {
+              "id": "b00000000000040008000000000000002",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000003",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "First"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "b00000000000040008000000000000005",
+          "type": "paragraph",
+          "content": []
+        }
+      ]
+    },
+    "anchors": []
+  },
+  "exit_nested_ordered": {
+    "source": "Relay v3 TipTap/UniqueID Enter + community y-tiptap/Yjs",
+    "accepted": true,
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "type": "orderedList",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3,
+                    "type": null
+                  },
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000065"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000010"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "before_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Outer"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "element",
+                  "name": "orderedList",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000e",
+                    "start": 3
+                  },
+                  "children": [
+                    {
+                      "kind": "element",
+                      "name": "listItem",
+                      "attributes": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "children": [
+                        {
+                          "kind": "element",
+                          "name": "paragraph",
+                          "attributes": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Sibling"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Outer"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000065"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000010"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Sibling"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "seed": "ARXUywUABwEHZGVmYXVsdAMKYnVsbGV0TGlzdAcA1MsFAAMIbGlzdEl0ZW0HANTLBQEDCXBhcmFncmFwaAcA1MsFAgYEANTLBQMFT3V0ZXIoANTLBQILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGSH1MsFAgMLb3JkZXJlZExpc3QHANTLBQoDCGxpc3RJdGVtBwDUywULAwlwYXJhZ3JhcGgoANTLBQwLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMTAoANTLBQsLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGYoANTLBQoLcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGUoANTLBQoFc3RhcnQBfQMoANTLBQELcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGOH1MsFAQMIbGlzdEl0ZW0HANTLBRIDCXBhcmFncmFwaAcA1MsFEwYEANTLBRQHU2libGluZygA1MsFEwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAxMigA1MsFEgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAxMSgA1MsFAAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwYgA=",
+    "update": "AQTUywUfx9TLBQHUywUSAwhsaXN0SXRlbQcA1MsFHwMJcGFyYWdyYXBoKADUywUgC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEwKADUywUfC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDY1AdTLBQEKBw==",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b0000000000004000800000000000000b",
+          "type": "list",
+          "props": {
+            "kind": "bullet"
+          },
+          "content": [
+            {
+              "id": "b0000000000004000800000000000000c",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b0000000000004000800000000000000d",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000065",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000010",
+                  "type": "paragraph",
+                  "content": []
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000011",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000012",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "anchors": []
+  },
+  "exit_nested_bullet": {
+    "source": "Relay v3 TipTap/UniqueID Enter + community y-tiptap/Yjs",
+    "accepted": true,
+    "normalized": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulletList",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000e"
+                  },
+                  "content": [
+                    {
+                      "type": "listItem",
+                      "attrs": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "content": [
+                        {
+                          "type": "paragraph",
+                          "attrs": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after": {
+      "type": "doc",
+      "content": [
+        {
+          "type": "bulletList",
+          "attrs": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "content": [
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000065"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000010"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "listItem",
+              "attrs": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "before_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Outer"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "element",
+                  "name": "bulletList",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000e"
+                  },
+                  "children": [
+                    {
+                      "kind": "element",
+                      "name": "listItem",
+                      "attributes": {
+                        "relaymarkId": "b0000000000004000800000000000000f"
+                      },
+                      "children": [
+                        {
+                          "kind": "element",
+                          "name": "paragraph",
+                          "attributes": {
+                            "relaymarkId": "b00000000000040008000000000000010"
+                          },
+                          "children": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Sibling"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "after_xml": {
+      "kind": "fragment",
+      "children": [
+        {
+          "kind": "element",
+          "name": "bulletList",
+          "attributes": {
+            "relaymarkId": "b0000000000004000800000000000000b"
+          },
+          "children": [
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b0000000000004000800000000000000c"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b0000000000004000800000000000000d"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Outer"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000065"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000010"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "kind": "element",
+              "name": "listItem",
+              "attributes": {
+                "relaymarkId": "b00000000000040008000000000000011"
+              },
+              "children": [
+                {
+                  "kind": "element",
+                  "name": "paragraph",
+                  "attributes": {
+                    "relaymarkId": "b00000000000040008000000000000012"
+                  },
+                  "children": [
+                    {
+                      "kind": "text",
+                      "delta": [
+                        {
+                          "insert": "Sibling"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "seed": "ARTVywUABwEHZGVmYXVsdAMKYnVsbGV0TGlzdAcA1csFAAMIbGlzdEl0ZW0HANXLBQEDCXBhcmFncmFwaAcA1csFAgYEANXLBQMFT3V0ZXIoANXLBQILcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGSH1csFAgMKYnVsbGV0TGlzdAcA1csFCgMIbGlzdEl0ZW0HANXLBQsDCXBhcmFncmFwaCgA1csFDAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAxMCgA1csFCwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwZigA1csFCgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwZSgA1csFAQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwY4fVywUBAwhsaXN0SXRlbQcA1csFEQMJcGFyYWdyYXBoBwDVywUSBgQA1csFEwdTaWJsaW5nKADVywUSC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEyKADVywURC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDExKADVywUAC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDBiAA==",
+    "update": "AQTVywUex9XLBQHVywURAwhsaXN0SXRlbQcA1csFHgMJcGFyYWdyYXBoKADVywUfC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDEwKADVywUeC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDY1AdXLBQEKBg==",
+    "expected_ast": {
+      "type": "relaymark.document",
+      "version": 1,
+      "blocks": [
+        {
+          "id": "b0000000000004000800000000000000b",
+          "type": "list",
+          "props": {
+            "kind": "bullet"
+          },
+          "content": [
+            {
+              "id": "b0000000000004000800000000000000c",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b0000000000004000800000000000000d",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Outer"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000065",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000010",
+                  "type": "paragraph",
+                  "content": []
+                }
+              ]
+            },
+            {
+              "id": "b00000000000040008000000000000011",
+              "type": "list_item",
+              "content": [
+                {
+                  "id": "b00000000000040008000000000000012",
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Sibling"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "anchors": []
+  }
+}

@@ -7,10 +7,10 @@ import Foundation
 // checked against it line by line. Text is stored as UTF-16 code units, as
 // in JavaScript, so positions match ProseMirror's exactly.
 
-struct PMReplaceError: Error { let message: String }
+package struct PMReplaceError: Error { let message: String }
 
 /// Deep JSON value equality, as prosemirror-model's compareDeep.
-func pmCompareDeep(_ a: Any?, _ b: Any?) -> Bool {
+package func pmCompareDeep(_ a: Any?, _ b: Any?) -> Bool {
     switch (a, b) {
     case (nil, nil): return true
     case (is NSNull, is NSNull): return true
@@ -27,17 +27,17 @@ func pmCompareDeep(_ a: Any?, _ b: Any?) -> Bool {
     }
 }
 
-final class PMSchema {
-    let nodeOrder: [PMNodeType]
-    let nodes: [String: PMNodeType]
-    let markOrder: [PMMarkType]
-    let marks: [String: PMMarkType]
-    let topNodeType: PMNodeType
-    let text: PMNodeType
+package final class PMSchema {
+    package let nodeOrder: [PMNodeType]
+    package let nodes: [String: PMNodeType]
+    package let markOrder: [PMMarkType]
+    package let marks: [String: PMMarkType]
+    package let topNodeType: PMNodeType
+    package let text: PMNodeType
 
     /// Builds a schema from the exported TipTap schema: node and mark specs in
     /// schema order, with mark sets and exclusions already resolved.
-    init(json: [String: Any], nodeAttributeOrder: [String: [String]]? = nil,
+    package init(json: [String: Any], nodeAttributeOrder: [String: [String]]? = nil,
          markAttributeOrder: [String: [String]]? = nil) throws {
         guard let rawNodes = json["nodes"] as? [[String: Any]], let rawMarks = json["marks"] as? [[String: Any]],
               let top = json["top"] as? String else { throw PMReplaceError(message: "invalid schema") }
@@ -86,17 +86,17 @@ final class PMSchema {
         return order
     }
 
-    func text(_ units: [UInt16], marks: [PMMark] = []) -> PMNode {
+    package func text(_ units: [UInt16], marks: [PMMark] = []) -> PMNode {
         PMNode(type: text, attrs: [:], content: .empty, marks: PMMark.setFrom(marks), text: units)
     }
 }
 
-struct PMAttribute {
-    let name: String
-    let hasDefault: Bool
-    let defaultValue: Any
+package struct PMAttribute {
+    package let name: String
+    package let hasDefault: Bool
+    package let defaultValue: Any
 
-    static func list(_ raw: Any?, order: [String]? = nil) -> [PMAttribute] {
+    package static func list(_ raw: Any?, order: [String]? = nil) -> [PMAttribute] {
         guard let raw = raw as? [String: Any] else { return [] }
         return (order ?? raw.keys.sorted()).map { name in
             let spec = raw[name] as? [String: Any] ?? [:]
@@ -106,18 +106,18 @@ struct PMAttribute {
     }
 }
 
-final class PMNodeType {
-    let name: String
-    let spec: [String: Any]
-    let groups: [String]
-    let attrs: [PMAttribute]
-    let isBlock: Bool
-    let isText: Bool
-    var contentMatch: PMContentMatch!
-    var inlineContent = false
-    var markSet: [PMMarkType]?
+package final class PMNodeType {
+    package let name: String
+    package let spec: [String: Any]
+    package let groups: [String]
+    package let attrs: [PMAttribute]
+    package let isBlock: Bool
+    package let isText: Bool
+    package var contentMatch: PMContentMatch!
+    package var inlineContent = false
+    package var markSet: [PMMarkType]?
 
-    init(name: String, spec: [String: Any], attributeOrder: [String]? = nil) {
+    package init(name: String, spec: [String: Any], attributeOrder: [String]? = nil) {
         self.name = name
         self.spec = spec
         groups = (spec["group"] as? String)?.split(separator: " ").map(String.init) ?? []
@@ -126,19 +126,19 @@ final class PMNodeType {
         isText = name == "text"
     }
 
-    func flag(_ key: String) -> Bool { spec[key] as? Bool ?? false }
-    var isInline: Bool { !isBlock }
-    var isTextblock: Bool { isBlock && inlineContent }
-    var isLeaf: Bool { contentMatch === PMContentMatch.empty }
-    var isAtom: Bool { isLeaf || flag("atom") }
-    func isInGroup(_ group: String) -> Bool { groups.contains(group) }
-    func hasRequiredAttrs() -> Bool { attrs.contains { !$0.hasDefault } }
+    package func flag(_ key: String) -> Bool { spec[key] as? Bool ?? false }
+    package var isInline: Bool { !isBlock }
+    package var isTextblock: Bool { isBlock && inlineContent }
+    package var isLeaf: Bool { contentMatch === PMContentMatch.empty }
+    package var isAtom: Bool { isLeaf || flag("atom") }
+    package func isInGroup(_ group: String) -> Bool { groups.contains(group) }
+    package func hasRequiredAttrs() -> Bool { attrs.contains { !$0.hasDefault } }
 
-    func compatibleContent(_ other: PMNodeType) -> Bool {
+    package func compatibleContent(_ other: PMNodeType) -> Bool {
         self === other || contentMatch.compatible(other.contentMatch)
     }
 
-    func computeAttrs(_ given: [String: Any]?) throws -> [String: Any] {
+    package func computeAttrs(_ given: [String: Any]?) throws -> [String: Any] {
         var built: [String: Any] = [:]
         for attr in attrs {
             if let value = given?[attr.name] { built[attr.name] = value }
@@ -148,11 +148,11 @@ final class PMNodeType {
         return built
     }
 
-    func create(_ attrs: [String: Any]? = nil, _ content: PMFragment = .empty, marks: [PMMark] = []) throws -> PMNode {
+    package func create(_ attrs: [String: Any]? = nil, _ content: PMFragment = .empty, marks: [PMMark] = []) throws -> PMNode {
         PMNode(type: self, attrs: try computeAttrs(attrs), content: content, marks: PMMark.setFrom(marks))
     }
 
-    func createAndFill(_ attrs: [String: Any]? = nil, _ content: PMFragment = .empty, marks: [PMMark] = []) -> PMNode? {
+    package func createAndFill(_ attrs: [String: Any]? = nil, _ content: PMFragment = .empty, marks: [PMMark] = []) -> PMNode? {
         guard let attrs = try? computeAttrs(attrs) else { return nil }
         var content = content
         if content.size > 0 {
@@ -164,50 +164,50 @@ final class PMNodeType {
         return PMNode(type: self, attrs: attrs, content: content.append(after), marks: PMMark.setFrom(marks))
     }
 
-    func validContent(_ content: PMFragment) -> Bool {
+    package func validContent(_ content: PMFragment) -> Bool {
         guard let result = contentMatch.matchFragment(content), result.validEnd else { return false }
         return content.children.allSatisfy { allowsMarks($0.marks) }
     }
 
-    func allowsMarkType(_ type: PMMarkType) -> Bool { markSet == nil || markSet!.contains { $0 === type } }
-    func allowsMarks(_ marks: [PMMark]) -> Bool { markSet == nil || marks.allSatisfy { allowsMarkType($0.type) } }
-    func allowedMarks(_ marks: [PMMark]) -> [PMMark] {
+    package func allowsMarkType(_ type: PMMarkType) -> Bool { markSet == nil || markSet!.contains { $0 === type } }
+    package func allowsMarks(_ marks: [PMMark]) -> Bool { markSet == nil || marks.allSatisfy { allowsMarkType($0.type) } }
+    package func allowedMarks(_ marks: [PMMark]) -> [PMMark] {
         guard markSet != nil, !allowsMarks(marks) else { return marks }
         return marks.filter { allowsMarkType($0.type) }
     }
 }
 
-final class PMMarkType {
-    let name: String
-    let rank: Int
-    let inclusive: Bool?
-    let attrs: [PMAttribute]
-    var excluded: [PMMarkType] = []
+package final class PMMarkType {
+    package let name: String
+    package let rank: Int
+    package let inclusive: Bool?
+    package let attrs: [PMAttribute]
+    package var excluded: [PMMarkType] = []
 
-    init(name: String, rank: Int, inclusive: Bool?, attrs: [PMAttribute]) {
+    package init(name: String, rank: Int, inclusive: Bool?, attrs: [PMAttribute]) {
         self.name = name
         self.rank = rank
         self.inclusive = inclusive
         self.attrs = attrs
     }
 
-    func excludes(_ other: PMMarkType) -> Bool { excluded.contains { $0 === other } }
+    package func excludes(_ other: PMMarkType) -> Bool { excluded.contains { $0 === other } }
 
-    func create(_ given: [String: Any]?) -> PMMark {
+    package func create(_ given: [String: Any]?) -> PMMark {
         var built: [String: Any] = [:]
         for attr in attrs { built[attr.name] = given?[attr.name] ?? (attr.hasDefault ? attr.defaultValue : NSNull()) }
         return PMMark(type: self, attrs: built)
     }
 }
 
-struct PMMark {
-    let type: PMMarkType
-    let attrs: [String: Any]
+package struct PMMark {
+    package let type: PMMarkType
+    package let attrs: [String: Any]
 
-    func eq(_ other: PMMark) -> Bool { type === other.type && pmCompareDeep(attrs, other.attrs) }
-    func isInSet(_ set: [PMMark]) -> Bool { set.contains { eq($0) } }
+    package func eq(_ other: PMMark) -> Bool { type === other.type && pmCompareDeep(attrs, other.attrs) }
+    package func isInSet(_ set: [PMMark]) -> Bool { set.contains { eq($0) } }
 
-    func addToSet(_ set: [PMMark]) -> [PMMark] {
+    package func addToSet(_ set: [PMMark]) -> [PMMark] {
         var copy: [PMMark]?, placed = false
         for (index, other) in set.enumerated() {
             if eq(other) { return set }
@@ -229,39 +229,39 @@ struct PMMark {
         return result
     }
 
-    func removeFromSet(_ set: [PMMark]) -> [PMMark] {
+    package func removeFromSet(_ set: [PMMark]) -> [PMMark] {
         guard let index = set.firstIndex(where: { eq($0) }) else { return set }
         return Array(set[..<index] + set[(index + 1)...])
     }
 
-    static func sameSet(_ a: [PMMark], _ b: [PMMark]) -> Bool {
+    package static func sameSet(_ a: [PMMark], _ b: [PMMark]) -> Bool {
         a.count == b.count && zip(a, b).allSatisfy { $0.eq($1) }
     }
 
-    static func setFrom(_ marks: [PMMark]) -> [PMMark] { marks.sorted { $0.type.rank < $1.type.rank } }
+    package static func setFrom(_ marks: [PMMark]) -> [PMMark] { marks.sorted { $0.type.rank < $1.type.rank } }
 }
 
-final class PMFragment {
-    let children: [PMNode]
-    let size: Int
+package final class PMFragment {
+    package let children: [PMNode]
+    package let size: Int
 
-    nonisolated(unsafe) static let empty = PMFragment([], size: 0)
+    nonisolated(unsafe) package static let empty = PMFragment([], size: 0)
 
-    init(_ children: [PMNode], size: Int? = nil) {
+    package init(_ children: [PMNode], size: Int? = nil) {
         self.children = children
         self.size = size ?? children.reduce(0) { $0 + $1.nodeSize }
     }
 
-    var childCount: Int { children.count }
-    var firstChild: PMNode? { children.first }
-    var lastChild: PMNode? { children.last }
-    func child(_ index: Int) -> PMNode { children[index] }
-    func maybeChild(_ index: Int) -> PMNode? { children.indices.contains(index) ? children[index] : nil }
+    package var childCount: Int { children.count }
+    package var firstChild: PMNode? { children.first }
+    package var lastChild: PMNode? { children.last }
+    package func child(_ index: Int) -> PMNode { children[index] }
+    package func maybeChild(_ index: Int) -> PMNode? { children.indices.contains(index) ? children[index] : nil }
 
-    static func from(_ node: PMNode?) -> PMFragment { node.map { PMFragment([$0]) } ?? .empty }
+    package static func from(_ node: PMNode?) -> PMFragment { node.map { PMFragment([$0]) } ?? .empty }
 
     /// Joins adjacent text nodes with the same marks, as Fragment.fromArray.
-    static func fromArray(_ nodes: [PMNode]) -> PMFragment {
+    package static func fromArray(_ nodes: [PMNode]) -> PMFragment {
         guard !nodes.isEmpty else { return .empty }
         var joined: [PMNode] = []
         for node in nodes {
@@ -274,7 +274,7 @@ final class PMFragment {
         return PMFragment(joined)
     }
 
-    func append(_ other: PMFragment) -> PMFragment {
+    package func append(_ other: PMFragment) -> PMFragment {
         if other.size == 0 { return self }
         if size == 0 { return other }
         var content = children, index = 0
@@ -286,7 +286,7 @@ final class PMFragment {
         return PMFragment(content, size: size + other.size)
     }
 
-    func cut(_ from: Int, _ to: Int? = nil) -> PMFragment {
+    package func cut(_ from: Int, _ to: Int? = nil) -> PMFragment {
         let to = to ?? size
         if from == 0 && to == size { return self }
         var result: [PMNode] = [], resultSize = 0
@@ -313,13 +313,13 @@ final class PMFragment {
         return PMFragment(result, size: resultSize)
     }
 
-    func cutByIndex(_ from: Int, _ to: Int) -> PMFragment {
+    package func cutByIndex(_ from: Int, _ to: Int) -> PMFragment {
         if from == to { return .empty }
         if from == 0 && to == children.count { return self }
         return PMFragment(Array(children[from..<to]))
     }
 
-    func replaceChild(_ index: Int, _ node: PMNode) -> PMFragment {
+    package func replaceChild(_ index: Int, _ node: PMNode) -> PMFragment {
         let current = children[index]
         if current === node { return self }
         var copy = children
@@ -327,14 +327,14 @@ final class PMFragment {
         return PMFragment(copy, size: size + node.nodeSize - current.nodeSize)
     }
 
-    func addToStart(_ node: PMNode) -> PMFragment { PMFragment([node] + children, size: size + node.nodeSize) }
-    func addToEnd(_ node: PMNode) -> PMFragment { PMFragment(children + [node], size: size + node.nodeSize) }
+    package func addToStart(_ node: PMNode) -> PMFragment { PMFragment([node] + children, size: size + node.nodeSize) }
+    package func addToEnd(_ node: PMNode) -> PMFragment { PMFragment(children + [node], size: size + node.nodeSize) }
 
-    func eq(_ other: PMFragment) -> Bool {
+    package func eq(_ other: PMFragment) -> Bool {
         children.count == other.children.count && zip(children, other.children).allSatisfy { $0.eq($1) }
     }
 
-    func findIndex(_ pos: Int) throws -> (index: Int, offset: Int) {
+    package func findIndex(_ pos: Int) throws -> (index: Int, offset: Int) {
         if pos == 0 { return (0, pos) }
         if pos == size { return (children.count, pos) }
         guard pos > 0, pos < size else { throw PMReplaceError(message: "Position \(pos) outside of fragment") }
@@ -347,7 +347,7 @@ final class PMFragment {
         throw PMReplaceError(message: "Position \(pos) outside of fragment")
     }
 
-    func nodesBetween(_ from: Int, _ to: Int, _ body: (PMNode, Int, PMNode?, Int) -> Bool,
+    package func nodesBetween(_ from: Int, _ to: Int, _ body: (PMNode, Int, PMNode?, Int) -> Bool,
                       nodeStart: Int = 0, parent: PMNode? = nil) {
         var pos = 0, index = 0
         while pos < to, index < children.count {
@@ -363,15 +363,15 @@ final class PMFragment {
     }
 }
 
-final class PMNode {
-    let type: PMNodeType
-    let attrs: [String: Any]
-    let content: PMFragment
-    let marks: [PMMark]
+package final class PMNode {
+    package let type: PMNodeType
+    package let attrs: [String: Any]
+    package let content: PMFragment
+    package let marks: [PMMark]
     /// UTF-16 code units for text nodes, matching JavaScript string indexes.
-    let text: [UInt16]?
+    package let text: [UInt16]?
 
-    init(type: PMNodeType, attrs: [String: Any], content: PMFragment, marks: [PMMark], text: [UInt16]? = nil) {
+    package init(type: PMNodeType, attrs: [String: Any], content: PMFragment, marks: [PMMark], text: [UInt16]? = nil) {
         self.type = type
         self.attrs = attrs
         self.content = content
@@ -379,50 +379,50 @@ final class PMNode {
         self.text = text
     }
 
-    var isText: Bool { type.isText }
-    var isBlock: Bool { type.isBlock }
-    var isInline: Bool { type.isInline }
-    var isTextblock: Bool { type.isTextblock }
-    var inlineContent: Bool { type.inlineContent }
-    var isLeaf: Bool { type.isLeaf }
-    var isAtom: Bool { type.isAtom }
-    var nodeSize: Int { text?.count ?? (isLeaf ? 1 : 2 + content.size) }
-    var childCount: Int { content.childCount }
-    var firstChild: PMNode? { content.firstChild }
-    var lastChild: PMNode? { content.lastChild }
-    func child(_ index: Int) -> PMNode { content.child(index) }
-    func maybeChild(_ index: Int) -> PMNode? { content.maybeChild(index) }
-    var textString: String { text.map { String(decoding: $0, as: UTF16.self) } ?? "" }
+    package var isText: Bool { type.isText }
+    package var isBlock: Bool { type.isBlock }
+    package var isInline: Bool { type.isInline }
+    package var isTextblock: Bool { type.isTextblock }
+    package var inlineContent: Bool { type.inlineContent }
+    package var isLeaf: Bool { type.isLeaf }
+    package var isAtom: Bool { type.isAtom }
+    package var nodeSize: Int { text?.count ?? (isLeaf ? 1 : 2 + content.size) }
+    package var childCount: Int { content.childCount }
+    package var firstChild: PMNode? { content.firstChild }
+    package var lastChild: PMNode? { content.lastChild }
+    package func child(_ index: Int) -> PMNode { content.child(index) }
+    package func maybeChild(_ index: Int) -> PMNode? { content.maybeChild(index) }
+    package var textString: String { text.map { String(decoding: $0, as: UTF16.self) } ?? "" }
 
-    func eq(_ other: PMNode) -> Bool {
+    package func eq(_ other: PMNode) -> Bool {
         if self === other { return true }
         guard sameMarkup(other) else { return false }
         return isText ? text == other.text : content.eq(other.content)
     }
 
-    func sameMarkup(_ other: PMNode) -> Bool { hasMarkup(other.type, other.attrs, other.marks) }
+    package func sameMarkup(_ other: PMNode) -> Bool { hasMarkup(other.type, other.attrs, other.marks) }
 
-    func hasMarkup(_ type: PMNodeType, _ attrs: [String: Any], _ marks: [PMMark]) -> Bool {
+    package func hasMarkup(_ type: PMNodeType, _ attrs: [String: Any], _ marks: [PMMark]) -> Bool {
         self.type === type && pmCompareDeep(self.attrs, attrs) && PMMark.sameSet(self.marks, marks)
     }
 
-    func copy(_ content: PMFragment? = nil) -> PMNode {
+    package func copy(_ content: PMFragment? = nil) -> PMNode {
         let content = content ?? .empty
         if content === self.content { return self }
         return PMNode(type: type, attrs: attrs, content: content, marks: marks)
     }
 
-    func mark(_ marks: [PMMark]) -> PMNode {
+    package func mark(_ marks: [PMMark]) -> PMNode {
         if PMMark.sameSet(marks, self.marks) { return self }
         return PMNode(type: type, attrs: attrs, content: content, marks: marks, text: text)
     }
 
-    func withText(_ units: [UInt16]) -> PMNode {
+    package func withText(_ units: [UInt16]) -> PMNode {
         if units == text { return self }
         return PMNode(type: type, attrs: attrs, content: content, marks: marks, text: units)
     }
 
-    func cut(_ from: Int, _ to: Int? = nil) -> PMNode {
+    package func cut(_ from: Int, _ to: Int? = nil) -> PMNode {
         if let text {
             let to = to ?? text.count
             if from == 0 && to == text.count { return self }
@@ -433,7 +433,7 @@ final class PMNode {
         return copy(content.cut(from, to))
     }
 
-    func slice(_ from: Int, _ to: Int? = nil, includeParents: Bool = false) throws -> PMSlice {
+    package func slice(_ from: Int, _ to: Int? = nil, includeParents: Bool = false) throws -> PMSlice {
         let to = to ?? content.size
         if from == to { return .empty }
         let from$ = try resolve(from), to$ = try resolve(to)
@@ -443,11 +443,11 @@ final class PMNode {
         return PMSlice(content, openStart: from$.depth - depth, openEnd: to$.depth - depth)
     }
 
-    func replace(_ from: Int, _ to: Int, _ slice: PMSlice) throws -> PMNode {
+    package func replace(_ from: Int, _ to: Int, _ slice: PMSlice) throws -> PMNode {
         try pmReplace(resolve(from), resolve(to), slice)
     }
 
-    func nodeAt(_ pos: Int) -> PMNode? {
+    package func nodeAt(_ pos: Int) -> PMNode? {
         var node = self, pos = pos
         while true {
             guard let (index, offset) = try? node.content.findIndex(pos), let child = node.maybeChild(index) else {
@@ -459,16 +459,16 @@ final class PMNode {
         }
     }
 
-    func resolve(_ pos: Int) throws -> PMResolvedPos { try PMResolvedPos.resolve(self, pos) }
+    package func resolve(_ pos: Int) throws -> PMResolvedPos { try PMResolvedPos.resolve(self, pos) }
 
-    func contentMatchAt(_ index: Int) throws -> PMContentMatch {
+    package func contentMatchAt(_ index: Int) throws -> PMContentMatch {
         guard let match = type.contentMatch.matchFragment(content, start: 0, end: index) else {
             throw PMReplaceError(message: "Called contentMatchAt on a node with invalid content")
         }
         return match
     }
 
-    func canReplace(_ from: Int, _ to: Int, _ replacement: PMFragment = .empty,
+    package func canReplace(_ from: Int, _ to: Int, _ replacement: PMFragment = .empty,
                     start: Int = 0, end: Int? = nil) -> Bool {
         let end = end ?? replacement.childCount
         guard let one = (try? contentMatchAt(from))?.matchFragment(replacement, start: start, end: end),
@@ -476,7 +476,7 @@ final class PMNode {
         return (start..<end).allSatisfy { type.allowsMarks(replacement.child($0).marks) }
     }
 
-    func canReplaceWith(_ from: Int, _ to: Int, _ nodeType: PMNodeType, marks: [PMMark]? = nil) -> Bool {
+    package func canReplaceWith(_ from: Int, _ to: Int, _ nodeType: PMNodeType, marks: [PMMark]? = nil) -> Bool {
         if let marks, !type.allowsMarks(marks) { return false }
         guard let start = (try? contentMatchAt(from))?.matchType(nodeType),
               let end = start.matchFragment(content, start: to) else { return false }
@@ -484,27 +484,27 @@ final class PMNode {
     }
 }
 
-struct PMSlice {
-    let content: PMFragment
-    let openStart: Int
-    let openEnd: Int
+package struct PMSlice {
+    package let content: PMFragment
+    package let openStart: Int
+    package let openEnd: Int
 
-    nonisolated(unsafe) static let empty = PMSlice(.empty, openStart: 0, openEnd: 0)
+    nonisolated(unsafe) package static let empty = PMSlice(.empty, openStart: 0, openEnd: 0)
 
-    init(_ content: PMFragment, openStart: Int, openEnd: Int) {
+    package init(_ content: PMFragment, openStart: Int, openEnd: Int) {
         self.content = content
         self.openStart = openStart
         self.openEnd = openEnd
     }
 
-    var size: Int { content.size - openStart - openEnd }
+    package var size: Int { content.size - openStart - openEnd }
 
-    func insertAt(_ pos: Int, _ fragment: PMFragment) throws -> PMSlice? {
+    package func insertAt(_ pos: Int, _ fragment: PMFragment) throws -> PMSlice? {
         try pmInsertInto(content, pos + openStart, fragment, openStart + 1, openEnd + 1, nil)
             .map { PMSlice($0, openStart: openStart, openEnd: openEnd) }
     }
 
-    static func maxOpen(_ fragment: PMFragment, openIsolating: Bool = true) -> PMSlice {
+    package static func maxOpen(_ fragment: PMFragment, openIsolating: Bool = true) -> PMSlice {
         var openStart = 0, openEnd = 0
         var node = fragment.firstChild
         while let current = node, !current.isLeaf, openIsolating || !current.type.flag("isolating") {
@@ -520,65 +520,65 @@ struct PMSlice {
     }
 }
 
-struct PMResolvedPos {
-    let pos: Int
-    let path: [(node: PMNode, index: Int, offset: Int)]
-    let parentOffset: Int
-    var depth: Int { path.count - 1 }
+package struct PMResolvedPos {
+    package let pos: Int
+    package let path: [(node: PMNode, index: Int, offset: Int)]
+    package let parentOffset: Int
+    package var depth: Int { path.count - 1 }
 
     private func resolveDepth(_ value: Int?) -> Int {
         guard let value else { return depth }
         return value < 0 ? depth + value : value
     }
 
-    var parent: PMNode { node(depth) }
-    var doc: PMNode { node(0) }
-    func node(_ depth: Int? = nil) -> PMNode { path[resolveDepth(depth)].node }
-    func index(_ depth: Int? = nil) -> Int { path[resolveDepth(depth)].index }
+    package var parent: PMNode { node(depth) }
+    package var doc: PMNode { node(0) }
+    package func node(_ depth: Int? = nil) -> PMNode { path[resolveDepth(depth)].node }
+    package func index(_ depth: Int? = nil) -> Int { path[resolveDepth(depth)].index }
 
-    func indexAfter(_ depth: Int? = nil) -> Int {
+    package func indexAfter(_ depth: Int? = nil) -> Int {
         let depth = resolveDepth(depth)
         return index(depth) + (depth == self.depth && textOffset == 0 ? 0 : 1)
     }
 
-    func start(_ depth: Int? = nil) -> Int {
+    package func start(_ depth: Int? = nil) -> Int {
         let depth = resolveDepth(depth)
         return depth == 0 ? 0 : path[depth - 1].offset + 1
     }
 
-    func end(_ depth: Int? = nil) -> Int {
+    package func end(_ depth: Int? = nil) -> Int {
         let depth = resolveDepth(depth)
         return start(depth) + node(depth).content.size
     }
 
-    func before(_ depth: Int? = nil) -> Int {
+    package func before(_ depth: Int? = nil) -> Int {
         let depth = resolveDepth(depth)
         precondition(depth > 0, "There is no position before the top-level node")
         return depth == self.depth + 1 ? pos : path[depth - 1].offset
     }
 
-    func after(_ depth: Int? = nil) -> Int {
+    package func after(_ depth: Int? = nil) -> Int {
         let depth = resolveDepth(depth)
         precondition(depth > 0, "There is no position after the top-level node")
         return depth == self.depth + 1 ? pos : path[depth - 1].offset + path[depth].node.nodeSize
     }
 
-    var textOffset: Int { pos - path[path.count - 1].offset }
+    package var textOffset: Int { pos - path[path.count - 1].offset }
 
-    var nodeAfter: PMNode? {
+    package var nodeAfter: PMNode? {
         let parent = self.parent, index = self.index(depth)
         if index == parent.childCount { return nil }
         let offset = pos - path[path.count - 1].offset, child = parent.child(index)
         return offset > 0 ? child.cut(offset) : child
     }
 
-    var nodeBefore: PMNode? {
+    package var nodeBefore: PMNode? {
         let index = self.index(depth), offset = pos - path[path.count - 1].offset
         if offset > 0 { return parent.child(index).cut(0, offset) }
         return index == 0 ? nil : parent.child(index - 1)
     }
 
-    func posAtIndex(_ index: Int, _ depth: Int? = nil) -> Int {
+    package func posAtIndex(_ index: Int, _ depth: Int? = nil) -> Int {
         let depth = resolveDepth(depth)
         let node = path[depth].node
         var pos = depth == 0 ? 0 : path[depth - 1].offset + 1
@@ -586,7 +586,7 @@ struct PMResolvedPos {
         return pos
     }
 
-    func marks() -> [PMMark] {
+    package func marks() -> [PMMark] {
         let parent = self.parent, index = self.index()
         if parent.content.size == 0 { return [] }
         if textOffset > 0 { return parent.child(index).marks }
@@ -604,7 +604,7 @@ struct PMResolvedPos {
         return marks
     }
 
-    func marksAcross(_ end: PMResolvedPos) -> [PMMark]? {
+    package func marksAcross(_ end: PMResolvedPos) -> [PMMark]? {
         guard let after = parent.maybeChild(index()), after.isInline else { return nil }
         var marks = after.marks, i = 0
         let next = end.parent.maybeChild(end.index())
@@ -618,7 +618,7 @@ struct PMResolvedPos {
         return marks
     }
 
-    func sharedDepth(_ pos: Int) -> Int {
+    package func sharedDepth(_ pos: Int) -> Int {
         var depth = self.depth
         while depth > 0 {
             if start(depth) <= pos && end(depth) >= pos { return depth }
@@ -627,7 +627,7 @@ struct PMResolvedPos {
         return 0
     }
 
-    static func resolve(_ doc: PMNode, _ pos: Int) throws -> PMResolvedPos {
+    package static func resolve(_ doc: PMNode, _ pos: Int) throws -> PMResolvedPos {
         guard pos >= 0, pos <= doc.content.size else { throw PMReplaceError(message: "Position \(pos) out of range") }
         var path: [(PMNode, Int, Int)] = []
         var start = 0, parentOffset = pos, node = doc
@@ -648,7 +648,7 @@ struct PMResolvedPos {
 
 // MARK: Node.replace (prosemirror-model replace.ts)
 
-func pmReplace(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ slice: PMSlice) throws -> PMNode {
+package func pmReplace(_ from$: PMResolvedPos, _ to$: PMResolvedPos, _ slice: PMSlice) throws -> PMNode {
     guard slice.openStart <= from$.depth else {
         throw PMReplaceError(message: "Inserted content deeper than insertion position")
     }
@@ -765,7 +765,7 @@ private func pmPrepareSliceForReplace(_ slice: PMSlice, _ along$: PMResolvedPos)
             try PMResolvedPos.resolve(node, node.content.size - slice.openEnd - extra))
 }
 
-func pmInsertInto(_ content: PMFragment, _ dist: Int, _ insert: PMFragment, _ openStart: Int, _ openEnd: Int,
+package func pmInsertInto(_ content: PMFragment, _ dist: Int, _ insert: PMFragment, _ openStart: Int, _ openEnd: Int,
                   _ parent: PMNode?) throws -> PMFragment? {
     let (index, offset) = try content.findIndex(dist)
     let child = content.maybeChild(index)
@@ -782,16 +782,16 @@ func pmInsertInto(_ content: PMFragment, _ dist: Int, _ insert: PMFragment, _ op
 
 // MARK: ContentMatch (prosemirror-model content.ts)
 
-final class PMContentMatch {
-    let validEnd: Bool
-    var next: [(type: PMNodeType, next: PMContentMatch)] = []
+package final class PMContentMatch {
+    package let validEnd: Bool
+    package var next: [(type: PMNodeType, next: PMContentMatch)] = []
     private var wrapCache: [(PMNodeType, [PMNodeType]?)] = []
 
-    nonisolated(unsafe) static let empty = PMContentMatch(validEnd: true)
+    nonisolated(unsafe) package static let empty = PMContentMatch(validEnd: true)
 
-    init(validEnd: Bool) { self.validEnd = validEnd }
+    package init(validEnd: Bool) { self.validEnd = validEnd }
 
-    static func parse(_ string: String, nodeTypes: [PMNodeType]) throws -> PMContentMatch {
+    package static func parse(_ string: String, nodeTypes: [PMNodeType]) throws -> PMContentMatch {
         var stream = PMTokenStream(string, nodeTypes: nodeTypes)
         if stream.next == nil { return .empty }
         let expression = try stream.parseExpr()
@@ -799,11 +799,11 @@ final class PMContentMatch {
         return PMContentMatch.dfa(PMContentMatch.nfa(expression))
     }
 
-    func matchType(_ type: PMNodeType) -> PMContentMatch? {
+    package func matchType(_ type: PMNodeType) -> PMContentMatch? {
         next.first { $0.type === type }?.next
     }
 
-    func matchFragment(_ fragment: PMFragment, start: Int = 0, end: Int? = nil) -> PMContentMatch? {
+    package func matchFragment(_ fragment: PMFragment, start: Int = 0, end: Int? = nil) -> PMContentMatch? {
         var current: PMContentMatch? = self
         var i = start
         let end = end ?? fragment.childCount
@@ -814,17 +814,17 @@ final class PMContentMatch {
         return current
     }
 
-    var inlineContent: Bool { !next.isEmpty && next[0].type.isInline }
+    package var inlineContent: Bool { !next.isEmpty && next[0].type.isInline }
 
-    var defaultType: PMNodeType? {
+    package var defaultType: PMNodeType? {
         next.first { !($0.type.isText || $0.type.hasRequiredAttrs()) }?.type
     }
 
-    func compatible(_ other: PMContentMatch) -> Bool {
+    package func compatible(_ other: PMContentMatch) -> Bool {
         next.contains { edge in other.next.contains { $0.type === edge.type } }
     }
 
-    func fillBefore(_ after: PMFragment, toEnd: Bool = false, startIndex: Int = 0) -> PMFragment? {
+    package func fillBefore(_ after: PMFragment, toEnd: Bool = false, startIndex: Int = 0) -> PMFragment? {
         var seen: [PMContentMatch] = [self]
         func search(_ match: PMContentMatch, _ types: [PMNodeType]) -> PMFragment? {
             if let finished = match.matchFragment(after, start: startIndex), !toEnd || finished.validEnd {
@@ -840,7 +840,7 @@ final class PMContentMatch {
         return search(self, [])
     }
 
-    func findWrapping(_ target: PMNodeType) -> [PMNodeType]? {
+    package func findWrapping(_ target: PMNodeType) -> [PMNodeType]? {
         if let cached = wrapCache.first(where: { $0.0 === target }) { return cached.1 }
         let computed = computeWrapping(target)
         wrapCache.append((target, computed))
@@ -848,8 +848,8 @@ final class PMContentMatch {
     }
 
     private final class WrapStep {
-        let match: PMContentMatch, type: PMNodeType?, via: WrapStep?
-        init(_ match: PMContentMatch, _ type: PMNodeType?, _ via: WrapStep?) {
+        package let match: PMContentMatch, type: PMNodeType?, via: WrapStep?
+        package init(_ match: PMContentMatch, _ type: PMNodeType?, _ via: WrapStep?) {
             self.match = match; self.type = type; self.via = via
         }
     }
@@ -876,15 +876,15 @@ final class PMContentMatch {
 
     // MARK: expression compilation
 
-    indirect enum Expr {
+    package indirect enum Expr {
         case choice([Expr]), seq([Expr]), plus(Expr), star(Expr), opt(Expr)
         case range(min: Int, max: Int, Expr), name(PMNodeType)
     }
 
     private final class Edge {
-        let term: PMNodeType?
-        var to: Int?
-        init(_ term: PMNodeType?, _ to: Int?) { self.term = term; self.to = to }
+        package let term: PMNodeType?
+        package var to: Int?
+        package init(_ term: PMNodeType?, _ to: Int?) { self.term = term; self.to = to }
     }
 
     private static func nfa(_ expr: Expr) -> [[Edge]] {
@@ -989,13 +989,13 @@ final class PMContentMatch {
 }
 
 private struct PMTokenStream {
-    let string: String
-    let nodeTypes: [PMNodeType]
-    var inline: Bool?
-    var pos = 0
-    let tokens: [String]
+    package let string: String
+    package let nodeTypes: [PMNodeType]
+    package var inline: Bool?
+    package var pos = 0
+    package let tokens: [String]
 
-    init(_ string: String, nodeTypes: [PMNodeType]) {
+    package init(_ string: String, nodeTypes: [PMNodeType]) {
         self.string = string
         self.nodeTypes = nodeTypes
         var tokens: [String] = [], word = ""
@@ -1011,29 +1011,29 @@ private struct PMTokenStream {
         self.tokens = tokens
     }
 
-    var next: String? { pos < tokens.count ? tokens[pos] : nil }
-    mutating func eat(_ token: String) -> Bool {
+    package var next: String? { pos < tokens.count ? tokens[pos] : nil }
+    package mutating func eat(_ token: String) -> Bool {
         guard next == token else { return false }
         pos += 1
         return true
     }
-    func error(_ message: String) -> PMReplaceError {
+    package func error(_ message: String) -> PMReplaceError {
         PMReplaceError(message: "\(message) (in content expression '\(string)')")
     }
 
-    mutating func parseExpr() throws -> PMContentMatch.Expr {
+    package mutating func parseExpr() throws -> PMContentMatch.Expr {
         var exprs: [PMContentMatch.Expr] = []
         repeat { exprs.append(try parseExprSeq()) } while eat("|")
         return exprs.count == 1 ? exprs[0] : .choice(exprs)
     }
 
-    mutating func parseExprSeq() throws -> PMContentMatch.Expr {
+    package mutating func parseExprSeq() throws -> PMContentMatch.Expr {
         var exprs: [PMContentMatch.Expr] = []
         repeat { exprs.append(try parseExprSubscript()) } while next != nil && next != ")" && next != "|"
         return exprs.count == 1 ? exprs[0] : .seq(exprs)
     }
 
-    mutating func parseExprSubscript() throws -> PMContentMatch.Expr {
+    package mutating func parseExprSubscript() throws -> PMContentMatch.Expr {
         var expr = try parseExprAtom()
         while true {
             if eat("+") { expr = .plus(expr) }
@@ -1045,13 +1045,13 @@ private struct PMTokenStream {
         return expr
     }
 
-    mutating func parseNum() throws -> Int {
+    package mutating func parseNum() throws -> Int {
         guard let token = next, let value = Int(token) else { throw error("Expected number, got '\(next ?? "")'") }
         pos += 1
         return value
     }
 
-    mutating func parseExprRange(_ expr: PMContentMatch.Expr) throws -> PMContentMatch.Expr {
+    package mutating func parseExprRange(_ expr: PMContentMatch.Expr) throws -> PMContentMatch.Expr {
         let min = try parseNum()
         var max = min
         if eat(",") { max = next != "}" ? try parseNum() : -1 }
@@ -1059,14 +1059,14 @@ private struct PMTokenStream {
         return .range(min: min, max: max, expr)
     }
 
-    func resolveName(_ name: String) throws -> [PMNodeType] {
+    package func resolveName(_ name: String) throws -> [PMNodeType] {
         if let type = nodeTypes.first(where: { $0.name == name }) { return [type] }
         let result = nodeTypes.filter { $0.isInGroup(name) }
         guard !result.isEmpty else { throw error("No node type or group '\(name)' found") }
         return result
     }
 
-    mutating func parseExprAtom() throws -> PMContentMatch.Expr {
+    package mutating func parseExprAtom() throws -> PMContentMatch.Expr {
         if eat("(") {
             let expr = try parseExpr()
             guard eat(")") else { throw error("Missing closing paren") }

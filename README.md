@@ -32,9 +32,12 @@ This repository owns the portable RelayMark contract:
   deterministic serialization, capability negotiation, layer composition,
   projections, and conformance.
 - `bin/relaymark.mjs` - small CLI wrapper.
-- `adapters/swift/` - generic Swift value models, Agent Answer validation, and
-  the native attributed-text bridge for Markdown-compatible RelayMark prose,
-  exposed as the root Swift package product `RelayMarkSwift`.
+- `adapters/swift/` - generic Swift value models, Agent Answer validation and
+  the packaged RelayMark source and HTML codecs, exposed as the root Swift
+  package product `RelayMarkSwift`; the ProseMirror
+  port (`RelayMarkModel`), its Yjs binding (`RelayMarkNativeCollaboration`)
+  and the native TextKit 2 editor (`RelayMarkEditor`). See
+  [native editor architecture](docs/editor-architecture.md).
 - `adapters/elixir/` - generic Elixir value models, document validation, and
   Agent Answer transported-pair validation.
 - `crates/relaymark-core/` - the Rust engine meant to replace the JavaScript
@@ -55,6 +58,8 @@ Keep these in this repo:
   and safe missing-anchor fallbacks over already-authorized contributions.
 - A future generic Tiptap/ProseMirror adapter if it only maps RelayMark AST to
   editor nodes and back.
+- The native editor for Apple platforms, which reaches its host only through
+  injected persistence, peers and services.
 
 Keep these in client repos:
 
@@ -161,15 +166,11 @@ every compatible change. Published semantic-version tags remain the stable
 distribution boundary for external or intentionally frozen consumers, which
 may use a compatible range and commit `Package.resolved`. The repository root
 is the only Swift package manifest and remains the focused adapter-development
-entry point. It requires Swift tools 6.3 for the Xcode 26.5 production baseline
-and is also verified
-using the current Swift 6.4 beta toolchain.
-
-SwiftPM does not provide named `PackageDescription` enum cases for every Apple
-OS patch release, so both package manifests use the supported string form for
-their `26.5` deployment floors. `swift package dump-package` must preserve
-`26.5`; local verification uses Xcode 27 beta, while Xcode 26.5/Swift 6.3
-remains the production CI compatibility gate.
+entry point. It requires Xcode 27.1 (Swift 6.4) and supports macOS, iOS and
+visionOS 27.0 or newer, the floor the native editor's TextKit 2 needs. Local
+and release builds use the same Xcode; there is no older-Xcode compatibility
+gate. GitHub Actions runs no Swift job: `swift test` run locally, with
+Xcode 27.1, is the Swift check, and Xcode Cloud builds the apps that use it.
 
 Routine releases are made directly from `main`. Branches and pull requests are
 optional, not release prerequisites. Any verified `main` commit may receive an
