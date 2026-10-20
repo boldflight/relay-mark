@@ -25,7 +25,8 @@ public struct RelayMarkImageFile: Sendable, Equatable {
 /// hands them to the intake; the host converts and inserts them.
 @MainActor public protocol RelayMarkPasteService {
     /// Reserves a rich paste of `itemCount` HTML items at `range`; nil refuses it.
-    func beginStructuredPaste(at range: NSRange, itemCount: Int) -> RelayMarkPasteIntake?
+    /// `plainText` is the clipboard's plain text, for when the HTML cannot be pasted.
+    func beginStructuredPaste(at range: NSRange, itemCount: Int, plainText: String?) -> RelayMarkPasteIntake?
 }
 
 /// Links inside the paper, such as `#heading` fragments.

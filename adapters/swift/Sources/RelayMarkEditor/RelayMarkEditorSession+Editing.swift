@@ -441,7 +441,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
     /// Plain text pasted over a selection as ProseMirror pastes text: one line
     /// takes the marks where it lands and several lines become paragraphs, at
     /// the cost of the blocks the selection touches.
-    func pastePlainTextNatively(range: NSRange, text pasted: String) -> Bool {
+    public func pastePlainTextNatively(range: NSRange, text pasted: String) -> Bool {
         let normalized = pasted.replacingOccurrences(of: "\r\n", with: "\n")
         guard !normalized.isEmpty, acceptsNativePastePayload(normalized) else { return false }
         return editStructureNatively(range: range, replacement: normalized, pasting: true)

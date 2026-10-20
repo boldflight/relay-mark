@@ -713,7 +713,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                 onImageInputFailure = services.inputRefused
                 onBeginImageInput = services.images.map { images in { images.beginImageInput(at: $0, filename: $1, contentType: $2) } }
                 onBeginImageBatchInputs = services.images.map { images in { images.beginImageInputs(at: $0, files: $1) } }
-                onBeginStructuredPaste = services.paste.map { paste in { paste.beginStructuredPaste(at: $0, itemCount: $1) } }
+                onBeginStructuredPaste = services.paste.map { paste in { paste.beginStructuredPaste(at: $0, itemCount: $1, plainText: $2) } }
             }
         }
         var mediaImages: RelayMarkImageStore? {
@@ -725,7 +725,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         var onImageInputFailure: ((String) -> Void)?
         var onBeginImageBatchInputs: ((NSRange, [RelayMarkImageFile]) -> [RelayMarkImageIntake]?)?
         var onBeginImageInput: ((NSRange, String, String) -> RelayMarkImageIntake?)?
-        var onBeginStructuredPaste: ((NSRange, Int) -> RelayMarkPasteIntake?)?
+        var onBeginStructuredPaste: ((NSRange, Int, String?) -> RelayMarkPasteIntake?)?
         let editor: RelayPaperEditor<Session>
         var session: Session {
             get { editor.session }
@@ -759,10 +759,10 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                       !session.isInvalidated, session.isEditable else { return nil }
                 return onBeginImageBatchInputs?(view.paper.tables.paper(range), files)
             }
-            view.onBeginStructuredPaste = { [weak self, weak view] range, itemCount in
+            view.onBeginStructuredPaste = { [weak self, weak view] range, itemCount, plainText in
                 guard let self, let view, !view.retired, view.editingSession === session,
                       !session.isInvalidated, session.isEditable else { return nil }
-                return onBeginStructuredPaste?(view.paper.tables.paper(range), itemCount)
+                return onBeginStructuredPaste?(view.paper.tables.paper(range), itemCount, plainText)
             }
             view.delegate = self
             view.onPaperButton = { [weak self, weak view] offset in
@@ -1028,7 +1028,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     var onImageInputFailure: ((String) -> Void)? = nil
     var onBeginImageInput: ((NSRange, String, String) -> RelayMarkImageIntake?)?
     var onBeginImageBatchInputs: ((NSRange, [RelayMarkImageFile]) -> [RelayMarkImageIntake]?)?
-    var onBeginStructuredPaste: ((NSRange, Int) -> RelayMarkPasteIntake?)?
+    var onBeginStructuredPaste: ((NSRange, Int, String?) -> RelayMarkPasteIntake?)?
     private func imageFile(_ item: NSPasteboardItem) -> (URL, String?)? {
         guard let literal = item.string(forType: .fileURL), let file = URL(string: literal), file.isFileURL,
               let values = try? file.resourceValues(forKeys: [.contentTypeKey]),
@@ -1113,7 +1113,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             guard !items.isEmpty, items.allSatisfy({ $0.types.contains(.html) }) else {
                 onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
             }
-            guard let intake = onBeginStructuredPaste?(selectedRange(), items.count) else { return }
+            guard let intake = onBeginStructuredPaste?(selectedRange(), items.count, NSPasteboard.general.string(forType: .string)) else { return }
             for (index, item) in items.enumerated() { intake.receive(item.data(forType: .html), at: index) }
             return
         }
@@ -1150,7 +1150,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             guard !items.isEmpty, items.allSatisfy({ $0.types.contains(.html) }) else {
                 onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
             }
-            guard let intake = onBeginStructuredPaste?(selectedRange(), items.count) else { return }
+            guard let intake = onBeginStructuredPaste?(selectedRange(), items.count, NSPasteboard.general.string(forType: .string)) else { return }
             for (index, item) in items.enumerated() { intake.receive(item.data(forType: .html), at: index) }
             return
         }
@@ -1320,7 +1320,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 onImageInputFailure = services.inputRefused
                 onBeginImageInput = services.images.map { images in { images.beginImageInput(at: $0, filename: $1, contentType: $2) } }
                 onBeginImageBatchInputs = services.images.map { images in { images.beginImageInputs(at: $0, files: $1) } }
-                onBeginStructuredPaste = services.paste.map { paste in { paste.beginStructuredPaste(at: $0, itemCount: $1) } }
+                onBeginStructuredPaste = services.paste.map { paste in { paste.beginStructuredPaste(at: $0, itemCount: $1, plainText: $2) } }
             }
         }
         var mediaImages: RelayMarkImageStore? {
@@ -1332,7 +1332,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         var onImageInputFailure: ((String) -> Void)?
         var onBeginImageBatchInputs: ((NSRange, [RelayMarkImageFile]) -> [RelayMarkImageIntake]?)?
         var onBeginImageInput: ((NSRange, String, String) -> RelayMarkImageIntake?)?
-        var onBeginStructuredPaste: ((NSRange, Int) -> RelayMarkPasteIntake?)?
+        var onBeginStructuredPaste: ((NSRange, Int, String?) -> RelayMarkPasteIntake?)?
         let editor: RelayPaperEditor<Session>
         var session: Session {
             get { editor.session }
@@ -1372,10 +1372,10 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                       !session.isInvalidated, session.isEditable else { return nil }
                 return onBeginImageBatchInputs?(view.paper.tables.paper(range), files)
             }
-            view.onBeginStructuredPaste = { [weak self, weak view] range, itemCount in
+            view.onBeginStructuredPaste = { [weak self, weak view] range, itemCount, plainText in
                 guard let self, let view, !view.retired, view.editingSession === session,
                       !session.isInvalidated, session.isEditable else { return nil }
-                return onBeginStructuredPaste?(view.paper.tables.paper(range), itemCount)
+                return onBeginStructuredPaste?(view.paper.tables.paper(range), itemCount, plainText)
             }
             view.delegate = self
             view.onPaperButton = { [weak self, weak view] offset in
@@ -1768,7 +1768,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     var onImageInputFailure: ((String) -> Void)? = nil
     var onBeginImageInput: ((NSRange, String, String) -> RelayMarkImageIntake?)?
     var onBeginImageBatchInputs: ((NSRange, [RelayMarkImageFile]) -> [RelayMarkImageIntake]?)?
-    var onBeginStructuredPaste: ((NSRange, Int) -> RelayMarkPasteIntake?)?
+    var onBeginStructuredPaste: ((NSRange, Int, String?) -> RelayMarkPasteIntake?)?
     var onPaperButton: ((Int) -> Bool)?
     var onTaskCheckbox: ((Int) -> Bool)?
     /// The session changed outside TextKit's own editing; the coordinator shows it.
@@ -1852,7 +1852,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         guard let baseline = paperValue() else { return }
         pasteCommand = RelayNativePasteCommand(baseline: baseline, range: paperSelection)
         if UIPasteboard.general.contains(pasteboardTypes: [UTType.html.identifier]) {
-            receiveHTMLProviders(UIPasteboard.general.itemProviders)
+            receiveHTMLProviders(UIPasteboard.general.itemProviders, plainText: pasteboard.string)
         } else {
             structuredPasteIntake = nil
             if receiveImageProviders(UIPasteboard.general.itemProviders, range: selectedRange) { pasteCommand = nil; return }
@@ -1871,13 +1871,13 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         if receiveImageProviders(itemProviders, range: selectedRange) { pasteCommand = nil; return }
         super.paste(itemProviders: itemProviders)
     }
-    private func receiveHTMLProviders(_ providers: [NSItemProvider]) {
+    private func receiveHTMLProviders(_ providers: [NSItemProvider], plainText: String? = nil) {
         // HTML never falls through UIKit's default converter. A mixed item list
         // remains on the clipboard intact; all-HTML delivery is ordered by slot.
         guard !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.html.identifier) }) else {
             onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
         }
-        guard let intake = onBeginStructuredPaste?(selectedRange, providers.count) else { return }
+        guard let intake = onBeginStructuredPaste?(selectedRange, providers.count, plainText) else { return }
         for (index, provider) in providers.enumerated() {
             provider.loadDataRepresentation(forTypeIdentifier: UTType.html.identifier) { bytes, _ in
                 Task { @MainActor in intake.receive(bytes, at: index) }
