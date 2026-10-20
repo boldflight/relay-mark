@@ -1,5 +1,5 @@
 import XCTest
-@testable import RelayMarkNativeCollaboration
+@testable import RelayMarkModel
 
 /// Upstream prosemirror-transform tests for fixes carried by the Swift port.
 final class PMTransformUpstreamTests: XCTestCase {

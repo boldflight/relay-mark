@@ -10,29 +10,33 @@ import Foundation
 // commands returns false. PMState therefore accumulates every step so later
 // handlers see the same intermediate document the browser would.
 
-enum PMSelection: Equatable {
+package enum PMSelection: Equatable {
     case text(Int)
     case node(Int)
 }
 
-struct PMState {
-    var transform: PMTransform
-    var selection: PMSelection
+package struct PMState {
+    package var transform: PMTransform
+    package var selection: PMSelection
 
-    var doc: PMNode { transform.doc }
-    var head: Int {
+    package init(transform: PMTransform, selection: PMSelection) {
+        self.transform = transform; self.selection = selection
+    }
+
+    package var doc: PMNode { transform.doc }
+    package var head: Int {
         switch selection {
         case .text(let pos), .node(let pos): return pos
         }
     }
 }
 
-typealias PMCommand = (PMState) throws -> PMState?
+package typealias PMCommand = (PMState) throws -> PMState?
 
-enum PMCommands {
+package enum PMCommands {
     // MARK: Selection search (prosemirror-state Selection.findFrom / near / map)
 
-    static func findSelectionIn(_ node: PMNode, _ pos: Int, _ index: Int, _ dir: Int, textOnly: Bool = false) -> PMSelection? {
+    package static func findSelectionIn(_ node: PMNode, _ pos: Int, _ index: Int, _ dir: Int, textOnly: Bool = false) -> PMSelection? {
         if node.inlineContent { return .text(pos) }
         var i = index - (dir > 0 ? 0 : 1), pos = pos
         while dir > 0 ? i < node.childCount : i >= 0 {
@@ -50,7 +54,7 @@ enum PMCommands {
         return nil
     }
 
-    static func findFrom(_ pos$: PMResolvedPos, _ dir: Int, textOnly: Bool = false) -> PMSelection? {
+    package static func findFrom(_ pos$: PMResolvedPos, _ dir: Int, textOnly: Bool = false) -> PMSelection? {
         if pos$.parent.inlineContent { return .text(pos$.pos) }
         if let inner = findSelectionIn(pos$.parent, pos$.pos, pos$.index(), dir, textOnly: textOnly) { return inner }
         var depth = pos$.depth - 1
@@ -64,12 +68,12 @@ enum PMCommands {
         return nil
     }
 
-    static func near(_ pos$: PMResolvedPos, bias: Int = 1) -> PMSelection? {
+    package static func near(_ pos$: PMResolvedPos, bias: Int = 1) -> PMSelection? {
         findFrom(pos$, bias) ?? findFrom(pos$, -bias)
     }
 
     /// Selection.map through the steps added since `from`.
-    static func mapped(_ transform: PMTransform, _ selection: PMSelection, from: Int) -> PMSelection {
+    package static func mapped(_ transform: PMTransform, _ selection: PMSelection, from: Int) -> PMSelection {
         switch selection {
         case .text(let head):
             let pos = transform.map(head, from: from)
@@ -205,7 +209,7 @@ enum PMCommands {
         return nil
     }
 
-    static func joinBackward(_ state: PMState) throws -> PMState? {
+    package static func joinBackward(_ state: PMState) throws -> PMState? {
         guard let cursor$ = try cursor(state), cursor$.parent.isTextblock, cursor$.parentOffset == 0 else { return nil }
         guard let cut$ = findCutBefore(cursor$) else {
             guard let range = cursor$.blockRange(), let target = pmLiftTarget(range) else { return nil }
@@ -236,7 +240,7 @@ enum PMCommands {
         return nil
     }
 
-    static func joinForward(_ state: PMState) throws -> PMState? {
+    package static func joinForward(_ state: PMState) throws -> PMState? {
         guard let cursor$ = try cursor(state), cursor$.parent.isTextblock,
               cursor$.parentOffset == cursor$.parent.content.size,
               let cut$ = findCutAfter(cursor$), let after = cut$.nodeAfter else { return nil }
@@ -258,7 +262,7 @@ enum PMCommands {
         return nil
     }
 
-    static func selectNodeBackward(_ state: PMState) throws -> PMState? {
+    package static func selectNodeBackward(_ state: PMState) throws -> PMState? {
         guard case .text(let head) = state.selection else { return nil }
         let head$ = try state.doc.resolve(head)
         var cut$: PMResolvedPos? = head$
@@ -270,7 +274,7 @@ enum PMCommands {
         return PMState(transform: state.transform, selection: .node(cut$.pos - node.nodeSize))
     }
 
-    static func selectNodeForward(_ state: PMState) throws -> PMState? {
+    package static func selectNodeForward(_ state: PMState) throws -> PMState? {
         guard case .text(let head) = state.selection else { return nil }
         let head$ = try state.doc.resolve(head)
         var cut$: PMResolvedPos? = head$
@@ -283,7 +287,7 @@ enum PMCommands {
     }
 
     /// prosemirror-commands lift, as TipTap's lift(type) once the type is active.
-    static func lift(_ state: PMState) throws -> PMState? {
+    package static func lift(_ state: PMState) throws -> PMState? {
         guard let cursor$ = try cursor(state), let range = cursor$.blockRange(), let target = pmLiftTarget(range) else {
             return nil
         }
@@ -292,7 +296,7 @@ enum PMCommands {
 
     // MARK: prosemirror-schema-list
 
-    static func liftListItem(_ state: PMState, item: String) throws -> PMState? {
+    package static func liftListItem(_ state: PMState, item: String) throws -> PMState? {
         guard let from$ = try cursor(state),
               let range = from$.blockRange(from$, { $0.childCount > 0 && $0.firstChild?.type.name == item }) else {
             return nil
@@ -349,7 +353,7 @@ enum PMCommands {
         return (1...max(1, pos$.depth)).contains { $0 <= pos$.depth && pos$.node($0).type.name == name }
     }
 
-    static func deleteCurrentNode(_ state: PMState) throws -> PMState? {
+    package static func deleteCurrentNode(_ state: PMState) throws -> PMState? {
         let pos$ = try state.doc.resolve(state.head), current = pos$.node()
         guard current.content.size == 0 else { return nil }
         var depth = pos$.depth
@@ -362,7 +366,7 @@ enum PMCommands {
         return nil
     }
 
-    static func clearNodes(_ state: PMState) throws -> PMState {
+    package static func clearNodes(_ state: PMState) throws -> PMState {
         var visits: [(PMNode, Int)] = []
         state.doc.content.nodesBetween(state.head, state.head, { node, pos, _, _ in visits.append((node, pos)); return true })
         return try extended(state) { transform in
@@ -382,7 +386,7 @@ enum PMCommands {
 
     /// TipTap core Keymap's Backspace clearNodes branch for an empty
     /// non-paragraph textblock at the start of the document or an isolating cell.
-    static func clearEmptyStart(_ state: PMState) throws -> PMState? {
+    package static func clearEmptyStart(_ state: PMState) throws -> PMState? {
         guard let anchor$ = try cursor(state) else { return nil }
         let parent = anchor$.parent, head = anchor$.pos
         let parent$ = parent.isTextblock && head > 0 ? try state.doc.resolve(head - 1) : anchor$
@@ -395,7 +399,7 @@ enum PMCommands {
         return try clearNodes(state)
     }
 
-    static func hoistBranchingNestedList(_ state: PMState, item: String, wrappers: [String]) throws -> PMState? {
+    package static func hoistBranchingNestedList(_ state: PMState, item: String, wrappers: [String]) throws -> PMState? {
         guard let from$ = try cursor(state), from$.parent.isTextblock,
               from$.parentOffset == from$.parent.content.size else { return nil }
         var itemDepth = -1, depth = from$.depth
@@ -419,7 +423,7 @@ enum PMCommands {
         }
     }
 
-    static func joinItemForward(_ state: PMState) throws -> PMState? {
+    package static func joinItemForward(_ state: PMState) throws -> PMState? {
         guard let point = pmJoinPoint(state.doc, state.head, dir: 1) else { return nil }
         do { return try extended(state) { try $0.join(point, depth: 2) } }
         catch is PMReplaceError { return nil }
@@ -552,7 +556,7 @@ enum PMCommands {
         }
     }
 
-    static func backspace(_ state: PMState) throws -> PMState {
+    package static func backspace(_ state: PMState) throws -> PMState {
         try run(state, [
             first([codeBlockBackspace]),
             { state in
@@ -569,7 +573,7 @@ enum PMCommands {
         ])
     }
 
-    static func delete(_ state: PMState) throws -> PMState {
+    package static func delete(_ state: PMState) throws -> PMState {
         try run(state, [
             first([{ try hoistBranchingNestedList($0, item: "taskItem", wrappers: ["taskList"]) }]),
             first([{ try hoistBranchingNestedList($0, item: "listItem", wrappers: ["bulletList", "orderedList"]) }]),
@@ -587,7 +591,7 @@ enum PMCommands {
     }
 
     /// Blockquote handleBackspace (TipTap extension-blockquote).
-    static func blockquoteBackspace(_ state: PMState) throws -> PMState? {
+    package static func blockquoteBackspace(_ state: PMState) throws -> PMState? {
         guard let from$ = try cursor(state), from$.parentOffset == 0, from$.depth - 1 >= 0 else { return nil }
         let parent = from$.node(from$.depth - 1), index = from$.index(from$.depth - 1)
         guard index > 0 else { return nil }
@@ -601,7 +605,7 @@ enum PMCommands {
     }
 
     /// CodeBlock Backspace: clear an empty code block, or one at the document start.
-    static func codeBlockBackspace(_ state: PMState) throws -> PMState? {
+    package static func codeBlockBackspace(_ state: PMState) throws -> PMState? {
         guard let anchor$ = try cursor(state), anchor$.parent.type.name == "codeBlock",
               anchor$.pos == 1 || anchor$.parent.content.size == 0 else { return nil }
         return try clearNodes(state)
@@ -609,7 +613,7 @@ enum PMCommands {
 }
 
 /// prosemirror-transform joinPoint.
-func pmJoinPoint(_ doc: PMNode, _ pos: Int, dir: Int = -1) -> Int? {
+package func pmJoinPoint(_ doc: PMNode, _ pos: Int, dir: Int = -1) -> Int? {
     guard let pos$ = try? doc.resolve(pos) else { return nil }
     var pos = pos, d = pos$.depth
     while true {
@@ -636,7 +640,7 @@ func pmJoinPoint(_ doc: PMNode, _ pos: Int, dir: Int = -1) -> Int? {
 }
 
 extension PMStep {
-    var from: Int {
+    package var from: Int {
         switch self {
         case .docAttr:return 0
         case let .attr(pos,_,_):return pos
@@ -646,7 +650,7 @@ extension PMStep {
         }
     }
 
-    var to: Int {
+    package var to: Int {
         switch self {
         case .docAttr:return 0
         case let .attr(pos,_,_):return pos
@@ -656,7 +660,7 @@ extension PMStep {
         }
     }
 
-    var slice: PMSlice {
+    package var slice: PMSlice {
         switch self {
         case .docAttr,.attr,.addMark,.removeMark:return .empty
         case let .replace(_, _, slice, _): return slice

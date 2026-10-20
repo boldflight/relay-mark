@@ -1,4 +1,5 @@
 import Foundation
+import RelayMarkModel
 import Yniffi
 import YSwift
 import RelayMarkSwift

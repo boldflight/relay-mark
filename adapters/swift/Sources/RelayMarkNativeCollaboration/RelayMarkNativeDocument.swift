@@ -1,4 +1,5 @@
 import Foundation
+import RelayMarkModel
 import CoreFoundation
 import RelayMarkProseProjection
 import YSwift

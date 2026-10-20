@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "RelayMarkSwift", targets: ["RelayMarkSwift"]),
         .library(name: "RelayMarkCollaboration", targets: ["RelayMarkCollaboration"]),
         .library(name: "RelayMarkProseProjection", targets: ["RelayMarkProseProjection"]),
+        .library(name: "RelayMarkModel", targets: ["RelayMarkModel"]),
         .library(name: "RelayMarkNativeCollaboration", targets: ["RelayMarkNativeCollaboration"])
     ],
     dependencies: [
@@ -25,8 +26,17 @@ let package = Package(
             path: "adapters/swift/Sources/RelayMarkCollaboration"
         ),
         .target(
+            name: "RelayMarkModel",
+            path: "adapters/swift/Sources/RelayMarkModel"
+        ),
+        .testTarget(
+            name: "RelayMarkModelTests",
+            dependencies: ["RelayMarkModel"],
+            path: "adapters/swift/Tests/RelayMarkModelTests"
+        ),
+        .target(
             name: "RelayMarkNativeCollaboration",
-            dependencies: ["RelayMarkProseProjection", "RelayMarkSwift", .product(name: "YSwift", package: "yswift")],
+            dependencies: ["RelayMarkModel", "RelayMarkProseProjection", "RelayMarkSwift", .product(name: "YSwift", package: "yswift")],
             path: "adapters/swift/Sources/RelayMarkNativeCollaboration"
         ),
         .target(
@@ -36,7 +46,7 @@ let package = Package(
         ),
         .testTarget(
             name: "RelayMarkNativeCollaborationTests",
-            dependencies: ["RelayMarkNativeCollaboration", "RelayMarkCollaboration"],
+            dependencies: ["RelayMarkModel", "RelayMarkNativeCollaboration", "RelayMarkCollaboration"],
             path: "adapters/swift/Tests/RelayMarkNativeCollaborationTests",
             resources: [.process("Fixtures")]
         ),
