@@ -1370,7 +1370,9 @@ enum Piece {
 }
 
 /// Split span lengths at a byte offset.
-fn split_spans(spans: &[(usize, bool)], at: usize) -> (Vec<(usize, bool)>, Vec<(usize, bool)>) {
+type Spans = Vec<(usize, bool)>;
+
+fn split_spans(spans: &[(usize, bool)], at: usize) -> (Spans, Spans) {
     let (mut left, mut right, mut seen) = (Vec::new(), Vec::new(), 0);
     for &(length, flag) in spans {
         if seen + length <= at {

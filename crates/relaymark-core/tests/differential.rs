@@ -1,17 +1,19 @@
 //! Differential replay against the JavaScript reference runtime.
 //!
-//! `tools/record.mjs` records every outermost call the reference runtime's own
-//! test suite makes into its exported functions. This test replays each call
-//! that maps to this crate's public API and requires the same outcome: the
-//! same refusal, or byte-identical output (`JSON.stringify` order included).
+//! `tools/record.mjs` records every outermost call into the reference
+//! runtime's exported functions. These tests replay each call that maps to
+//! this crate's public API and require the same outcome: the same refusal,
+//! or byte-identical output (`JSON.stringify` order included).
 //!
-//!     RELAYMARK_ORACLE=/path/calls.jsonl cargo test --test differential -- --nocapture
+//! `tests/reference/js-test-suite.jsonl` (the reference test suite's calls)
+//! always runs; a larger recorded corpus runs with
 //!
-//! Without `RELAYMARK_ORACLE` the test does nothing.
+//!     RELAYMARK_ORACLE=/path/calls.jsonl cargo test --release --test differential -- --nocapture
 
 use relaymark_core as rm;
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
+use std::path::Path;
 
 enum Outcome {
     Value(Value),
@@ -125,13 +127,24 @@ fn replay(name: &str, raw: &[Value]) -> Option<Outcome> {
     })
 }
 
+/// The calls the reference runtime's own test suite makes, recorded once with
+/// `tools/record.mjs`: an oracle that outlives the JavaScript implementation.
 #[test]
-fn replays_the_reference_runtime() {
-    let Ok(path) = std::env::var("RELAYMARK_ORACLE") else {
-        eprintln!("RELAYMARK_ORACLE unset; skipping differential replay");
-        return;
-    };
-    let lines = std::fs::read_to_string(&path).expect("oracle file");
+fn replays_the_reference_test_suite() {
+    replay_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reference/js-test-suite.jsonl"));
+}
+
+/// Any further recorded corpus (see `tools/corpus.mjs`).
+#[test]
+fn replays_a_recorded_corpus() {
+    match std::env::var("RELAYMARK_ORACLE") {
+        Ok(path) => replay_file(Path::new(&path)),
+        Err(_) => eprintln!("RELAYMARK_ORACLE unset; skipping corpus replay"),
+    }
+}
+
+fn replay_file(path: &Path) {
+    let lines = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
     let mut passed: BTreeMap<String, usize> = BTreeMap::new();
     let mut unmapped: BTreeMap<String, usize> = BTreeMap::new();
     let mut failures = Vec::new();
@@ -172,7 +185,7 @@ fn replays_the_reference_runtime() {
             Some(reason) => failures.push(format!("line {} {name}: {reason}", number + 1)),
         }
     }
-    eprintln!("matched: {passed:#?}\nnot replayed (outside the public API): {unmapped:#?}");
+    eprintln!("{}\nmatched: {passed:#?}\nnot replayed (outside the public API): {unmapped:#?}", path.display());
     for failure in &failures {
         eprintln!("MISMATCH {failure}");
     }

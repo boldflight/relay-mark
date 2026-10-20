@@ -136,10 +136,6 @@ pub fn float_string(value: f64) -> String {
     buffer.format(value).to_owned()
 }
 
-pub fn as_f64(value: &Value) -> Option<f64> {
-    value.as_f64()
-}
-
 /// `Number.isInteger`.
 pub fn is_integer(value: &Value) -> bool {
     value.as_f64().is_some_and(|n| n.is_finite() && n.fract() == 0.0)
@@ -189,10 +185,6 @@ pub fn trim_relay(text: &str) -> &str {
 /// JavaScript `string.length`: UTF-16 code units.
 pub fn utf16_len(text: &str) -> usize {
     text.chars().map(char::len_utf16).sum()
-}
-
-pub fn object(value: &Value) -> Option<&Map> {
-    value.as_object()
 }
 
 /// `value?.[key]` treating absent and non-object parents alike.

@@ -43,7 +43,9 @@ pub fn prosemirror_to_snapshot(prosemirror: &Value, document: &Value) -> Result<
                 && let Some(last) = result.last_mut().filter(|last| last["kind"] == "text")
             {
                 let runs = next["delta"].as_array().cloned().unwrap_or_default();
-                last["delta"].as_array_mut().map(|delta| delta.extend(runs));
+                if let Some(delta) = last["delta"].as_array_mut() {
+                    delta.extend(runs)
+                }
                 continue;
             }
             result.push(next);

@@ -403,13 +403,11 @@ fn validate_action(block: &Value, diagnostics: &mut Vec<Value>) {
                 ));
             }
         }
-        Some("undone") => {
-            if !filled("decision_id") || !filled("execution_id") || !filled("undo_id") || p("decision_id") == p("undo_id") {
-                diagnostics.push(error(
-                    "relaymark.action.lifecycle_state",
-                    "Undone relay.action_row proposals retain the accept decision_id and execution_id and require a distinct undo_id.",
-                ));
-            }
+        Some("undone") if (!filled("decision_id") || !filled("execution_id") || !filled("undo_id") || p("decision_id") == p("undo_id")) => {
+            diagnostics.push(error(
+                "relaymark.action.lifecycle_state",
+                "Undone relay.action_row proposals retain the accept decision_id and execution_id and require a distinct undo_id.",
+            ));
         }
         _ => {}
     }

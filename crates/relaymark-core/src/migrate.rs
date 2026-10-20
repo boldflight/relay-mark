@@ -50,10 +50,10 @@ pub fn import_document(original: &Value, namespace: &str) -> Result<Value> {
     let mut identity = mapping();
     let mut ids: HashMap<String, String> = HashMap::new();
     let mut seen: HashSet<String> = HashSet::new();
-    if let Some(version) = document.as_object_mut().and_then(|d| d.shift_remove("version")) {
-        if version.as_f64() != Some(1.0) {
-            bail!("Unknown historical document version");
-        }
+    if let Some(version) = document.as_object_mut().and_then(|d| d.shift_remove("version"))
+        && version.as_f64() != Some(1.0)
+    {
+        bail!("Unknown historical document version");
     }
     rename_profiles(&mut document);
     struct Walk<'a> {
@@ -396,7 +396,7 @@ fn same(left: &Value, right: &Value) -> bool {
     json::stable_stringify(left) == json::stable_stringify(right)
 }
 
-fn object<'a>(value: &'a Value) -> Result<&'a Map> {
+fn object(value: &Value) -> Result<&Map> {
     match value.as_object() {
         Some(map) => Ok(map),
         None => bail!("Invalid historical publication object"),

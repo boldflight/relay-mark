@@ -25,7 +25,6 @@ pub struct NodeSpec {
     pub attrs: Vec<(String, Value)>,
     /// `None` admits every mark, as ProseMirror's `markSet: null`.
     pub mark_set: Option<Vec<String>>,
-    pub is_text: bool,
     content: Option<Regex>,
 }
 
@@ -85,7 +84,6 @@ impl EditorSchema {
                     name: node["name"].as_str().unwrap_or_default().to_owned(),
                     attrs: attr_specs(node.get("attrs")),
                     mark_set: node["markSet"].as_array().map(|marks| marks.iter().filter_map(|m| m.as_str().map(str::to_owned)).collect()),
-                    is_text: node["name"] == "text",
                     content,
                 }
             })
@@ -103,10 +101,6 @@ impl EditorSchema {
         Self { source, nodes, marks, node_index, mark_index }
     }
 
-    pub fn node(&self, name: &str) -> Option<&NodeSpec> {
-        self.node_index.get(name).map(|&index| &self.nodes[index])
-    }
-
     pub fn mark_rank(&self, name: &str) -> Option<usize> {
         self.mark_index.get(name).copied()
     }
@@ -115,19 +109,14 @@ impl EditorSchema {
         self.mark_index.get(name).map(|&index| &self.marks[index])
     }
 
-    /// Default attribute values of a node, in schema order.
-    pub fn node_defaults(&self, name: &str) -> Vec<(String, Value)> {
-        self.node(name).map(|spec| spec.attrs.clone()).unwrap_or_default()
-    }
-
     /// `Node.fromJSON` + `check()` + `toJSON()` of a whole editor document.
     pub fn normalize(&self, document: &Value) -> Result<Value> {
-        let node = self.from_json(document)?;
+        let node = self.node_from_json(document)?;
         self.check(&node)?;
         Ok(node.to_json())
     }
 
-    fn from_json(&self, json: &Value) -> Result<PmNode> {
+    fn node_from_json(&self, json: &Value) -> Result<PmNode> {
         let Some(object) = json.as_object() else { bail!("Invalid input for Node.fromJSON") };
         let marks = match object.get("marks") {
             Some(value) if json::truthy(Some(value)) => {
@@ -152,7 +141,7 @@ impl EditorSchema {
                 let Some(items) = value.as_array() else { bail!("Invalid input for Fragment.fromJSON") };
                 let mut joined: Vec<PmNode> = Vec::with_capacity(items.len());
                 for item in items {
-                    let child = self.from_json(item)?;
+                    let child = self.node_from_json(item)?;
                     if let Some(last) = joined.last_mut()
                         && last.text.is_some()
                         && child.text.is_some()

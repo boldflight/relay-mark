@@ -61,8 +61,6 @@ pub struct DirectiveNode {
     pub name: &'static str,
     pub attributes: Map,
     pub allowed_children: Vec<String>,
-    pub pm_allowed_children: Vec<&'static str>,
-    pub content: String,
     pub minimum_children: usize,
 }
 
@@ -81,7 +79,8 @@ const DIRECTIVE_NODES: &[(&str, &str)] = &[
 ];
 
 /// Editor node names for each AST block type.
-pub fn pm_names_for(ast_type: &str) -> Option<&'static [&'static str]> {
+#[cfg(test)]
+fn pm_names_for(ast_type: &str) -> Option<&'static [&'static str]> {
     Some(match ast_type {
         "paragraph" => &["paragraph"],
         "heading" => &["heading"],
@@ -137,20 +136,8 @@ fn load() -> Registry {
             let spec = &directives.iter().find(|d| d.ast_type == ast_type).expect("registered directive").spec;
             let allowed_children: Vec<String> =
                 spec["children"]["allowed_types"].as_array().expect("directive children").iter().map(|t| t.as_str().unwrap_or_default().to_owned()).collect();
-            let pm_allowed_children: Vec<&'static str> =
-                allowed_children.iter().flat_map(|child| pm_names_for(child).expect("directive child has an editor node").iter().copied()).collect();
             let minimum_children = spec["children"]["min"].as_u64().unwrap_or(0) as usize;
-            let alternatives =
-                if pm_allowed_children.len() == 1 { pm_allowed_children[0].to_owned() } else { format!("({})", pm_allowed_children.join(" | ")) };
-            DirectiveNode {
-                ast_type,
-                name,
-                attributes: spec["attributes"].as_object().cloned().unwrap_or_default(),
-                allowed_children,
-                pm_allowed_children,
-                content: alternatives + if minimum_children > 0 { "+" } else { "*" },
-                minimum_children,
-            }
+            DirectiveNode { ast_type, name, attributes: spec["attributes"].as_object().cloned().unwrap_or_default(), allowed_children, minimum_children }
         })
         .collect();
     Registry { directives, nodes }
@@ -234,7 +221,11 @@ mod tests {
                 .iter()
                 .find(|n| n["name"] == node.name)
                 .unwrap_or_else(|| panic!("{} missing from editor schema", node.name));
-            assert_eq!(declared["content"], node.content.as_str(), "{}", node.name);
+            let names: Vec<&str> =
+                node.allowed_children.iter().flat_map(|child| pm_names_for(child).expect("directive child has an editor node").iter().copied()).collect();
+            let alternatives = if names.len() == 1 { names[0].to_owned() } else { format!("({})", names.join(" | ")) };
+            let content = alternatives + if node.minimum_children > 0 { "+" } else { "*" };
+            assert_eq!(declared["content"], content.as_str(), "{}", node.name);
             let declared_attrs: Vec<&String> = declared["attrs"].as_object().unwrap().keys().filter(|k| *k != "relaymarkId").collect();
             let registry_attrs: Vec<&String> = node.attributes.keys().collect();
             assert_eq!(declared_attrs, registry_attrs, "{}", node.name);
