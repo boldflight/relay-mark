@@ -465,6 +465,43 @@ fn comrak_options() -> Options<'static> {
     options
 }
 
+/// comrak 0.56 positions a wiki link that spans lines as if it were one
+/// line, and every later inline of its paragraph after it. Correct them
+/// from the source: the link ends at the first `]]` after its start.
+fn fix_wikilink_positions<'a>(root: &'a AstNode<'a>, lines: &Lines<'_>) {
+    for paragraph in root.descendants().filter(|n| matches!(value_of(n), NodeValue::Paragraph | NodeValue::Heading(_) | NodeValue::TableCell)) {
+        // (reported line, column of reported end, line shift, column shift)
+        let mut shifts: Vec<(usize, usize, usize, isize)> = Vec::new();
+        for node in paragraph.descendants().skip(1) {
+            let mut data = node.data.borrow_mut();
+            let sourcepos = &mut data.sourcepos;
+            for (line, column, line_shift, column_shift) in &shifts {
+                for point in [&mut sourcepos.start, &mut sourcepos.end] {
+                    if point.line == *line && point.column > *column {
+                        point.column = point.column.saturating_add_signed(*column_shift);
+                        point.line += line_shift;
+                    } else if point.line > *line {
+                        point.line += line_shift;
+                    }
+                }
+            }
+            if !matches!(data.value, NodeValue::WikiLink(_)) {
+                continue;
+            }
+            let Some(start) = lines.offset(data.sourcepos.start.line, data.sourcepos.start.column) else { continue };
+            let Some(close) = lines.source.get(start + 2..).and_then(|rest| rest.find("]]")) else { continue };
+            if !lines.source[start..start + 2 + close].contains('\n') {
+                continue;
+            }
+            let (line, column) = lines.position(start + 2 + close + 1);
+            let reported = data.sourcepos.end;
+            shifts.push((reported.line, reported.column, line - reported.line, column as isize - reported.column as isize));
+            data.sourcepos.end.line = line;
+            data.sourcepos.end.column = column;
+        }
+    }
+}
+
 /// Byte offsets of each source line, for raw slices from comrak positions.
 struct Lines<'s> {
     source: &'s str,
@@ -492,6 +529,12 @@ impl<'s> Lines<'s> {
         self.source.get(start..end.min(self.source.len()))
     }
 
+    /// The 1-based line and column of a byte offset.
+    fn position(&self, offset: usize) -> (usize, usize) {
+        let line = self.starts.partition_point(|start| *start <= offset);
+        (line, offset - self.starts[line - 1] + 1)
+    }
+
     fn line(&self, number: usize) -> &'s str {
         let start = self.starts.get(number.wrapping_sub(1)).copied().unwrap_or(self.source.len());
         let end = self.starts.get(number).map_or(self.source.len(), |next| next - 1);
@@ -509,24 +552,29 @@ fn value_of<'a>(node: &'a AstNode<'a>) -> NodeValue {
 }
 
 fn markdown_blocks(source: &str, namespace: &str, prefix: &[String]) -> Result<Vec<Value>> {
-    // markdown-it never reads a final unterminated line holding only spaces
-    // and tabs (its line scanner skips the end check while still indenting).
+    // markdown-it replaces NUL before parsing, and never reads a final
+    // unterminated line holding only spaces and tabs (its line scanner skips
+    // the end check while still indenting).
+    let source = source.replace('\0', "\u{fffd}");
     let kept = source.rfind('\n').map_or(0, |at| at + 1);
-    let mut source = if source[kept..].bytes().all(|b| b == b' ' || b == b'\t') { source[..kept].to_owned() } else { source.to_owned() };
-    // Each repair pass fixes at least one construct; the bound only guards
-    // against a repair that comrak would not honor.
-    for _ in 0..256 {
+    let mut source = if source[kept..].bytes().all(|b| b == b' ' || b == b'\t') { source[..kept].to_owned() } else { source };
+    // Each repair pass fixes at least one construct. The bound only limits
+    // pathological input (one pass per unmatched backtick run of a paragraph);
+    // past it the remaining repairs are skipped.
+    const PASSES: usize = 1024;
+    for pass in 1.. {
         let arena = Arena::new();
         let root = comrak::parse_document(&arena, &source, &comrak_options());
         let lines = Lines::new(&source);
-        let repairs = repairs(root, &lines);
+        fix_wikilink_positions(root, &lines);
+        let repairs = if pass < PASSES { repairs(root, &lines) } else { Vec::new() };
         if repairs.is_empty() {
             let converter = Converter { namespace, lines };
             return converter.sequence(root, prefix);
         }
         source = apply_repairs(&source, &lines, repairs);
     }
-    bail!("Unsupported CommonMark source")
+    unreachable!()
 }
 
 /// A source edit after which comrak parses what markdown-it (the reference
@@ -560,17 +608,122 @@ fn repairs<'a>(root: &'a AstNode<'a>, lines: &Lines<'_>) -> Vec<Repair> {
     if let Some(line) = root.descendants().find_map(|node| blank_start_item(node, lines)) {
         return vec![Repair::Blank(line)];
     }
-    root.descendants()
-        .filter_map(|node| {
-            let opener = match value_of(node) {
-                NodeValue::Link(link) if !mdurl::validate_link(&mdurl::normalize_link(&link.url)) => 0,
-                NodeValue::Image(link) if !mdurl::validate_link(&mdurl::normalize_link(&link.url)) => 1,
-                _ => return None,
-            };
+    let tables: Vec<Repair> = root.descendants().filter_map(|node| pipeless_table(node, lines)).collect();
+    if !tables.is_empty() {
+        return tables;
+    }
+    let mut escapes = refused_definitions(root, lines);
+    escapes.extend(root.descendants().filter_map(|node| unmatched_backticks(node, lines)).flatten());
+    escapes.extend(root.descendants().filter_map(|node| {
+        let opener = match value_of(node) {
+            NodeValue::Link(link) if !mdurl::validate_link(&mdurl::normalize_link(&link.url)) => 0,
+            NodeValue::Image(link) if !mdurl::validate_link(&mdurl::normalize_link(&link.url)) => 1,
+            _ => return None,
+        };
+        let pos = node.data.borrow().sourcepos;
+        lines.offset(pos.start.line, pos.start.column).map(|at| Repair::Escape(at + opener))
+    }));
+    escapes
+}
+
+/// markdown-it needs a `|` in a table's header line; without one the
+/// delimiter row is paragraph text, so escape its first character.
+fn pipeless_table<'a>(node: &'a AstNode<'a>, lines: &Lines<'_>) -> Option<Repair> {
+    if !matches!(value_of(node), NodeValue::Table(_)) {
+        return None;
+    }
+    let pos = node.data.borrow().sourcepos;
+    let header = lines.line(pos.start.line).get(pos.start.column.saturating_sub(1)..).unwrap_or("");
+    if header.contains('|') {
+        return None;
+    }
+    let delimiter = lines.offset(pos.start.line + 1, pos.start.column)?;
+    let indent = lines.source[delimiter..].bytes().take_while(|b| *b == b' ' || *b == b'\t').count();
+    Some(Repair::Escape(delimiter + indent))
+}
+
+/// After an unmatched backtick run, comrak 0.56 matches only the next code
+/// span of a paragraph and leaves later ones literal; markdown-it (and
+/// CommonMark) match them all. Escaping the first unmatched run of an inline
+/// container (it stays literal text) avoids that, one run per pass.
+fn unmatched_backticks<'a>(node: &'a AstNode<'a>, lines: &Lines<'_>) -> Option<Vec<Repair>> {
+    if !matches!(value_of(node), NodeValue::Paragraph | NodeValue::Heading(_) | NodeValue::TableCell) {
+        return None;
+    }
+    for child in node.descendants() {
+        if !matches!(value_of(child), NodeValue::Text(ref text) if text.contains('`')) {
+            continue;
+        }
+        // Backslashes are literal in an autolink's raw destination, and an
+        // image's raw label is its alt text.
+        let raw_context = child.ancestors().any(|a| match value_of(a) {
+            NodeValue::Image(_) | NodeValue::WikiLink(_) => true,
+            NodeValue::Link(_) => lines.slice(a).is_some_and(|raw| raw.starts_with('<')),
+            _ => false,
+        });
+        if raw_context {
+            continue;
+        }
+        let pos = child.data.borrow().sourcepos;
+        let start = lines.offset(pos.start.line, pos.start.column)?;
+        let end = (lines.offset(pos.end.line, pos.end.column)? + 1).min(lines.source.len());
+        let raw = lines.source.as_bytes();
+        let mut at = start;
+        while at < end {
+            // markdown-it's reference rule reads `[[` to `]]` as one token.
+            if raw[at..end].starts_with(b"[[")
+                && let Some(close) = lines.source[at + 2..].find("]]")
+            {
+                at += close + 4;
+                continue;
+            }
+            if raw[at] == b'`' {
+                let backslashes = raw[..at].iter().rev().take_while(|b| **b == b'\\').count();
+                if backslashes % 2 == 0 {
+                    let run = raw[at..end].iter().take_while(|b| **b == b'`').count();
+                    return Some((at..at + run).map(Repair::Escape).collect());
+                }
+            }
+            at += 1;
+        }
+    }
+    None
+}
+
+/// The offset of the `[` opening a link reference definition on this line
+/// whose destination markdown-it refuses.
+fn refused_definition(line: &str) -> Option<usize> {
+    let pattern =
+        js_regex!(r"^(?:[ \t]*>)*[ \t]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?[ ]{0,3}(\[)(?:[^\]\\]|\\.)+\]:[ \t]*<?[ \t]*(?i:javascript|vbscript|file|data):");
+    let found = pattern.captures(line)?.get(1)?;
+    let destination = line[found.end()..].split_once("]:").map_or("", |(_, rest)| rest).trim_start_matches([' ', '\t', '<']);
+    (!mdurl::validate_link(&mdurl::normalize_link(destination))).then_some(found.start())
+}
+
+/// Link reference definitions whose destination markdown-it refuses
+/// (`validateLink`): markdown-it keeps their line as paragraph text, comrak
+/// consumes it. Only a destination on the label's line is recognized.
+fn refused_definitions<'a>(root: &'a AstNode<'a>, lines: &Lines<'_>) -> Vec<Repair> {
+    if !lines.source.contains("]:") {
+        return Vec::new();
+    }
+    let candidates: Vec<(usize, usize)> = (1..=lines.starts.len()).filter_map(|number| Some((number, refused_definition(lines.line(number))?))).collect();
+    if candidates.is_empty() {
+        return Vec::new();
+    }
+    let mut covered = vec![false; lines.starts.len() + 2];
+    for node in root.descendants() {
+        if matches!(
+            value_of(node),
+            NodeValue::Paragraph | NodeValue::Heading(_) | NodeValue::CodeBlock(_) | NodeValue::HtmlBlock(_) | NodeValue::Table(_) | NodeValue::ThematicBreak
+        ) {
             let pos = node.data.borrow().sourcepos;
-            lines.offset(pos.start.line, pos.start.column).map(|at| Repair::Escape(at + opener))
-        })
-        .collect()
+            for line in pos.start.line..=pos.end.line.min(covered.len() - 1) {
+                covered[line] = true;
+            }
+        }
+    }
+    candidates.into_iter().filter(|(number, _)| !covered[*number]).map(|(number, column)| Repair::Escape(lines.starts[number - 1] + column)).collect()
 }
 
 /// For a paragraph that begins with link reference definitions and then
@@ -584,6 +737,7 @@ fn definition_break<'a>(node: &'a AstNode<'a>, lines: &Lines<'_>) -> Option<Repa
     let content = |number: usize| -> &str {
         let line = lines.line(number);
         match line.get(..column) {
+            Some(_) if number == pos.start.line => &line[column..],
             Some(prefix) if prefix.bytes().all(|b| matches!(b, b' ' | b'\t' | b'>')) => &line[column..],
             _ => line,
         }
@@ -611,6 +765,8 @@ fn definition_break<'a>(node: &'a AstNode<'a>, lines: &Lines<'_>) -> Option<Repa
             defined = k;
         }
     }
+    // markdown-it's definitions end at the first one it refuses.
+    defined = (0..defined).find(|k| refused_definition(content(pos.start.line + k)).is_some()).unwrap_or(defined);
     if defined == 0 {
         return None;
     }
@@ -777,7 +933,10 @@ impl Converter<'_> {
                     Some(TableAlignment::Right) => json!("right"),
                     _ => Value::Null,
                 };
-                let content = self.inline_media_blocks(cell, &child_path(&cell_path, 0), "paragraph", None)?;
+                // markdown-it trims each cell with JavaScript's whitespace set.
+                let mut runs = self.runs(cell, &[])?;
+                trim_runs(&mut runs);
+                let content = self.media_blocks_from_runs(runs, &child_path(&cell_path, 0), "paragraph", None)?;
                 let props = json!({"header": header, "colspan": 1, "rowspan": 1, "colwidth": null, "align": align});
                 cells.push(block(self.namespace, &cell_path, "table_cell", content, props.as_object().cloned()));
             }
@@ -853,15 +1012,18 @@ impl Converter<'_> {
         for node in parent.children() {
             match value_of(node) {
                 NodeValue::Text(text) => {
-                    let verbatim = self.lines.slice(node) == Some(text.as_ref());
                     let pos = node.data.borrow().sourcepos;
-                    push_text(&mut runs, &text, marks, verbatim, Some((pos.end.line, pos.end.column)));
+                    let (text, spans) = self.read_text(node, &text);
+                    push_spans(&mut runs, &text, marks, spans, Some((pos.end.line, pos.end.column)));
                 }
                 NodeValue::SoftBreak => {
-                    self.restore_trailing_whitespace(&mut runs);
+                    self.restore_trailing_whitespace(node, &mut runs, marks);
                     runs.push(Run::Text { text: "\n".into(), marks: marks.to_vec(), verbatim: vec![(1, false)], end: None, separate: true });
                 }
-                NodeValue::LineBreak => runs.push(Run::Atom(json!({"type": "hard_break"}))),
+                NodeValue::LineBreak => {
+                    self.restore_trailing_whitespace(node, &mut runs, marks);
+                    runs.push(Run::Atom(json!({"type": "hard_break"})));
+                }
                 NodeValue::Code(code) => {
                     let literal = match self.raw_inline(node) {
                         Some(raw) => {
@@ -879,6 +1041,12 @@ impl Converter<'_> {
                 NodeValue::HtmlInline(html) => runs.push(Run::Html { text: self.raw_inline(node).unwrap_or(html), marks: marks.to_vec() }),
                 NodeValue::Emph => runs.extend(self.runs(node, &with_mark(marks, json!({"type": "italic"})))?),
                 NodeValue::Strong => runs.extend(self.runs(node, &with_mark(marks, json!({"type": "bold"})))?),
+                // markdown-it strikes only `~~` pairs; a single-tilde pair stays literal.
+                NodeValue::Strikethrough if self.single_tilde(node) => {
+                    push_text(&mut runs, "~", marks, false, None);
+                    runs.extend(self.runs(node, marks)?);
+                    push_text(&mut runs, "~", marks, false, None);
+                }
                 NodeValue::Strikethrough => runs.extend(self.runs(node, &with_mark(marks, json!({"type": "strike"})))?),
                 NodeValue::Link(link) => {
                     let href = mdurl::normalize_link(&link.url);
@@ -910,7 +1078,8 @@ impl Converter<'_> {
                         }
                     } else {
                         let label = inline_markdown(&inline(label(&[])?)?)?;
-                        push_text(&mut runs, &format!("[{label}]({href})"), marks, false, None);
+                        let pos = node.data.borrow().sourcepos;
+                        push_text(&mut runs, &format!("[{label}]({href})"), marks, false, Some((pos.end.line, pos.end.column)));
                     }
                 }
                 NodeValue::Image(link) => {
@@ -921,11 +1090,12 @@ impl Converter<'_> {
                         runs.push(Run::Image { src, alt, title, nested: !marks.is_empty() });
                     } else {
                         let title = if link.title.is_empty() { String::new() } else { format!(" {}", json::stringify(&json!(link.title))) };
-                        push_text(&mut runs, &format!("![{alt}]({src}{title})"), marks, false, None);
+                        let pos = node.data.borrow().sourcepos;
+                        push_text(&mut runs, &format!("![{alt}]({src}{title})"), marks, false, Some((pos.end.line, pos.end.column)));
                     }
                 }
                 NodeValue::WikiLink(_) => {
-                    let raw = self.lines.slice(node).unwrap_or_default().to_owned();
+                    let raw = self.raw_inline(node).unwrap_or_else(|| self.lines.slice(node).unwrap_or_default().to_owned());
                     match import_atom_source(&raw) {
                         Some(atom) => runs.push(Run::Atom(atom)),
                         None => push_text(&mut runs, &raw, marks, false, None),
@@ -947,7 +1117,7 @@ impl Converter<'_> {
         if pos.start.line == pos.end.line {
             return None;
         }
-        let column = node.parent()?.data.borrow().sourcepos.start.column.saturating_sub(1);
+        let column = self.container_column(node)?;
         let mut out = self.lines.line(pos.start.line).get(pos.start.column.checked_sub(1)?..)?.to_owned();
         for number in pos.start.line + 1..=pos.end.line {
             let line = self.lines.line(number);
@@ -963,18 +1133,110 @@ impl Converter<'_> {
         Some(out)
     }
 
+    /// A text node as markdown-it reads it, with which of its bytes are literal
+    /// source rather than the result of a backslash escape or a character
+    /// reference (only a literal `[[` can open a reference atom, as only that
+    /// reaches markdown-it's rule). Numeric references to code points
+    /// markdown-it refuses (controls, surrogates, noncharacters) become
+    /// U+FFFD there; comrak follows HTML and decodes some of them.
+    fn read_text<'a>(&self, node: &'a AstNode<'a>, text: &str) -> (String, Vec<(usize, bool)>) {
+        let pos = node.data.borrow().sourcepos;
+        let unknown = || (text.to_owned(), vec![(text.len(), false)]);
+        let (Some(start), Some(end)) = (self.lines.offset(pos.start.line, pos.start.column), self.lines.offset(pos.end.line, pos.end.column)) else {
+            return unknown();
+        };
+        let source = self.lines.source.as_bytes();
+        // comrak starts a text node that begins with an escaped character
+        // after its backslash.
+        let mut j = if start > 0 && source[start - 1] == b'\\' && text.as_bytes().first().is_some_and(u8::is_ascii_punctuation) { start - 1 } else { start };
+        let end = (end + 1).min(source.len());
+        let mut out = String::with_capacity(text.len());
+        let mut spans: Vec<(usize, bool)> = Vec::new();
+        let mut push = |out: &mut String, piece: &str, flag: bool| {
+            out.push_str(piece);
+            match spans.last_mut() {
+                Some((last, last_flag)) if *last_flag == flag => *last += piece.len(),
+                _ => spans.push((piece.len(), flag)),
+            }
+        };
+        let mut buffer = [0; 4];
+        for c in text.chars() {
+            let length = c.len_utf8();
+            let piece: &str = c.encode_utf8(&mut buffer);
+            // A character reference: numeric ones decode as markdown-it does;
+            // a named one is recognized by decoding to something other than
+            // its own first byte (or by being `&amp;`).
+            let reference = (source.get(j) == Some(&b'&'))
+                .then(|| source[j..source.len().min(j + 40)].iter().position(|b| *b == b';'))
+                .flatten()
+                .map(|semi| &self.lines.source[j..j + semi + 1])
+                .filter(|reference| numeric_reference(reference).is_some() || c != '&' || *reference == "&amp;");
+            if let Some(reference) = reference {
+                match numeric_reference(reference) {
+                    Some(code) => {
+                        let decoded = char::from_u32(code).filter(|_| valid_entity_code(code)).unwrap_or('\u{fffd}');
+                        push(&mut out, decoded.encode_utf8(&mut [0; 4]), false);
+                    }
+                    None => push(&mut out, piece, false),
+                }
+                j += reference.len();
+            } else if source.get(j..j + length) == Some(piece.as_bytes()) {
+                push(&mut out, piece, true);
+                j += length;
+            } else if source.get(j) == Some(&b'\\') && source.get(j + 1) == piece.as_bytes().first() && c.is_ascii_punctuation() {
+                push(&mut out, piece, false);
+                j += 2;
+            } else if j >= end || source.get(j) != Some(&b'&') {
+                // A named reference that decodes to more than one character,
+                // or text comrak synthesized: not literal.
+                push(&mut out, piece, false);
+            } else {
+                return unknown();
+            }
+        }
+        (out, spans)
+    }
+
+    /// The column where the content of the container holding this inline's
+    /// block starts: markdown-it removes only that much indentation from a
+    /// paragraph's later lines.
+    fn container_column<'a>(&self, node: &'a AstNode<'a>) -> Option<usize> {
+        let block = node.ancestors().find(|a| matches!(value_of(a), NodeValue::Paragraph | NodeValue::Heading(_) | NodeValue::TableCell))?;
+        let container = block.parent()?;
+        let column = match value_of(container) {
+            NodeValue::Document => 0,
+            NodeValue::Item(list) => container.data.borrow().sourcepos.start.column.saturating_sub(1) + list.padding,
+            _ => block.data.borrow().sourcepos.start.column.saturating_sub(1),
+        };
+        Some(column)
+    }
+
     /// markdown-it keeps a line's trailing whitespace before a soft break
     /// unless it ends in a space, of which it removes one; comrak removes all.
-    fn restore_trailing_whitespace(&self, runs: &mut [Run]) {
-        if let Some(Run::Text { text, end: Some((line, column)), verbatim, separate: false, .. }) = runs.last_mut()
-            && let Some(tail) = self.lines.line(*line).get(*column..)
-            && !tail.is_empty()
-            && tail.bytes().all(|b| b == b' ' || b == b'\t')
-        {
-            let tail = tail.strip_suffix(' ').unwrap_or(tail);
-            text.push_str(tail);
-            verbatim.push((tail.len(), false));
+    fn restore_trailing_whitespace<'a>(&self, softbreak: &'a AstNode<'a>, runs: &mut Vec<Run>, marks: &[Value]) {
+        let Some(previous) = softbreak.previous_sibling() else { return };
+        let pos = previous.data.borrow().sourcepos;
+        let Some(tail) = self.lines.line(pos.end.line).get(pos.end.column..) else { return };
+        if tail.is_empty() || !tail.bytes().all(|b| b == b' ' || b == b'\t') {
+            return;
         }
+        // Before a hard break markdown-it removes every trailing space.
+        let tail = if matches!(value_of(softbreak), NodeValue::LineBreak) { tail.trim_end_matches(' ') } else { tail.strip_suffix(' ').unwrap_or(tail) };
+        if tail.is_empty() {
+            return;
+        }
+        match runs.last_mut() {
+            Some(Run::Text { text, verbatim, separate: false, .. }) if matches!(value_of(previous), NodeValue::Text(_)) => {
+                text.push_str(tail);
+                verbatim.push((tail.len(), false));
+            }
+            _ => push_text(runs, tail, marks, false, None),
+        }
+    }
+
+    fn single_tilde<'a>(&self, node: &'a AstNode<'a>) -> bool {
+        let pos = node.data.borrow().sourcepos;
+        self.lines.offset(pos.start.line, pos.start.column).is_some_and(|at| self.lines.source.as_bytes().get(at + 1) != Some(&b'~'))
     }
 
     /// An image's raw label source, which markdown-it keeps as `alt`.
@@ -987,6 +1249,53 @@ impl Converter<'_> {
             _ => alt_text(node),
         }
     }
+}
+
+/// Trim JavaScript whitespace from both ends of a run sequence.
+fn trim_runs(runs: &mut Vec<Run>) {
+    if let Some(Run::Text { text, verbatim, .. }) = runs.first_mut() {
+        let kept = text.trim_start_matches(json::is_js_space);
+        let mut removed = text.len() - kept.len();
+        *text = kept.to_owned();
+        for span in verbatim.iter_mut() {
+            let cut = removed.min(span.0);
+            span.0 -= cut;
+            removed -= cut;
+        }
+    }
+    if let Some(Run::Text { text, verbatim, .. }) = runs.last_mut() {
+        let kept = text.trim_end_matches(json::is_js_space);
+        let mut removed = text.len() - kept.len();
+        text.truncate(kept.len());
+        for span in verbatim.iter_mut().rev() {
+            let cut = removed.min(span.0);
+            span.0 -= cut;
+            removed -= cut;
+        }
+    }
+    runs.retain(|run| !matches!(run, Run::Text { text, .. } if text.is_empty()));
+}
+
+/// The code point of a numeric character reference (`&#…;`, `&#x…;`).
+fn numeric_reference(reference: &str) -> Option<u32> {
+    let body = reference.strip_prefix("&#")?.strip_suffix(';')?;
+    match body.strip_prefix(['x', 'X']) {
+        Some(hex) if (1..=6).contains(&hex.len()) && hex.bytes().all(|b| b.is_ascii_hexdigit()) => u32::from_str_radix(hex, 16).ok(),
+        None if (1..=7).contains(&body.len()) && body.bytes().all(|b| b.is_ascii_digit()) => body.parse().ok(),
+        _ => None,
+    }
+}
+
+/// markdown-it's `isValidEntityCode`.
+fn valid_entity_code(code: u32) -> bool {
+    !((0xD800..=0xDFFF).contains(&code)
+        || (0xFDD0..=0xFDEF).contains(&code)
+        || code & 0xFFFF >= 0xFFFE
+        || code <= 0x08
+        || code == 0x0B
+        || (0x0E..=0x1F).contains(&code)
+        || (0x7F..=0x9F).contains(&code)
+        || code > 0x10_FFFF)
 }
 
 fn with_mark(marks: &[Value], mark: Value) -> Vec<Value> {
@@ -1020,15 +1329,19 @@ enum Run {
 /// Join adjacent text with the same marks, as markdown-it joins text tokens.
 /// `verbatim` records which byte spans came straight from source.
 fn push_text(runs: &mut Vec<Run>, text: &str, marks: &[Value], verbatim: bool, end: Option<(usize, usize)>) {
+    push_spans(runs, text, marks, vec![(text.len(), verbatim)], end);
+}
+
+fn push_spans(runs: &mut Vec<Run>, text: &str, marks: &[Value], verbatim: Vec<(usize, bool)>, end: Option<(usize, usize)>) {
     if let Some(Run::Text { text: last, marks: last_marks, verbatim: spans, end: last_end, separate: false }) = runs.last_mut()
         && last_marks.as_slice() == marks
     {
         last.push_str(text);
-        spans.push((text.len(), verbatim));
+        spans.extend(verbatim);
         *last_end = end;
         return;
     }
-    runs.push(Run::Text { text: text.to_owned(), marks: marks.to_vec(), verbatim: vec![(text.len(), verbatim)], end, separate: false });
+    runs.push(Run::Text { text: text.to_owned(), marks: marks.to_vec(), verbatim, end, separate: false });
 }
 
 /// Historical wiki-style sources become canonical atoms; anything else stays text.
@@ -1054,6 +1367,138 @@ fn import_atom_source(raw: &str) -> Option<Value> {
 enum Piece {
     Text(String),
     Atom(Value),
+}
+
+/// Split span lengths at a byte offset.
+fn split_spans(spans: &[(usize, bool)], at: usize) -> (Vec<(usize, bool)>, Vec<(usize, bool)>) {
+    let (mut left, mut right, mut seen) = (Vec::new(), Vec::new(), 0);
+    for &(length, flag) in spans {
+        if seen + length <= at {
+            left.push((length, flag));
+        } else if seen >= at {
+            right.push((length, flag));
+        } else {
+            left.push((at - seen, flag));
+            right.push((seen + length - at, flag));
+        }
+        seen += length;
+    }
+    (left, right)
+}
+
+/// markdown-it's reference rule reads from a literal `[[` to the first `]]`
+/// even across line breaks. Ranges that span lines are resolved here: a
+/// valid atom replaces them, anything else stays literal text that no later
+/// `[[` inside it can reopen. Ranges within one text run are left to
+/// [`split_text_atoms`].
+fn cross_line_atoms(runs: Vec<Run>) -> Vec<Run> {
+    let mut output: Vec<Run> = Vec::with_capacity(runs.len());
+    let mut group: Vec<Run> = Vec::new();
+    let flush = |group: &mut Vec<Run>, output: &mut Vec<Run>| {
+        if group.len() >= 3 {
+            output.extend(resolve_cross_line(std::mem::take(group)));
+        } else {
+            output.append(group);
+        }
+    };
+    for run in runs {
+        if matches!(run, Run::Text { .. }) {
+            group.push(run);
+        } else {
+            flush(&mut group, &mut output);
+            output.push(run);
+        }
+    }
+    flush(&mut group, &mut output);
+    output
+}
+
+fn resolve_cross_line(mut group: Vec<Run>) -> Vec<Run> {
+    let mut combined = String::new();
+    let mut owner: Vec<(usize, usize)> = Vec::new();
+    let mut eligible: Vec<bool> = Vec::new();
+    for (index, run) in group.iter().enumerate() {
+        let Run::Text { text, verbatim, separate, .. } = run else { continue };
+        combined.push_str(text);
+        owner.extend((0..text.len()).map(|offset| (index, offset)));
+        for &(length, flag) in verbatim {
+            eligible.extend(std::iter::repeat_n(flag && !separate, length));
+        }
+        eligible.resize(combined.len(), false);
+    }
+    let marks_of = |run: &Run| match run {
+        Run::Text { marks, .. } => marks.clone(),
+        _ => Vec::new(),
+    };
+    let mut from = 0;
+    while let Some(found) = combined[from..].find("[[") {
+        let start = from + found;
+        if !(eligible[start] && eligible[start + 1]) {
+            from = start + 1;
+            continue;
+        }
+        let Some(close) = combined[start + 2..].find("]]") else { break };
+        let end = start + 2 + close + 2;
+        from = end;
+        let (first, first_offset) = owner[start];
+        let (last, last_offset) = owner[end - 1];
+        if first == last {
+            continue;
+        }
+        let same_marks = (first..=last).all(|i| marks_of(&group[i]) == marks_of(&group[first]));
+        match import_atom_source(&combined[start..end]).filter(|_| same_marks) {
+            Some(atom) => {
+                // Keep the first run's text before the atom and the last
+                // run's text after it; the runs between are consumed.
+                let (Run::Text { text: head, verbatim: head_spans, marks, .. }, Run::Text { text: tail, verbatim: tail_spans, end: tail_end, .. }) =
+                    (&group[first], &group[last])
+                else {
+                    continue;
+                };
+                let before = Run::Text {
+                    text: head[..first_offset].to_owned(),
+                    marks: marks.clone(),
+                    verbatim: split_spans(head_spans, first_offset).0,
+                    end: None,
+                    separate: false,
+                };
+                let after = Run::Text {
+                    text: tail[last_offset + 1..].to_owned(),
+                    marks: marks.clone(),
+                    verbatim: split_spans(tail_spans, last_offset + 1).1,
+                    end: *tail_end,
+                    separate: false,
+                };
+                let mut rebuilt: Vec<Run> = group.drain(..first).collect();
+                rebuilt.push(before);
+                rebuilt.push(Run::Atom(atom));
+                rebuilt.push(after);
+                rebuilt.extend(group.drain(last + 1 - first..));
+                rebuilt.retain(|run| !matches!(run, Run::Text { text, separate: false, .. } if text.is_empty()));
+                // Positions changed; resolve the rest of the group again.
+                let (done, rest): (Vec<Run>, Vec<Run>) = {
+                    let split = rebuilt.iter().position(|run| matches!(run, Run::Atom(_))).map_or(rebuilt.len(), |i| i + 1);
+                    let rest = rebuilt.split_off(split);
+                    (rebuilt, rest)
+                };
+                let mut output = done;
+                output.extend(if rest.len() >= 3 { resolve_cross_line(rest) } else { rest });
+                return output;
+            }
+            None => {
+                for (index, run) in group.iter_mut().enumerate().take(last + 1).skip(first) {
+                    if let Run::Text { text, verbatim, .. } = run {
+                        let low = if index == first { first_offset } else { 0 };
+                        let high = if index == last { last_offset + 1 } else { text.len() };
+                        let (left, right) = split_spans(verbatim, low);
+                        let (_, rest) = split_spans(&right, high - low);
+                        *verbatim = left.into_iter().chain([(high - low, false)]).chain(rest).collect();
+                    }
+                }
+            }
+        }
+    }
+    group
 }
 
 /// Find canonical `[[...]]` atoms inside verbatim source text that the parser
@@ -1108,7 +1553,7 @@ fn marked_text(text: &str, marks: &[Value]) -> Result<Value> {
 /// Runs to AST inline nodes (the reference runtime's `inline`).
 fn inline(runs: Vec<Run>) -> Result<Vec<Value>> {
     let mut output: Vec<Value> = Vec::new();
-    for run in runs {
+    for run in cross_line_atoms(runs) {
         match run {
             Run::Text { text, marks, verbatim, .. } => {
                 for part in split_text_atoms(&text, &verbatim) {
@@ -1211,10 +1656,12 @@ fn parse_inline(text: &str) -> Result<Vec<Value>> {
     // A no-break space before every line keeps block syntax (headings, lists,
     // HTML blocks, definitions) inert while still counting as whitespace for
     // emphasis flanking; one after the text keeps trailing spaces.
-    let source = format!("\u{a0}{}\u{a0}", text.replace('\n', "\n\u{a0}"));
+    let source = format!("\u{a0}{}\u{a0}", text.replace('\0', "\u{fffd}").replace('\n', "\n\u{a0}"));
     let arena = Arena::new();
     let root = comrak::parse_document(&arena, &source, &comrak_options());
-    let converter = Converter { namespace: "", lines: Lines::new(&source) };
+    let lines = Lines::new(&source);
+    fix_wikilink_positions(root, &lines);
+    let converter = Converter { namespace: "", lines };
     let mut runs = Vec::new();
     for child in root.children() {
         if !matches!(value_of(child), NodeValue::Paragraph) {

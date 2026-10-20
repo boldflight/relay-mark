@@ -4,10 +4,10 @@
 //   RELAYMARK_RECORD=calls.jsonl node --import ./crates/relaymark-core/tools/record.mjs \
 //     crates/relaymark-core/tools/corpus.mjs [--mutate N] [--max-bytes B] <input>...
 //
-// Inputs: a CommonMark `spec.json` (its examples), a JSONL oracle (its
+// Inputs: a CommonMark `spec.json` (its examples), a JSON array of sources, a JSONL oracle (its
 // recorded parseDocument sources), Markdown/RelayMark files, or directories of
 // them. `--mutate N` adds N deterministic line-level mutations of the
-// collected sources.
+// collected sources and `--mutate-chars N` N character-level ones.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -19,6 +19,7 @@ import { compileRelayMark } from '../../../src/runtime.js';
 
 const args = process.argv.slice(2);
 let mutations = 0;
+let characterMutations = 0;
 let maxBytes = 200_000;
 const sources = [];
 
@@ -30,8 +31,14 @@ function walk(path) {
     }
   } else if (/\.(md|relaymark)$/.test(path)) {
     sources.push(readFileSync(path, 'utf8'));
-  } else if (path.endsWith('spec.json')) {
-    for (const example of JSON.parse(readFileSync(path, 'utf8'))) sources.push(example.markdown);
+  } else if (path.endsWith('.json')) {
+    // A CommonMark spec.json (its examples) or a plain array of sources.
+    const items = JSON.parse(readFileSync(path, 'utf8'));
+    if (!Array.isArray(items)) return;
+    for (const item of items) {
+      const source = typeof item === 'string' ? item : item?.markdown;
+      if (typeof source === 'string') sources.push(source);
+    }
   } else if (path.endsWith('.jsonl')) {
     for (const line of readFileSync(path, 'utf8').split('\n')) {
       if (!line) continue;
@@ -43,6 +50,7 @@ function walk(path) {
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--mutate') mutations = Number(args[++i]);
+  else if (args[i] === '--mutate-chars') characterMutations = Number(args[++i]);
   else if (args[i] === '--max-bytes') maxBytes = Number(args[++i]);
   else walk(args[i]);
 }
@@ -75,6 +83,17 @@ for (let n = 0; n < mutations && base.length; n++) {
     }
   }
   sources.push(lines.join('\n'));
+}
+
+const characters = ['`', '``', '*', '_', '~', '~~', '[', ']', '[[', ']]', '(', ')', '<', '>', '!', '\\', '&', '#', '|', '\n', '\n\n', ' ', '  ', '\t', '\u00a0', '"', ':', '-', '{', '}', '@', 'é', '👩🏽‍💻'];
+for (let n = 0; n < characterMutations && base.length; n++) {
+  let text = pick(base);
+  const steps = 1 + Math.floor(random() * 4);
+  for (let s = 0; s < steps; s++) {
+    const at = Math.floor(random() * (text.length + 1));
+    text = random() < 0.8 ? text.slice(0, at) + pick(characters) + text.slice(at) : text.slice(0, at) + text.slice(at + 1);
+  }
+  sources.push(text);
 }
 
 const attempt = fn => { try { return fn(); } catch { return undefined; } };
