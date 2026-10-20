@@ -1980,12 +1980,11 @@ fn markdown(node: &Value) -> Result<String> {
                 let name = directive_for_type(generic.ast_type).map(|d| d.name.as_str()).unwrap_or_default();
                 return Ok(format!("@{name}({}) {{\n{}\n}}", props_markdown(props), block_markdown_list(content, "\n\n")?));
             }
+            // The registered directive name, so the projection imports again.
             let name = match kind {
-                "relay.callout" => "Callout",
-                "relay.form_question" => "Question",
-                "relay.agent_suggestion" => "AgentSuggestion",
-                "relay.data_view" => "DataView",
-                "relay.video_embed" => "Video",
+                "relay.callout" | "relay.form_question" | "relay.agent_suggestion" | "relay.data_view" | "relay.video_embed" => {
+                    directive_for_type(kind).map(|d| d.name.as_str()).unwrap_or_default()
+                }
                 _ => bail!("Unsupported block projection"),
             };
             let body = if kind == "relay.agent_suggestion" { inline_markdown(content)? } else { block_markdown_list(content, "\n\n")? };
