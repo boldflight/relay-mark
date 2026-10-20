@@ -1298,9 +1298,12 @@ fn valid_entity_code(code: u32) -> bool {
         || code > 0x10_FFFF)
 }
 
+/// A mark nested in the same mark (`**a **b** c**`) merges into it.
 fn with_mark(marks: &[Value], mark: Value) -> Vec<Value> {
     let mut next = marks.to_vec();
-    next.push(mark);
+    if !marks.iter().any(|m| m["type"] == mark["type"]) {
+        next.push(mark);
+    }
     next
 }
 

@@ -1,0 +1,117 @@
+{
+  "description": "A mark nested in the same mark merges into it instead of refusing the document.",
+  "namespace": "nested-marks",
+  "source": "**Plan **the** week**\n\n*Note *inner* text*, ***both** inside*\n\n~~old ~~older~~ text~~\n\n@Callout(tone: \"info\", title: \"**Read **this****\") {\nBody\n}\n",
+  "expected_ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "bfe54a18dffe24f0b84f4c87b6a97f41f",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "text",
+                "text": "Plan the week"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "bd7099f66097e43dc8c0b005114fc6347",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "emphasis",
+            "content": [
+              {
+                "type": "text",
+                "text": "Note inner text"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": ", "
+          },
+          {
+            "type": "strong",
+            "content": [
+              {
+                "type": "emphasis",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "both"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "emphasis",
+            "content": [
+              {
+                "type": "text",
+                "text": " inside"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b48b34a9e8ddc44b38161378db9ee903c",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "strikethrough",
+            "content": [
+              {
+                "type": "text",
+                "text": "old older text"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b9f02d0e3427d4027895cb0f040ff3458",
+        "type": "relay.callout",
+        "props": {
+          "tone": "info",
+          "emphasis": "soft"
+        },
+        "content": [
+          {
+            "id": "b92d6710f9b53427a8d4a36c44b64c0ed",
+            "type": "relay.callout_title",
+            "content": [
+              {
+                "type": "strong",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Read this"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "bad706b65a1304f1a84e8e66957d04082",
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Body"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -214,7 +214,7 @@ fn check_collaboration_fixture(name: &str) {
             valid(&ast, name);
             same(&ok(rm::prosemirror_to_document(&ok(rm::document_to_prosemirror(&ast)))), &ast, name);
         }
-        "canonical-source.json" | "canonical-historical-source.json" | "canonical-inline-media.json" => {
+        "canonical-source.json" | "canonical-historical-source.json" | "canonical-inline-media.json" | "canonical-nested-marks.json" => {
             let ast = ok(rm::parse_document(f["source"].as_str().unwrap_or_default(), f["namespace"].as_str()));
             same(&ast, &f["expected_ast"], name);
             same(&ok(rm::parse_document(&text(rm::serialize_document(&ast)), None)), &ast, name);

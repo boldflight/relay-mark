@@ -143,6 +143,13 @@ test suite's calls are committed and always replay; larger corpora replay with
 `examples/bench.rs`, `tools/bench.mjs` and `tools/bench.exs` time the same job
 in each engine.
 
+Intentional differences from the JavaScript runtime, which inherits them from
+its host engine: a diagnostic about malformed directive attributes carries
+the engine's own message, not V8's `JSON.parse` wording (JavaScriptCore words
+it differently again), and an `http(s)` link or image whose punycode host
+decodes to characters WHATWG URL parsing forbids (no-break space, zero-width
+joiner) is refused, where Node's URL parser accepts it.
+
 ## Swift package distribution
 
 `RelayMarkSwift` is distributed from the repository root at

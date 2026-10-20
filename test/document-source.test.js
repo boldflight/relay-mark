@@ -329,3 +329,9 @@ test('retained empty callout source preserves insertion-time history with one ca
   assert.throws(()=>serializeDocument(invalid));
  }
 });
+
+test('a mark nested in the same mark merges instead of refusing the document',()=>{
+ const fixture=JSON.parse(readFileSync(new URL('../spec/relaymark/collaboration/fixtures/canonical-nested-marks.json',import.meta.url)));
+ assert.deepEqual(parseDocument(fixture.source,{namespace:fixture.namespace}),fixture.expected_ast);
+ assert.deepEqual(parseDocument('**a **b** c**',{namespace:'n'}).blocks[0].content,[{type:'strong',content:[{type:'text',text:'a b c'}]}]);
+});
