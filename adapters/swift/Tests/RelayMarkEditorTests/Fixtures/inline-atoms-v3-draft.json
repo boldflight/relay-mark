@@ -1,0 +1,135 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91506,
+  "source": "Relay TipTap RelayReference/RelayTag/PaperHeading + community StarterKit/y-tiptap/Yjs",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000031"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Meet "
+          },
+          {
+            "type": "relayReference",
+            "attrs": {
+              "entityType": "Person",
+              "entityId": "9f815b37-67b3-4101-868c-5335351feb6a",
+              "label": "Ada Lovelace",
+              "source": "[[Person: 9f815b37-67b3-4101-868c-5335351feb6a | Ada Lovelace]]",
+              "status": null,
+              "subtitle": null
+            }
+          },
+          {
+            "type": "text",
+            "text": " for "
+          },
+          {
+            "type": "relayTag",
+            "attrs": {
+              "id": "9712027d-18db-448e-8514-cea7c215d6f7",
+              "name": "today",
+              "color": null,
+              "source": "[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #today]]"
+            }
+          },
+          {
+            "type": "text",
+            "text": ". [[unknown]] stays text."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000032",
+          "level": 2,
+          "headingId": "task-reference"
+        },
+        "content": [
+          {
+            "type": "relayReference",
+            "attrs": {
+              "entityType": "Task",
+              "entityId": "12345678-1234-4234-8234-123456789abc",
+              "label": "Prepare review",
+              "source": "[[Task: 12345678-1234-4234-8234-123456789abc | Prepare review]]",
+              "status": null,
+              "subtitle": null
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "version": 1,
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000031",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Meet "
+          },
+          {
+            "type": "relay.entity_ref",
+            "id": "9f815b37-67b3-4101-868c-5335351feb6a",
+            "label": "Ada Lovelace",
+            "props": {
+              "entityType": "Person",
+              "source": "[[Person: 9f815b37-67b3-4101-868c-5335351feb6a | Ada Lovelace]]"
+            }
+          },
+          {
+            "type": "text",
+            "text": " for "
+          },
+          {
+            "type": "relay.tag_ref",
+            "id": "9712027d-18db-448e-8514-cea7c215d6f7",
+            "label": "#today",
+            "props": {
+              "name": "today",
+              "source": "[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #today]]"
+            }
+          },
+          {
+            "type": "text",
+            "text": ". [[unknown]] stays text."
+          }
+        ]
+      },
+      {
+        "id": "b00000000000040008000000000000032",
+        "type": "heading",
+        "props": {
+          "level": 2,
+          "headingId": "task-reference"
+        },
+        "content": [
+          {
+            "type": "relay.entity_ref",
+            "id": "12345678-1234-4234-8234-123456789abc",
+            "label": "Prepare review",
+            "props": {
+              "entityType": "Task",
+              "source": "[[Task: 12345678-1234-4234-8234-123456789abc | Prepare review]]"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "relaymark_source": "Meet [[Person: 9f815b37-67b3-4101-868c-5335351feb6a | Ada Lovelace]] for [[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #today]]. [[unknown]] stays text.\n\n## [[Task: 12345678-1234-4234-8234-123456789abc | Prepare review]]\n",
+  "update": "ARryygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDyygUABgQA8soFAQVNZWV0IIfyygUBAw5yZWxheVJlZmVyZW5jZSgA8soFBwplbnRpdHlUeXBlAXcGUGVyc29uKADyygUHCGVudGl0eUlkAXckOWY4MTViMzctNjdiMy00MTAxLTg2OGMtNTMzNTM1MWZlYjZhKADyygUHBWxhYmVsAXcMQWRhIExvdmVsYWNlKADyygUHBnNvdXJjZQF3P1tbUGVyc29uOiA5ZjgxNWIzNy02N2IzLTQxMDEtODY4Yy01MzM1MzUxZmViNmEgfCBBZGEgTG92ZWxhY2VdXYfyygUHBgQA8soFDAUgZm9yIIfyygUMAwhyZWxheVRhZygA8soFEgJpZAF3JDk3MTIwMjdkLTE4ZGItNDQ4ZS04NTE0LWNlYTdjMjE1ZDZmNygA8soFEgRuYW1lAXcFdG9kYXkoAPLKBRIGc291cmNlAXc2W1tUYWc6IDk3MTIwMjdkLTE4ZGItNDQ4ZS04NTE0LWNlYTdjMjE1ZDZmNyB8ICN0b2RheV1dh/LKBRIGBADyygUWGS4gW1t1bmtub3duXV0gc3RheXMgdGV4dC4oAPLKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMzGH8soFAAMHaGVhZGluZwcA8soFMQMOcmVsYXlSZWZlcmVuY2UoAPLKBTIKZW50aXR5VHlwZQF3BFRhc2soAPLKBTIIZW50aXR5SWQBdyQxMjM0NTY3OC0xMjM0LTQyMzQtODIzNC0xMjM0NTY3ODlhYmMoAPLKBTIFbGFiZWwBdw5QcmVwYXJlIHJldmlldygA8soFMgZzb3VyY2UBdz9bW1Rhc2s6IDEyMzQ1Njc4LTEyMzQtNDIzNC04MjM0LTEyMzQ1Njc4OWFiYyB8IFByZXBhcmUgcmV2aWV3XV0oAPLKBTELcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMzIoAPLKBTEFbGV2ZWwBfQIoAPLKBTEJaGVhZGluZ0lkAXcOdGFzay1yZWZlcmVuY2UA"
+}
