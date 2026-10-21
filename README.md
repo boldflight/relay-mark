@@ -163,13 +163,6 @@ linkedom: malformed markup they build different trees for (an invalid end tag,
 a table row without its table, text after `</body>`) can import differently.
 `tools/html-dom.mjs` leaves such inputs out of the HTML oracle.
 
-### Ported source
-
-Parts of `relaymark-core` (`src/pm/`, the HTML import's model, parser and
-foreign rules, and `src/mdurl.rs`) are ports of MIT-licensed JavaScript. Each
-file is headed with its source and notice; `THIRD_PARTY_NOTICES.md` lists them
-under "Ported source".
-
 ## Swift package distribution
 
 `RelayMarkSwift` is distributed from the repository root at
@@ -258,7 +251,11 @@ Licensed under either of
 at your option.
 
 Portions are derived from or bundle third-party software under their own
-licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+licenses. The Swift and Rust ProseMirror ports (`RelayMarkModel`,
+`relaymark-core`'s `src/pm/` and HTML import), the TipTap paste rules and the
+markdown-it link normalization (`src/mdurl.rs`) are ported from MIT-licensed
+JavaScript, and each ported file names its source; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ### Contribution
 

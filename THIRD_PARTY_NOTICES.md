@@ -70,11 +70,12 @@ Applies to every component above marked MIT. Copyright lines:
   (prosemirror-tables)
 - Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
   (orderedmap, w3c-keyname)
-- Copyright (c) 2025, Tiptap GmbH (Tiptap)
+- Copyright (c) 2025, Tiptap GmbH (Tiptap: the ported core commands and keymaps,
+  and the extensions' parseHTML rules)
 - Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin (markdown-it)
 - Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin (mdurl)
 - Copyright Joyent, Inc. and other Node contributors (Node.js `url.parse`, as
-  adapted by mdurl)
+  adapted by mdurl; its notice follows below)
 - Copyright (c) 2015 Vitaly Puzrin (linkify-it)
 - Copyright Mathias Bynens <https://mathiasbynens.be/> (punycode.js, uc.micro)
 - Copyright (c) 2022 Paul Miller (https://paulmillr.com) (@noble/hashes)
@@ -99,6 +100,32 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+```
+
+### Node.js `url` (mdurl's `url.parse`, ported in `crates/relaymark-core/src/mdurl.rs`)
+
+mdurl's license carries this notice for its `.parse()`, which is based on
+Joyent's Node.js `url` code:
+
+```
+Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to
+deal in the Software without restriction, including without limitation the
+rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+sell copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+IN THE SOFTWARE.
 ```
 
 ### BSD 2-Clause License (entities)
