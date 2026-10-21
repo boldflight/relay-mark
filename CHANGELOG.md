@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Tag atoms accept normalized Relay tag names from any script (`#仕事`,
+  `#ラーメン`, `#二〇二六年`): a lowercase, modifier or other letter, decimal
+  digit or letter number first, then those, combining marks and `-`. `_` is no longer part of
+  a tag name, matching the Relay server, which has always turned it into `-`. The JavaScript runtime, relaymark-core and the
+  Swift native projection share the rule, checked against Relay's tag-name
+  table in `spec/relaymark/conformance/tag-names.json`. ASCII names are
+  unchanged.
 - iOS: a tap in a paper places the caret and shows the keyboard again. The
   editor's task-checkbox tap now recognizes alongside UITextView's own taps
   instead of winning over them, which had left papers impossible to focus.

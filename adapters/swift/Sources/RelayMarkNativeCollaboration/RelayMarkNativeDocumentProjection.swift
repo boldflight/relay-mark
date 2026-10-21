@@ -272,7 +272,7 @@ public enum RelayMarkNativeDocumentProjection {
         try require(Set(attrs.keys).isSubset(of: Set(["id", "name", "color", "source"])), "tag attributes")
         guard let id = attrs["id"] as? String, validUUID(id),
               let tagName = attrs["name"] as? String,
-              tagName.range(of: "^[a-z0-9][a-z0-9_-]*$", options: .regularExpression) != nil,
+              RelayMarkTagName.isNormalized(tagName),
               let source = attrs["source"] as? String,
               source == "[[Tag: \(id) | #\(tagName)]]",
               (attrs["color"] == nil || attrs["color"] is NSNull) else {

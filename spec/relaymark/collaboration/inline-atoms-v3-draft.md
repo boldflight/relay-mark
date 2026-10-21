@@ -11,7 +11,13 @@ open the v3 live editor gate or change the v1/v2 XML contract.
 | `relayTag` | `relay.tag_ref` with canonical lowercase UUID `id`, authored `#name` label, and `props: {name, source}` |
 
 `source` must equal the exact canonical `[[Type: UUID | Label]]` or
-`[[Tag: UUID | #name]]` spelling derived from the other fields. The generic
+`[[Tag: UUID | #name]]` spelling derived from the other fields. A tag `name`
+is a normalized Relay tag name: it starts with a lowercase, modifier or other
+letter, a decimal digit or a letter number (〇) from any script, then holds
+those, combining marks and `-`, so `#仕事`, `#ラーメン` and `#二〇二六年` are tags and `_`, spaces and punctuation
+are not part of one. Relay's shared table of inputs and their
+normalized names is [tag-names.json](../conformance/tag-names.json), copied
+verbatim from the Relay server; every runtime accepts each name it lists. The generic
 RelayMark source parser and serializer preserve this spelling for these nodes;
 legacy inline references without `props.source` retain their existing link
 syntax. Plain `[[unknown]]` text stays inert. Missing IDs, mismatched source,

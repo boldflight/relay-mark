@@ -1,0 +1,382 @@
+{
+  "version": 1,
+  "about": "The one tag-name rule and the editor trigger rule. relay-elixir owns this table; relay-swift and relay-mark copy it verbatim. Server, web, Swift and RelayMark tests read it.",
+  "rule": [
+    "NFKC-normalize the input (full-width ASCII such as '＃' and 'Ａ', half-width kana and the ideographic space fold here)",
+    "trim surrounding whitespace, then drop leading '#' characters",
+    "lowercase each character with its full, context-free Unicode lowercase mapping (no final-sigma rule)",
+    "keep letters (L), combining marks (M), decimal digits (Nd) and letter numbers (Nl, such as 〇); replace each run of anything else (spaces, '_', '-', '#', punctuation, symbols, emoji) with '-'",
+    "a tag starts with a letter or number: trim leading '-' and combining marks, and trailing '-'; an empty result is no tag (null)"
+  ],
+  "cases": [
+    {
+      "input": "work",
+      "tag": "work"
+    },
+    {
+      "input": "Work",
+      "tag": "work"
+    },
+    {
+      "input": "#Work Stuff",
+      "tag": "work-stuff"
+    },
+    {
+      "input": "##today",
+      "tag": "today"
+    },
+    {
+      "input": "  #Q4 2026!  ",
+      "tag": "q4-2026"
+    },
+    {
+      "input": "foo_bar",
+      "tag": "foo-bar"
+    },
+    {
+      "input": "foo--bar",
+      "tag": "foo-bar"
+    },
+    {
+      "input": "-foo-",
+      "tag": "foo"
+    },
+    {
+      "input": "a/b.c",
+      "tag": "a-b-c"
+    },
+    {
+      "input": "C++",
+      "tag": "c"
+    },
+    {
+      "input": "foo\tbar\nbaz",
+      "tag": "foo-bar-baz"
+    },
+    {
+      "input": "仕事",
+      "tag": "仕事"
+    },
+    {
+      "input": "#仕事",
+      "tag": "仕事"
+    },
+    {
+      "input": "しごと",
+      "tag": "しごと"
+    },
+    {
+      "input": "シゴト",
+      "tag": "シゴト"
+    },
+    {
+      "input": "ｼｺﾞﾄ",
+      "tag": "シゴト"
+    },
+    {
+      "input": "ラーメン",
+      "tag": "ラーメン"
+    },
+    {
+      "input": "人々",
+      "tag": "人々"
+    },
+    {
+      "input": "ばか",
+      "tag": "ばか"
+    },
+    {
+      "input": "＃仕事",
+      "tag": "仕事"
+    },
+    {
+      "input": "仕事　メモ",
+      "tag": "仕事-メモ"
+    },
+    {
+      "input": "仕事・家庭",
+      "tag": "仕事-家庭"
+    },
+    {
+      "input": "日本語_タグ",
+      "tag": "日本語-タグ"
+    },
+    {
+      "input": "東京2026",
+      "tag": "東京2026"
+    },
+    {
+      "input": "ＡＢＣ１２３",
+      "tag": "abc123"
+    },
+    {
+      "input": "①",
+      "tag": "1"
+    },
+    {
+      "input": "Ⅻ",
+      "tag": "xii"
+    },
+    {
+      "input": "한국어",
+      "tag": "한국어"
+    },
+    {
+      "input": "Café",
+      "tag": "café"
+    },
+    {
+      "input": "Café",
+      "tag": "café"
+    },
+    {
+      "input": "Straße",
+      "tag": "straße"
+    },
+    {
+      "input": "ΣΑΣ",
+      "tag": "σασ"
+    },
+    {
+      "input": "İstanbul",
+      "tag": "i̇stanbul"
+    },
+    {
+      "input": "foo​bar",
+      "tag": "foo-bar"
+    },
+    {
+      "input": "🎉party",
+      "tag": "party"
+    },
+    {
+      "input": "🎉",
+      "tag": null
+    },
+    {
+      "input": "",
+      "tag": null
+    },
+    {
+      "input": "   ",
+      "tag": null
+    },
+    {
+      "input": "#",
+      "tag": null
+    },
+    {
+      "input": "---",
+      "tag": null
+    },
+    {
+      "input": "　",
+      "tag": null
+    },
+    {
+      "input": "#foo#bar",
+      "tag": "foo-bar"
+    },
+    {
+      "input": "_foo",
+      "tag": "foo"
+    },
+    {
+      "input": "仕事 メモ",
+      "tag": "仕事-メモ"
+    },
+    {
+      "input": "仕事🎉メモ",
+      "tag": "仕事-メモ"
+    },
+    {
+      "input": "仕事、メモ。",
+      "tag": "仕事-メモ"
+    },
+    {
+      "input": "「仕事」",
+      "tag": "仕事"
+    },
+    {
+      "input": "Release Notes v2.1",
+      "tag": "release-notes-v2-1"
+    },
+    {
+      "input": "́abc",
+      "tag": "abc"
+    },
+    {
+      "input": "²",
+      "tag": "2"
+    },
+    {
+      "input": "½",
+      "tag": "1-2"
+    },
+    {
+      "input": "١٢٣",
+      "tag": "١٢٣"
+    },
+    {
+      "input": "二〇二六年",
+      "tag": "二〇二六年"
+    },
+    {
+      "input": "〇",
+      "tag": "〇"
+    }
+  ],
+  "triggers": {
+    "about": "Typed sigils open the editor menus. `before` is the committed paragraph text before the caret; `trigger` is the menu it opens, or null. Each sigil has an ASCII and a full-width form; choosing from the menu writes the canonical ASCII form. A sigil opens a menu at the start of a line, after whitespace, or after a Han, kana, CJK punctuation or full-width character (other than a sigil), since Japanese has no spaces. Tag and command queries hold no whitespace. Text an input method has not committed never opens a menu.",
+    "sigils": {
+      "tag": [
+        "#",
+        "＃"
+      ],
+      "mention": [
+        "@",
+        "＠"
+      ],
+      "command": [
+        "/",
+        "／"
+      ]
+    },
+    "cases": [
+      {
+        "before": "#仕事",
+        "trigger": {
+          "kind": "tag",
+          "query": "仕事"
+        }
+      },
+      {
+        "before": "＃仕事",
+        "trigger": {
+          "kind": "tag",
+          "query": "仕事"
+        }
+      },
+      {
+        "before": "仕事 ＃メモ",
+        "trigger": {
+          "kind": "tag",
+          "query": "メモ"
+        }
+      },
+      {
+        "before": "仕事。＃メモ",
+        "trigger": {
+          "kind": "tag",
+          "query": "メモ"
+        }
+      },
+      {
+        "before": "「＃仕事",
+        "trigger": {
+          "kind": "tag",
+          "query": "仕事"
+        }
+      },
+      {
+        "before": "日本語#tag",
+        "trigger": {
+          "kind": "tag",
+          "query": "tag"
+        }
+      },
+      {
+        "before": "plan #today",
+        "trigger": {
+          "kind": "tag",
+          "query": "today"
+        }
+      },
+      {
+        "before": "x#tag",
+        "trigger": null
+      },
+      {
+        "before": "##foo",
+        "trigger": null
+      },
+      {
+        "before": "＃＃foo",
+        "trigger": null
+      },
+      {
+        "before": "# foo",
+        "trigger": null
+      },
+      {
+        "before": "会議＠田中",
+        "trigger": {
+          "kind": "mention",
+          "query": "田中"
+        }
+      },
+      {
+        "before": "会議@田中",
+        "trigger": {
+          "kind": "mention",
+          "query": "田中"
+        }
+      },
+      {
+        "before": "@Maya",
+        "trigger": {
+          "kind": "mention",
+          "query": "Maya"
+        }
+      },
+      {
+        "before": "Call ＠jor",
+        "trigger": {
+          "kind": "mention",
+          "query": "jor"
+        }
+      },
+      {
+        "before": "foo@bar",
+        "trigger": null
+      },
+      {
+        "before": "foo＠bar",
+        "trigger": null
+      },
+      {
+        "before": "email me@example",
+        "trigger": null
+      },
+      {
+        "before": "Plan /h2",
+        "trigger": {
+          "kind": "command",
+          "query": "h2"
+        }
+      },
+      {
+        "before": "メモ／h2",
+        "trigger": {
+          "kind": "command",
+          "query": "h2"
+        }
+      },
+      {
+        "before": "／todo",
+        "trigger": {
+          "kind": "command",
+          "query": "todo"
+        }
+      },
+      {
+        "before": "a/b",
+        "trigger": null
+      },
+      {
+        "before": "and/or",
+        "trigger": null
+      }
+    ]
+  }
+}
