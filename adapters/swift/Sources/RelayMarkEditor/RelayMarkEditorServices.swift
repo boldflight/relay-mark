@@ -66,15 +66,18 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     public var collaboratorColor: (String) -> Color
     /// Commands on the selection that assistive technologies offer as edit actions.
     public var selectionActions: [RelayMarkSelectionAction]
+    /// The link to a section of this paper by its destination name, for
+    /// "Copy link to this section"; nil offers no link.
+    public var sectionLink: ((String) -> URL?)?
 
     public init(images: (any RelayMarkImageService)? = nil, paste: (any RelayMarkPasteService)? = nil,
                 links: (any RelayMarkLinkService)? = nil, paperControls: (any RelayMarkPaperControlService)? = nil,
                 imageStore: RelayMarkImageStore? = nil, inputRefused: ((String) -> Void)? = nil,
                 collaboratorColor: @escaping (String) -> Color = RelayMarkEditorServices.hexColor,
-                selectionActions: [RelayMarkSelectionAction] = []) {
+                selectionActions: [RelayMarkSelectionAction] = [], sectionLink: ((String) -> URL?)? = nil) {
         self.images = images; self.paste = paste; self.links = links; self.paperControls = paperControls
         self.imageStore = imageStore; self.inputRefused = inputRefused; self.collaboratorColor = collaboratorColor
-        self.selectionActions = selectionActions
+        self.selectionActions = selectionActions; self.sectionLink = sectionLink
     }
 
     /// `#rrggbb` as that color; anything else gray.

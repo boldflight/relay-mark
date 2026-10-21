@@ -851,6 +851,14 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.paper.remoteSelections = []
             view.editingSession = nil
         }
+        func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
+            guard let view = view as? CollaborationTextView, !view.retired else { return menu }
+            let entries = view.sectionMenuEntries(link: services.sectionLink)
+            guard !entries.isEmpty else { return menu }
+            menu.insertItem(.separator(), at: 0)
+            for entry in entries.reversed() { menu.insertItem(RelayMenuAction.item(entry.title, entry.run), at: 0) }
+            return menu
+        }
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
             guard let href = (link as? URL)?.absoluteString ?? (link as? String), href.hasPrefix("#"),
                   let activate = onActivateFragmentLink,
@@ -902,8 +910,21 @@ public struct RelayMarkEditorView: NSViewRepresentable {
     }
 }
 
+/// A menu item that runs a closure.
+@MainActor final class RelayMenuAction: NSObject {
+    let run: () -> Void
+    init(_ run: @escaping () -> Void) { self.run = run }
+    @objc func perform(_ sender: Any?) { run() }
+    static func item(_ title: String, _ run: @escaping () -> Void) -> NSMenuItem {
+        let action = RelayMenuAction(run)
+        let item = NSMenuItem(title: title, action: #selector(perform(_:)), keyEquivalent: "")
+        item.target = action; item.representedObject = action
+        return item
+    }
+}
+
 @MainActor
-final class CollaborationTextView: NSTextView, RelayPaperTextView {
+final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContentStorageDelegate {
     /// The host's image capability and collaborator colors, from its services.
     var imagePolicy = RelayNativeImageRepresentation()
     var collaboratorColor: (String) -> Color = RelayMarkEditorServices.hexColor
@@ -916,6 +937,8 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         manager.textContainer = container
         let view = Self(frame: frame, textContainer: container)
         view.contentStorage = storage
+        // Folded sections' paragraphs are skipped from layout, never removed from the text.
+        storage.delegate = view
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
         view.register([.onScrollingOutOfViewport, .onEditingInlineParagraphs],
                       forTextAttachmentViewProviderType: RelayTableAttachmentViewProvider.self)
@@ -1061,6 +1084,10 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     var onSessionEdit: (() -> Void)?
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        if !retired, !hasMarkedText(), let geometry = RelayTextGeometry(textLayoutManager),
+           let id = sectionDisclosureHit(at: CGPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y), geometry: geometry) {
+            toggleSection(id); return
+        }
         if !retired, !hasMarkedText(), let onPaperButton,
            let offset = characterOffset(at: point), onPaperButton(offset) { return }
         if !retired, isEditable, !hasMarkedText(), let onTaskCheckbox,
@@ -1326,12 +1353,19 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         super.textViewportLayoutControllerDidLayout(controller)
         viewportDidLayout(controller)
     }
+
+    nonisolated func textContentManager(_ textContentManager: NSTextContentManager, shouldEnumerate textElement: NSTextElement,
+                                        options: NSTextContentManager.EnumerationOptions) -> Bool {
+        nonisolated(unsafe) let element = textElement
+        return MainActor.assumeIsolated { paperShows(element) }
+    }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
         drawListMarkers(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut,
                         emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
-        drawRemoteSelections(paper.remoteSelections, resolveColor: collaboratorColor, geometry: geometry,
+        drawSectionDisclosures(geometry: geometry, origin: textContainerOrigin)
+        drawRemoteSelections(paper.remoteSelections.filter { !paper.isHidden($0.caretLocation) }, resolveColor: collaboratorColor, geometry: geometry,
             origin: textContainerOrigin, length: string.utf16.count) { [weak self] offset in
                 guard let self, let window = self.window else { return nil }
                 let screen = self.firstRect(forCharacterRange: NSRange(location: offset, length: 0), actualRange: nil)
@@ -1542,6 +1576,14 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             view.selectedRange = NSRange(location: 0, length: 0)
             view.paper.remoteSelections = []
             view.editingSession = nil
+        }
+        func textView(_ textView: UITextView, editMenuForTextInRanges ranges: [NSValue],
+                      suggestedActions: [UIMenuElement]) -> UIMenu? {
+            guard let view = textView as? CollaborationTextView, !view.retired else { return nil }
+            let entries = view.sectionMenuEntries(link: services.sectionLink)
+            guard !entries.isEmpty else { return nil }
+            let section = UIMenu(options: .displayInline, children: entries.map { entry in UIAction(title: entry.title) { _ in entry.run() } })
+            return UIMenu(children: suggestedActions + [section])
         }
         func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem,
                       defaultAction: UIAction) -> UIAction? {
@@ -1771,7 +1813,7 @@ public final class CollaborationTextContainer: UIView {
     }
 }
 @MainActor
-final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDelegate, RelayPaperTextView {
+final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDelegate, RelayPaperTextView, NSTextContentStorageDelegate {
     /// Lets the task-checkbox tap recognize together with the text view's own
     /// taps. Without it the checkbox tap wins and a tap never focuses the paper.
     final class SimultaneousTapDelegate: NSObject, UIGestureRecognizerDelegate {
@@ -1791,6 +1833,8 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         manager.textContainer = container
         let view = Self(frame: frame, textContainer: container)
         view.contentStorage = storage
+        // Folded sections' paragraphs are skipped from layout, never removed from the text.
+        storage.delegate = view
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
         view.register([.onScrollingOutOfViewport, .onEditingInlineParagraphs],
                       forTextAttachmentViewProviderType: RelayTableAttachmentViewProvider.self)
@@ -1909,6 +1953,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         let point = gesture.location(in: self)
         let location = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
+        if let id = sectionDisclosureHit(at: location, geometry: geometry) { toggleSection(id); return }
         if let onPaperButton, let offset = geometry.characterOffset(at: location), onPaperButton(offset) { return }
         guard isEditable, let onTaskCheckbox, let offset = taskCheckboxOffset(at: point) else { return }
         _ = onTaskCheckbox(offset)
@@ -2127,6 +2172,12 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         super.textViewportLayoutControllerDidLayout(controller)
         viewportDidLayout(controller)
     }
+
+    nonisolated func textContentManager(_ textContentManager: NSTextContentManager, shouldEnumerate textElement: NSTextElement,
+                                        options: NSTextContentManager.EnumerationOptions) -> Bool {
+        nonisolated(unsafe) let element = textElement
+        return MainActor.assumeIsolated { paperShows(element) }
+    }
     override func draw(_ rect: CGRect) {
         super.draw(rect)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
@@ -2134,7 +2185,8 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         if let context = UIGraphicsGetCurrentContext() { drawFound(in: context) }
         drawListMarkers(geometry: geometry, origin: origin, laidOut: paper.laidOut,
                         emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
-        drawRemoteSelections(paper.remoteSelections, resolveColor: collaboratorColor, geometry: geometry, origin: origin, length: text.utf16.count) { [weak self] offset in
+        drawSectionDisclosures(geometry: geometry, origin: origin)
+        drawRemoteSelections(paper.remoteSelections.filter { !paper.isHidden($0.caretLocation) }, resolveColor: collaboratorColor, geometry: geometry, origin: origin, length: text.utf16.count) { [weak self] offset in
                 guard let self, let position = self.position(from: self.beginningOfDocument, offset: offset) else { return nil }
                 return self.caretRect(for: position)
             }
@@ -2342,6 +2394,118 @@ private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
                   height: max(marker.height, font.ascender - font.descender + font.leading) + 6).contains(point) { return offset }
     }
     return nil
+}
+
+extension RelayPaperTextView {
+    /// Whether TextKit lays out a paragraph: not when it starts inside a folded section.
+    func paperShows(_ element: NSTextElement) -> Bool {
+        guard !paper.hidden.isEmpty, let range = element.elementRange, let content = textLayoutManager?.textContentManager else { return true }
+        return !paper.isHidden(content.offset(from: content.documentRange.location, to: range.location))
+    }
+
+    /// The heading paragraph holding a view offset, as the view range of its text.
+    /// Read from the view's own attributes, so it costs the same at any paper length.
+    func headingParagraph(at location: Int) -> NSRange? {
+        let storage = paperStorage, text = storage.string as NSString
+        guard location >= 0, location <= text.length else { return nil }
+        let paragraph = text.paragraphRange(for: NSRange(location: min(location, text.length), length: 0))
+        let content = NSRange(location: paragraph.location,
+                              length: paragraph.length - (NSMaxRange(paragraph) > paragraph.location &&
+                                  text.character(at: NSMaxRange(paragraph) - 1) == 10 ? 1 : 0))
+        let intent: PresentationIntent?
+        if content.length > 0 {
+            intent = (storage.attribute(.relayBlockIntent, at: content.location, effectiveRange: nil) as? RelayBlockIntent)?.intent
+        } else {
+            intent = paper.viewEmptyBlocks.first { $0.offset == content.location }?.intent
+        }
+        let heading = intent?.components.contains { if case .header = $0.kind { true } else { false } } == true
+        return heading ? content : nil
+    }
+
+    /// The heading paragraphs that start in a view range.
+    func headingParagraphs(in range: NSRange) -> [NSRange] {
+        let text = paperStorage.string as NSString
+        var result: [NSRange] = [], location = range.location
+        while location <= min(NSMaxRange(range), text.length) {
+            if let heading = headingParagraph(at: location) { result.append(heading) }
+            guard location < text.length else { break }
+            location = NSMaxRange(text.paragraphRange(for: NSRange(location: location, length: 0)))
+        }
+        return result
+    }
+
+    /// The destination name of the section whose heading starts at a view offset.
+    func sectionID(atHeading location: Int) -> String? {
+        let paper = paper.tables.paper(location)
+        return editingSession?.sections.first { $0.heading.location == paper }?.id
+    }
+
+    /// Each laid-out heading's disclosure, in container coordinates. Section names
+    /// are read only while a section is folded; otherwise every heading is open.
+    func sectionDisclosures(geometry: RelayTextGeometry) -> [(frame: CGRect, label: NSAttributedString, heading: NSRange)] {
+        guard let session = editingSession else { return [] }
+        let visible = paper.laidOut.map(geometry.range) ?? NSRange(location: 0, length: geometry.length)
+        let folded: Set<Int> = session.foldedSections.isEmpty ? [] : Set(session.sections.compactMap { section in
+            session.foldedSections.contains(section.id) ? paper.tables.view(section.heading.location) : nil
+        })
+        return headingParagraphs(in: visible).compactMap { heading in
+            guard !paper.isHidden(heading.location) else { return nil }
+            let font = heading.location < geometry.length
+                ? geometry.storage.attribute(.font, at: heading.location, effectiveRange: nil) as? PlatformFont : nil
+            let label = NSAttributedString(string: folded.contains(heading.location) ? "▸ ⋯" : "▾", attributes: [
+                .font: PlatformFont.systemFont(ofSize: (font?.pointSize ?? 15) * 0.8),
+                .foregroundColor: PlatformColor.secondaryLabelColorCompat])
+            let width = label.size().width
+            let frame: CGRect
+            if heading.length == 0 {
+                guard let line = geometry.lineFrame(at: heading.location), line.height > 0 else { return nil }
+                frame = CGRect(x: line.minX + geometry.padding + 2, y: line.minY, width: width, height: line.height)
+            } else if geometry.isRightToLeft(at: heading.location) {
+                guard let first = geometry.characterFrame(at: heading.location) else { return nil }
+                frame = CGRect(x: first.minX - width - 6, y: first.minY, width: width, height: first.height)
+            } else {
+                guard let last = geometry.characterFrame(at: NSMaxRange(heading) - 1) else { return nil }
+                frame = CGRect(x: last.maxX + 6, y: last.minY, width: width, height: last.height)
+            }
+            return (frame, label, heading)
+        }
+    }
+
+    func drawSectionDisclosures(geometry: RelayTextGeometry, origin: CGPoint) {
+        for disclosure in sectionDisclosures(geometry: geometry) {
+            let size = disclosure.label.size()
+            disclosure.label.draw(at: CGPoint(x: origin.x + disclosure.frame.minX,
+                                             y: origin.y + disclosure.frame.midY - size.height / 2))
+        }
+    }
+
+    /// The heading menu's entries for the section at the caret: fold or unfold it,
+    /// and copy its link when the host gives sections links.
+    func sectionMenuEntries(link: ((String) -> URL?)?) -> [(title: String, run: () -> Void)] {
+        guard let section = sectionAtCaret, let session = editingSession else { return [] }
+        let folded = session.foldedSections.contains(section.id)
+        var entries: [(title: String, run: () -> Void)] = [(folded
+            ? String(localized: "Expand section", bundle: .module, comment: "Heading menu command that shows a folded section.")
+            : String(localized: "Collapse section", bundle: .module, comment: "Heading menu command that hides a section's content."),
+            { [weak self] in _ = self?.toggleSection(section.id) })]
+        if let url = link?(section.id) {
+            entries.append((String(localized: "Copy link to this section", bundle: .module, comment: "Heading menu command that copies a link to the section."), {
+                #if os(macOS)
+                NSPasteboard.general.clearContents(); NSPasteboard.general.writeObjects([url as NSURL])
+                #else
+                UIPasteboard.general.url = url
+                #endif
+            }))
+        }
+        return entries
+    }
+
+    /// The section whose heading disclosure is under `point`, in container coordinates.
+    func sectionDisclosureHit(at point: CGPoint, geometry: RelayTextGeometry) -> String? {
+        guard let hit = sectionDisclosures(geometry: geometry).first(where: { $0.frame.insetBy(dx: -8, dy: -4).contains(point) })
+        else { return nil }
+        return sectionID(atHeading: hit.heading.location)
+    }
 }
 
 @MainActor

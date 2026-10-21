@@ -35,6 +35,10 @@ public final class RelayMarkEditorSession {
     @ObservationIgnored private var selectedRange: NSRange?
     /// The document projection, kept for the document revision it describes.
     @ObservationIgnored var projectionCache: (revision: Int, value: RelayMarkCollaborativeProse)?
+    /// Sections of the text revision they were read from.
+    @ObservationIgnored var sectionCache: (revision: Int, sections: [RelayPaperSection])?
+    /// Folded sections by destination name: this session's view state, never saved or synced.
+    public internal(set) var foldedSections: Set<String> = []
     public var onSelectionChange: (() -> Void)?
     public private(set) var remoteSelections: [RelayMarkRemoteSelection] = []
     public var isTaskList: Bool { false }
@@ -662,6 +666,7 @@ public final class RelayMarkEditorSession {
         guard range.location >= 0, range.length >= 0,
               range.location <= length, range.length <= length - range.location else { return }
         selectedRange = range
+        revealSections(holding: range.location)
         onSelectionChange?()
     }
 

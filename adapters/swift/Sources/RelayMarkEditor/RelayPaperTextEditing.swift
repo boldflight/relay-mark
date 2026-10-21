@@ -62,6 +62,11 @@ protocol RelayPaperTextEditing: AnyObject {
     var nativeMediaAtoms: [RelayMarkCollaborativeProse.MediaAtom] { get }
     var nativeSuggestionAtoms: [RelayMarkCollaborativeProse.SuggestionAtom] { get }
     func setNativeSelection(_ range: NSRange)
+    /// The paper's sections, those folded, and the paper ranges folding hides.
+    var sections: [RelayPaperSection] { get }
+    var foldedSections: Set<String> { get }
+    var hiddenSectionRanges: [NSRange] { get }
+    @discardableResult func toggleSection(_ id: String) -> Bool
     /// Advances whenever `text` is replaced.
     var textRevision: Int { get }
     /// Whether a keystroke stays inside one text leaf, so `typeNatively` can apply it.
@@ -115,6 +120,10 @@ extension RelayPaperTextEditing {
     var nativeMediaAtoms: [RelayMarkCollaborativeProse.MediaAtom] { [] }
     var nativeSuggestionAtoms: [RelayMarkCollaborativeProse.SuggestionAtom] { [] }
     var textSplice: RelayTextSplice? { nil }
+    var sections: [RelayPaperSection] { [] }
+    var foldedSections: Set<String> { [] }
+    var hiddenSectionRanges: [NSRange] { [] }
+    @discardableResult func toggleSection(_ id: String) -> Bool { false }
     func editStructureNatively(range: NSRange, replacement: String) -> Bool { false }
     func pastePlainTextNatively(range: NSRange, text: String) -> Bool { false }
     func pasteNatively(range: NSRange, piece: AttributedString) -> Bool { false }

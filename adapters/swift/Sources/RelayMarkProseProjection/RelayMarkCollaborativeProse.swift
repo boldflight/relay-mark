@@ -42,6 +42,16 @@ public struct RelayMarkCollaborativeProse {
     }
     public var callouts: [Callout] { gather(\.callouts) { _ = $2; var item = $0; item.range.location += $1; item.titleRange?.location += $1; return item } }
 
+    /// A heading block: its level, its authored `headingId` if any, and its
+    /// text range and XML path. Folding and section links read these.
+    public struct Heading: Equatable, Sendable {
+        public let level: Int
+        public let headingID: String?
+        public internal(set) var range: NSRange
+        public internal(set) var path: [Int]
+    }
+    public var headings: [Heading] { gather(\.headings) { var item = $0; item.range.location += $1; item.path = Self.global(item.path, $2); return item } }
+
     /// Identified inline XML nodes occupy one non-text UTF-16 unit in `text`.
     /// Authored identity and source remain on the XML node; the range is only a
     /// native selection/presentation coordinate.
@@ -214,6 +224,7 @@ public struct RelayMarkCollaborativeProse {
         var mediaAtoms: [MediaAtom] = []
         var suggestionAtoms: [SuggestionAtom] = []
         var authoredWidgets: [AuthoredWidget] = []
+        var headings: [Heading] = []
         var spans: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         /// Block identities and destination names (heading anchors, Anchor names) in this node.
@@ -616,6 +627,7 @@ public struct RelayMarkCollaborativeProse {
         var taskItems: [TaskItem] = []
         var mediaAtoms: [MediaAtom] = []
         var suggestionAtoms: [SuggestionAtom] = []
+        var headings: [Heading] = []
         var mapped: [Span] = []
         var boundaries: [[Int]: [Int]] = [:]
         var supported = true
@@ -1013,6 +1025,10 @@ public struct RelayMarkCollaborativeProse {
                     boundaries[blockPath] = inlineOffsets
                     value[attributedStart..<value.endIndex].presentationIntent = intent
                     ranges.append(NSRange(location: start, length: length() - start)); paths.append(blockPath); intents.append(intent)
+                    if case .header(let level) = kind {
+                        headings.append(Heading(level: level, headingID: attributes["headingId"] as? String,
+                                                range: ranges[ranges.count - 1], path: blockPath))
+                    }
                     if name=="questionOption",let id=attributes["relaymarkId"] as? String {
                         widget(kind:.option,id:id,name:name,attributes:attributes,range:ranges[ranges.count-1],path:blockPath)
                     }
@@ -1046,7 +1062,7 @@ public struct RelayMarkCollaborativeProse {
         chunk.cells = cells; chunk.callouts = calloutRanges; chunk.inlineAtoms = atoms
         chunk.blockAtoms = blockAtoms; chunk.entityReferenceAtoms = entityReferenceAtoms
         chunk.taskItems = taskItems.sorted { $0.firstParagraphRange.location < $1.firstParagraphRange.location }
-        chunk.mediaAtoms = mediaAtoms; chunk.suggestionAtoms = suggestionAtoms
+        chunk.mediaAtoms = mediaAtoms; chunk.suggestionAtoms = suggestionAtoms; chunk.headings = headings
         chunk.authoredWidgets = authoredWidgets
         chunk.spans = mapped; chunk.boundaries = boundaries
         func names(_ node: [String: Any]) {
@@ -1347,6 +1363,7 @@ extension RelayMarkCollaborativeProse {
         for item in chunk.taskItems.indices { move(&chunk.taskItems[item].firstParagraphRange) }
         for item in chunk.mediaAtoms.indices { move(&chunk.mediaAtoms[item].range) }
         for item in chunk.suggestionAtoms.indices { move(&chunk.suggestionAtoms[item].range) }
+        for item in chunk.headings.indices { move(&chunk.headings[item].range) }
         for item in chunk.authoredWidgets.indices { move(&chunk.authoredWidgets[item].range) }
         for item in chunk.spans.indices { move(&chunk.spans[item].range) }
         for key in chunk.boundaries.keys {
