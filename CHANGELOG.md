@@ -6,9 +6,13 @@
   run in relaymark-core, the canonical Rust engine the server also uses,
   through `RelayMarkFFI.xcframework` (uniffi; Apple silicon slices for iOS,
   macOS and visionOS, built by `scripts/build-swift-engine.zsh`). The bundled
-  `document-source.js` and its JavaScriptCore context are gone; output is
-  byte-identical. Editor commands, clipboard navigation plans and the causal
-  write plan still run in `content-edit-runtime.js`.
+  `document-source.js` is gone; output is byte-identical.
+- Editor commands (lists, tables with `fixTables`, marks, blocks), step
+  application, the causal write plan and clipboard anchor and heading plans
+  also run in relaymark-core, a port of prosemirror-model/-transform/
+  -commands/-schema-list/-tables checked against recorded JavaScript output.
+  `content-edit-runtime.js` is removed, and no Swift product imports
+  JavaScriptCore.
 - Adds `RelayMarkEditor`, the native TextKit 2 editor for RelayMark papers on
   macOS and iOS, moved from relay-swift: an editor session over one Yjs
   replica whose edits re-render only the nodes they change, tables as
@@ -25,8 +29,7 @@
   writes RelayMark source only through `RelayMarkSourceCodec`.
 - Clipboard HTML from other applications imports with the web editor's TipTap
   paste rules; a paste service also receives the clipboard's plain text.
-- Large conversions release their JavaScriptCore heap, and writing a paper
-  into the replica no longer holds every node's bridged copy at once.
+- Writing a paper into the replica no longer holds every node's bridged copy at once.
 
 - Removes the custom history and attribution adapters retired by Relay's
   October 18 standard collaboration decision (`adapters/collaboration`: text

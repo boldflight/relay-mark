@@ -56,6 +56,6 @@ if (process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
       doc.destroy()
     }
     assert.equal(rows.length,fixture.cases.length+1)
-    console.log('Verified actual Swift JavaScriptCore mixed-inline exports in upstream Yjs')
+    console.log('Verified actual Swift mixed-inline exports in upstream Yjs')
   }
 }

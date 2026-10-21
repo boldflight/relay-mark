@@ -21,14 +21,8 @@ for (const name of ['document-html-rules.js', 'editor-schema.js', 'contract.js',
 
 await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', supported: { 'template-literal': false }, external: ['./document-adapter.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-source.js' })
 
-await mkdir('adapters/swift/Sources/RelayMarkSwift/Resources', { recursive: true })
-
 // Editor-only schema and table helpers for stock-binding TipTap hosts. The
 // shipped schema and HTML rules modules stay shared siblings, not inlined.
 await build({ entryPoints: ['src/editor.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2020', external: ['prosemirror-model', 'prosemirror-tables', './document-html-rules.js', './editor-schema.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/editor.js' })
 
 await build({ entryPoints: ['src/document-url.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-url.js' })
-
-// Native editing runtime (Swift): HTML and clipboard import, the attribute
-// codec, maintained commands, clipboard navigation plans and the causal write plan.
-await build({ inject:['src/document-html-platform.js'],entryPoints:['src/content-edit.js'],supported:{'template-literal':false},bundle:true,format:'iife',globalName:'RelayMarkContentEditRuntime',platform:'browser',target:'es2020',minify:true,legalComments:'inline',outfile:'adapters/swift/Sources/RelayMarkSwift/Resources/content-edit-runtime.js' })

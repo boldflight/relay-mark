@@ -37,6 +37,17 @@ fn document(input: &[u8]) -> Result<Value, String> {
     Ok(value)
 }
 
+/// A JSON array of exactly `count` arguments (missing trailing ones null).
+fn arguments(input: &[u8], count: usize) -> Result<Vec<Value>, String> {
+    match json(input)? {
+        Value::Array(mut items) if items.len() <= count => {
+            items.resize(count, Value::Null);
+            Ok(items)
+        }
+        _ => Err(format!("Expected {count} JSON arguments")),
+    }
+}
+
 fn engine<T>(result: rm::Result<T>, output: impl FnOnce(T) -> Vec<u8>) -> Answer {
     result.map(output).map_err(|e| e.message().to_owned())
 }
@@ -118,6 +129,22 @@ fn dispatch(job: &str, input: &[u8], options: &[u8]) -> Answer {
         "paper_destinations" => engine(rm::paper_destinations(&document(input)?), |v| value_out(Value::Array(v))),
         "safe_image_source" => Ok(value_out(Value::Bool(rm::safe_image_source(text(input)?)))),
         "directive_definitions" => Ok(value_out(rm::directive_definitions())),
+        // Editing jobs take their arguments as one JSON array.
+        "edit_command" => {
+            let a = arguments(input, 2)?;
+            engine(rm::edit::command(&a[0], &a[1]), value_out)
+        }
+        "edit_prepare_write" => {
+            let a = arguments(input, 3)?;
+            engine(rm::edit::prepare_write(&a[0], &a[1], &a[2]), value_out)
+        }
+        "edit_plan_text_write" => {
+            let a = arguments(input, 6)?;
+            let span = (!a[5].is_null()).then_some(&a[5]);
+            engine(rm::edit::plan_text_write(&a[0], &a[1], &a[2], &a[3], &a[4], span), value_out)
+        }
+        "clipboard_anchors" => engine(rm::edit::plan_clipboard_anchors(&json(input)?), value_out),
+        "clipboard_headings" => engine(rm::edit::plan_clipboard_headings(&json(input)?), value_out),
         "contract" => Ok(value_out(rm::contract())),
         other => Err(format!("Unknown RelayMark job {other}")),
     }

@@ -15,11 +15,11 @@ struct RelayMarkContractTests {
     }
 }
 
-/// Blocks without settings skip the runtime; the shared codec must agree.
+/// Blocks without settings skip the engine; the shared codec must agree.
 struct RelayMarkAttributeCodecConformanceTests {
     private func shared(_ operation: String, _ name: String, _ attributes: [String: Any]) -> [String: Any]? {
-        (try? RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
-            operation: operation, arguments: [name, attributes]))
+        let job = operation == "encodeDocumentAttributes" ? "encode_attributes" : "decode_attributes"
+        return (try? RelayMarkEngineCall.run(job, RelayMarkEngineCall.json(attributes), options: ["name": name]))
             .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
     }
 

@@ -15,7 +15,7 @@ RelayMark format; nothing stores Markdown.
 
 | Layer | Swift product | Owns | Depends on |
 | --- | --- | --- | --- |
-| 1. Format | `RelayMarkSwift` | The RelayMark document and source codecs, the schema contract, HTML and clipboard import (relaymark-core through `RelayMarkEngine`); editor commands still in JavaScriptCore | Foundation, RelayMarkEngine, JavaScriptCore |
+| 1. Format | `RelayMarkSwift` | The RelayMark document and source codecs, the schema contract, HTML and clipboard import, editor commands, clipboard navigation plans and the causal write plan (relaymark-core through `RelayMarkEngine`) | Foundation, RelayMarkEngine |
 | 2. Model | `RelayMarkModel` | The ProseMirror port: schema, nodes, slices, resolved positions, steps, transforms, commands | Foundation |
 | 3. Collaboration | `RelayMarkNativeCollaboration` | The Yjs binding (`PMYXmlBridge`), the native replica, editing commands as Yjs transactions, presence, update footprints | 1, 2, `RelayMarkProseProjection`, YSwift |
 | 4. Editor | `RelayMarkEditor` | The editor session, the TextKit 2 views for macOS and iOS, table attachments, layout fragments, Find, accessibility, and the services a host supplies | 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration`, SwiftUI, AppKit/UIKit |

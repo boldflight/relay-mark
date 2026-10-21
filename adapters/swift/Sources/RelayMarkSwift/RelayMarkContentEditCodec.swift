@@ -1,8 +1,8 @@
 import Foundation
 
-/// HTML and clipboard import and the attribute codecs run in relaymark-core;
-/// editor commands, clipboard navigation plans and the ProseMirror-to-Yjs
-/// write plan still run in the packaged content-edit runtime.
+/// The native editing runtime in relaymark-core: HTML and clipboard import,
+/// the attribute codecs, maintained editor commands, clipboard navigation
+/// plans and the ProseMirror-to-Yjs write plan.
 public enum RelayMarkContentEditCodec {
     /// Pure canonical HTML conversion through the packaged shared DOM/PM
     /// grammar. The returned document grants no source, media or edit authority.
@@ -47,24 +47,24 @@ public enum RelayMarkContentEditCodec {
 
 
     public static func command(document: Data, request: Data) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "createContentEditCommand", arguments: [JSONSerialization.jsonObject(with: document), JSONSerialization.jsonObject(with: request)])
+        try RelayMarkEngineCall.run("edit_command", RelayMarkEngineCall.array([document, request]))
     }
     /// Pure clipboard Slice parser; returned context grants no host authority.
     public static func importClipboardHTML(_ html: String, namespace: String) throws -> Data {
         try RelayMarkEngineCall.run("import_clipboard_html", text: html, options: ["namespace": namespace])
     }
     public static func planClipboardAnchorAllocation(_ evidence: Data) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planClipboardAnchorAllocation", arguments: [JSONSerialization.jsonObject(with: evidence)])
+        try RelayMarkEngineCall.run("clipboard_anchors", evidence)
     }
     public static func planClipboardHeadingNavigation(_ evidence: Data) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planClipboardHeadingNavigation", arguments: [JSONSerialization.jsonObject(with: evidence)])
+        try RelayMarkEngineCall.run("clipboard_headings", evidence)
     }
 
     public static func prepareWrite(before: Data, steps: Data, after: Data) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"prepareContentEditWrite",arguments:[JSONSerialization.jsonObject(with:before),JSONSerialization.jsonObject(with:steps),JSONSerialization.jsonObject(with:after)])
+        try RelayMarkEngineCall.run("edit_prepare_write", RelayMarkEngineCall.array([before, steps, after]))
     }
     public static func planTextWrite(prepared: Data, sourceParent: String, sourceGroup: Int, targetParent: String, targetGroup: Int, sourceOffset: Int, sourceLength: Int) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource:"content-edit-runtime",global:"RelayMarkContentEditRuntime",operation:"planContentEditTextWrite",arguments:[JSONSerialization.jsonObject(with:prepared),sourceParent,sourceGroup,targetParent,targetGroup,["offset":sourceOffset,"length":sourceLength]])
+        let rest = try RelayMarkEngineCall.json([sourceParent, sourceGroup, targetParent, targetGroup, ["offset": sourceOffset, "length": sourceLength]] as [Any])
+        return try RelayMarkEngineCall.run("edit_plan_text_write", RelayMarkEngineCall.array([prepared] + RelayMarkEngineCall.elements(rest)))
     }
-
 }

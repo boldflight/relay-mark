@@ -32,5 +32,5 @@ if (process.argv[2] === '--generate') {
     if (![...awareness.getStates().values()].some(state => state.user?.name === 'Native' && Y.createAbsolutePositionFromRelativePosition(Y.createRelativePositionFromJSON(state.cursor.anchor), doc)?.index === 6)) throw Error('Native awareness failed')
     awareness.destroy()
   }
-  console.log('Node Yjs → Swift JavaScriptCore → Node Yjs XML convergence passed')
+  console.log('Node Yjs → Swift → Node Yjs XML convergence passed')
 }

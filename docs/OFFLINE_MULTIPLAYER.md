@@ -66,13 +66,11 @@ The chosen native direction is a maintained fork of y-crdt/YSwift with Yrs as it
 CRDT engine. Add the missing XML, relative-position, and Apple platform bindings
 in reviewable upstream contributions; do not implement another CRDT algorithm.
 `RelayMarkProseProjection` contains the pure Swift presentation and UTF-16
-position mapping shared by both adapters. `RelayMarkNativeCollaboration` adapts
-YSwift XML updates to RelayMark's portable snapshot and editor operations.
-`RelayMarkCollaboration` retains the existing JavaScriptCore adapter and its
-public compatibility alias for the projection. The app owns storage, account
-lifecycle, and Phoenix transport. JavaScriptCore remains a reference and
-migration fallback until the native binding and app pass the cross-runtime and
-macOS/iOS/visionOS gates.
+position mapping. `RelayMarkNativeCollaboration` adapts YSwift XML updates to
+RelayMark's portable snapshot and editor operations. `RelayMarkCollaboration`
+holds the shared prose and local-transaction value types. The app owns storage,
+account lifecycle, and Phoenix transport. No Swift product runs JavaScript: the
+format, editing commands and plans run in relaymark-core.
 
 The native adapter's ordinary prose edit scope is top-level, attribute-free
 paragraphs with one XML text leaf each. It supports UTF-16 replacements, LF

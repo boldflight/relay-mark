@@ -76,8 +76,7 @@ let package = Package(
         .target(
             name: "RelayMarkSwift",
             dependencies: ["RelayMarkEngine"],
-            path: "adapters/swift/Sources/RelayMarkSwift",
-            resources: [.process("Resources")]
+            path: "adapters/swift/Sources/RelayMarkSwift"
         ),
         .testTarget(
             name: "RelayMarkSwiftTests",
