@@ -226,11 +226,12 @@ fn entity_type_name(value: &str) -> bool {
     re(&TYPE, r"^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$").is_match(value)
 }
 
-/// A normalized Relay tag name: lowercase letters, marks and numbers from any
-/// script, `_` and inner `-` (spec/relaymark/conformance/tag-names.json).
+/// A normalized Relay tag name: a lowercase, modifier or other letter or a
+/// decimal digit from any script, then those, combining marks and `-`
+/// (spec/relaymark/conformance/tag-names.json).
 fn tag_name(value: &str) -> bool {
     static TAG: OnceLock<Regex> = OnceLock::new();
-    re(&TAG, r"^[\p{Ll}\p{Lm}\p{Lo}\p{M}\p{N}_][\p{Ll}\p{Lm}\p{Lo}\p{M}\p{N}_-]*$").is_match(value)
+    re(&TAG, r"^[\p{Ll}\p{Lm}\p{Lo}\p{Nd}][\p{Ll}\p{Lm}\p{Lo}\p{M}\p{Nd}-]*$").is_match(value)
 }
 
 fn identity(id: Option<&Value>) -> Result<String> {
@@ -362,7 +363,7 @@ mod tests {
             let source = format!("[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #{tag}]]");
             assert_eq!(parse_atom_source(&source).map(|atom| atom["props"]["name"].clone()), Some(json!(tag)), "{tag}");
         }
-        for name in ["Work", "ΣΑΣ", "two words", "-lead", "a|b", "仕事 メモ"] {
+        for name in ["Work", "ΣΑΣ", "two words", "-lead", "a|b", "仕事 メモ", "foo_bar", "\u{301}a", "仕事。"] {
             assert_eq!(parse_atom_source(&format!("[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #{name}]]")), None, "{name}");
         }
     }

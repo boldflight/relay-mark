@@ -17,7 +17,7 @@ test('every normalized Relay tag name is an authored tag atom', () => {
 });
 
 test('names that are not normalized stay text', () => {
-  for (const name of ['Work', 'ΣΑΣ', 'two words', '-lead', 'a|b', '仕事 メモ']) {
+  for (const name of ['Work', 'ΣΑΣ', 'two words', '-lead', 'a|b', '仕事 メモ', 'foo_bar', '\u0301a', '仕事。']) {
     assert.equal(parseAtomSource(`[[Tag: ${id} | #${name}]]`), null, name);
   }
 });

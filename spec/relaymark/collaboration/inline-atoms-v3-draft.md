@@ -12,9 +12,10 @@ open the v3 live editor gate or change the v1/v2 XML contract.
 
 `source` must equal the exact canonical `[[Type: UUID | Label]]` or
 `[[Tag: UUID | #name]]` spelling derived from the other fields. A tag `name`
-is a normalized Relay tag name: lowercase, modifier and other letters, marks
-and numbers from any script, `_`, and `-` after the first character, so
-`#仕事` and `#ラーメン` are tags. Relay's shared table of inputs and their
+is a normalized Relay tag name: it starts with a lowercase, modifier or other
+letter or a decimal digit from any script, then holds those, combining marks
+and `-`, so `#仕事` and `#ラーメン` are tags and `_`, spaces and punctuation
+are not part of one. Relay's shared table of inputs and their
 normalized names is [tag-names.json](../conformance/tag-names.json), copied
 verbatim from the Relay server; every runtime accepts each name it lists. The generic
 RelayMark source parser and serializer preserve this spelling for these nodes;

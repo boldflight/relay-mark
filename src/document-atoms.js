@@ -2,7 +2,7 @@
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
 const entityType = /^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$/u;
 // A normalized Relay tag name (spec/relaymark/conformance/tag-names.json).
-const tagName = /^[\p{Ll}\p{Lm}\p{Lo}\p{M}\p{N}_][\p{Ll}\p{Lm}\p{Lo}\p{M}\p{N}_-]*$/u;
+const tagName = /^[\p{Ll}\p{Lm}\p{Lo}\p{Nd}][\p{Ll}\p{Lm}\p{Lo}\p{M}\p{Nd}-]*$/u;
 
 function object(value, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`Invalid ${label}`);
