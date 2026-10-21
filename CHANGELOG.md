@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `RelayMarkSourceCodec`, HTML and clipboard import and the attribute codecs
+  run in relaymark-core, the canonical Rust engine the server also uses,
+  through `RelayMarkFFI.xcframework` (uniffi; Apple silicon slices for iOS,
+  macOS and visionOS, built by `scripts/build-swift-engine.zsh`). The bundled
+  `document-source.js` and its JavaScriptCore context are gone; output is
+  byte-identical. Editor commands, clipboard navigation plans and the causal
+  write plan still run in `content-edit-runtime.js`.
 - Adds `RelayMarkEditor`, the native TextKit 2 editor for RelayMark papers on
   macOS and iOS, moved from relay-swift: an editor session over one Yjs
   replica whose edits re-render only the nodes they change, tables as

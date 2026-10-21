@@ -1,0 +1,24 @@
+[package]
+name = "relaymark-ffi"
+version = "0.1.0"
+description = "uniffi binding of relaymark-core for the RelayMark Swift package"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["staticlib", "lib"]
+name = "relaymark_ffi"
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bindgen.rs"
+required-features = ["bindgen"]
+
+[features]
+bindgen = ["uniffi/cli"]
+
+[dependencies]
+relaymark-core = { path = "../relaymark-core" }
+uniffi = "0.32"

@@ -108,6 +108,10 @@ fn replay(name: &str, raw: &[Value]) -> Option<Outcome> {
             let ns = options.get("namespace").and_then(Value::as_str)?.to_owned();
             result(rm::import::clipboard_html(&html, &ns), Outcome::Value)
         }
+        "document-source.editorDirectiveDefinitions" => Outcome::Value(rm::directive_definitions()),
+        "document-links.safeImageSource" => Outcome::Value(Value::Bool(rm::safe_image_source(&text(0)?))),
+        "content-edit.encodeDocumentAttributes" => result(rm::encode_attributes(&text(0)?, &arg(1)?), Outcome::Value),
+        "content-edit.decodeDocumentAttributes" => result(rm::decode_attributes(&text(0)?, &arg(1)?), Outcome::Value),
         "document-snapshot.documentToSnapshot" => result(rm::document_to_snapshot(&arg(0)?), Outcome::Value),
         "document-snapshot.snapshotToDocument" => result(rm::snapshot_to_document(&arg(0)?), Outcome::Value),
         "document-snapshot.normalizeDocument" => result(rm::normalize_document(&arg(0)?), Outcome::Value),

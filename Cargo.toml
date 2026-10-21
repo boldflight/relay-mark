@@ -1,4 +1,10 @@
 [workspace]
 resolver = "3"
-members = ["crates/relaymark-core"]
+members = ["crates/relaymark-core", "crates/relaymark-ffi"]
 
+
+# The Swift engine ships as static libraries in the package: small and fast.
+[profile.release]
+lto = true
+codegen-units = 1
+strip = "debuginfo"

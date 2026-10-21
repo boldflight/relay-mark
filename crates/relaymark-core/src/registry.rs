@@ -79,8 +79,7 @@ const DIRECTIVE_NODES: &[(&str, &str)] = &[
 ];
 
 /// Editor node names for each AST block type.
-#[cfg(test)]
-fn pm_names_for(ast_type: &str) -> Option<&'static [&'static str]> {
+pub fn pm_names_for(ast_type: &str) -> Option<&'static [&'static str]> {
     Some(match ast_type {
         "paragraph" => &["paragraph"],
         "heading" => &["heading"],

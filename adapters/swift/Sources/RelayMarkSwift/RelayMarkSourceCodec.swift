@@ -1,66 +1,76 @@
 import Foundation
 import JavaScriptCore
+import RelayMarkEngine
 
-/// The same packaged portable source/AST grammar used by browser clients.
-/// This runtime owns no Yjs document, undo manager, transport or host domain actions.
+/// The canonical RelayMark engine (relaymark-core), the same conversions the
+/// server and the web use. It owns no Yjs document, undo manager, transport or
+/// host domain action.
 public enum RelayMarkSourceCodec {
     public enum Failure: Error, Equatable { case unavailable, invalidInput, invalidAuthoredDocument }
     public static func parseDocument(_ source: String, namespace: String) throws -> Data {
-        try call("parseDocument",arguments:[source,["namespace":namespace]])
+        try RelayMarkEngineCall.run("parse", text: source, options: ["namespace": namespace])
     }
     public static func serializeDocument(_ document: Data) throws -> String {
-        try text("serializeDocument",document:document)
+        try RelayMarkEngineCall.text("serialize", document)
     }
     public static func projectDocumentMarkdown(_ document: Data) throws -> String {
-        try text("projectDocumentMarkdown",document:document)
+        try RelayMarkEngineCall.text("markdown", document)
     }
     public static func renderDocument(_ document: Data) throws -> String {
-        try text("renderDocument",document:document)
+        try RelayMarkEngineCall.text("html", document)
     }
     /// Canonical authored PM block ordinals, never hydrated labels or XML offsets.
     /// Duplicate explicit Anchor names remain ambiguous and require a unique match.
     public static func paperDocumentDestinations(document: Data) throws -> Data {
-        try call("paperDocumentDestinations", arguments: [json(document)])
+        try RelayMarkEngineCall.run("paper_destinations", document)
     }
     public static func importDocument(_ original: Data, namespace: String) throws -> Data {
-        try call("importDocument",arguments:[json(original),["namespace":namespace]])
+        try RelayMarkEngineCall.run("import_document", original, options: ["namespace": namespace])
     }
     public static func importSource(_ source: String, namespace: String) throws -> Data {
-        try call("importDocumentSource",arguments:[source,["namespace":namespace]])
+        try RelayMarkEngineCall.run("import_source", text: source, options: ["namespace": namespace])
     }
     public static func importDocumentSnapshot(_ original: Data, namespace: String) throws -> Data {
-        try call("importDocumentSnapshot",arguments:[json(original),["namespace":namespace]])
+        try RelayMarkEngineCall.run("import_snapshot", original, options: ["namespace": namespace])
     }
     public static func documentToSnapshot(_ document: Data) throws -> Data {
-        try call("documentToSnapshot",arguments:[json(document)])
+        try RelayMarkEngineCall.run("to_snapshot", document)
     }
     public static func snapshotToDocument(_ snapshot: Data) throws -> Data {
-        try call("snapshotToDocument",arguments:[json(snapshot)])
+        try RelayMarkEngineCall.run("from_snapshot", snapshot)
     }
     public static func buildEntityReferenceSource(entityType: String, entityID: String, label: String) throws -> String {
-        let data=try call("buildEntityReferenceSource",arguments:[["entityType":entityType,"entityId":entityID,"label":label]])
-        guard let value=try json(data) as? String else { throw Failure.invalidAuthoredDocument }
-        return value
+        try RelayMarkEngineCall.text("entity_reference_source", Data(), options: ["type": entityType, "id": entityID, "label": label])
     }
     public static func isSafeImageSource(_ source: String) throws -> Bool {
-        let data=try call("safeImageSource",arguments:[source])
-        guard let value=try json(data) as? Bool else { throw Failure.invalidAuthoredDocument }
-        return value
+        try RelayMarkEngineCall.run("safe_image_source", text: source) == Data("true".utf8)
     }
     public static func validateTextAttributes(_ attributes: [String:Any]) throws {
-        guard try json(call("validateTextAttributes",arguments:[attributes])) as? Bool == true else { throw Failure.invalidAuthoredDocument }
+        _ = try RelayMarkEngineCall.run("text_attributes", RelayMarkEngineCall.json(attributes))
     }
-    public static func directiveDefinitions() throws -> Data { try call("editorDirectiveDefinitions",arguments:[]) }
-    private static func json(_ data: Data) throws -> Any {
-        try JSONSerialization.jsonObject(with:data,options:.fragmentsAllowed)
+    public static func directiveDefinitions() throws -> Data { try RelayMarkEngineCall.run("directive_definitions", Data()) }
+}
+
+/// One call into relaymark-core: input bytes and JSON options in, result bytes
+/// out. A refusal is an invalid authored document, as the engine reports it.
+enum RelayMarkEngineCall {
+    static func run(_ job: String, _ input: Data, options: [String: Any] = [:]) throws -> Data {
+        let encoded = options.isEmpty ? Data() : try json(options)
+        do { return try relaymarkRun(job: job, input: input, options: encoded) }
+        catch { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
     }
-    private static func text(_ name: String, document: Data) throws -> String {
-        let data = try call(name,arguments:[json(document)])
-        guard let value = try json(data) as? String else { throw Failure.invalidAuthoredDocument }
-        return value
+    static func run(_ job: String, text: String, options: [String: Any] = [:]) throws -> Data {
+        try run(job, Data(text.utf8), options: options)
     }
-    private static func call(_ name: String, arguments: [Any]) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource:"document-source",global:"RelayMarkSourceRuntime",operation:name,arguments:arguments)
+    static func text(_ job: String, _ input: Data, options: [String: Any] = [:]) throws -> String {
+        guard let text = String(data: try run(job, input, options: options), encoding: .utf8) else {
+            throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
+        }
+        return text
+    }
+    static func json(_ value: Any) throws -> Data {
+        guard JSONSerialization.isValidJSONObject(value) else { throw RelayMarkSourceCodec.Failure.invalidInput }
+        return try JSONSerialization.data(withJSONObject: value)
     }
 }
 

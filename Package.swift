@@ -63,8 +63,19 @@ let package = Package(
             path: "adapters/swift/Tests/RelayMarkNativeCollaborationTests",
             resources: [.process("Fixtures")]
         ),
+        // relaymark-core, built by scripts/build-swift-engine.zsh.
+        .binaryTarget(
+            name: "RelayMarkFFI",
+            path: "adapters/swift/RelayMarkFFI.xcframework"
+        ),
+        .target(
+            name: "RelayMarkEngine",
+            dependencies: ["RelayMarkFFI"],
+            path: "adapters/swift/Sources/RelayMarkEngine"
+        ),
         .target(
             name: "RelayMarkSwift",
+            dependencies: ["RelayMarkEngine"],
             path: "adapters/swift/Sources/RelayMarkSwift",
             resources: [.process("Resources")]
         ),

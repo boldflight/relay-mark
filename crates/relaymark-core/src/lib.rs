@@ -30,6 +30,7 @@ mod error;
 mod html;
 mod html_import;
 mod inline;
+pub mod jobs;
 mod json;
 mod json_schema;
 mod jsre;
@@ -201,6 +202,48 @@ pub fn contract() -> Value {
 /// The canonical editor schema (`spec/relaymark/editor-schema.json`).
 pub fn editor_schema() -> &'static Value {
     &schema::editor_schema().source
+}
+
+/// Logical editor attributes to the physical XML attributes collaborative
+/// replicas store (form settings one field per attribute; nulls omitted).
+pub fn encode_attributes(node: &str, attributes: &Value) -> Result<Value> {
+    let Some(map) = attributes.as_object() else { return Err(Error::new("Invalid settings attributes")) };
+    snapshot::encode_attributes(node, map).map(Value::Object)
+}
+
+/// Physical XML attributes back to logical editor attributes.
+pub fn decode_attributes(node: &str, attributes: &Value) -> Result<Value> {
+    snapshot::decode_attributes(node, attributes).map(Value::Object)
+}
+
+/// Whether an image source may be kept in a paper: HTTPS or durable host media.
+pub fn safe_image_source(source: &str) -> bool {
+    links::safe_image_source(source)
+}
+
+/// The generic directive editor nodes: `{type, name, content, attributes,
+/// allowed_children, pm_allowed_children, minimum_children}` each.
+pub fn directive_definitions() -> Value {
+    let schema = editor_schema();
+    let definitions = registry::registry()
+        .nodes
+        .iter()
+        .map(|node| {
+            let content =
+                schema["nodes"].as_array().into_iter().flatten().find(|spec| spec["name"] == node.name).map_or(Value::Null, |spec| spec["content"].clone());
+            let pm: Vec<&str> = node.allowed_children.iter().flat_map(|child| registry::pm_names_for(child).unwrap_or_default().iter().copied()).collect();
+            serde_json::json!({
+                "type": node.ast_type,
+                "name": node.name,
+                "content": content,
+                "attributes": node.attributes,
+                "allowed_children": node.allowed_children,
+                "pm_allowed_children": pm,
+                "minimum_children": node.minimum_children,
+            })
+        })
+        .collect();
+    Value::Array(definitions)
 }
 
 /// Finite historical conversions, each run once at a recorded boundary with a

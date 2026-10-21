@@ -1,15 +1,15 @@
 import Foundation
 
-/// Stateless calls into the packaged content-edit runtime: HTML and clipboard
-/// import, attribute codecs and the ProseMirror-to-Yjs write plan.
+/// HTML and clipboard import and the attribute codecs run in relaymark-core;
+/// editor commands, clipboard navigation plans and the ProseMirror-to-Yjs
+/// write plan still run in the packaged content-edit runtime.
 public enum RelayMarkContentEditCodec {
     /// Pure canonical HTML conversion through the packaged shared DOM/PM
     /// grammar. The returned document grants no source, media or edit authority.
     /// Hosts must fence the captured paste and authorize references before using
     /// this material in their existing document transaction.
     public static func importDocumentHTML(_ html: String, namespace: String) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
-            operation: "importDocumentHTML", arguments: [["html": html, "namespace": namespace]])
+        try RelayMarkEngineCall.run("import_html", text: html, options: ["namespace": namespace])
     }
 
     /// Logical PM attributes and physical XML fields share the browser codec.
@@ -37,8 +37,8 @@ public enum RelayMarkContentEditCodec {
         return attributes
     }
     private static func documentAttributes(operation: String, nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
-        let result = try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
-            operation: operation, arguments: [nodeName, attributes])
+        let job = operation == "encodeDocumentAttributes" ? "encode_attributes" : "decode_attributes"
+        let result = try RelayMarkEngineCall.run(job, RelayMarkEngineCall.json(attributes), options: ["name": nodeName])
         guard let value = try JSONSerialization.jsonObject(with: result) as? [String: Any] else {
             throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument
         }
@@ -51,8 +51,7 @@ public enum RelayMarkContentEditCodec {
     }
     /// Pure clipboard Slice parser; returned context grants no host authority.
     public static func importClipboardHTML(_ html: String, namespace: String) throws -> Data {
-        try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime",
-            operation: "importClipboardHTML", arguments: [["html": html, "namespace": namespace]])
+        try RelayMarkEngineCall.run("import_clipboard_html", text: html, options: ["namespace": namespace])
     }
     public static func planClipboardAnchorAllocation(_ evidence: Data) throws -> Data {
         try RelayMarkPortableRuntime.call(resource: "content-edit-runtime", global: "RelayMarkContentEditRuntime", operation: "planClipboardAnchorAllocation", arguments: [JSONSerialization.jsonObject(with: evidence)])

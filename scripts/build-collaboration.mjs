@@ -22,7 +22,6 @@ for (const name of ['document-html-rules.js', 'editor-schema.js', 'contract.js',
 await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', supported: { 'template-literal': false }, external: ['./document-adapter.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-source.js' })
 
 await mkdir('adapters/swift/Sources/RelayMarkSwift/Resources', { recursive: true })
-await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'iife', globalName: 'RelayMarkSourceRuntime', platform: 'browser', target: 'es2023', supported: { 'template-literal': false }, minify: true, legalComments: 'inline', outfile: 'adapters/swift/Sources/RelayMarkSwift/Resources/document-source.js' })
 
 // Editor-only schema and table helpers for stock-binding TipTap hosts. The
 // shipped schema and HTML rules modules stay shared siblings, not inlined.
