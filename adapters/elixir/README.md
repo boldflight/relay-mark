@@ -76,3 +76,11 @@ mix hex.build --unpack
 This package is intentionally product-neutral. It does not execute Relay actions
 or know about Relay app persistence, authorization, LiveView, routes, or theme
 details.
+
+## License
+
+Licensed under either of the Apache License, Version 2.0
+([LICENSE-APACHE](LICENSE-APACHE)) or the MIT license
+([LICENSE-MIT](LICENSE-MIT)), at your option. Portions are derived from or
+bundle third-party software under their own licenses; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

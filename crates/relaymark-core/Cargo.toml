@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "The canonical RelayMark engine: Markdown, stored source, HTML, validation and snapshot conversion"
 edition = "2024"
 rust-version = "1.99"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]

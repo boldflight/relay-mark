@@ -70,3 +70,11 @@ This additive adapter checks the bundled Yjs store representation and
 fails closed if that representation changes. It establishes neither authorization,
 authorship, server receipt coverage nor equality with current remote state. Hosts
 still validate their own source frame, journal cuts and exact contribution IDs.
+
+## License
+
+Licensed under either of the Apache License, Version 2.0
+([LICENSE-APACHE](../../LICENSE-APACHE)) or the MIT license
+([LICENSE-MIT](../../LICENSE-MIT)), at your option. Portions are derived from
+or bundle third-party software under their own licenses; see
+[THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md).

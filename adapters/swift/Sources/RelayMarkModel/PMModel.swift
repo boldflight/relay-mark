@@ -6,6 +6,9 @@ import Foundation
 // Names and control flow follow the JavaScript source so behavior can be
 // checked against it line by line. Text is stored as UTF-16 code units, as
 // in JavaScript, so positions match ProseMirror's exactly.
+//
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others,
+// used under the MIT License; see THIRD_PARTY_NOTICES.md.
 
 package struct PMReplaceError: Error { let message: String }
 

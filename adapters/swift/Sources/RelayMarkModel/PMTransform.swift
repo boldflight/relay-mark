@@ -4,6 +4,9 @@ import CoreFoundation
 // A port of prosemirror-transform 1.12.2 replace.ts (replaceStep, Fitter,
 // replaceRange, deleteRange, replaceRangeWith) and the replace steps and
 // step maps they emit. Control flow mirrors the JavaScript source.
+//
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others,
+// used under the MIT License; see THIRD_PARTY_NOTICES.md.
 
 package enum PMStep {
     case addMark(from: Int, to: Int, mark: PMMark)
