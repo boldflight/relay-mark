@@ -1,0 +1,359 @@
+namespace yniffi {
+  [Throws=CodingError]
+  boolean has_additional_deletions_v1(sequence<u8> before, sequence<u8> after, sequence<u8> declared_by);
+  [Throws=CodingError]
+  sequence<u8> merge_updates_v1(sequence<sequence<u8>> updates);
+  [Throws=CodingError]
+  string relative_position_to_json(sequence<u8> encoded);
+  [Throws=CodingError]
+  sequence<u8> relative_position_from_json(string json);
+};
+
+[Error]
+enum CodingError {
+  "EncodingError",
+  "DecodingError",
+  "InvalidOperation",
+};
+
+interface YrsDoc {
+  constructor();
+  [Name=with_options]
+  constructor(string guid, boolean retain_deleted_items);
+  string guid();
+  [Throws=YrsUndoError]
+  YrsDoc fork_retained_history(u32 max_blocks);
+  [Throws=CodingError]
+  sequence<u8> state_snapshot([ByRef] YrsTransaction tx);
+  [Throws=CodingError]
+  sequence<u8> state_from_snapshot([ByRef] YrsTransaction tx, sequence<u8> snapshot, u32 max_steps);
+
+  [Throws=CodingError]
+  string inspect_format_event([ByRef] YrsTransaction tx, sequence<u8> update, string attribute, string targets_json, u32 max_steps);
+  [Throws=CodingError]
+  string inspect_xml_snapshot([ByRef] YrsTransaction tx, string root_name, u32 max_steps);
+  [Throws=CodingError]
+  string inspect_update_footprint([ByRef] YrsTransaction tx, sequence<u8> update, u32 max_steps);
+  [Throws=CodingError]
+  string inspect_visible_text_items([ByRef] YrsTransaction tx, sequence<u8> state_vector, string root_name, u32 max_steps);
+  [Throws=CodingError]
+  string inspect_restored_text_items([ByRef] YrsTransaction tx, sequence<u8> state_vector, string root_name, u32 max_steps);
+  [Throws=YrsUndoError]
+  void validate_undo_history(sequence<YrsCollectionPtr> tracked_refs, string json, string scope_token);
+  [Throws=YrsUndoError]
+  YrsUndoManager restore_undo_manager(sequence<YrsCollectionPtr> tracked_refs, string json, string scope_token, sequence<u64> metadata);
+
+  [Throws=CodingError]
+  sequence<u8> encode_diff_v1([ByRef] YrsTransaction tx, sequence<u8> state_vector);
+
+  YrsText get_text(string name);
+  YrsXmlNode get_xml_fragment(string name);
+  YrsAwareness make_awareness();
+  [Throws=CodingError]
+  YrsXmlResolvedPosition? resolve_xml_relative_position([ByRef] YrsTransaction tx, sequence<u8> encoded);
+  YrsArray get_array(string name);
+  YrsMap get_map(string name);
+  YrsTransaction transact(YrsOrigin? origin);
+  YrsUndoManager undo_manager(sequence<YrsCollectionPtr> tracked_refs);
+};
+
+dictionary YrsAwarenessState {
+  u64 client_id;
+  u32 clock;
+  u64 last_updated_millis;
+  string? json;
+};
+
+dictionary YrsAwarenessChanges {
+  sequence<u64> added;
+  sequence<u64> updated;
+  sequence<u64> removed;
+};
+
+interface YrsAwareness {
+  u64 client_id();
+  [Throws=CodingError]
+  void set_local_state(string json);
+  void clear_local_state();
+  sequence<YrsAwarenessState> states();
+  [Throws=CodingError]
+  sequence<u8> encode_update();
+  [Throws=CodingError]
+  sequence<u8> encode_update_for_clients(sequence<u64> client_ids);
+  [Throws=CodingError]
+  YrsAwarenessChanges? apply_update(sequence<u8> encoded);
+  [Throws=CodingError]
+  YrsAwarenessChanges? remove_remote_state(u64 client_id);
+};
+
+interface YrsTransaction {
+  [Throws=CodingError]
+  void transaction_apply_update(sequence<u8> update);
+
+  [Throws=CodingError]
+  sequence<u8> transaction_encode_state_as_update_from_sv(sequence<u8> state_vector);
+
+  sequence<u8> transaction_encode_state_as_update();
+  sequence<u8> transaction_encode_update();
+  sequence<u8> transaction_state_vector();
+  YrsIntegrationStatus integration_status();
+  YrsText? transaction_get_text(string name);
+  YrsArray? transaction_get_array(string name);
+  YrsMap? transaction_get_map(string name);
+  YrsOrigin? origin();
+  void free();
+};
+
+dictionary YrsIntegrationStatus {
+  boolean has_pending_structs;
+  boolean has_pending_deletes;
+};
+
+[Custom]
+typedef bytes YrsOrigin;
+
+[Custom]
+typedef u64 YrsCollectionPtr;
+
+interface YSubscription {
+};
+
+interface YrsMap {
+  YrsCollectionPtr raw_ptr();
+  u32 length([ByRef] YrsTransaction tx);
+  boolean contains_key([ByRef] YrsTransaction tx, string key);
+  void insert([ByRef] YrsTransaction tx, string key, string value);
+
+  [Throws=CodingError]
+  string get([ByRef] YrsTransaction tx, string key);
+
+  [Throws=CodingError]
+  string? remove([ByRef] YrsTransaction tx, string key);
+  void clear([ByRef] YrsTransaction tx);
+  void keys([ByRef] YrsTransaction tx, YrsMapIteratorDelegate delegate);
+  void values([ByRef] YrsTransaction tx, YrsMapIteratorDelegate delegate);
+  void each([ByRef] YrsTransaction tx, YrsMapKVIteratorDelegate delegate);
+
+  YSubscription observe(YrsMapObservationDelegate delegate);
+};
+
+[Enum]
+interface YrsEntryChange {
+  Inserted(string value);
+  Updated(string old_value, string new_value);
+  Removed(string value);
+};
+
+dictionary YrsMapChange {
+    string key;
+    YrsEntryChange change;
+};
+
+callback interface YrsMapIteratorDelegate {
+    void call(string value);
+};
+
+callback interface YrsMapKVIteratorDelegate {
+    void call(string key, string value);
+};
+
+callback interface YrsMapObservationDelegate {
+    void call(sequence<YrsMapChange> value);
+};
+
+interface YrsArray {
+  YrsCollectionPtr raw_ptr();
+  void each([ByRef] YrsTransaction tx, YrsArrayEachDelegate delegate);
+
+  [Throws=CodingError]
+  string get([ByRef] YrsTransaction tx, u32 index);
+  void insert([ByRef] YrsTransaction tx, u32 index, string value);
+  void insert_range([ByRef] YrsTransaction tx, u32 index, sequence<string> values);
+  u32 length([ByRef] YrsTransaction tx);
+  void push_back([ByRef] YrsTransaction tx, string value);
+  void push_front([ByRef] YrsTransaction tx, string value);
+  void remove([ByRef] YrsTransaction tx, u32 index);
+  void remove_range([ByRef] YrsTransaction tx, u32 index, u32 len);
+  sequence<string> to_a([ByRef] YrsTransaction tx);
+  YSubscription observe(YrsArrayObservationDelegate delegate);
+};
+
+callback interface YrsArrayEachDelegate {
+    void call(string value);
+};
+
+callback interface YrsArrayObservationDelegate {
+    void call(sequence<YrsChange> value);
+};
+
+[Enum]
+interface YrsChange {
+  Added(sequence<string> elements);
+  Removed(u32 range);
+  Retained(u32 range);
+};
+
+interface YrsText {
+  YrsCollectionPtr raw_ptr();
+  void format([ByRef] YrsTransaction tx, u32 index, u32 length, string attrs);
+  void append([ByRef] YrsTransaction tx, string text);
+  void insert([ByRef] YrsTransaction tx, u32 index, string chunk);
+  void insert_with_attributes([ByRef] YrsTransaction tx, u32 index, string chunk, string attrs);
+  void insert_embed([ByRef] YrsTransaction tx, u32 index, string content);
+  void insert_embed_with_attributes([ByRef] YrsTransaction tx, u32 index, string content, string attrs);
+  string get_string([ByRef] YrsTransaction tx);
+  void remove_range([ByRef] YrsTransaction tx, u32 start, u32 length);
+  u32 length([ByRef] YrsTransaction tx);
+  YSubscription observe(YrsTextObservationDelegate delegate);
+};
+
+dictionary YrsXmlAttribute {
+  string key;
+  string value_json;
+};
+
+dictionary YrsXmlTextRun {
+  string text;
+  string attributes_json;
+};
+
+dictionary YrsXmlResolvedPosition {
+  YrsXmlNode node;
+  u32 index;
+  i32 association;
+};
+
+interface YrsXmlNode {
+  boolean is_same_node([ByRef] YrsXmlNode other);
+  [Throws=CodingError]
+  YrsCollectionPtr raw_ptr([ByRef] YrsTransaction tx);
+  string kind([ByRef] YrsTransaction tx);
+  string? tag([ByRef] YrsTransaction tx);
+  u32 length([ByRef] YrsTransaction tx);
+  YrsXmlNode? child([ByRef] YrsTransaction tx, u32 index);
+  [Throws=CodingError]
+  YrsXmlNode insert_element([ByRef] YrsTransaction tx, u32 index, string tag);
+  [Throws=CodingError]
+  YrsXmlNode insert_text([ByRef] YrsTransaction tx, u32 index);
+  [Throws=CodingError]
+  void remove_children([ByRef] YrsTransaction tx, u32 index, u32 length);
+  [Throws=CodingError]
+  sequence<YrsXmlAttribute> attributes([ByRef] YrsTransaction tx);
+  [Throws=CodingError]
+  void set_attribute([ByRef] YrsTransaction tx, string key, string value_json);
+  [Throws=CodingError]
+  void remove_attribute([ByRef] YrsTransaction tx, string key);
+  [Throws=CodingError]
+  string text([ByRef] YrsTransaction tx);
+  [Throws=CodingError]
+  sequence<YrsXmlTextRun> delta([ByRef] YrsTransaction tx);
+  [Throws=CodingError]
+  string text_items([ByRef] YrsTransaction tx, u32 start, u32 length);
+  [Throws=CodingError]
+  void insert_string([ByRef] YrsTransaction tx, u32 index, string value, string attributes_json);
+  [Throws=CodingError]
+  void format([ByRef] YrsTransaction tx, u32 index, u32 length, string attributes_json);
+  [Throws=CodingError]
+  void remove_text([ByRef] YrsTransaction tx, u32 index, u32 length);
+  [Throws=CodingError]
+  sequence<u8> relative_position([ByRef] YrsTransaction tx, u32 index, i32 association);
+  [Throws=CodingError]
+  u32? resolve_relative_position([ByRef] YrsTransaction tx, sequence<u8> encoded);
+};
+
+callback interface YrsTextObservationDelegate {
+    void call(sequence<YrsDelta> value);
+};
+
+[Enum]
+interface YrsDelta {
+  Inserted(string value, string attrs);
+  Deleted(u32 index);
+  Retained(u32 index, string attrs);
+};
+
+/// A manager type able to track changes occurring in a context of a given document.
+/// These changes can be reverted using `undo` method call, or re-applied via `redo`.
+dictionary YrsUndoSnapshot {
+    string json;
+    sequence<u64> metadata;
+};
+
+interface YrsUndoManager {
+    void preserve_changed_xml(boolean enabled);
+    sequence<u64> undo_metadata();
+    sequence<u64> redo_metadata();
+    [Throws=YrsUndoError]
+    sequence<u64> retire_history_items(sequence<u64> undo_indices, sequence<u64> redo_indices);
+    [Throws=YrsUndoError]
+    YrsUndoSnapshot export_history(string scope_token);
+    /// Adds a specific origin identifier to a list of tracked origins. If tracked
+    /// origin list is not empty, current undo manager will only track changes applied
+    /// over transactions created with a specific origin.
+    void add_origin(YrsOrigin origin);
+
+    /// Removes an existing origin identifier from a list of tracked origins. If tracked
+    /// origin list is not empty, current undo manager will only track changes applied
+    /// over transactions created with a specific origin.
+    void remove_origin(YrsOrigin origin);
+
+    /// Adds a new shared collection to a list of entities observed by current undo manager.
+    void add_scope(YrsCollectionPtr tracked_ref);
+
+    /// Undoes the last operation, pushing it onto redo stack, returning false if undo
+    /// stack was empty an method had no effect.
+    /// Fails to execute if there's another transaction in progress.
+    [Throws=YrsUndoError]
+    boolean undo();
+
+    /// Redoes the last operation from undo stack, returning false if redo stack was
+    /// empty an method had no effect.
+    /// Fails to execute if there's another transaction in progress.
+    [Throws=YrsUndoError]
+    boolean redo();
+
+    /// Undoes the last operation and returns that transaction's own lib0 v1
+    /// update, empty when the undo stack was empty.
+    [Throws=YrsUndoError]
+    bytes undo_update();
+
+    /// Redoes the last undone operation and returns that transaction's own
+    /// lib0 v1 update, empty when the redo stack was empty.
+    [Throws=YrsUndoError]
+    bytes redo_update();
+
+    /// Wraps a set of recent changes together into a single undo operation. These
+    /// changes will be be undone together on the next `undo` method call.
+    void wrap_changes();
+
+    /// Clears the undo/redo stacks of a current undo manager.
+    [Throws=YrsUndoError]
+    void clear();
+
+    YSubscription observe_added(YrsUndoManagerObservationDelegate delegate);
+
+    YSubscription observe_updated(YrsUndoManagerObservationDelegate delegate);
+
+    YSubscription observe_popped(YrsUndoManagerObservationDelegate delegate);
+};
+
+[Error]
+enum YrsUndoError {
+  "PendingTransaction",
+  "InvalidHistory"
+};
+
+callback interface YrsUndoManagerObservationDelegate {
+    u64 call(YrsUndoEvent e, u64 ptr);
+};
+
+interface YrsUndoEvent {
+    YrsOrigin? origin();
+    YrsUndoEventKind kind();
+    boolean has_changed(YrsCollectionPtr shared_ref);
+};
+
+enum YrsUndoEventKind {
+    "Undo",
+    "Redo",
+};

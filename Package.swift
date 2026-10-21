@@ -3,8 +3,9 @@
 import Foundation
 import PackageDescription
 
-// relaymark-core, built and published by scripts/build-swift-engine.zsh as a
-// release asset. RELAYMARK_LOCAL_ENGINE=1 uses the script's local build instead.
+// The package's one Rust library (crates/relaymark-apple: relaymark-core and
+// yrs), built and published by scripts/build-swift-engine.zsh as a release
+// asset. RELAYMARK_LOCAL_ENGINE=1 uses the script's local build instead.
 let engineURL = "https://github.com/boldflight/relay-mark/releases/download/engine-98b442011a3e/RelayMarkFFI.xcframework.zip"
 let engineChecksum = "51290afae048dfffc668a55908d7e151ceb24976d43ed3f738d1ffdba7f5c62a"
 let engine: Target = ProcessInfo.processInfo.environment["RELAYMARK_LOCAL_ENGINE"] == nil
@@ -27,9 +28,6 @@ let package = Package(
         .library(name: "RelayMarkNativeCollaboration", targets: ["RelayMarkNativeCollaboration"]),
         .library(name: "RelayMarkEditor", targets: ["RelayMarkEditor"])
     ],
-    dependencies: [
-        .package(url: "https://github.com/boldflight/yswift.git", revision: "6c8f3baa6fbd8706a9cdd0ea989dd6df34590789")
-    ],
     targets: [
         .target(
             name: "RelayMarkCollaboration",
@@ -47,7 +45,7 @@ let package = Package(
         ),
         .target(
             name: "RelayMarkNativeCollaboration",
-            dependencies: ["RelayMarkModel", "RelayMarkProseProjection", "RelayMarkSwift", .product(name: "YSwift", package: "yswift")],
+            dependencies: ["RelayMarkModel", "RelayMarkProseProjection", "RelayMarkSwift", "YSwift"],
             path: "adapters/swift/Sources/RelayMarkNativeCollaboration"
         ),
         .target(
@@ -79,6 +77,26 @@ let package = Package(
             name: "RelayMarkEngine",
             dependencies: ["RelayMarkFFI"],
             path: "adapters/swift/Sources/RelayMarkEngine"
+        ),
+        // YSwift, vendored from boldflight/yswift, over the yrs binding in the engine.
+        .target(
+            name: "Yniffi",
+            dependencies: ["RelayMarkFFI"],
+            path: "adapters/swift/Sources/Yniffi",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .target(
+            name: "YSwift",
+            dependencies: ["Yniffi"],
+            path: "adapters/swift/Sources/YSwift",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .testTarget(
+            name: "YSwiftTests",
+            dependencies: ["YSwift"],
+            path: "adapters/swift/Tests/YSwiftTests",
+            resources: [.copy("Fixtures")],
+            swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .target(
             name: "RelayMarkSwift",

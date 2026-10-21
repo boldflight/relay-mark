@@ -29,6 +29,15 @@ original names and control flow so behavior can be checked line by line.
 | [mdurl](https://github.com/markdown-it/mdurl) (its `url.parse` follows Node.js) | 2.1.0 | MIT | `crates/relaymark-core/src/mdurl.rs` |
 | [punycode.js](https://github.com/mathiasbynens/punycode.js) | 2.3.1 | MIT | `crates/relaymark-core/src/mdurl.rs` |
 
+## Vendored source
+
+These files are copied from a third-party project and maintained here, so the
+Swift package can link them into its one Rust library.
+
+| Upstream | Version | License | Vendored in |
+| --- | --- | --- | --- |
+| [yswift](https://github.com/y-crdt/yswift), through Relay's fork [boldflight/yswift](https://github.com/boldflight/yswift) | fork revision 6c8f3baa6fbd | MIT | `crates/yniffi` (with its `LICENSE`), `adapters/swift/Sources/YSwift`, `adapters/swift/Tests/YSwiftTests` |
+
 ## Bundled JavaScript
 
 The generated modules under `adapters/elixir/priv/collaboration/` (built by
@@ -63,6 +72,8 @@ Applies to every component above marked MIT. Copyright lines:
   (prosemirror-tables)
 - Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
   (orderedmap)
+- Copyright (c) 2023 Kevin Jahns, Bartosz Sypytkowski, Hannes Moser, Aidar
+  Nugmanoff, Joseph Heck (yswift)
 - Copyright (c) 2025, Tiptap GmbH (Tiptap: the ported core commands and keymaps,
   and the extensions' parseHTML rules)
 - Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin (markdown-it)

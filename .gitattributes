@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# uniffi-generated bindings, written by scripts/build-swift-engine.zsh
+adapters/swift/Sources/RelayMarkEngine/RelayMarkFFI.swift -whitespace
+adapters/swift/Sources/Yniffi/Yniffi.swift -whitespace

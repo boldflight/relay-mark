@@ -1,0 +1,65 @@
+mod deletion_sets;
+mod array;
+mod awareness;
+mod attrs;
+mod change;
+mod delta;
+mod doc;
+mod error;
+mod map;
+mod mapchange;
+mod relative_position;
+mod text;
+mod transaction;
+mod undo;
+mod xml;
+mod subscription;
+
+use crate::doc::YrsCollectionPtr;
+use crate::doc::YrsOrigin;
+use crate::array::YrsArray;
+use crate::awareness::{YrsAwareness, YrsAwarenessChanges, YrsAwarenessState};
+use crate::array::YrsArrayEachDelegate;
+use crate::array::YrsArrayObservationDelegate;
+use crate::change::YrsChange;
+use crate::delta::YrsDelta;
+use crate::doc::YrsDoc;
+use crate::error::CodingError;
+use crate::map::YrsMap;
+use crate::map::YrsMapIteratorDelegate;
+use crate::map::YrsMapKVIteratorDelegate;
+use crate::map::YrsMapObservationDelegate;
+use crate::mapchange::YrsEntryChange;
+use crate::mapchange::YrsMapChange;
+use crate::text::YrsText;
+use crate::text::YrsTextObservationDelegate;
+use crate::transaction::{YrsIntegrationStatus, YrsTransaction};
+use crate::undo::{YrsUndoManager, YrsUndoSnapshot};
+use crate::undo::YrsUndoError;
+use crate::undo::YrsUndoManagerObservationDelegate;
+use crate::undo::YrsUndoEvent;
+use crate::undo::YrsUndoEventKind;
+use crate::xml::{YrsXmlAttribute, YrsXmlNode, YrsXmlResolvedPosition, YrsXmlTextRun};
+
+fn merge_updates_v1(updates: Vec<Vec<u8>>) -> Result<Vec<u8>, CodingError> {
+    yrs::merge_updates_v1(updates.iter().map(|update| update.as_slice()))
+        .map_err(|_| CodingError::DecodingError)
+}
+use crate::relative_position::{relative_position_from_json, relative_position_to_json};
+use crate::subscription::YSubscription;
+
+use crate::deletion_sets::has_additional_deletions_v1;
+
+uniffi::include_scaffolding!("yniffi");
+
+// The UDL's [Custom] types. They are declared at the crate root, where the
+// UDL's own metadata places them.
+uniffi::custom_type!(YrsOrigin, Vec<u8>, {
+    lower: |origin| origin.0.to_vec(),
+    try_lift: |bytes| Ok(YrsOrigin(bytes.into())),
+});
+
+uniffi::custom_type!(YrsCollectionPtr, u64, {
+    lower: |pointer| pointer.0 as usize as u64,
+    try_lift: |value| Ok(YrsCollectionPtr(value as usize as *const yrs::branch::Branch)),
+});

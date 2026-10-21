@@ -31,7 +31,7 @@ it from the branch. When the branch is empty, return to the upstream release.
 | --- | --- | --- | --- | --- |
 | Yjs | browsers, the JavaScriptCore adapter | boldflight/yjs release `v13.6.33-relay.1` (branch `relay`) | 13.6.33 | yjs/yjs#806 undo of merged redone items |
 | Yrs | YSwift (native), Yex (server) | boldflight/y-crdt branch `relay` | 0.28.0 | y-crdt/y-crdt#656 text-item resolution, #657 format events, #674 (the #806 counterpart) |
-| YSwift | native apps | boldflight/yswift branch `relay` | upstream `main` | RelayMark XML, relative positions and awareness bindings |
+| YSwift | native apps | vendored in this repository (`crates/yniffi`, `adapters/swift/Sources/YSwift`) from boldflight/yswift revision 6c8f3baa6fbd | upstream `main` | RelayMark XML, relative positions and awareness bindings |
 | Yex | Relay server | boldflight/y_ex branch `relay` | 0.12.0 | bindings for the Yrs patches above |
 
 The browser editor uses upstream TipTap 3.31.3 and y-tiptap 3.0.9, unforked.

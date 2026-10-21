@@ -8,16 +8,7 @@ license = "MIT"
 publish = false
 
 [lib]
-crate-type = ["staticlib", "lib"]
 name = "relaymark_ffi"
-
-[[bin]]
-name = "uniffi-bindgen"
-path = "src/bindgen.rs"
-required-features = ["bindgen"]
-
-[features]
-bindgen = ["uniffi/cli"]
 
 [dependencies]
 relaymark-core = { path = "../relaymark-core" }

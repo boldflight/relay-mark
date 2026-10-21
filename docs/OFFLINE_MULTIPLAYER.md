@@ -64,9 +64,12 @@ Arbitrary cross-container selections, full table authoring and arbitrary cross-c
 production readiness or change hosted admission.
 
 The September 24 integration spike is complete, and implementation has resumed.
-The chosen native direction is a maintained fork of y-crdt/YSwift with Yrs as its
-CRDT engine. Add the missing XML, relative-position, and Apple platform bindings
-in reviewable upstream contributions; do not implement another CRDT algorithm.
+The chosen native direction is YSwift with Yrs as its CRDT engine, maintained
+in Relay's fork of y-crdt/YSwift and now vendored here (`crates/yniffi`,
+`adapters/swift/Sources/YSwift`) so the package links one Rust library
+([one Rust library on Apple platforms](engineering/apple-rust-library.md)).
+Offer the missing XML, relative-position, and Apple platform bindings as
+reviewable upstream contributions; do not implement another CRDT algorithm.
 `RelayMarkProseProjection` contains the pure Swift presentation and UTF-16
 position mapping. `RelayMarkNativeCollaboration` adapts YSwift XML updates to
 RelayMark's portable snapshot and editor operations. `RelayMarkCollaboration`

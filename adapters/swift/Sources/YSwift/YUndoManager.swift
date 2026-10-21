@@ -1,0 +1,235 @@
+import Combine
+import Foundation
+import Yniffi
+
+/// An undo manager to track and reverse changes on YSwift collections.
+///
+/// Set the one or more origins to track with ``addOrigin(_:)``.
+/// If no origins are set, the undo manager tracks changes from any origin.
+public final class YUndoManager<T: AnyObject> {
+    private let _manager: YrsUndoManager
+
+    init(manager: YrsUndoManager) {
+        _manager = manager
+    }
+
+    /// Atomically capture the retained CRDT and maintained undo/redo stacks.
+    /// Object metadata is encoded as JSON, never persisted as process pointer addresses.
+    public func exportHistory(scopeToken: String, encodeMetadata: (T) throws -> Data) throws -> YUndoHistoryArchive {
+        let snapshot = try _manager.exportHistory(scopeToken: scopeToken)
+        guard let data = snapshot.json.data(using: .utf8), var value = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw YUndoHistoryError.invalidArchive }
+        value["metadata"] = try snapshot.metadata.map { pointer -> Any in
+            guard pointer != 0, let raw = UnsafeRawPointer(bitPattern: UInt(pointer)) else { return NSNull() }
+            let object = Unmanaged<T>.fromOpaque(raw).takeUnretainedValue()
+            return try JSONSerialization.jsonObject(with: encodeMetadata(object), options: [.fragmentsAllowed])
+        }
+        return try YUndoHistoryArchive(data: JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]))
+    }
+
+    /// Exact maintained stack metadata, oldest-first. Reading does not consume
+    /// retained metadata or mutate history. Nil marks an unbound stack item.
+    public func undoMetadata() -> [T?] { metadata(_manager.undoMetadata()) }
+    public func redoMetadata() -> [T?] { metadata(_manager.redoMetadata()) }
+    private func metadata(_ pointers: [UInt64]) -> [T?] {
+        pointers.map { pointer in
+            guard pointer != 0, let raw = UnsafeRawPointer(bitPattern: UInt(pointer)) else { return nil }
+            return Unmanaged<T>.fromOpaque(raw).takeUnretainedValue()
+        }
+    }
+
+    /// Trusted complete-item transition. The caller validates owner/reference
+    /// membership before selecting sorted current indices. The maintained core
+    /// releases retired keep bits and preserves surviving redone/parent closure.
+    @discardableResult
+    public func retireHistoryItems(undoIndices: [Int], redoIndices: [Int]) throws -> (undo: Int, redo: Int) {
+        guard undoIndices.allSatisfy({ $0 >= 0 }), redoIndices.allSatisfy({ $0 >= 0 }) else { throw YUndoHistoryError.invalidArchive }
+        let retired = try _manager.retireHistoryItems(undoIndices: undoIndices.map(UInt64.init), redoIndices: redoIndices.map(UInt64.init))
+        for pointer in retired {
+            guard pointer != 0, let raw = UnsafeRawPointer(bitPattern: UInt(pointer)) else { continue }
+            Unmanaged<T>.fromOpaque(raw).release()
+        }
+        return (undoIndices.count, redoIndices.count)
+    }
+
+    /// Preserve an owned-created XML skeleton when its inverse would hide
+    /// surviving edits. Text and format ownership remains with the same manager.
+    public func preserveChangedXML(_ enabled: Bool = true) {
+        _manager.preserveChangedXml(enabled: enabled)
+    }
+
+    /// Adds an origin that the Undo manager tracks.
+    /// - Parameter origin: The origin to track.
+    public func addOrigin(_ origin: Origin) {
+        _manager.addOrigin(origin: origin.origin)
+    }
+
+    /// Removes an origin that the Undo manager tracks.
+    /// - Parameter origin: The origin to remove from tracking.
+    public func removeOrigin(_ origin: Origin) {
+        _manager.removeOrigin(origin: origin.origin)
+    }
+
+    /// Adds another collection to track with the Undo manager
+    /// - Parameter collection: The collection to track.
+    public func track(_ collection: YCollection) {
+        _manager.addScope(trackedRef: collection.pointer())
+    }
+
+    /// Undo a change on a collection you're tracking back to the last point you set
+    ///
+    /// Set a point to undo back to with ``wrap()``.
+    /// Additional calls will undo to points further back on the stack, if set.
+    /// - Returns: A Boolean value that indicates wether the change was undone.
+    public func undo() throws -> Bool {
+        return try _manager.undo()
+    }
+
+    /// Undoes like ``undo()`` and returns the undo transaction's own update
+    /// (lib0 v1), which carries only what it inserted and deleted; nil when
+    /// there was nothing to undo.
+    public func undoUpdate() throws -> Data? {
+        let update = try _manager.undoUpdate()
+        return update.isEmpty ? nil : Data(update)
+    }
+
+    /// Redoes like ``redo()`` and returns that transaction's own update; nil
+    /// when there was nothing to redo.
+    public func redoUpdate() throws -> Data? {
+        let update = try _manager.redoUpdate()
+        return update.isEmpty ? nil : Data(update)
+    }
+
+    /// Replays a change forward from the Undo managers stack.
+    /// - Returns: A Boolean value that indicates wether the change was replayed.
+    public func redo() throws -> Bool {
+        return try _manager.redo()
+    }
+
+    /// Mark a point in time that you want to be able to reverse back to.
+    ///
+    /// The Undo Manager tracks the points you set in a stack.
+    /// Undo the to the most recent point set using ``undo()``.
+    public func wrap() {
+        _manager.wrapChanges()
+    }
+
+    /// Clears the stack of undo/redo actions.
+    public func clear() throws {
+        try _manager.clear()
+    }
+
+    /// Creates a subscription that is called when the undo manager adds a change.
+    /// - Parameter body: A closure that provides ``UndoEvent`` about the change.
+    /// - Returns: A handle to the subscription.
+    ///
+    /// Cancel the subscription by calling ``unobserveAdded(_:)`` with the subscription Id this method returns.
+    public func observeAdded(_ body: @escaping (UndoEvent, T?) -> T?) -> YSubscription {
+        let delegate = YUndoManagerObservationDelegate(callback: body)
+        return YSubscription(subscription: _manager.observeAdded(delegate: delegate))
+    }
+
+    /// Creates a subscription that is called when the undo manager updates a change.
+    /// - Parameter body: A closure that provides an ``UndoEvent`` about the changes that were updated..
+    /// - Returns: A handle to the subscription.
+    ///
+    /// Call ``unobserveUpdated(_:)`` with the subscription Id this method returns to cancel the subscription.
+    public func observeUpdated(_ body: @escaping (UndoEvent, T?) -> T?) -> YSubscription {
+        let delegate = YUndoManagerObservationDelegate(callback: body)
+        return YSubscription(subscription: _manager.observeUpdated(delegate: delegate))
+    }
+
+    /// Creates a subscription that is called when the undo manager replays a change.
+    /// - Parameter body: A closure that provides an ``UndoEvent`` about the changes being replayed.
+    /// - Returns: A handle to the subscription.
+    ///
+    /// Call ``unobserveUpdated(_:)`` with the subscription Id this method returns to cancel the subscription.
+    public func observePopped(_ body: @escaping (UndoEvent, T?) -> T?) -> YSubscription {
+        let delegate = YUndoManagerObservationDelegate(callback: body)
+        return YSubscription(subscription: _manager.observePopped(delegate: delegate))
+    }
+}
+
+// The binding's delegate protocols are Sendable; Yrs calls these back
+// synchronously on the thread that made the call.
+final class YUndoManagerObservationDelegate<T: AnyObject>: YrsUndoManagerObservationDelegate, @unchecked Sendable {
+    private let callback: (YrsUndoEvent, UInt64) -> UInt64
+
+    init(callback: @escaping (UndoEvent, T?) -> T?) {
+        self.callback = { (event: YrsUndoEvent, ptr: UInt64) -> UInt64 in
+            let obj = callback(UndoEvent(event), YUndoManagerObservationDelegate.bridge(ptr: ptr))
+            return YUndoManagerObservationDelegate.bridge(obj: obj)
+        }
+    }
+
+    func call(e: Yniffi.YrsUndoEvent, ptr: UInt64) -> UInt64 {
+        return callback(e, ptr)
+    }
+
+    static func bridge(obj: T?) -> UInt64 {
+        if let obj {
+            let ptr = UnsafeRawPointer(Unmanaged.passRetained(obj).toOpaque())
+            return UInt64(bitPattern: Int64(Int(bitPattern: ptr)))
+        } else {
+            return UInt64(bitPattern: Int64(Int(bitPattern: nil)))
+        }
+    }
+
+    static func bridge(ptr: UInt64) -> T? {
+        let unsafe_ptr = UnsafeRawPointer(bitPattern: Int(ptr))
+        if let unsafe_ptr {
+            return Unmanaged.fromOpaque(unsafe_ptr).takeRetainedValue()
+        } else {
+            return nil
+        }
+    }
+}
+
+/// Metadata about an undo event
+public struct UndoEvent {
+    let event: YrsUndoEvent
+    init(_ event: YrsUndoEvent) {
+        self.event = event
+    }
+
+    /// The type of undo event.
+    public var type: YrsUndoEventKind {
+        return event.kind()
+    }
+
+    /// The origin of the set of changes.
+    public var origin: Origin? {
+        let origin = event.origin()
+        if let origin {
+            return Origin(origin)
+        } else {
+            return nil
+        }
+    }
+
+    /// <#Description#>
+    /// - Parameter sharedRef: <#sharedRef description#>
+    /// - Returns: <#description#>
+    public func hasChanged<T: YCollection>(_ sharedRef: T) -> Bool {
+        return event.hasChanged(sharedRef: sharedRef.pointer())
+    }
+}
+
+
+/// An exact local checkpoint of one maintained Yrs history and its retained document.
+/// It is recovery input, not authority to edit a different account or document.
+public struct YUndoHistoryArchive {
+    public let data: Data
+    public init(data: Data) throws {
+        self.data = data
+        let value = try object()
+        guard value["document_guid"] is String, value["scope_token"] is String,
+              value["document_state"] is [UInt8], value["metadata"] is [Any] else { throw YUndoHistoryError.invalidArchive }
+    }
+    func object() throws -> [String: Any] {
+        guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw YUndoHistoryError.invalidArchive }
+        return result
+    }
+    public var documentGUID: String { (try? object()["document_guid"] as? String) ?? "" }
+    public var documentState: Data { Data((try? object()["document_state"] as? [UInt8]) ?? []) }
+}
+public enum YUndoHistoryError: Error { case invalidArchive }
