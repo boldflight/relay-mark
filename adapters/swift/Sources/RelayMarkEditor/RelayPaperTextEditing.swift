@@ -86,6 +86,9 @@ protocol RelayPaperTextEditing: AnyObject {
     /// Toggles one inline mark over a selection the same way.
     func toggleMarkNatively(_ mark: RelayMarkFormattingMark, range: NSRange) -> Bool
     func handleNativeListIndent(backward: Bool) -> Bool
+    /// Whether a paper command applies to the selection, and running it.
+    func canPerform(_ command: RelayMarkEditorCommand) -> Bool
+    func perform(_ command: RelayMarkEditorCommand)
     /// Deletes the whole table whose text starts at `paperLocation`, as one command.
     func deleteTableNatively(at paperLocation: Int) -> Bool
     /// Backspace at the start or Delete at the end, where the text view has

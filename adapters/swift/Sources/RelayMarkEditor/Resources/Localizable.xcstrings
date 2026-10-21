@@ -40,6 +40,39 @@
         }
       }
     },
+    "Body" : {
+      "comment" : "Editor command that returns the block to body text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本文"
+          }
+        }
+      }
+    },
+    "Bold" : {
+      "comment" : "Editor command that toggles bold text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "太字"
+          }
+        }
+      }
+    },
+    "Bullet List" : {
+      "comment" : "Editor command that makes the block a bulleted list.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "箇条書き"
+          }
+        }
+      }
+    },
     "Button: %@" : {
       "comment" : "Paper control chip; the placeholder is the button's label.",
       "localizations" : {
@@ -47,6 +80,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ボタン：%@"
+          }
+        }
+      }
+    },
+    "Callout" : {
+      "comment" : "Editor command that inserts a callout.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コールアウト"
+          }
+        }
+      }
+    },
+    "Checklist" : {
+      "comment" : "Editor command that makes the block a checklist of tasks.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チェックリスト"
+          }
+        }
+      }
+    },
+    "Code Block" : {
+      "comment" : "Editor command that inserts a code block.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コードブロック"
           }
         }
       }
@@ -73,6 +139,17 @@
         }
       }
     },
+    "Divider" : {
+      "comment" : "Editor command that inserts a divider.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区切り線"
+          }
+        }
+      }
+    },
     "Every item must be a supported image. No subset was inserted." : {
       "comment" : "Shown when some pasted or dropped items are not supported images.",
       "localizations" : {
@@ -84,6 +161,17 @@
         }
       }
     },
+    "Format" : {
+      "comment" : "Menu of the paper's editing commands.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "フォーマット"
+          }
+        }
+      }
+    },
     "Header: %@" : {
       "comment" : "VoiceOver label of a table header cell; the placeholder is its text.",
       "localizations" : {
@@ -91,6 +179,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "見出し：%@"
+          }
+        }
+      }
+    },
+    "Heading %lld" : {
+      "comment" : "Editor command that makes the block a heading of this level.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見出し%lld"
+          }
+        }
+      }
+    },
+    "Highlight" : {
+      "comment" : "Editor command that toggles highlighted text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ハイライト"
           }
         }
       }
@@ -128,6 +238,39 @@
         }
       }
     },
+    "Indent" : {
+      "comment" : "Editor command that nests the list item one level deeper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インデント"
+          }
+        }
+      }
+    },
+    "Inline Code" : {
+      "comment" : "Editor command that toggles inline code.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インラインコード"
+          }
+        }
+      }
+    },
+    "Italic" : {
+      "comment" : "Editor command that toggles italic text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斜体"
+          }
+        }
+      }
+    },
     "Mark as done" : {
       "comment" : "VoiceOver action that checks the task at the caret.",
       "localizations" : {
@@ -161,6 +304,39 @@
         }
       }
     },
+    "Numbered List" : {
+      "comment" : "Editor command that makes the block a numbered list.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "番号付きリスト"
+          }
+        }
+      }
+    },
+    "Outdent" : {
+      "comment" : "Editor command that moves the list item one level out.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インデントを戻す"
+          }
+        }
+      }
+    },
+    "Quote" : {
+      "comment" : "Editor command that makes the block a quote.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引用"
+          }
+        }
+      }
+    },
     "Reference %@" : {
       "comment" : "VoiceOver label of an inline reference chip; the placeholder is the referenced item's title.",
       "localizations" : {
@@ -183,6 +359,28 @@
         }
       }
     },
+    "Strikethrough" : {
+      "comment" : "Editor command that toggles struck-through text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取り消し線"
+          }
+        }
+      }
+    },
+    "Subscript" : {
+      "comment" : "Editor command that toggles subscript text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下付き"
+          }
+        }
+      }
+    },
     "Suggestion (%@): %@" : {
       "comment" : "Agent suggestion chip; the placeholders are the suggestion kind and its text.",
       "localizations" : {
@@ -196,6 +394,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "提案（%1$@）：%2$@"
+          }
+        }
+      }
+    },
+    "Superscript" : {
+      "comment" : "Editor command that toggles superscript text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上付き"
           }
         }
       }
@@ -471,6 +680,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ペーストした画像が多すぎます。何も挿入していません。"
+          }
+        }
+      }
+    },
+    "Underline" : {
+      "comment" : "Editor command that toggles underlined text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下線"
           }
         }
       }

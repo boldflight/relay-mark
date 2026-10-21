@@ -168,6 +168,17 @@ extension RelayPaperTextView {
         })
     }
 
+    /// Runs the paper command a platform action names (the system's underline
+    /// key or panel button), or refuses it when it does not apply here.
+    @discardableResult
+    func performPaperCommand(_ id: String) -> Bool {
+        guard let session = editingSession, let command = RelayMarkEditorCommand.command(id: id),
+              session.canPerform(command) else { RelayPaperRefusal.feedback(); return false }
+        session.perform(command)
+        onSessionEdit?()
+        return true
+    }
+
     /// Sets or removes an inline mark over every selected range.
     func setMark(_ mark: RelayMarkFormattingMark, enabled: Bool) -> Bool {
         guard let session = editingSession else { return false }

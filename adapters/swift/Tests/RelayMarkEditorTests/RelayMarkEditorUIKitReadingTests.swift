@@ -101,25 +101,6 @@ struct RelayMarkEditorUIKitReadingTests {
 
     // MARK: Input the paper cannot keep
 
-    /// Underline is not a mark the paper can store. Offered, TextKit would show
-    /// it until the next render, then drop it without saving.
-    @Test func underlineIsNotOfferedAndIsRefused() throws {
-        let paper = try mount(markdown: "Hello world")
-        defer { paper.retire() }
-        var refusals = 0
-        let feedback = RelayPaperRefusal.feedback
-        RelayPaperRefusal.feedback = { refusals += 1 }
-        defer { RelayPaperRefusal.feedback = feedback }
-        paper.window.makeKeyAndVisible()
-        #expect(paper.view.becomeFirstResponder())
-        paper.view.selectedRanges = [NSRange(location: 0, length: 5)]
-        #expect(!paper.view.canPerformAction(#selector(UIResponderStandardEditActions.toggleUnderline(_:)), withSender: nil))
-        #expect(paper.view.canPerformAction(#selector(UIResponderStandardEditActions.toggleBoldface(_:)), withSender: nil))
-        paper.view.toggleUnderline(nil)
-        #expect(refusals == 1)
-        #expect(String(paper.editor.text.characters) == "Hello world")
-    }
-
     /// The formatting panel offers only the paper's marks and applies them through
     /// the session; a font size the paper cannot store is refused, not shown and lost.
     @Test func theFormattingPanelAppliesOnlyThePapersMarks() throws {

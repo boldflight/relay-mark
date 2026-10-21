@@ -863,12 +863,18 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             if view.editingSession === session { session.onFocusRequest = nil }
             view.editingSession = nil
         }
-        func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
-            guard let view = view as? CollaborationTextView, !view.retired else { return menu }
+        /// Section links lead the context menu; the paper's Format commands follow the system's items.
+        func textView(_ textView: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
+            guard let view = textView as? CollaborationTextView, !view.retired else { return menu }
             let entries = view.sectionMenuEntries(link: services.sectionLink)
-            guard !entries.isEmpty else { return menu }
-            menu.insertItem(.separator(), at: 0)
-            for entry in entries.reversed() { menu.insertItem(RelayMenuAction.item(entry.title, entry.run), at: 0) }
+            if !entries.isEmpty {
+                menu.insertItem(.separator(), at: 0)
+                for entry in entries.reversed() { menu.insertItem(RelayMenuAction.item(entry.title, entry.run), at: 0) }
+            }
+            if view.editingSession === session, session.isEditable {
+                menu.addItem(.separator())
+                menu.addItem(RelayMarkEditorCommandMenus.format(session: session) { [weak view] in view?.onSessionEdit?() })
+            }
             return menu
         }
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
@@ -1012,10 +1018,10 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     /// Format menu actions with no mark in the paper. TextKit would apply them to the
     /// view alone and the next redraw would undo them, so they are disabled and refused.
     static let unsupportedFormatting: Set<Selector> = [
-        #selector(underline(_:)), #selector(changeColor(_:)), #selector(changeAttributes(_:)),
+        #selector(changeColor(_:)), #selector(changeAttributes(_:)),
         #selector(alignLeft(_:)), #selector(alignCenter(_:)), #selector(alignRight(_:)),
         #selector(alignJustified(_:)),
-        #selector(superscript(_:)), #selector(NSTextView.`subscript`(_:)), #selector(unscript(_:)),
+        #selector(unscript(_:)),
         #selector(raiseBaseline(_:)), #selector(lowerBaseline(_:)),
         #selector(useStandardKerning(_:)), #selector(turnOffKerning(_:)),
         #selector(tightenKerning(_:)), #selector(loosenKerning(_:)),
@@ -1025,15 +1031,15 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
         #selector(makeBaseWritingDirectionNatural(_:)), #selector(makeTextWritingDirectionLeftToRight(_:)),
         #selector(makeTextWritingDirectionRightToLeft(_:)), #selector(makeTextWritingDirectionNatural(_:)),
     ]
-    override func underline(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func underline(_ sender: Any?) { performPaperCommand("editor.mark.underline") }
     override func changeColor(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func changeAttributes(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func alignLeft(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func alignCenter(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func alignRight(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func alignJustified(_ sender: Any?) { RelayPaperRefusal.feedback() }
-    override func superscript(_ sender: Any?) { RelayPaperRefusal.feedback() }
-    override func `subscript`(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func superscript(_ sender: Any?) { performPaperCommand("editor.mark.superscript") }
+    override func `subscript`(_ sender: Any?) { performPaperCommand("editor.mark.subscript") }
     override func unscript(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func raiseBaseline(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func lowerBaseline(_ sender: Any?) { RelayPaperRefusal.feedback() }
@@ -1670,10 +1676,19 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         func textView(_ textView: UITextView, editMenuForTextInRanges ranges: [NSValue],
                       suggestedActions: [UIMenuElement]) -> UIMenu? {
             guard let view = textView as? CollaborationTextView, !view.retired else { return nil }
+            var children = suggestedActions
             let entries = view.sectionMenuEntries(link: services.sectionLink)
-            guard !entries.isEmpty else { return nil }
-            let section = UIMenu(options: .displayInline, children: entries.map { entry in UIAction(title: entry.title) { _ in entry.run() } })
-            return UIMenu(children: suggestedActions + [section])
+            if !entries.isEmpty {
+                children.append(UIMenu(options: .displayInline, children: entries.map { entry in UIAction(title: entry.title) { _ in entry.run() } }))
+            }
+            // The paper's Format commands follow the system's edit menu items.
+            if view.editingSession === session, session.isEditable {
+                children.append(RelayMarkEditorCommandMenus.format(session: session) { [weak self, weak view] in
+                    guard let self, let view else { return }
+                    self.update(view)
+                })
+            }
+            return children.count == suggestedActions.count ? nil : UIMenu(children: children)
         }
         func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem,
                       defaultAction: UIAction) -> UIAction? {
@@ -1861,6 +1876,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             case .bold(let on): applied = view.setMark(.bold, enabled: on)
             case .italic(let on): applied = view.setMark(.italic, enabled: on)
             case .strikethrough(let on): applied = view.setMark(.strike, enabled: on)
+            case .underline: applied = view.performPaperCommand("editor.mark.underline")
             default: applied = false
             }
             guard applied else { RelayPaperRefusal.feedback(); return }
@@ -1977,15 +1993,12 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         }
         set { super.accessibilityCustomActions = newValue }
     }
-    /// Underline has no mark in the paper: TextKit would show it until the next
-    /// render and then drop it, so it is not offered and is refused.
-    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-        if action == #selector(toggleUnderline(_:)) { return false }
-        return super.canPerformAction(action, withSender: sender)
+    override func toggleUnderline(_ sender: Any?) {
+        guard !retired, isEditable, markedTextRange == nil, compositionCompletion == nil else { return }
+        performPaperCommand("editor.mark.underline")
     }
-    override func toggleUnderline(_ sender: Any?) { RelayPaperRefusal.feedback() }
     /// The formatting panel offers only the paper's marks: bold, italic, underline
-    /// (refused) and strikethrough. Fonts, sizes, colours and alignment are not paper.
+    /// and strikethrough. Fonts, sizes, colours and alignment are not paper.
     static var formattingPanel: UITextFormattingViewController.Configuration {
         UITextFormattingViewController.Configuration(groups: [.group([.component(.fontAttributes, .automatic)])])
     }

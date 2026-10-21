@@ -130,9 +130,9 @@ struct RelayMarkEditorCollaborativeTextViewTests {
         #expect(runs.last?.1.contains(.stronglyEmphasized) == true)
     }
 
-    /// Format menu items the paper has no mark for (Underline, colors, alignment,
-    /// baseline, kerning, a font size or family) are disabled and never change the
-    /// view only for the next redraw to undo; Bold and Italic stay available.
+    /// Format menu items the paper has no mark for (colors, alignment, baseline,
+    /// kerning, a font size or family) are disabled and never change the view only
+    /// for the next redraw to undo; the paper's own marks stay available.
     @Test func formatMenuItemsThePaperCannotHonourAreDisabledAndRefused() throws {
         var transactions: [RelayMarkLocalTransaction] = []
         let editor = try session("Hello", persistTransaction: { transactions.append($0) })
@@ -143,15 +143,13 @@ struct RelayMarkEditorCollaborativeTextViewTests {
         RelayPaperRefusal.feedback = { refusals += 1 }
         view.setSelectedRange(NSRange(location: 0, length: 5))
         func item(_ action: Selector) -> NSMenuItem { NSMenuItem(title: "", action: action, keyEquivalent: "") }
-        for action in [#selector(NSText.underline(_:)), #selector(NSText.alignCenter(_:)), #selector(NSTextView.superscript(_:)),
-                       #selector(NSTextView.useStandardKerning(_:)), #selector(NSTextView.changeColor(_:))] {
+        for action in [#selector(NSText.alignCenter(_:)), #selector(NSTextView.useStandardKerning(_:)),
+                       #selector(NSTextView.changeColor(_:))] {
             #expect(!view.validateUserInterfaceItem(item(action)), "\(action) should be disabled")
         }
         #expect(view.validateUserInterfaceItem(item(#selector(NSTextView.changeFont(_:)))))
-        view.underline(nil)
         view.alignCenter(nil)
-        #expect(refusals == 2)
-        #expect(view.textStorage?.attribute(.underlineStyle, at: 0, effectiveRange: nil) == nil)
+        #expect(refusals == 1)
         let manager = NSFontManager.shared
         let oldTarget = manager.target, oldAction = manager.action
         defer { manager.target = oldTarget; manager.action = oldAction }
@@ -159,7 +157,7 @@ struct RelayMarkEditorCollaborativeTextViewTests {
         manager.setSelectedFont(try #require(view.font), isMultiple: false)
         let bigger = NSMenuItem(title: "Bigger", action: nil, keyEquivalent: ""); bigger.tag = 3 // NSSizeUpFontAction
         manager.modifyFont(bigger)
-        #expect(refusals == 3, "A font size change the paper cannot keep must say so")
+        #expect(refusals == 2, "A font size change the paper cannot keep must say so")
         #expect(transactions.isEmpty && String(editor.text.characters) == "Hello")
     }
     #endif
