@@ -1,7 +1,502 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-
+    "Agent suggestion, %@, %@. %@" : {
+      "comment" : "VoiceOver description of an agent suggestion: review state, kind, then its text.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Agent suggestion, %1$@, %2$@. %3$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "エージェントの提案、%1$@、%2$@。%3$@"
+          }
+        }
+      }
+    },
+    "Anchor: %@" : {
+      "comment" : "Paper control chip; the placeholder is the anchor's name.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "アンカー：%@"
+          }
+        }
+      }
+    },
+    "Authored widget" : {
+      "comment" : "VoiceOver description of an embedded authored widget.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "作成したウィジェット"
+          }
+        }
+      }
+    },
+    "Button: %@" : {
+      "comment" : "Paper control chip; the placeholder is the button's label.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ボタン：%@"
+          }
+        }
+      }
+    },
+    "Connection: %@" : {
+      "comment" : "Paper control chip; the placeholder is the connection's label.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続：%@"
+          }
+        }
+      }
+    },
+    "Data view" : {
+      "comment" : "VoiceOver description of an embedded data view.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "データビュー"
+          }
+        }
+      }
+    },
+    "Every item must be a supported image. No subset was inserted." : {
+      "comment" : "Shown when some pasted or dropped items are not supported images.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "すべての項目が対応している画像である必要があります。一部だけの挿入は行っていません。"
+          }
+        }
+      }
+    },
+    "Header: %@" : {
+      "comment" : "VoiceOver label of a table header cell; the placeholder is its text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見出し：%@"
+          }
+        }
+      }
+    },
+    "Horizontal rule" : {
+      "comment" : "VoiceOver label for a horizontal rule in the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区切り線"
+          }
+        }
+      }
+    },
+    "Image" : {
+      "comment" : "VoiceOver label of an image without alt text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画像"
+          }
+        }
+      }
+    },
+    "Image: %@" : {
+      "comment" : "VoiceOver label of an image; the placeholder is its alt text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画像：%@"
+          }
+        }
+      }
+    },
+    "Mark as done" : {
+      "comment" : "VoiceOver action that checks the task at the caret.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完了にする"
+          }
+        }
+      }
+    },
+    "Mark as not done" : {
+      "comment" : "VoiceOver action that unchecks the task at the caret.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未完了に戻す"
+          }
+        }
+      }
+    },
+    "Mixed clipboard representations cannot be inserted as a subset. No item was inserted." : {
+      "comment" : "Shown when a paste mixes formatted and other items.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "種類の異なるクリップボードの内容は一部だけ挿入できません。何も挿入していません。"
+          }
+        }
+      }
+    },
+    "Reference %@" : {
+      "comment" : "VoiceOver label of an inline reference chip; the placeholder is the referenced item's title.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参照 %@"
+          }
+        }
+      }
+    },
+    "Reference: %@" : {
+      "comment" : "Text and VoiceOver label of a block reference chip; the placeholder is the referenced item's title.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "参照：%@"
+          }
+        }
+      }
+    },
+    "Suggestion (%@): %@" : {
+      "comment" : "Agent suggestion chip; the placeholders are the suggestion kind and its text.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Suggestion (%1$@): %2$@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提案（%1$@）：%2$@"
+          }
+        }
+      }
+    },
+    "Table" : {
+      "comment" : "VoiceOver label of a table in the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表"
+          }
+        }
+      }
+    },
+    "Tag %@" : {
+      "comment" : "VoiceOver label of a tag chip; the placeholder is the tag.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タグ %@"
+          }
+        }
+      }
+    },
+    "The HTML clipboard payload could not be read within the supported input limit." : {
+      "comment" : "Paste failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップボードの HTML を、対応する入力サイズの範囲内で読み取れませんでした。"
+          }
+        }
+      }
+    },
+    "The clipboard provider delivered an invalid item." : {
+      "comment" : "Paste failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップボードから無効な項目が渡されました。"
+          }
+        }
+      }
+    },
+    "The formatting selection changed before it could be saved." : {
+      "comment" : "Shown on the paper when formatting is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存する前に、書式を設定する選択範囲が変更されました。"
+          }
+        }
+      }
+    },
+    "The image could not be read within the supported input limit." : {
+      "comment" : "Image input failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画像を、対応する入力サイズの範囲内で読み取れませんでした。"
+          }
+        }
+      }
+    },
+    "The image provider delivered the same input twice." : {
+      "comment" : "Image input failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同じ画像が2回渡されました。"
+          }
+        }
+      }
+    },
+    "The native replacement no longer matches this paper." : {
+      "comment" : "Shown on the paper when an edit is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この置き換えは、現在のペーパーと一致しなくなりました。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Place the cursor at the end of a paragraph and try again." : {
+      "comment" : "Shown when an insertion's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。段落の末尾にカーソルを置いて、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Select an untitled callout and try again." : {
+      "comment" : "Shown when a callout's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。タイトルのないコールアウトを選択して、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Select the authored block or insertion point and try again." : {
+      "comment" : "Shown when an authored block's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。作成したブロックまたは挿入位置を選択して、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Select the reference or insertion point and try again." : {
+      "comment" : "Shown when a reference's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。参照または挿入位置を選択して、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paste selection changed before it could be saved." : {
+      "comment" : "Shown on the paper when a paste is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存する前に、ペースト先の選択範囲が変更されました。"
+          }
+        }
+      }
+    },
+    "This Return needs a supported structural boundary." : {
+      "comment" : "Shown on the paper when a Return is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この改行には、対応している構造の区切りが必要です。"
+          }
+        }
+      }
+    },
+    "This clipboard content can't be pasted here." : {
+      "comment" : "Shown when the clipboard holds nothing the paper can paste.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このクリップボードの内容はここにペーストできません。"
+          }
+        }
+      }
+    },
+    "This edit contains unsupported structure or marks." : {
+      "comment" : "Shown on the paper when an edit is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この編集には、対応していない構造または書式が含まれています。"
+          }
+        }
+      }
+    },
+    "This editing session is no longer active." : {
+      "comment" : "Shown when the paper's editing session has ended.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この編集セッションは終了しています。"
+          }
+        }
+      }
+    },
+    "This image type is not supported. No image was inserted." : {
+      "comment" : "Shown when a pasted or dropped image type is not supported.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この画像形式には対応していません。画像は挿入していません。"
+          }
+        }
+      }
+    },
+    "This join could not be applied without changing unsupported structure." : {
+      "comment" : "Shown on the paper when a join is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "対応していない構造を変更せずに、この結合を適用できませんでした。"
+          }
+        }
+      }
+    },
+    "This pasted input could not be inserted." : {
+      "comment" : "Shown on the paper when a paste is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーストした内容を挿入できませんでした。"
+          }
+        }
+      }
+    },
+    "This selection contains an unsupported formatting target. Your candidate is retained." : {
+      "comment" : "Shown on the paper when formatting is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この選択範囲には書式を設定できない対象が含まれています。変更内容は保持されています。"
+          }
+        }
+      }
+    },
+    "This selection could not be replaced without changing unsupported structure." : {
+      "comment" : "Shown on the paper when a replacement is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "対応していない構造を変更せずに、この選択範囲を置き換えられませんでした。"
+          }
+        }
+      }
+    },
+    "This task is linked to an item its host updates, and no host is handling it. The checkbox has not changed." : {
+      "comment" : "Shown when a linked task's checkbox cannot change.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このタスクは別の画面が更新する項目にリンクされていますが、その画面が開いていません。チェックボックスは変更されていません。"
+          }
+        }
+      }
+    },
+    "Too many images in this input. No item was inserted." : {
+      "comment" : "Shown when a paste or drop holds more images than the paper accepts.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画像が多すぎます。何も挿入していません。"
+          }
+        }
+      }
+    },
+    "Too many images in this paste. No item was inserted." : {
+      "comment" : "Shown when a paste holds more images than the paper accepts.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーストした画像が多すぎます。何も挿入していません。"
+          }
+        }
+      }
+    },
+    "Video" : {
+      "comment" : "Label of a video attachment in the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオ"
+          }
+        }
+      }
+    },
+    "Video attachment" : {
+      "comment" : "VoiceOver description of a video attachment.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ビデオの添付"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }
