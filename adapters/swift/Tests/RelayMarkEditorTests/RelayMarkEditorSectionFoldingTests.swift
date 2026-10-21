@@ -159,10 +159,80 @@ struct RelayMarkEditorSectionFoldingTests {
         let geometry = try #require(RelayTextGeometry(view.textLayoutManager))
         let sub = offset(of: "Sub", in: view)
         let disclosure = try #require(view.sectionDisclosures(geometry: geometry).first { $0.heading.location == sub })
-        let id = view.sectionDisclosureHit(at: CGPoint(x: disclosure.frame.midX, y: disclosure.frame.midY), geometry: geometry)
+        let id = view.sectionDisclosureHit(at: CGPoint(x: disclosure.chevron.midX, y: disclosure.chevron.midY), geometry: geometry)
         #expect(id == "sub")
         #expect(view.toggleSection(try #require(id)))
         #expect(!(try laidOutStarts(view)).contains(offset(of: "Third para", in: view)))
+    }
+
+    private func containerOriginX(_ view: CollaborationTextView) -> CGFloat {
+        #if os(macOS)
+        view.textContainerOrigin.x
+        #else
+        view.textContainerInset.left
+        #endif
+    }
+
+    private func disclosure(_ heading: String, in view: CollaborationTextView) throws -> (RelayHeadingDisclosure, RelayTextGeometry) {
+        _ = try laidOutStarts(view)
+        let geometry = try #require(RelayTextGeometry(view.textLayoutManager))
+        let location = offset(of: heading, in: view)
+        return (try #require(view.sectionDisclosures(geometry: geometry).first { $0.heading.location == location }), geometry)
+    }
+
+    /// As on the web, the chevron sits in a gutter before the heading's text,
+    /// 1.5rem wide, and the paper's leading margin makes room for it.
+    @Test func theChevronSitsInTheLeadingGutterBeforeItsHeading() throws {
+        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
+        let (coordinator, view) = mount(editor)
+        defer { coordinator.retire(view) }
+        let (disclosure, geometry) = try disclosure("Sub", in: view)
+        let text = try #require(geometry.characterFrame(at: disclosure.heading.location))
+        #expect(disclosure.chevron.width == 24 && disclosure.chevron.height == 24)
+        #expect(abs(disclosure.chevron.maxX - text.minX) < 0.5)
+        #expect(disclosure.chevron.minX + containerOriginX(view) >= 0, "the gutter is outside the view")
+        // The text keeps its trailing margin: the wider leading one narrows it.
+        let width = try #require(view.textContainer).size.width
+        #expect(abs(containerOriginX(view) + width + RelayPaperMargins.trailing - view.bounds.width) < 0.5)
+    }
+
+    /// A folded heading shows an expand control after its text, as the web's "…"
+    /// does, and it unfolds the section.
+    @Test func aFoldedHeadingHasAnExpandControlAfterItsText() throws {
+        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
+        let (coordinator, view) = mount(editor)
+        defer { coordinator.retire(view) }
+        #expect(try disclosure("Sub", in: view).0.expand == nil)
+        #expect(view.toggleSection("sub"))
+        let (disclosure, geometry) = try disclosure("Sub", in: view)
+        let expand = try #require(disclosure.expand)
+        let last = try #require(geometry.characterFrame(at: NSMaxRange(disclosure.heading) - 1))
+        #expect(expand.minX >= last.maxX + 7.5)
+        #expect(view.sectionDisclosureHit(at: CGPoint(x: expand.midX, y: expand.midY), geometry: geometry) == "sub")
+    }
+
+    /// Where a pointer can hover, the chevron shows on the hovered heading or the
+    /// heading holding the caret, as on the web; elsewhere it always shows.
+    @Test func chevronsFollowThePointerWhereThereIsOne() throws {
+        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
+        let (coordinator, view) = mount(editor)
+        defer { coordinator.retire(view) }
+        #if os(macOS)
+        #expect(view.paper.disclosuresFollowPointer)
+        #else
+        #expect(!view.paper.disclosuresFollowPointer)
+        #endif
+        view.paper.disclosuresFollowPointer = true
+        select(offset(of: "Fourth para", in: view), in: view, coordinator)
+        #expect(try !disclosure("Sub", in: view).0.shown)
+        view.paper.hoveredHeading = offset(of: "Sub", in: view)
+        #expect(try disclosure("Sub", in: view).0.shown)
+        view.paper.hoveredHeading = nil
+        select(offset(of: "Sub", in: view) + 1, in: view, coordinator)
+        #expect(try disclosure("Sub", in: view).0.shown)
+        view.paper.disclosuresFollowPointer = false
+        select(offset(of: "Fourth para", in: view), in: view, coordinator)
+        #expect(try disclosure("Sub", in: view).0.shown)
     }
 
     /// Every edit redraws the headings' disclosures. They are found from the

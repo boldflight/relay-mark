@@ -43,6 +43,14 @@ final class RelayCalloutStyle: NSObject {
     override var description: String { "RelayCallout(\(identity), \(tone), strong: \(strong))" }
 }
 
+/// The paper's margins, the same on every platform. The leading margin holds the
+/// heading chevrons' gutter, 1.5rem wide as on the web.
+enum RelayPaperMargins {
+    static let gutter: CGFloat = 24
+    static let trailing: CGFloat = 5
+    static let leading: CGFloat = trailing + gutter
+}
+
 /// The paper's TextKit 2 layout: system paragraphs and callout fragments.
 final class RelayTextLayoutManager: NSTextLayoutManager, NSTextLayoutManagerDelegate {
     override init() {
@@ -119,6 +127,18 @@ final class RelayCalloutFragment: NSTextLayoutFragment {
         super.draw(at: point, in: context)
     }
 }
+
+#if os(macOS)
+/// The Mac paper's container. NSTextView keeps a tracking container as wide as
+/// the view less its symmetric inset; the paper lays out narrower by the gutter
+/// its leading margin adds, and the view moves the container past the gutter.
+final class RelayPaperTextContainer: NSTextContainer {
+    override var size: NSSize {
+        get { let size = super.size; return NSSize(width: max(1, size.width - RelayPaperMargins.gutter), height: size.height) }
+        set { super.size = newValue }
+    }
+}
+#endif
 
 #if os(macOS) && DEBUG
 /// TextKit 1 compatibility mode is a one-way switch away from the paper's

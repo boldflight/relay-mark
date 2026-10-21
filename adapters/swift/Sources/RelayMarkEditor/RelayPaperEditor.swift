@@ -24,6 +24,11 @@ final class RelayPaperViewState {
     /// View offsets that folded sections hide, in order. TextKit does not lay out
     /// a paragraph that starts inside one; its text is unchanged.
     var hidden: [NSRange] = []
+    /// Where a pointer can hover (macOS), heading disclosures show only on the
+    /// hovered heading or the heading holding the caret, as on the web.
+    var disclosuresFollowPointer = false
+    /// The view offset of the heading under the pointer.
+    var hoveredHeading: Int?
 
     func isHidden(_ offset: Int) -> Bool {
         var low = 0, high = hidden.count
@@ -54,6 +59,17 @@ final class RelayPaperViewState {
             return item
         }
     }
+}
+
+/// A heading's fold controls, in text-container coordinates: the chevron in the
+/// paper's leading gutter, and when folded the expand control after its text.
+struct RelayHeadingDisclosure {
+    let heading: NSRange
+    let chevron: CGRect
+    let expand: CGRect?
+    let folded: Bool
+    /// Whether the chevron is drawn; it takes taps and clicks either way.
+    let shown: Bool
 }
 
 /// The platform text view the editor drives: AppKit's or UIKit's paper view.
@@ -413,6 +429,8 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         guard !updating, owns(view), !view.hasMarkedInput, pendingTyping == nil else { return }
         session.setNativeSelection(view.paperSelection)
         view.refreshFolding()
+        // The heading holding the caret shows its chevron where chevrons follow the pointer.
+        if view.paper.disclosuresFollowPointer { view.paperNeedsDisplay() }
         view.applyEmptyTypingStyle()
     }
 

@@ -798,7 +798,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.autoresizingMask = [.width]
             view.textContainer?.widthTracksTextView = true
             view.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
-            view.textContainerInset = NSSize(width: 5, height: 20)
+            view.textContainerInset = NSSize(width: RelayPaperMargins.trailing, height: 20)
             view.setAccessibilityLabel(accessibilityLabel)
             view.onSessionEdit = { [weak self, weak view] in
                 guard let self, let view, !view.retired else { return }
@@ -933,10 +933,13 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     static func textKit2(frame: CGRect = .zero) -> CollaborationTextView {
         let storage = NSTextContentStorage(), manager = RelayTextLayoutManager()
         storage.addTextLayoutManager(manager)
-        let container = NSTextContainer(size: CGSize(width: frame.width, height: CGFloat.greatestFiniteMagnitude))
+        let container = RelayPaperTextContainer(size: CGSize(width: frame.width, height: CGFloat.greatestFiniteMagnitude))
         manager.textContainer = container
         let view = Self(frame: frame, textContainer: container)
         view.contentStorage = storage
+        #if os(macOS)
+        view.paper.disclosuresFollowPointer = true
+        #endif
         // Folded sections' paragraphs are skipped from layout, never removed from the text.
         storage.delegate = view
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
@@ -1082,6 +1085,37 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     var onTaskCheckbox: ((Int) -> Bool)?
     /// The session changed outside TextKit's own editing; the coordinator shows it.
     var onSessionEdit: (() -> Void)?
+    /// The paper's leading margin is wider than its trailing one by the gutter.
+    override var textContainerOrigin: NSPoint {
+        let origin = super.textContainerOrigin
+        return NSPoint(x: origin.x + RelayPaperMargins.gutter, y: origin.y)
+    }
+    /// The pointer adapter: the heading under the pointer shows its chevron.
+    private var hoverArea: NSTrackingArea?
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverArea { removeTrackingArea(hoverArea) }
+        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+                                  owner: self)
+        addTrackingArea(area)
+        hoverArea = area
+    }
+    override func mouseMoved(with event: NSEvent) {
+        super.mouseMoved(with: event)
+        let point = convert(event.locationInWindow, from: nil)
+        let geometry = RelayTextGeometry(textLayoutManager)
+        let line = geometry?.paragraphRange(atY: point.y - textContainerOrigin.y)
+        hoverHeading(line.flatMap { headingParagraph(at: $0.location)?.location })
+    }
+    override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        hoverHeading(nil)
+    }
+    private func hoverHeading(_ location: Int?) {
+        guard paper.hoveredHeading != location else { return }
+        paper.hoveredHeading = location
+        needsDisplay = true
+    }
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         if !retired, !hasMarkedText(), let geometry = RelayTextGeometry(textLayoutManager),
@@ -1513,7 +1547,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 endComposition(view)
             }
             view.backgroundColor = .clear
-            view.textContainerInset = UIEdgeInsets(top: 20, left: 5, bottom: 8, right: 5)
+            view.textContainerInset = UIEdgeInsets(top: 20, left: RelayPaperMargins.leading, bottom: 8, right: RelayPaperMargins.trailing)
             view.allowsEditingTextAttributes = true
             view.textFormattingConfiguration = CollaborationTextView.formattingPanel
             view.adjustsFontForContentSizeCategory = true
@@ -1833,6 +1867,9 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         manager.textContainer = container
         let view = Self(frame: frame, textContainer: container)
         view.contentStorage = storage
+        #if os(macOS)
+        view.paper.disclosuresFollowPointer = true
+        #endif
         // Folded sections' paragraphs are skipped from layout, never removed from the text.
         storage.delegate = view
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
@@ -2440,43 +2477,68 @@ extension RelayPaperTextView {
         return editingSession?.sections.first { $0.heading.location == paper }?.id
     }
 
-    /// Each laid-out heading's disclosure, in container coordinates. Section names
-    /// are read only while a section is folded; otherwise every heading is open.
-    func sectionDisclosures(geometry: RelayTextGeometry) -> [(frame: CGRect, label: NSAttributedString, heading: NSRange)] {
+    /// Each laid-out heading's fold controls, in container coordinates, placed as
+    /// the web places them: a 1.5rem chevron whose right edge meets the heading's
+    /// text, 0.25em below its top, and when folded an expand control 0.5rem after
+    /// the text. Section names are read only while a section is folded.
+    func sectionDisclosures(geometry: RelayTextGeometry) -> [RelayHeadingDisclosure] {
         guard let session = editingSession else { return [] }
         let visible = paper.laidOut.map(geometry.range) ?? NSRange(location: 0, length: geometry.length)
         let folded: Set<Int> = session.foldedSections.isEmpty ? [] : Set(session.sections.compactMap { section in
             session.foldedSections.contains(section.id) ? paper.tables.view(section.heading.location) : nil
         })
+        let size = RelayPaperMargins.gutter, caret = viewSelection.location
         return headingParagraphs(in: visible).compactMap { heading in
             guard !paper.isHidden(heading.location) else { return nil }
             let font = heading.location < geometry.length
                 ? geometry.storage.attribute(.font, at: heading.location, effectiveRange: nil) as? PlatformFont : nil
-            let label = NSAttributedString(string: folded.contains(heading.location) ? "▸ ⋯" : "▾", attributes: [
-                .font: PlatformFont.systemFont(ofSize: (font?.pointSize ?? 15) * 0.8),
-                .foregroundColor: PlatformColor.secondaryLabelColorCompat])
-            let width = label.size().width
-            let frame: CGRect
+            let em = font?.pointSize ?? 15
+            let start: CGFloat, top: CGFloat, end: CGRect
             if heading.length == 0 {
                 guard let line = geometry.lineFrame(at: heading.location), line.height > 0 else { return nil }
-                frame = CGRect(x: line.minX + geometry.padding + 2, y: line.minY, width: width, height: line.height)
-            } else if geometry.isRightToLeft(at: heading.location) {
-                guard let first = geometry.characterFrame(at: heading.location) else { return nil }
-                frame = CGRect(x: first.minX - width - 6, y: first.minY, width: width, height: first.height)
+                start = line.minX + geometry.padding; top = line.minY
+                end = CGRect(x: start, y: line.minY, width: 0, height: line.height)
             } else {
-                guard let last = geometry.characterFrame(at: NSMaxRange(heading) - 1) else { return nil }
-                frame = CGRect(x: last.maxX + 6, y: last.minY, width: width, height: last.height)
+                guard let first = geometry.characterFrame(at: heading.location),
+                      let last = geometry.characterFrame(at: NSMaxRange(heading) - 1) else { return nil }
+                start = first.minX; top = first.minY; end = last
             }
-            return (frame, label, heading)
+            let isFolded = folded.contains(heading.location)
+            let shown = !paper.disclosuresFollowPointer || paper.hoveredHeading == heading.location ||
+                (caret >= heading.location && caret <= NSMaxRange(heading))
+            return RelayHeadingDisclosure(heading: heading,
+                chevron: CGRect(x: start - size, y: top + em * 0.25, width: size, height: size),
+                expand: isFolded ? CGRect(x: end.maxX + 8, y: end.midY - size / 2, width: size, height: size) : nil,
+                folded: isFolded, shown: shown)
         }
     }
 
     func drawSectionDisclosures(geometry: RelayTextGeometry, origin: CGPoint) {
+        // Where every chevron always shows, it stays subtle; on hover it shows plainly.
+        let tone: CGFloat = paper.disclosuresFollowPointer ? 1 : 0.55
         for disclosure in sectionDisclosures(geometry: geometry) {
-            let size = disclosure.label.size()
-            disclosure.label.draw(at: CGPoint(x: origin.x + disclosure.frame.minX,
-                                             y: origin.y + disclosure.frame.midY - size.height / 2))
+            if disclosure.shown {
+                drawSymbol(disclosure.folded ? "chevron.right" : "chevron.down",
+                           in: disclosure.chevron.offsetBy(dx: origin.x, dy: origin.y), tone: tone)
+            }
+            if let expand = disclosure.expand { drawSymbol("ellipsis", in: expand.offsetBy(dx: origin.x, dy: origin.y), tone: 1) }
         }
+    }
+
+    private func drawSymbol(_ name: String, in rect: CGRect, tone: CGFloat) {
+        let color = PlatformColor.secondaryLabelColorCompat.withAlphaComponent(tone)
+        #if os(macOS)
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(
+            NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold).applying(.init(hierarchicalColor: color))) else { return }
+        let size = image.size
+        image.draw(in: CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height),
+                   from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        #else
+        guard let image = UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold))?
+            .withTintColor(color, renderingMode: .alwaysOriginal) else { return }
+        let size = image.size
+        image.draw(in: CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
+        #endif
     }
 
     /// The heading menu's entries for the section at the caret: fold or unfold it,
@@ -2502,7 +2564,8 @@ extension RelayPaperTextView {
 
     /// The section whose heading disclosure is under `point`, in container coordinates.
     func sectionDisclosureHit(at point: CGPoint, geometry: RelayTextGeometry) -> String? {
-        guard let hit = sectionDisclosures(geometry: geometry).first(where: { $0.frame.insetBy(dx: -8, dy: -4).contains(point) })
+        guard let hit = sectionDisclosures(geometry: geometry).first(where: { disclosure in
+            [disclosure.chevron, disclosure.expand].contains { $0?.insetBy(dx: -4, dy: -4).contains(point) == true } })
         else { return nil }
         return sectionID(atHeading: hit.heading.location)
     }
