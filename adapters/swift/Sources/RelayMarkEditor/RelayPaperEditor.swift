@@ -166,7 +166,12 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             view.showSelection(NSRange(location: span.view, length: 1))
             return false
         }
-        if tables.touchesTableLine(range) { return false }
+        // A selected table, as Notes treats one: Delete removes it, and typing replaces it.
+        if range.length == 1, let span = tables.span(atView: range.location) {
+            replaceTable(span, with: replacement, in: view)
+            return false
+        }
+        if tables.touchesTableLine(range) { refuse(); return false }
         let paper = tables.paper(range)
         if composition == nil, !view.hasMarkedInput, !pasting,
            session.canTypeNatively(range: paper, replacement: replacement) {
@@ -187,9 +192,20 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             update(view)
             return false
         }
-        // No range command takes it: the paper is unchanged. Marked input is the
-        // exception; it stays in the view until the input method commits it.
-        return composition != nil || view.hasMarkedInput
+        // No range command takes it: the paper is unchanged, and says so. Marked input
+        // is the exception; it stays in the view until the input method commits it.
+        if composition != nil || view.hasMarkedInput { return true }
+        refuse()
+        return false
+    }
+
+    private func refuse() { RelayPaperRefusal.feedback() }
+
+    private func replaceTable(_ span: RelayTableSpan, with replacement: String, in view: any RelayPaperTextView) {
+        guard session.deleteTableNatively(at: span.table.canonicalRange.location) else { refuse(); return }
+        if !replacement.isEmpty, let caret = session.nativeSelection,
+           !session.editStructureNatively(range: caret, replacement: replacement) { refuse() }
+        update(view)
     }
 
     /// TextKit changed the paper view's text: a keystroke the session takes in
@@ -213,7 +229,10 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         guard let composition else {
             // TextKit changed the text without asking (a programmatic insertion):
             // the same change goes to the session as a range command.
-            if let edit = unannounced, apply(edit, in: view) { return }
+            if let edit = unannounced {
+                if apply(edit, in: view) { return }
+                refuse()
+            }
             view.paper.renderedRevision = nil
             update(view)
             return
@@ -541,5 +560,14 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         guard !updating, let view, owns(view), table.cells.indices.contains(index) else { return }
         let cell = table.paperRange(of: index)
         session.setNativeSelection(NSRange(location: cell.location + range.location, length: range.length))
+    }
+}
+
+/// Feedback for an edit the paper cannot take; an edit is never dropped silently.
+@MainActor enum RelayPaperRefusal {
+    static var feedback: () -> Void = {
+        #if os(macOS)
+        NSSound.beep()
+        #endif
     }
 }

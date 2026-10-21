@@ -81,6 +81,8 @@ protocol RelayPaperTextEditing: AnyObject {
     /// Toggles one inline mark over a selection the same way.
     func toggleMarkNatively(_ mark: RelayMarkFormattingMark, range: NSRange) -> Bool
     func handleNativeListIndent(backward: Bool) -> Bool
+    /// Deletes the whole table whose text starts at `paperLocation`, as one command.
+    func deleteTableNatively(at paperLocation: Int) -> Bool
     /// Backspace at the start or Delete at the end, where the text view has
     /// nothing to remove but the document structure may still change.
     func handleNativeEdgeDeletion(backward: Bool) -> Bool
@@ -122,6 +124,7 @@ extension RelayPaperTextEditing {
                                    rendered: (NSRange) -> String?) -> (range: NSRange, text: String)? { nil }
     func acceptsNativeReplacement(baseline: String, range: NSRange, replacement: String) -> Bool { true }
     func handleNativeListIndent(backward: Bool) -> Bool { false }
+    func deleteTableNatively(at paperLocation: Int) -> Bool { false }
     func handleNativeEdgeDeletion(backward: Bool) -> Bool { false }
     func edit(_ candidate: AttributedString, nativeReplacement: RelayNativeTextReplacement?) {
         edit(candidate, nativeReplacement: nativeReplacement, nativePaste: nil)

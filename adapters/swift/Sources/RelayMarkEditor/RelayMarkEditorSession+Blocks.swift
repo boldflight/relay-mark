@@ -237,6 +237,12 @@ extension RelayMarkEditorSession {
         retryPersistence()
     }
 
+    func deleteTableNatively(at paperLocation: Int) -> Bool {
+        setNativeSelection(NSRange(location: paperLocation, length: 0))
+        do { try performTableCommand(.deleteTable, using: prepareTableCommand(.deleteTable)); return true }
+        catch { return false }
+    }
+
     public func performSelectedTableCommand(_ operation: TableOperation) {
         do { try performTableCommand(operation, using: prepareTableCommand(operation)) }
         catch { failure = error.localizedDescription }

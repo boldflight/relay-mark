@@ -168,6 +168,54 @@ struct RelayMarkEditorTextKit2TableTests {
         #expect(paper.paperText.contains("lower right\nAfter"), "Backspace must not join the paragraph into the table")
     }
 
+    @Test func backspaceOnASelectedTableDeletesIt() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        paper.view.setSelectedRange(NSRange(location: paper.offset("After"), length: 0))
+        paper.view.deleteBackward(nil)
+        paper.view.deleteBackward(nil)
+        #expect(paper.editor.failure == nil)
+        #expect(!paper.paperText.contains("cell"), "The selected table was not deleted: \(paper.paperText)")
+        #expect(paper.paperText.contains("Before") && paper.paperText.contains("After"))
+        #expect(paper.view.paper.tables.spans.isEmpty && !paper.view.string.contains("\u{FFFC}"), "view: \(paper.view.string.debugDescription) spans: \(paper.view.paper.tables.spans.count) paper: \(paper.paperText.debugDescription)")
+    }
+
+    @Test func typingOverASelectedTableReplacesIt() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        paper.view.setSelectedRange(NSRange(location: paper.offset("After"), length: 0))
+        paper.view.deleteBackward(nil)
+        paper.view.insertText("Typed", replacementRange: paper.view.selectedRange())
+        #expect(paper.editor.failure == nil)
+        #expect(!paper.paperText.contains("cell") && paper.paperText.contains("Typed"), "\(paper.paperText)")
+        #expect(paper.view.paper.tables.spans.isEmpty && !paper.view.string.contains("\u{FFFC}"))
+    }
+
+    @Test func anEditThePaperCannotTakeIsNotSilent() throws {
+        let paper = try mount(table)
+        defer { paper.retire(); RelayPaperRefusal.feedback = {} }
+        var refusals = 0
+        RelayPaperRefusal.feedback = { refusals += 1 }
+        let besideTable = paper.view.paper.tables.spans[0].view + 1
+        paper.view.setSelectedRange(NSRange(location: besideTable, length: 0))
+        let before = paper.paperText
+        paper.view.insertText("x", replacementRange: paper.view.selectedRange())
+        #expect(paper.paperText == before)
+        #expect(refusals == 1, "A refused edit gave no feedback")
+    }
+
+    @Test(arguments: ["", "x"])
+    func editingASelectionAcrossATableReplacesTheWholeTable(replacement: String) throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let start = paper.offset("fore"), end = paper.offset("After") + 2
+        paper.view.setSelectedRange(NSRange(location: start, length: end - start))
+        if replacement.isEmpty { paper.view.deleteBackward(nil) } else { paper.view.insertText(replacement, replacementRange: paper.view.selectedRange()) }
+        #expect(paper.editor.failure == nil)
+        #expect(paper.paperText == "Be\(replacement)ter", "The edit across the table was refused or partial: \(paper.paperText)")
+        #expect(paper.view.string == "Be\(replacement)ter" && paper.view.paper.tables.spans.isEmpty)
+    }
+
     @Test func copyAndServicesTakeTheTableAsRows() throws {
         let paper = try mount(table)
         defer { paper.retire() }
