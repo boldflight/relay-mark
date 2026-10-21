@@ -426,3 +426,170 @@ pub fn plan_text_write(
     gaps(&mut delta, from, to, source_text.len() as isize, target_text.len() as isize)?;
     Ok(Value::Array(delta))
 }
+
+const TABLE_COMMANDS: [&str; 12] = [
+    "addRowBefore",
+    "addRowAfter",
+    "deleteRow",
+    "addColumnBefore",
+    "addColumnAfter",
+    "deleteColumn",
+    "mergeCells",
+    "splitCell",
+    "toggleHeaderRow",
+    "toggleHeaderColumn",
+    "toggleHeaderCell",
+    "deleteTable",
+];
+
+/// `createContentEditCommand`: a maintained editor command over the admitted
+/// document, as its steps and resulting document, selection and marks.
+pub fn create_content_edit_command(document: &Value, request: &Value) -> Result<Value> {
+    use crate::pm::commands::{self, State};
+    use crate::pm::schema::schema;
+    use crate::pm::state::Selection;
+    use crate::pm::tables;
+
+    let s = schema();
+    let command = request.get("command").and_then(Value::as_str);
+    let selection_json = request.get("selection").filter(|v| json::truthy(Some(v)));
+    let valid_keys = request.as_object().is_some_and(|m| m.keys().all(|k| k == "command" || k == "selection"));
+    let (Some(command), Some(selection_json)) = (command, selection_json) else { bail!("Invalid canonical editor command") };
+    if !valid_keys || json::utf16_len(&json::stringify(request)) > 524_288 {
+        bail!("Invalid canonical editor command");
+    }
+    let doc = admitted(document)?;
+    let selection = Selection::from_json(&doc, selection_json)?;
+    if json::stable_stringify(&selection.to_json()) != json::stable_stringify(selection_json) {
+        bail!("Noncanonical editor selection");
+    }
+    let state = State { doc: doc.clone(), selection: selection.clone() };
+    let cursor = selection.sel_from();
+    let item = if cursor.depth >= 2 { Some(cursor.node(cursor.depth - 1).clone()) } else { None };
+    let list_item = item.as_ref().filter(|i| matches!(i.type_name(), "listItem" | "taskItem")).map(Node::ty);
+    let linked = |item: &Node| json::truthy(Some(item.attr("entityId")));
+    let mut kind = "edit";
+    let mut transaction = None;
+    match command {
+        "return" => {
+            if let (Some(list_item), Some(item)) = (list_item, &item) {
+                if cursor.parent().content().size == 0
+                    && item.child_count() == 1
+                    && linked(item)
+                    && (cursor.depth < 4 || cursor.node(cursor.depth - 3).ty() != list_item)
+                {
+                    bail!("Canonical editor command refused: linked task lift");
+                }
+                let attrs = (s.nodes[list_item].name == "taskItem").then(|| {
+                    let mut attrs = Map::new();
+                    attrs.insert("checked".into(), Value::Bool(false));
+                    attrs.insert("entityId".into(), Value::Null);
+                    attrs
+                });
+                transaction = commands::split_list_item_keep_marks(&state, list_item, attrs)?;
+                if transaction.is_some() {
+                    kind = if cursor.parent().content().size == 0 { "exit" } else { "split" };
+                }
+            }
+            if transaction.is_none() {
+                type Command = fn(&State) -> Result<Option<crate::pm::state::Transaction>>;
+                let chain: [(Command, &str); 4] = [
+                    (commands::newline_in_code, "split"),
+                    (commands::create_paragraph_near, "split"),
+                    (commands::lift_empty_block, "exit"),
+                    (commands::split_block_keep_marks, "split"),
+                ];
+                for (run, result_kind) in chain {
+                    if let Some(tr) = run(&state)? {
+                        transaction = Some(tr);
+                        kind = result_kind;
+                        break;
+                    }
+                }
+            }
+        }
+        "sink_list_item" | "lift_list_item" => {
+            if let (Some(list_item), Some(item)) = (list_item, &item) {
+                if command == "lift_list_item" && linked(item) && (cursor.depth < 4 || cursor.node(cursor.depth - 3).ty() != list_item) {
+                    bail!("Canonical editor command refused: linked task lift");
+                }
+                transaction =
+                    if command == "sink_list_item" { commands::sink_list_item(&state, list_item)? } else { commands::lift_list_item(&state, list_item)? };
+            }
+        }
+        _ => {
+            if !TABLE_COMMANDS.contains(&command) {
+                bail!("Unknown canonical editor command");
+            }
+            let mut tr = state.tr();
+            if tables::table_command(command, &mut tr, &selection)? {
+                transaction = Some(tr);
+            }
+        }
+    }
+    let Some(mut tr) = transaction.filter(|tr| tr.doc_changed() && tr.steps.len() <= 512) else { bail!("Canonical editor command refused") };
+    if command == "return" && list_item.is_some_and(|t| s.nodes[t].name == "taskItem") && kind == "split" {
+        let list_item = list_item.expect("task item");
+        let selected = tr.selection()?.sel_from();
+        if selected.depth >= 2 && selected.node(selected.depth - 1).ty() == list_item {
+            let pos = selected.before(selected.depth - 1)?;
+            let original = cursor.before(cursor.depth - 1)?;
+            if pos != tr.mapping.map(original, -1) {
+                let defaults = s.default_attrs(list_item).cloned().unwrap_or_default();
+                for key in ["checked", "entityId"] {
+                    let current = selected.node(selected.depth - 1).attr(key).clone();
+                    let default = defaults.get(key).cloned().unwrap_or(Value::Null);
+                    if current != default {
+                        tr.set_node_attribute(pos, key, default)?;
+                    }
+                }
+            }
+        }
+    }
+    if kind == "edit" && command != "sink_list_item" && command != "lift_list_item" {
+        if let Some(steps) = tables::fix_tables(&tr.doc.clone(), &doc)? {
+            for step in steps {
+                tr.step(step)?;
+            }
+        }
+        let mut pass = 0;
+        while pass < 256 && tables::remove_covered_row(&mut tr)? {
+            if pass == 255 {
+                bail!("Oversized covered-row normalization");
+            }
+            pass += 1;
+        }
+        if let Some(steps) = tables::fix_tables(&tr.doc.clone(), &doc)? {
+            for step in steps {
+                tr.step(step)?;
+            }
+        }
+    }
+    tr.doc.check()?;
+    let mut retained = Map::new();
+    let final_doc = tr.doc.clone();
+    doc.descendants(&mut |node, pos, _, _| {
+        let id = node.attr("relaymarkId");
+        if !json::truthy(Some(id)) {
+            return true;
+        }
+        let mapped = tr.mapping.map_result(pos, 1);
+        if !mapped.deleted() && final_doc.node_at(mapped.pos).is_some_and(|n| n.attr("relaymarkId") == id) {
+            retained.insert(json::stringify(id).trim_matches('"').to_owned(), json!(mapped.pos));
+        }
+        true
+    });
+    let stored = tr.stored_marks().cloned();
+    let selection = tr.selection()?.to_json();
+    Ok(json!({
+        "kind": kind,
+        "retained_ids": retained,
+        "steps": tr.steps.iter().map(|step| step.to_json()).collect::<Vec<_>>(),
+        "document": tr.doc.to_json(),
+        "selection": selection,
+        "stored_marks": stored.as_ref().map_or(Value::Null, |marks| Value::Array(marks.iter().map(|m| m.to_json()).collect())),
+        "stored_text_attributes": stored.as_ref().map_or(Value::Null, |marks| {
+            Value::Object(marks.iter().map(|m| (crate::pm::schema::schema().marks[m.ty].name.clone(), Value::Object((*m.attrs).clone()))).collect())
+        }),
+    }))
+}

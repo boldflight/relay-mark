@@ -1,0 +1,291 @@
+{
+  "fixture_version": 1,
+  "root": "default",
+  "client_id": 91504,
+  "source": "Community TipTap StarterKit/TaskList/TaskItem with RelayMark identity attributes + y-tiptap + Yjs",
+  "linked_entity_id": "123e4567-e89b-42d3-a456-426614174000",
+  "normalized": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b00000000000040008000000000000001"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Before tasks"
+          }
+        ]
+      },
+      {
+        "type": "taskList",
+        "attrs": {
+          "relaymarkId": "b0000000000004000800000000000000d"
+        },
+        "content": [
+          {
+            "type": "taskItem",
+            "attrs": {
+              "relaymarkId": "b0000000000004000800000000000000a",
+              "checked": true,
+              "entityId": "123e4567-e89b-42d3-a456-426614174000"
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b00000000000040008000000000000002"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Done today"
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b00000000000040008000000000000003"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "More detail"
+                  }
+                ]
+              },
+              {
+                "type": "taskList",
+                "attrs": {
+                  "relaymarkId": "b00000000000040008000000000000006"
+                },
+                "content": [
+                  {
+                    "type": "taskItem",
+                    "attrs": {
+                      "relaymarkId": "b00000000000040008000000000000005",
+                      "checked": false,
+                      "entityId": null
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "relaymarkId": "b00000000000040008000000000000004"
+                        },
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Nested Ω"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "bulletList",
+                "attrs": {
+                  "relaymarkId": "b00000000000040008000000000000007"
+                },
+                "content": [
+                  {
+                    "type": "listItem",
+                    "attrs": {
+                      "relaymarkId": "b00000000000040008000000000000008"
+                    },
+                    "content": [
+                      {
+                        "type": "paragraph",
+                        "attrs": {
+                          "relaymarkId": "b00000000000040008000000000000009"
+                        },
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Related bullet"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "taskItem",
+            "attrs": {
+              "relaymarkId": "b0000000000004000800000000000000c",
+              "checked": false,
+              "entityId": null
+            },
+            "content": [
+              {
+                "type": "paragraph",
+                "attrs": {
+                  "relaymarkId": "b0000000000004000800000000000000b"
+                },
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Next"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "attrs": {
+          "relaymarkId": "b0000000000004000800000000000000e"
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "After tasks"
+          }
+        ]
+      }
+    ]
+  },
+  "expected_ast": {
+    "type": "relaymark.document",
+    "blocks": [
+      {
+        "id": "b00000000000040008000000000000001",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Before tasks"
+          }
+        ]
+      },
+      {
+        "id": "b0000000000004000800000000000000d",
+        "type": "task_list",
+        "content": [
+          {
+            "id": "b0000000000004000800000000000000a",
+            "type": "task_item",
+            "props": {
+              "checked": true,
+              "entityId": "123e4567-e89b-42d3-a456-426614174000"
+            },
+            "content": [
+              {
+                "id": "b00000000000040008000000000000002",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Done today"
+                  }
+                ]
+              },
+              {
+                "id": "b00000000000040008000000000000003",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "More detail"
+                  }
+                ]
+              },
+              {
+                "id": "b00000000000040008000000000000006",
+                "type": "task_list",
+                "content": [
+                  {
+                    "id": "b00000000000040008000000000000005",
+                    "type": "task_item",
+                    "props": {
+                      "checked": false,
+                      "entityId": null
+                    },
+                    "content": [
+                      {
+                        "id": "b00000000000040008000000000000004",
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Nested Ω"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "b00000000000040008000000000000007",
+                "type": "list",
+                "props": {
+                  "kind": "bullet"
+                },
+                "content": [
+                  {
+                    "id": "b00000000000040008000000000000008",
+                    "type": "list_item",
+                    "content": [
+                      {
+                        "id": "b00000000000040008000000000000009",
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "type": "text",
+                            "text": "Related bullet"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "b0000000000004000800000000000000c",
+            "type": "task_item",
+            "props": {
+              "checked": false,
+              "entityId": null
+            },
+            "content": [
+              {
+                "id": "b0000000000004000800000000000000b",
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Next"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "b0000000000004000800000000000000e",
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "After tasks"
+          }
+        ]
+      }
+    ]
+  },
+  "update": "AS7wygUABwEHZGVmYXVsdAMJcGFyYWdyYXBoBwDwygUABgQA8MoFAQxCZWZvcmUgdGFza3MoAPDKBQALcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDGH8MoFAAMIdGFza0xpc3QHAPDKBQ8DCHRhc2tJdGVtBwDwygUQAwlwYXJhZ3JhcGgHAPDKBREGBADwygUSCkRvbmUgdG9kYXkoAPDKBRELcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMDKH8MoFEQMJcGFyYWdyYXBoBwDwygUeBgQA8MoFHwtNb3JlIGRldGFpbCgA8MoFHgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwM4fwygUeAwh0YXNrTGlzdAcA8MoFLAMIdGFza0l0ZW0HAPDKBS0DCXBhcmFncmFwaAcA8MoFLgYEAPDKBS8JTmVzdGVkIM6pKADwygUuC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDA0KADwygUtC3JlbGF5bWFya0lkAXchYjAwMDAwMDAwMDAwMDQwMDA4MDAwMDAwMDAwMDAwMDA1KADwygUtB2NoZWNrZWQBeSgA8MoFLAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNofwygUsAwpidWxsZXRMaXN0BwDwygU8AwhsaXN0SXRlbQcA8MoFPQMJcGFyYWdyYXBoBwDwygU+BgQA8MoFPw5SZWxhdGVkIGJ1bGxldCgA8MoFPgtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwOSgA8MoFPQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwOCgA8MoFPAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwNygA8MoFEAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwYSgA8MoFEAdjaGVja2VkAXgoAPDKBRAIZW50aXR5SWQBdyQxMjNlNDU2Ny1lODliLTQyZDMtYTQ1Ni00MjY2MTQxNzQwMDCH8MoFEAMIdGFza0l0ZW0HAPDKBVQDCXBhcmFncmFwaAcA8MoFVQYEAPDKBVYETmV4dCgA8MoFVQtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwYigA8MoFVAtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwYygA8MoFVAdjaGVja2VkAXkoAPDKBQ8LcmVsYXltYXJrSWQBdyFiMDAwMDAwMDAwMDAwNDAwMDgwMDAwMDAwMDAwMDAwMGSH8MoFDwMJcGFyYWdyYXBoBwDwygVfBgQA8MoFYAtBZnRlciB0YXNrcygA8MoFXwtyZWxheW1hcmtJZAF3IWIwMDAwMDAwMDAwMDA0MDAwODAwMDAwMDAwMDAwMDAwZQA="
+}

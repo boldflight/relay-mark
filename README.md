@@ -125,7 +125,11 @@ if (result.diagnostics.length > 0) reject(result.diagnostics);
 comrak: Markdown to document, the stored `relaymark-ast` source, readable
 Markdown, safe HTML, validation and manifests, ProseMirror and XML snapshot
 conversion, HTML import (retained rendered HTML and clipboard HTML, Relay's own
-or another application's), and the finite historical imports. It compiles in the editor
+or another application's), the finite historical imports, and the native
+editing runtime: editor commands (list split, sink and lift, the table
+commands with `fixTables`), step application with its causal ranges, the
+Yjs write plan and clipboard navigation plans, on a port of the ProseMirror
+packages the web editor uses (`src/pm`). It compiles in the editor
 schema, directive registry and JSON Schemas from `spec/relaymark/`, and its
 output is byte-identical to the JavaScript reference runtime. The Elixir
 adapter runs on it through a Rustler NIF; uniffi and WebAssembly bindings come
@@ -140,8 +144,10 @@ cargo run --release --example relaymark -- parse < doc.md
 `tests/differential.rs` replays calls recorded from the reference runtime
 (`crates/relaymark-core/tools/record.mjs`, driven over a corpus by
 `tools/corpus.mjs`) and requires identical refusals and bytes. The reference
-test suite's calls and an HTML import corpus (`tests/reference/`) are committed
-and always replay; larger corpora replay with
+test suite's calls, an HTML import corpus and an editing corpus (editor
+commands, step application, write and clipboard navigation plans, recorded by
+`tools/edit-corpus.mjs` and `tools/navigation-corpus.mjs`) are committed in
+`tests/reference/` and always replay; larger corpora replay with
 `RELAYMARK_ORACLE=calls.jsonl cargo test --release --test differential`.
 `examples/bench.rs`, `tools/bench.mjs` and `tools/bench.exs` time the same job
 in each engine.

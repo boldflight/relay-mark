@@ -212,7 +212,19 @@ struct Fittable {
 
 struct Frontier {
     ty: TypeId,
-    matched: MatchId,
+    /// `null` once an opened node did not fit, as upstream tolerates until
+    /// the match is next used.
+    matched: Option<MatchId>,
+}
+
+fn null_match() -> crate::Error {
+    crate::Error::new("Cannot read properties of null (reading 'matchType')")
+}
+
+impl Frontier {
+    fn m(&self) -> Result<MatchId> {
+        self.matched.ok_or_else(null_match)
+    }
 }
 
 struct Fitter {
@@ -303,7 +315,7 @@ impl Fitter {
         let mut frontier = Vec::new();
         for i in 0..=from.depth {
             let node = from.node(i);
-            frontier.push(Frontier { ty: node.ty(), matched: node.content_match_at(from.index_after(i))? });
+            frontier.push(Frontier { ty: node.ty(), matched: Some(node.content_match_at(from.index_after(i))?) });
         }
         let mut placed = Fragment::empty();
         for i in (1..=from.depth).rev() {
@@ -390,7 +402,8 @@ impl Fitter {
                 };
                 let first = fragment.first_child().cloned();
                 for frontier_depth in (0..=self.depth()).rev() {
-                    let Frontier { ty, matched } = self.frontier[frontier_depth];
+                    let ty = self.frontier[frontier_depth].ty;
+                    let matched = self.frontier[frontier_depth].m()?;
                     if pass == 1 {
                         let found = match &first {
                             Some(first) => {
@@ -460,10 +473,11 @@ impl Fitter {
         let open_start = slice.open_start as isize - slice_depth as isize;
         let mut taken = 0;
         let mut add: Vec<Node> = Vec::new();
-        let Frontier { mut matched, ty } = self.frontier[frontier_depth];
+        let ty = self.frontier[frontier_depth].ty;
+        let mut matched = self.frontier[frontier_depth].m()?;
         if let Some(inject) = &inject {
             add.extend(inject.iter().cloned());
-            matched = match_fragment(matched, inject, 0, inject.child_count()).expect("injected content matches");
+            matched = match_fragment(matched, inject, 0, inject.child_count()).ok_or_else(null_match)?;
         }
         let mut open_end_count = (fragment.size + slice_depth) as isize - (slice.content.size as isize - slice.open_end as isize);
         while taken < fragment.child_count() {
@@ -485,14 +499,14 @@ impl Fitter {
             open_end_count = -1;
         }
         self.placed = add_to_fragment(&self.placed, frontier_depth, &Fragment::from_array(add));
-        self.frontier[frontier_depth].matched = matched;
+        self.frontier[frontier_depth].matched = Some(matched);
         if to_end && open_end_count < 0 && parent.as_ref().is_some_and(|p| p.ty() == self.frontier[self.depth()].ty) && self.frontier.len() > 1 {
             self.close_frontier_node()?;
         }
         let mut cur = fragment.clone();
         for _ in 0..open_end_count.max(0) {
             let node = cur.last_child().expect("open end").clone();
-            self.frontier.push(Frontier { ty: node.ty(), matched: node.content_match_at(node.child_count())? });
+            self.frontier.push(Frontier { ty: node.ty(), matched: Some(node.content_match_at(node.child_count())?) });
             cur = node.content().clone();
         }
         self.unplaced = if !to_end {
@@ -515,7 +529,7 @@ impl Fitter {
             return Ok(None);
         }
         let top = &self.frontier[self.depth()];
-        if !s.is_textblock(top.ty) || content_after_fits(&self.to, self.to.depth, top.ty, top.matched, false)?.is_none() {
+        if !s.is_textblock(top.ty) || content_after_fits(&self.to, self.to.depth, top.ty, top.m()?, false)?.is_none() {
             return Ok(None);
         }
         if self.to.depth == self.depth()
@@ -539,11 +553,11 @@ impl Fitter {
     /// (depth, fit, move).
     fn find_close_level(&self, to: &ResolvedPos) -> Result<Option<(usize, Fragment, ResolvedPos)>> {
         'scan: for i in (0..=self.depth().min(to.depth)).rev() {
-            let Frontier { ty, matched } = self.frontier[i];
+            let (ty, matched) = (self.frontier[i].ty, self.frontier[i].m()?);
             let drop_inner = i < to.depth && to.end(i + 1) == to.pos + (to.depth - (i + 1));
             let Some(fit) = content_after_fits(to, i, ty, matched, drop_inner)? else { continue };
             for d in (0..i).rev() {
-                let Frontier { ty, matched } = self.frontier[d];
+                let (ty, matched) = (self.frontier[d].ty, self.frontier[d].m()?);
                 match content_after_fits(to, d, ty, matched, true)? {
                     Some(m) if m.child_count() == 0 => {}
                     _ => continue 'scan,
@@ -576,16 +590,16 @@ impl Fitter {
         let s = schema();
         let depth = self.depth();
         let top = &mut self.frontier[depth];
-        top.matched = s.match_type(top.matched, ty).expect("frontier accepts the node");
+        top.matched = s.match_type(top.m()?, ty);
         let node = Node::create(ty, attrs.as_ref(), content.unwrap_or_else(Fragment::empty), Vec::new())?;
         self.placed = add_to_fragment(&self.placed, depth, &Fragment::from_node(node));
-        self.frontier.push(Frontier { ty, matched: s.nodes[ty].content });
+        self.frontier.push(Frontier { ty, matched: Some(s.nodes[ty].content) });
         Ok(())
     }
 
     fn close_frontier_node(&mut self) -> Result<()> {
         let open = self.frontier.pop().expect("frontier");
-        let add = fill_before(open.matched, &Fragment::empty(), true, 0)?.expect("closable frontier");
+        let add = fill_before(open.m()?, &Fragment::empty(), true, 0)?.ok_or_else(null_match)?;
         if add.child_count() > 0 {
             self.placed = add_to_fragment(&self.placed, self.frontier.len(), &add);
         }
@@ -986,6 +1000,86 @@ impl Transform {
         }
         for step in repl.into_iter().rev() {
             self.step(step)?;
+        }
+        Ok(())
+    }
+}
+
+impl Transform {
+    /// `join`, with prosemirror-transform's line break conversion.
+    pub fn join(&mut self, pos: usize, depth: usize) -> Result<()> {
+        let s = schema();
+        let linebreak = (0..s.nodes.len()).find(|&t| s.nodes[t].linebreak_replacement);
+        let rb = self.doc.resolve(pos - depth)?;
+        let before_node = rb.node(rb.depth).clone();
+        let before_type = before_node.ty();
+        let mut convert: Option<bool> = None;
+        if let Some(lb) = linebreak
+            && s.inline_content(before_type)
+        {
+            let pre = s.nodes[before_type].pre;
+            let support = s.match_type(s.nodes[before_type].content, lb).is_some();
+            if pre && !support {
+                convert = Some(false);
+            } else if !pre && support {
+                convert = Some(true);
+            }
+        }
+        let map_from = self.steps.len();
+        if convert == Some(false) {
+            let ra = self.doc.resolve(pos + depth)?;
+            let node = ra.node(ra.depth).clone();
+            self.replace_linebreaks(&node, ra.before(ra.depth)?, map_from)?;
+        }
+        if s.inline_content(before_type) {
+            let matched = before_node.content_match_at(rb.index_here())?;
+            self.clear_incompatible(pos + depth - 1, before_type, Some(matched), convert.is_none())?;
+        }
+        let mapping = self.mapping.slice(map_from, self.mapping.maps.len());
+        let start = mapping.map(pos - depth, 1);
+        let end = mapping.map(pos + depth, -1);
+        self.step(Step::Replace { from: start, to: end, slice: Slice::empty(), structure: true })?;
+        if convert == Some(true) {
+            let full = self.doc.resolve(start)?;
+            let node = full.node(full.depth).clone();
+            let steps = self.steps.len();
+            self.replace_newlines(&node, full.before(full.depth)?, steps)?;
+        }
+        Ok(())
+    }
+
+    fn replace_linebreaks(&mut self, node: &Node, pos: usize, map_from: usize) -> Result<()> {
+        let mut offset = 0;
+        for child in node.content().iter() {
+            if schema().nodes[child.ty()].linebreak_replacement {
+                let start = self.mapping.slice(map_from, self.mapping.maps.len()).map(pos + 1 + offset, 1);
+                self.replace_with(start, start + 1, Fragment::from_node(Node::text_node("\n", Vec::new())?))?;
+            }
+            offset += child.node_size();
+        }
+        Ok(())
+    }
+
+    fn replace_newlines(&mut self, node: &Node, pos: usize, map_from: usize) -> Result<()> {
+        let s = schema();
+        let Some(lb) = (0..s.nodes.len()).find(|&t| s.nodes[t].linebreak_replacement) else { return Ok(()) };
+        let mut offset = 0;
+        for child in node.content().iter() {
+            if let Some(units) = child.text_units() {
+                let (cr, lf) = (u16::from(b'\r'), u16::from(b'\n'));
+                let mut i = 0;
+                while i < units.len() {
+                    if units[i] == cr || units[i] == lf {
+                        let start = self.mapping.slice(map_from, self.mapping.maps.len()).map(pos + 1 + offset + i, 1);
+                        let line_break = Node::create(lb, None, Fragment::empty(), Vec::new())?;
+                        self.replace_with(start, start + 1, Fragment::from_node(line_break))?;
+                        i += if units[i] == cr && units.get(i + 1) == Some(&lf) { 2 } else { 1 };
+                        continue;
+                    }
+                    i += 1;
+                }
+            }
+            offset += child.node_size();
         }
         Ok(())
     }

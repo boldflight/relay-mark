@@ -121,6 +121,9 @@ fn replay(name: &str, raw: &[Value]) -> Option<Outcome> {
             let span = raw.get(5).filter(|v| v.get("$undefined").is_none()).and_then(decode);
             result(rm::edit::plan_text_write(&arg(0)?, &arg(1)?, &arg(2)?, &arg(3)?, &arg(4)?, span.as_ref()), Outcome::Value)
         }
+        "content-edit.createContentEditCommand" => result(rm::edit::command(&arg(0)?, &arg(1)?), Outcome::Value),
+        "clipboard-navigation.planClipboardAnchorAllocation" => result(rm::edit::plan_clipboard_anchors(&arg(0)?), Outcome::Value),
+        "clipboard-navigation.planClipboardHeadingNavigation" => result(rm::edit::plan_clipboard_headings(&arg(0)?), Outcome::Value),
         "content-edit.prepareContentEditWrite" => result(rm::edit::prepare_write(&arg(0)?, &arg(1)?, &arg(2)?), Outcome::Value),
         "document-snapshot.documentToSnapshot" => result(rm::document_to_snapshot(&arg(0)?), Outcome::Value),
         "document-snapshot.snapshotToDocument" => result(rm::snapshot_to_document(&arg(0)?), Outcome::Value),
@@ -179,6 +182,20 @@ fn replays_html_import() {
     replay_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reference/html-corpus.jsonl"));
 }
 
+/// The editing runtime: step application, write plans, editor commands and
+/// clipboard navigation plans, recorded (gzipped) with
+///
+///     RELAYMARK_RECORD=edit.jsonl node --import ./crates/relaymark-core/tools/record.mjs \
+///       crates/relaymark-core/tools/edit-corpus.mjs --edits 40 crates/relaymark-core/tests/reference/edit
+///     RELAYMARK_RECORD=nav.jsonl node --import ./crates/relaymark-core/tools/record.mjs \
+///       crates/relaymark-core/tools/navigation-corpus.mjs --pastes 10 crates/relaymark-core/tests/reference/navigation
+///
+/// keeping the content-edit and clipboard-navigation calls.
+#[test]
+fn replays_editing() {
+    replay_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reference/editing-corpus.jsonl.gz"));
+}
+
 /// Any further recorded corpus (see `tools/corpus.mjs`).
 #[test]
 fn replays_a_recorded_corpus() {
@@ -189,7 +206,15 @@ fn replays_a_recorded_corpus() {
 }
 
 fn replay_file(path: &Path) {
-    let lines = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+    let lines = if path.extension().is_some_and(|e| e == "gz") {
+        use std::io::Read;
+        let file = std::fs::File::open(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        let mut text = String::new();
+        flate2::read::GzDecoder::new(file).read_to_string(&mut text).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+        text
+    } else {
+        std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+    };
     let mut passed: BTreeMap<String, usize> = BTreeMap::new();
     let mut unmapped: BTreeMap<String, usize> = BTreeMap::new();
     let mut failures = Vec::new();

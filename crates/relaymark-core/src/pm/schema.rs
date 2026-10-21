@@ -32,6 +32,8 @@ pub struct NodeType {
     pub atom: bool,
     pub isolating: bool,
     pub defining: bool,
+    /// `spec.selectable !== false`.
+    pub selectable: bool,
     pub table_role: Option<String>,
     pub linebreak_replacement: bool,
     /// `None` admits every mark.
@@ -100,6 +102,7 @@ impl Schema {
                     atom: node["atom"].as_bool().unwrap_or(false),
                     isolating: node["isolating"].as_bool().unwrap_or(false),
                     defining: node["defining"].as_bool().unwrap_or(false),
+                    selectable: node["selectable"] != Value::Bool(false),
                     table_role: node["tableRole"].as_str().map(str::to_owned),
                     linebreak_replacement: node["linebreakReplacement"].as_bool().unwrap_or(false),
                     groups: node["group"].as_str().unwrap_or("").split_whitespace().map(str::to_owned).collect(),

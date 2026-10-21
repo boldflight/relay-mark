@@ -17,3 +17,6 @@ unicode-normalization = "0.1"
 ryu-js = "1"
 base64 = "0.22"
 html5ever = "0.40"
+
+[dev-dependencies]
+flate2 = "1"

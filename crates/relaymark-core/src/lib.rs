@@ -23,6 +23,7 @@
 #![warn(missing_docs)]
 
 mod adapter;
+mod clipboard_navigation;
 mod compile;
 mod compose;
 mod content_edit;
@@ -279,6 +280,24 @@ pub mod edit {
         span: Option<&Value>,
     ) -> Result<Value> {
         crate::content_edit::plan_text_write(prepared, source_parent, source_group, target_parent, target_group, span)
+    }
+
+    /// `createContentEditCommand(document, {command, selection})`: `{kind,
+    /// retained_ids, steps, document, selection, stored_marks,
+    /// stored_text_attributes}`.
+    pub fn command(document: &Value, request: &Value) -> Result<Value> {
+        crate::content_edit::create_content_edit_command(document, request)
+    }
+
+    /// `planClipboardAnchorAllocation(input)`: anchor renames for a paste.
+    pub fn plan_clipboard_anchors(input: &Value) -> Result<Value> {
+        crate::clipboard_navigation::plan_anchor_allocation(input)
+    }
+
+    /// `planClipboardHeadingNavigation(input)`: heading, link and button
+    /// repairs for a paste, with their correspondence.
+    pub fn plan_clipboard_headings(input: &Value) -> Result<Value> {
+        crate::clipboard_navigation::plan_heading_navigation(input)
     }
 
     /// `prepareContentEditWrite(before, steps, after)`.
