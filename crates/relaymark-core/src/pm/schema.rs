@@ -1,3 +1,5 @@
+// Ported from prosemirror-model 1.25.12.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! The canonical editor schema as prosemirror-model's `Schema`: node and mark
 //! types with their specs, and content expressions compiled to the same
 //! automaton (edge order included, since it decides filler and wrapper nodes).

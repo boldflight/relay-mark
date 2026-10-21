@@ -1,3 +1,5 @@
+// The parse rules are ported from the parseHTML rules of the TipTap 3.31.3 extensions.
+// TipTap is Copyright (c) 2025, Tiptap GmbH, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 /** Clipboard HTML written by other applications (browsers, word processors,
  * notes apps), read with the web editor's own paste rules: the parseHTML rules
  * of the TipTap 3.31 extensions the web editor uses. Relay's own canonical

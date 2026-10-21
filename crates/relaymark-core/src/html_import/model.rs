@@ -1,3 +1,5 @@
+// Ported from prosemirror-model 1.25.12.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! The parts of the maintained ProseMirror model (prosemirror-model 1.25)
 //! that DOM parsing uses, over the canonical editor schema: node and mark
 //! types, content expressions compiled to the same automaton (edge order

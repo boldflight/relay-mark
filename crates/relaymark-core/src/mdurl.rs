@@ -1,3 +1,5 @@
+// Ported from markdown-it 15.0.2 and mdurl 2.1.0 (Copyright (c) 2014-2015 Vitaly Puzrin, Alex Kocharin; url.parse after Node.js, Copyright Joyent, Inc. and other Node contributors)
+// and punycode.js 2.3.1 (Copyright Mathias Bynens), each used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! Link destination normalization exactly as markdown-it 15 performs it
 //! (`normalizeLink`, `normalizeLinkText`, `validateLink`, with mdurl 2 and
 //! punycode.js 2). CommonMark itself leaves destinations raw; RelayMark's

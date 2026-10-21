@@ -1,3 +1,5 @@
+// Ported from prosemirror-state 1.4.4 and prosemirror-tables 1.8.5.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! prosemirror-state 1.4's selections and transactions, with
 //! prosemirror-tables' `CellSelection`.
 

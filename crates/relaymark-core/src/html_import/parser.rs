@@ -1,3 +1,5 @@
+// Ported from prosemirror-model 1.25.12.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! prosemirror-model's `DOMParser` (from_dom.ts, 1.25): DOM to nodes by parse
 //! rules, with the same context, wrapping, whitespace and mark handling. Only
 //! the options HTML import uses are kept (no positions, context or top node).

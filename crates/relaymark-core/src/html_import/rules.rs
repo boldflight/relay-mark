@@ -1,3 +1,5 @@
+// The foreign rules are ported from the parseHTML rules of the TipTap 3.31.3 extensions.
+// TipTap is Copyright (c) 2025, Tiptap GmbH, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! The two HTML rule sets. Canonical rules (document-html-rules.js) read the
 //! HTML Relay itself renders, strictly: every element, attribute and atom
 //! display must be accounted for. Foreign rules (document-html-foreign.js) read

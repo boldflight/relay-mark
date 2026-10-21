@@ -1,3 +1,5 @@
+// Ported from prosemirror-transform 1.12.2.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! prosemirror-transform 1.12's position maps and steps.
 
 use std::rc::Rc;

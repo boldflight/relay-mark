@@ -1,3 +1,5 @@
+// Ported from prosemirror-model 1.25.12.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! prosemirror-model 1.25's document model over the canonical schema: marks,
 //! immutable nodes with shared structure, fragments, slices, resolved
 //! positions and `replace`. Positions count UTF-16 code units in text, as in

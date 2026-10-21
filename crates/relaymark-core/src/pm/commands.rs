@@ -1,3 +1,5 @@
+// Ported from prosemirror-commands 1.7.2 and prosemirror-schema-list 1.5.1.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! The prosemirror-commands and prosemirror-schema-list commands the editor
 //! runs. Each takes the state (document and selection, no stored marks) and
 //! answers the transaction it would dispatch, or `None` when it does not apply.

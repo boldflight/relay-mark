@@ -1,3 +1,5 @@
+// Ported from prosemirror-tables 1.8.5.
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, used under the MIT License; see THIRD_PARTY_NOTICES.md.
 //! prosemirror-tables 1.8: the table map, cell helpers, the table commands
 //! the editor offers and `fixTables`.
 
