@@ -1847,11 +1847,15 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         let location = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
         if let onPaperButton, let offset = geometry.characterOffset(at: location), onPaperButton(offset) { return }
+        guard isEditable, let onTaskCheckbox, let offset = taskCheckboxOffset(at: point) else { return }
+        _ = onTaskCheckbox(offset)
+    }
+    /// The task whose checkbox marker is under `point` in view coordinates.
+    func taskCheckboxOffset(at point: CGPoint) -> Int? {
         let taskItems = paper.viewTaskItems
-        guard isEditable, let onTaskCheckbox, !taskItems.isEmpty else { return }
-        if let offset = taskMarkerHit(at: location, geometry: geometry, taskItems: taskItems) {
-            _ = onTaskCheckbox(offset)
-        }
+        guard !taskItems.isEmpty, let geometry = RelayTextGeometry(textLayoutManager) else { return nil }
+        let location = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
+        return taskMarkerHit(at: location, geometry: geometry, taskItems: taskItems)
     }
     private func receiveImageProviders(_ providers: [NSItemProvider], range: NSRange) -> Bool {
         guard providers.contains(where: { $0.registeredTypeIdentifiers.contains(where: { RelayNativeImageRepresentation.isImage($0) }) }) else { return false }
@@ -2150,6 +2154,33 @@ struct RelayTextGeometry {
         return CGRect(x: frame.minX - padding, y: frame.minY + bounds.minY, width: frame.width + padding, height: bounds.height)
     }
 
+    /// Whether TextKit resolved the paragraph at `offset` to run right to left.
+    func isRightToLeft(at offset: Int) -> Bool {
+        guard let location = location(offset) else { return false }
+        return manager.baseWritingDirection(at: location) == .rightToLeft
+    }
+
+    /// The offsets of the laid-out paragraph across the line at `y`.
+    func paragraphRange(atY y: CGFloat) -> NSRange? {
+        let width = manager.textContainer?.size.width ?? 0
+        return manager.textLayoutFragment(for: CGPoint(x: width / 2, y: y)).map { range($0.rangeInElement) }
+    }
+
+    /// Where a paragraph's list or task marker of `width` is drawn, on the
+    /// paragraph's leading side: beside its first character, or inside the
+    /// indent of an empty paragraph.
+    func markerFrame(at offset: Int, width: CGFloat, empty: Bool, headIndent: CGFloat) -> CGRect? {
+        let rightToLeft = isRightToLeft(at: offset)
+        if empty {
+            guard let line = lineFrame(at: offset), line.height > 0 else { return nil }
+            let x = rightToLeft ? line.maxX - padding - headIndent + 7 : line.minX + padding + headIndent - width - 7
+            return CGRect(x: x, y: line.minY, width: width, height: line.height)
+        }
+        guard let character = characterFrame(at: offset) else { return nil }
+        let x = rightToLeft ? character.maxX + 7 : character.minX - width - 7
+        return CGRect(x: x, y: character.minY, width: width, height: character.height)
+    }
+
     /// The character whose drawn frame contains `point`, never the nearest one.
     func characterOffset(at point: CGPoint) -> Int? {
         guard let fragment = manager.textLayoutFragment(for: point) else { return nil }
@@ -2227,8 +2258,11 @@ private func drawRemoteSelections(_ selections: [RelayMarkRemoteSelection], reso
 @MainActor
 private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
                            taskItems: [RelayMarkCollaborativeProse.TaskItem]) -> Int? {
+    // Only the tasks on the tapped line can have a checkbox under it.
+    guard let line = geometry.paragraphRange(atY: point.y) else { return nil }
     let storage = geometry.storage
-    for item in taskItems {
+    for item in taskItems where item.firstParagraphRange.location >= line.location &&
+        item.firstParagraphRange.location <= NSMaxRange(line) {
         let offset = item.firstParagraphRange.location
         guard offset >= 0, offset <= storage.length else { continue }
         let label = item.checked ? "☑" : "☐"
@@ -2236,22 +2270,13 @@ private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
             ? (storage.attribute(.font, at: offset, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15))
             : PlatformFont.systemFont(ofSize: 15)
         let width = (label as NSString).size(withAttributes: [.font: font]).width
-        let rect: CGRect
-        let markerX: CGFloat
-        if item.firstParagraphRange.length == 0 {
-            guard let line = geometry.lineFrame(at: offset) else { continue }
-            rect = line
-            let style = offset < storage.length
-                ? storage.attribute(.paragraphStyle, at: offset, effectiveRange: nil) as? NSParagraphStyle
-                : nil
-            markerX = rect.minX + geometry.padding + (style?.headIndent ?? 18) - width - 7
-        } else {
-            guard let character = geometry.characterFrame(at: offset) else { continue }
-            rect = character
-            markerX = rect.minX - width - 7
-        }
-        if CGRect(x: markerX - 3, y: rect.minY - 3, width: width + 6,
-                  height: max(rect.height, font.ascender - font.descender + font.leading) + 6).contains(point) { return offset }
+        let style = offset < storage.length
+            ? storage.attribute(.paragraphStyle, at: offset, effectiveRange: nil) as? NSParagraphStyle
+            : nil
+        guard let marker = geometry.markerFrame(at: offset, width: width, empty: item.firstParagraphRange.length == 0,
+                                                headIndent: style?.headIndent ?? 18) else { continue }
+        if CGRect(x: marker.minX - 3, y: marker.minY - 3, width: width + 6,
+                  height: max(marker.height, font.ascender - font.descender + font.leading) + 6).contains(point) { return offset }
     }
     return nil
 }
@@ -2267,20 +2292,21 @@ private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint, laidO
         ($0.firstParagraphRange.location, $0.checked ? "☑" : "☐")
     })
     for block in emptyBlocks where block.offset >= 0 && block.offset <= storage.length && isVisible(block.offset) {
-        guard let marker = NativeProseCodec.listMarker(block.intent),
-              let line = geometry.lineFrame(at: block.offset), line.height > 0 else { continue }
+        guard let marker = NativeProseCodec.listMarker(block.intent) else { continue }
         let attrs = NativeProseCodec.emptyAttributes(block.intent)
         let style = attrs[.paragraphStyle] as? NSParagraphStyle
         let label = NSAttributedString(string: taskMarkers[block.offset] ?? marker.label, attributes: attrs)
-        label.draw(at: CGPoint(x: origin.x + line.minX + geometry.padding + (style?.headIndent ?? 0) - label.size().width - 7,
-                               y: origin.y + line.minY))
+        guard let frame = geometry.markerFrame(at: block.offset, width: label.size().width, empty: true,
+                                               headIndent: style?.headIndent ?? 0) else { continue }
+        label.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY))
     }
     storage.enumerateAttribute(.relayListMarker, in: NSIntersectionRange(visible, NSRange(location: 0, length: storage.length))) { value, range, _ in
         guard let label = value as? String, range.location < source.length,
-              range.location == 0 || source.character(at: range.location - 1) == 10,
-              let rect = geometry.characterFrame(at: range.location) else { return }
+              range.location == 0 || source.character(at: range.location - 1) == 10 else { return }
         let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15)
         let marker = NSAttributedString(string: label, attributes: [.font: font, .foregroundColor: PlatformColor.labelColorCompat])
-        marker.draw(at: CGPoint(x: rect.minX + origin.x - marker.size().width - 7, y: rect.minY + origin.y))
+        guard let frame = geometry.markerFrame(at: range.location, width: marker.size().width, empty: false,
+                                               headIndent: 0) else { return }
+        marker.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY))
     }
 }
