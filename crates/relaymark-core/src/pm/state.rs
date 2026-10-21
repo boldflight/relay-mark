@@ -56,9 +56,16 @@ impl Selection {
         let table = anchor_cell.node_rel(-1).clone();
         let map = TableMap::get(&table)?;
         let table_start = anchor_cell.start(anchor_cell.depth - 1);
-        let rect = map.rect_between(anchor_cell.pos - table_start, head_cell.pos - table_start)?;
+        let anchor_rel = anchor_cell.pos - table_start;
+        // A head cell in an earlier table lies before this one: ProseMirror's
+        // TableMap reports its negative offset as a missing cell, after the
+        // anchor's own lookup.
+        let Some(head_rel) = head_cell.pos.checked_sub(table_start) else {
+            map.find_cell(anchor_rel)?;
+            bail!("No cell with offset -{} found", table_start - head_cell.pos)
+        };
+        let rect = map.rect_between(anchor_rel, head_rel)?;
         let doc = anchor_cell.doc().clone();
-        let head_rel = head_cell.pos - table_start;
         let mut cells: Vec<usize> = map.cells_in_rect(&rect).into_iter().filter(|&p| p != head_rel).collect();
         cells.insert(0, head_rel);
         let mut ranges = Vec::new();
