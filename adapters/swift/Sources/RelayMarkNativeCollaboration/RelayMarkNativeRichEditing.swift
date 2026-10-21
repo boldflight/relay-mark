@@ -936,7 +936,8 @@ public enum RelayMarkNativeRichEditing {
 
     /// What a command reads: the whole paper, or a window of top-level nodes
     /// around the edit with one neighbour each side, so joins and emptied
-    /// ranges behave as they do in the paper.
+    /// ranges behave as they do in the paper. A table neighbour is left out,
+    /// since nothing joins with it.
     struct Scope {
         let tree: [String: Any]
         let projection: RelayMarkCollaborativeProse
@@ -1062,7 +1063,13 @@ public enum RelayMarkNativeRichEditing {
               paper.topLevelCount == document.topLevelCount else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let nodes = max(0, touched.lowerBound - 1)..<min(paper.topLevelCount, touched.upperBound + 2)
+        var lower = max(0, touched.lowerBound - 1), upper = min(paper.topLevelCount, touched.upperBound + 2)
+        // Nothing joins into or out of a table (prosemirror-tables isolates
+        // it), so a table neighbour is left out: rehearsing it would cost the
+        // whole table for an edit beside it.
+        if lower < touched.lowerBound, document.topLevelName(lower) == "table" { lower += 1 }
+        if upper > touched.upperBound + 1, document.topLevelName(upper - 1) == "table" { upper -= 1 }
+        let nodes = lower..<upper
         let tree = try document.snapshot(topLevel: nodes)
         let data = try JSONSerialization.data(withJSONObject: tree, options: [.sortedKeys])
         _ = try RelayMarkNativeDocumentProjection.project(snapshot: data)

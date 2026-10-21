@@ -364,6 +364,9 @@ public final class RelayMarkNativeDocument {
     /// The number of top-level nodes.
     public var topLevelCount: Int { Int(root.length()) }
 
+    /// The element name of top-level node `index`, such as `table`.
+    func topLevelName(_ index: Int) -> String? { root.child(at: UInt32(index))?.tag() }
+
     /// A replica holding only some top-level nodes and the paper's metadata,
     /// where a command's write is rehearsed at the cost of those nodes.
     func scratch(topLevel range: Range<Int>) throws -> RelayMarkNativeDocument {

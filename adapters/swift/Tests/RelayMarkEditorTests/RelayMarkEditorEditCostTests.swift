@@ -741,8 +741,9 @@ struct RelayMarkEditorEditCostTests {
         return document
     }
 
-    /// Typing, Return, Bold and Undo in a table cell's text view, and a peer's
-    /// typing in a cell, through the session and the real AppKit views.
+    /// Typing, Return, Bold and Undo in a table cell's text view, a peer's
+    /// typing in a cell, and Return and its join in the paragraph beside the
+    /// table, through the session and the real AppKit views.
     private func tableEdits(bytes: Int) async throws -> Probe {
         let document = try tablePaper(bytes: bytes)
         let peer = RelayMarkNativeDocument(); try peer.applyUpdate(document.encodeUpdate())
@@ -756,6 +757,11 @@ struct RelayMarkEditorEditCostTests {
             func measure(_ name: String, _ work: () throws -> Void) rethrows {
                 let start = clock.now; try work(); samples.append((name, clock.now - start))
             }
+            // The paragraph after the table: the table is the edit's neighbour.
+            let beside = (view.string as NSString).range(of: "Lorem").location + 6 + index
+            view.setSelectedRange(NSRange(location: beside, length: 0))
+            measure("return beside") { view.insertNewline(nil) }
+            measure("join beside") { view.deleteBackward(nil) }
             let marker = " r1c\(1 + index * 2)."
             let cellIndex = try #require(table.cells.firstIndex { $0.text.string.contains(marker) })
             let cell = table.grid.cellView(cellIndex)
