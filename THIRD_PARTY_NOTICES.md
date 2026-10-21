@@ -31,21 +31,16 @@ original names and control flow so behavior can be checked line by line.
 
 ## Bundled JavaScript
 
-The generated runtime under `adapters/elixir/priv/collaboration/` (built by
-`scripts/build-collaboration.mjs`) includes these packages:
+The generated modules under `adapters/elixir/priv/collaboration/` (built by
+`scripts/build-collaboration.mjs`) are the web client's RelayMark runtime;
+the Elixir adapter itself runs relaymark-core. Its bundles `document-source.js`
+and `document-url.js` include these packages (`editor.js` bundles none; the
+host supplies its ProseMirror packages):
 
 | Package | Version | License | Copyright |
 | --- | --- | --- | --- |
 | prosemirror-model | 1.25.12 | MIT | Marijn Haverbeke and others |
-| prosemirror-transform | 1.12.2 | MIT | Marijn Haverbeke and others |
-| prosemirror-state | 1.4.4 | MIT | Marijn Haverbeke and others |
-| prosemirror-commands | 1.7.2 | MIT | Marijn Haverbeke and others |
-| prosemirror-schema-list | 1.5.1 | MIT | Marijn Haverbeke and others |
-| prosemirror-tables | 1.8.5 | MIT | Marijn Haverbeke and others |
-| prosemirror-keymap | 1.2.3 | MIT | Marijn Haverbeke and others |
-| prosemirror-view | 1.42.6 | MIT | Marijn Haverbeke and others |
 | orderedmap | 2.1.1 | MIT | Marijn Haverbeke and others |
-| w3c-keyname | 2.2.8 | MIT | Marijn Haverbeke and others |
 | markdown-it | 15.0.2 | MIT | 2014 Vitaly Puzrin, Alex Kocharin |
 | mdurl | 2.1.0 | MIT | 2015 Vitaly Puzrin, Alex Kocharin |
 | linkify-it | 6.1.0 | MIT | 2015 Vitaly Puzrin |
@@ -54,7 +49,6 @@ The generated runtime under `adapters/elixir/priv/collaboration/` (built by
 | @noble/hashes | 2.0.1 | MIT | 2022 Paul Miller |
 | core-js-pure | 3.50.0 | MIT | 2013–2025 Denis Pushkarev; 2025–2026 CoreJS Company |
 | entities | 8.1.0 | BSD-2-Clause | Felix Böhm |
-| linkedom | 0.18.13 | ISC | 2021 Andrea Giammarchi |
 
 ## License texts
 
@@ -64,12 +58,11 @@ Applies to every component above marked MIT. Copyright lines:
 
 - Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and
   others (prosemirror-model, prosemirror-transform, prosemirror-state,
-  prosemirror-commands, prosemirror-schema-list, prosemirror-keymap,
-  prosemirror-view)
+  prosemirror-commands, prosemirror-schema-list)
 - Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
   (prosemirror-tables)
 - Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
-  (orderedmap, w3c-keyname)
+  (orderedmap)
 - Copyright (c) 2025, Tiptap GmbH (Tiptap: the ported core commands and keymaps,
   and the extensions' parseHTML rules)
 - Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin (markdown-it)
@@ -154,22 +147,4 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-```
-
-### ISC License (linkedom)
-
-```
-Copyright (c) 2021, Andrea Giammarchi, @WebReflection
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted, provided that the above
-copyright notice and this permission notice appear in all copies.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
-OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
 ```
