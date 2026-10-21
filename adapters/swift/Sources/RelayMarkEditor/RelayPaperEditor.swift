@@ -18,6 +18,9 @@ final class RelayPaperViewState {
     var taskItems: [RelayMarkCollaborativeProse.TaskItem] = []
     /// View offsets; peers' selections inside tables are not drawn.
     var remoteSelections: [RelayMarkRemoteSelection] = []
+    /// The paragraphs the last viewport layout pass laid out; nil before the
+    /// first pass. Markers are drawn for these only.
+    var laidOut: NSTextRange?
 
     /// Empty blocks at view offsets, for drawing.
     var viewEmptyBlocks: [RelayEmptyProseBlock] {
@@ -105,6 +108,14 @@ extension RelayPaperTextView {
         }
         return result + NativeProseCodec.value(paperStorage.attributedSubstring(from: NSRange(location: copied, length: viewLength - copied)),
                                                inferFontChanges: inferFontChanges)
+    }
+
+    /// The viewport finished a layout pass, for a scroll, an edit or a resize:
+    /// markers and overlays are drawn again over the paragraphs it laid out.
+    /// TextKit allows reading the controller's state only here.
+    func viewportDidLayout(_ controller: NSTextViewportLayoutController) {
+        paper.laidOut = controller.viewportRange
+        paperNeedsDisplay()
     }
 
     /// The table's attachment character is laid out again, at its grid's new size.

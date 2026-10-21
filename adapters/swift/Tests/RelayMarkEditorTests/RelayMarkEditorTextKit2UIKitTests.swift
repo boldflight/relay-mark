@@ -94,6 +94,35 @@ struct RelayMarkEditorTextKit2UIKitTests {
         }
     }
 
+    /// List markers, task checkboxes, peers' cursors and find highlights are drawn
+    /// by the paper view over the paragraphs TextKit laid out. Scrolling moves the
+    /// text but not that drawing, so each viewport layout pass must redraw it.
+    @Test func scrollingRedrawsTheMarkersForTheParagraphsLaidOut() throws {
+        let markdown = (1...120).map { "- item \($0) with some words" }.joined(separator: "\n")
+        let document = RelayMarkNativeDocument()
+        _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(markdown, namespace: "scroll"))
+        let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
+        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
+        let view = coordinator.makeTextView(accessibilityLabel: "Paper")
+        defer { coordinator.retire(view) }
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+        window.addSubview(view)
+        view.frame = window.bounds
+        window.isHidden = false
+        view.layoutIfNeeded()
+        view.layer.displayIfNeeded()
+        #expect(!view.layer.needsDisplay())
+        view.setContentOffset(CGPoint(x: 0, y: 1500), animated: false)
+        view.layoutIfNeeded()
+        #expect(view.layer.needsDisplay(), "markers stay where the text was")
+        // The markers drawn are those of the paragraphs now on screen.
+        let geometry = try #require(RelayTextGeometry(view.textLayoutManager))
+        let shown = geometry.range(try #require(view.paper.laidOut))
+        let middle = CGPoint(x: 60, y: 1500 + 300 - view.textContainerInset.top)
+        let offset = try #require(geometry.nearestCharacter(at: middle))
+        #expect(offset > 1000 && NSLocationInRange(offset, shown))
+    }
+
     @Test func tableEditsCostTheSameInASmallAndALargePaper() throws {
         func paper(bytes: Int) throws -> RelayMarkNativeDocument {
             let columns = 8, filler = String(repeating: "w", count: 40)

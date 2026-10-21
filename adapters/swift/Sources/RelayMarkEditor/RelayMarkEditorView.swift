@@ -1309,10 +1309,15 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         }
         super.insertText(insertString, replacementRange: replacementRange)
     }
+    override func textViewportLayoutControllerDidLayout(_ controller: NSTextViewportLayoutController) {
+        super.textViewportLayoutControllerDidLayout(controller)
+        viewportDidLayout(controller)
+    }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        drawListMarkers(geometry: geometry, origin: textContainerOrigin, emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
+        drawListMarkers(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut,
+                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
         drawRemoteSelections(paper.remoteSelections, resolveColor: collaboratorColor, geometry: geometry,
             origin: textContainerOrigin, length: string.utf16.count) { [weak self] offset in
                 guard let self, let window = self.window else { return nil }
@@ -2051,12 +2056,17 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         }
         super.insertText(text)
     }
+    override func textViewportLayoutControllerDidLayout(_ controller: NSTextViewportLayoutController) {
+        super.textViewportLayoutControllerDidLayout(controller)
+        viewportDidLayout(controller)
+    }
     override func draw(_ rect: CGRect) {
         super.draw(rect)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
         let origin = CGPoint(x: textContainerInset.left, y: textContainerInset.top)
         if let context = UIGraphicsGetCurrentContext() { drawFound(in: context) }
-        drawListMarkers(geometry: geometry, origin: origin, emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
+        drawListMarkers(geometry: geometry, origin: origin, laidOut: paper.laidOut,
+                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
         drawRemoteSelections(paper.remoteSelections, resolveColor: collaboratorColor, geometry: geometry, origin: origin, length: text.utf16.count) { [weak self] offset in
                 guard let self, let position = self.position(from: self.beginningOfDocument, offset: offset) else { return nil }
                 return self.caretRect(for: position)
@@ -2096,13 +2106,9 @@ struct RelayTextGeometry {
         return NSTextRange(location: start, end: end)
     }
 
-    /// The offsets currently laid out on screen, or everything before the first layout.
-    var visibleRange: NSRange {
-        guard let viewport = manager.textViewportLayoutController.viewportRange else {
-            return NSRange(location: 0, length: length)
-        }
-        let start = offset(viewport.location)
-        return NSRange(location: start, length: max(0, offset(viewport.endLocation) - start))
+    func range(_ textRange: NSTextRange) -> NSRange {
+        let start = offset(textRange.location)
+        return NSRange(location: start, length: max(0, offset(textRange.endLocation) - start))
     }
 
     func segmentFrames(_ range: NSRange) -> [CGRect] {
@@ -2251,11 +2257,11 @@ private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
 }
 
 @MainActor
-private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint,
+private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint, laidOut: NSTextRange?,
                              emptyBlocks: [RelayEmptyProseBlock], taskItems: [RelayMarkCollaborativeProse.TaskItem]) {
     let storage = geometry.storage
     let source = storage.string as NSString
-    let visible = geometry.visibleRange
+    let visible = laidOut.map(geometry.range) ?? NSRange(location: 0, length: storage.length)
     func isVisible(_ offset: Int) -> Bool { offset >= visible.location && offset <= NSMaxRange(visible) }
     let taskMarkers = Dictionary(uniqueKeysWithValues: taskItems.map {
         ($0.firstParagraphRange.location, $0.checked ? "☑" : "☐")
