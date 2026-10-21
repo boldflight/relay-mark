@@ -13,6 +13,7 @@ let engine: Target = ProcessInfo.processInfo.environment["RELAYMARK_LOCAL_ENGINE
 
 let package = Package(
     name: "RelayMark",
+    defaultLocalization: "en",
     platforms: [
         .macOS("27.0"),
         .iOS("27.0"),
@@ -52,7 +53,8 @@ let package = Package(
         .target(
             name: "RelayMarkEditor",
             dependencies: ["RelayMarkCollaboration", "RelayMarkNativeCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
-            path: "adapters/swift/Sources/RelayMarkEditor"
+            path: "adapters/swift/Sources/RelayMarkEditor",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "RelayMarkEditorTests",

@@ -27,7 +27,7 @@ extension RelayTableGridView {
                 item.setAccessibilityRole(.cell)
                 item.setAccessibilityParent(element)
                 item.setAccessibilityValue(cell.text.string)
-                item.setAccessibilityLabel(cell.header ? String(localized: "Header: \(cell.text.string)") : cell.text.string)
+                item.setAccessibilityLabel(cell.header ? String(localized: "Header: \(cell.text.string)", bundle: .module, comment: "VoiceOver label of a table header cell; the placeholder is its text.") : cell.text.string)
                 item.setAccessibilityRowIndexRange(NSRange(location: cell.row, length: cell.rowSpan))
                 item.setAccessibilityColumnIndexRange(NSRange(location: cell.column, length: cell.columnSpan))
                 item.setAccessibilityFrameInParentSpace(geometry.frame(of: cell))

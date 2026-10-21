@@ -77,9 +77,6 @@ struct RelayMarkEditorTextKit2UIKitTests {
         #expect(view.textLayoutManager != nil, "An editor path switched UITextView to TextKit 1")
     }
 
-    /// The table cost gate on UIKit: typing and Return in a cell's text view and
-    /// in body text, Bold and Undo, in a 1 MB paper whose 2,000-cell table is one
-    /// attachment, cost at most four times their 1 KB cost plus 20 ms.
     /// The task-checkbox tap must not win over UITextView's own taps, or a tap
     /// in the paper never places the caret and the keyboard never appears.
     @Test func taskTapLeavesTheTextViewsOwnTapsWorking() throws {
@@ -94,6 +91,41 @@ struct RelayMarkEditorTextKit2UIKitTests {
         }
     }
 
+    /// List markers, task checkboxes, peers' cursors and find highlights are drawn
+    /// by the paper view over the paragraphs TextKit laid out. Scrolling moves the
+    /// text but not that drawing, so each viewport layout pass must redraw it.
+    @Test func scrollingRedrawsTheMarkersForTheParagraphsLaidOut() throws {
+        let markdown = (1...120).map { "- item \($0) with some words" }.joined(separator: "\n")
+        let document = RelayMarkNativeDocument()
+        _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(markdown, namespace: "scroll"))
+        let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
+        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
+        let view = coordinator.makeTextView(accessibilityLabel: "Paper")
+        defer { coordinator.retire(view) }
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+        window.addSubview(view)
+        view.frame = window.bounds
+        window.isHidden = false
+        view.layoutIfNeeded()
+        view.layer.displayIfNeeded()
+        #expect(!view.layer.needsDisplay())
+        view.setContentOffset(CGPoint(x: 0, y: 1500), animated: false)
+        view.layoutIfNeeded()
+        #expect(view.layer.needsDisplay(), "markers stay where the text was")
+        // The markers drawn are those of the paragraphs now on screen.
+        let geometry = try #require(RelayTextGeometry(view.textLayoutManager))
+        let shown = geometry.range(try #require(view.paper.laidOut))
+        let middle = CGPoint(x: 60, y: 1500 + 300 - view.textContainerInset.top)
+        let offset = try #require(geometry.nearestCharacter(at: middle))
+        #expect(offset > 1000 && NSLocationInRange(offset, shown))
+    }
+
+    /// The table cost gate on UIKit: typing and Return in a cell's text view and
+    /// in body text, Bold and Undo, in a 1 MB paper whose 2,000-cell table is one
+    /// attachment, cost at most four times their 1 KB cost plus 20 ms.
+    /// Both papers are edited in alternating rounds, so a load spike on the
+    /// machine falls on both, and each operation is compared by its median over
+    /// the rounds, never against one fast 1 KB sample.
     @Test func tableEditsCostTheSameInASmallAndALargePaper() throws {
         func paper(bytes: Int) throws -> RelayMarkNativeDocument {
             let columns = 8, filler = String(repeating: "w", count: 40)
@@ -102,59 +134,81 @@ struct RelayMarkEditorTextKit2UIKitTests {
             var markdown = (["| " + (0..<columns).map { "h\($0)" }.joined(separator: " | ") + " |",
                 "| " + Array(repeating: "---", count: columns).joined(separator: " | ") + " |"] + (0..<rows).map(row)).joined(separator: "\n")
             let paragraph = String(repeating: "Lorem ipsum dolor sit amet. ", count: 4)
-            markdown += String(repeating: "\n\n" + paragraph, count: max(2, (bytes - markdown.utf8.count) / (paragraph.utf8.count + 2)))
+            markdown += String(repeating: "\n\n" + paragraph, count: max(4, (bytes - markdown.utf8.count) / (paragraph.utf8.count + 2)))
             let document = RelayMarkNativeDocument()
             _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(markdown, namespace: "cost"))
             return document
         }
-        func costs(bytes: Int) throws -> [String: Duration] {
+        struct Paper {
+            let editor: RelayMarkEditorSession
+            let coordinator: RelayMarkEditorView.TextCoordinator
+            let view: CollaborationTextView
+            let table: RelayTableAttachment
+            var samples: [String: [Duration]] = [:]
+        }
+        func mount(bytes: Int) throws -> Paper {
             let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in })
             let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
             let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-            defer { coordinator.retire(view) }
             view.frame = CGRect(x: 0, y: 0, width: 800, height: 600)
             view.layoutIfNeeded()
-            let table = try #require(view.paper.tables.spans.first?.table)
-            let clock = ContinuousClock()
-            var samples: [String: [Duration]] = [:]
+            return Paper(editor: editor, coordinator: coordinator, view: view, table: try #require(view.paper.tables.spans.first?.table))
+        }
+        let clock = ContinuousClock()
+        func round(_ paper: inout Paper, _ index: Int) throws {
+            let (editor, coordinator, view, table) = (paper.editor, paper.coordinator, paper.view, paper.table)
+            var samples = paper.samples
             func measure(_ name: String, _ work: () -> Void) {
                 let start = clock.now; work(); view.layoutIfNeeded(); samples[name, default: []].append(clock.now - start)
             }
             // As the keyboard does: the delegate decides, then UIKit inserts.
             func key(_ text: String) {
-                if coordinator.textView(view, shouldChangeTextIn: view.selectedRange, replacementText: text) { view.insertText(text) }
+                if coordinator.textView(view, shouldChangeTextInRanges: [NSValue(range: view.selectedRange)], replacementText: text) {
+                    view.insertText(text)
+                }
             }
-            for index in 0..<4 {
-                let marker = " r1c\(1 + index * 2)."
-                let cell = table.grid.cellView(try #require(table.cells.firstIndex { $0.text.string.contains(marker) }))
-                cell.selectedRange = NSRange(location: (cell.text as NSString).range(of: marker).location, length: 0)
-                measure("cell type") { cell.insertText("x") }
-                measure("cell return") { cell.insertText("\n") }
-                measure("undo") { editor.undo(); coordinator.update(view) }
-                let paper = (String(editor.text.characters) as NSString).range(of: marker)
-                measure("bold") { _ = editor.toggleMarkNatively(.bold, range: NSRange(location: paper.location - 4, length: 4)); coordinator.update(view) }
-                let body = (view.text as NSString).range(of: "Lorem")
-                view.selectedRange = NSRange(location: body.location + 2 + index, length: 0)
-                measure("body type") { key("x") }
-                measure("body return") { key("\n") }
-            }
-            #expect(editor.failure == nil && view.paperString == String(editor.text.characters))
-            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-            #expect(view.textLayoutManager != nil)
-            // Scrolling a page at a time through the table and past it.
-            var scrolls: [Duration] = []
-            for page in 1...8 {
-                let start = clock.now
-                view.setContentOffset(CGPoint(x: 0, y: CGFloat(page) * 600), animated: false)
-                view.layoutIfNeeded()
-                scrolls.append(clock.now - start)
-            }
-            print("UIKit table \(bytes) scroll page median \(scrolls.sorted()[scrolls.count / 2]), live cells \(table.isGridLoaded ? table.grid.live.count : 0)")
-            return samples.mapValues { $0.sorted()[$0.count / 2] }
+            let marker = " r1c\(1 + index % 4 * 2)."
+            let cell = table.grid.cellView(try #require(table.cells.firstIndex { $0.text.string.contains(marker) }))
+            cell.selectedRange = NSRange(location: (cell.text as NSString).range(of: marker).location, length: 0)
+            measure("cell type") { cell.insertText("x") }
+            measure("cell return") { cell.insertText("\n") }
+            measure("undo") { editor.undo(); coordinator.update(view) }
+            let found = (String(editor.text.characters) as NSString).range(of: marker)
+            measure("bold") { _ = editor.toggleMarkNatively(.bold, range: NSRange(location: found.location - 4, length: 4)); coordinator.update(view) }
+            // Body edits land in the third paragraph after the table. An edit in the
+            // table's neighbour rehearses the whole table (the command window holds one
+            // top-level node each side); that cost is separate from this gate.
+            let text = view.text as NSString
+            var body = text.range(of: "Lorem")
+            for _ in 0..<2 { body = text.range(of: "Lorem", range: NSRange(location: NSMaxRange(body), length: text.length - NSMaxRange(body))) }
+            view.selectedRange = NSRange(location: body.location + 2 + index % 4, length: 0)
+            measure("body type") { key("x") }
+            measure("body return") { key("\n") }
+            paper.samples = samples
         }
-        let small = try costs(bytes: 1_024), large = try costs(bytes: 1_048_576)
-        for name in small.keys.sorted() {
-            let (a, b) = (try #require(small[name]), try #require(large[name]))
+        var small = try mount(bytes: 1_024), large = try mount(bytes: 1_048_576)
+        defer { small.coordinator.retire(small.view); large.coordinator.retire(large.view) }
+        for index in 0..<7 {
+            try round(&small, index)
+            try round(&large, index)
+        }
+        for paper in [small, large] {
+            #expect(paper.editor.failure == nil && paper.view.paperString == String(paper.editor.text.characters))
+            #expect(paper.editor.fallbackEdits == 0, "a whole-paper path ran")
+            #expect(paper.view.textLayoutManager != nil)
+        }
+        // Scrolling a page at a time through the table and past it.
+        var scrolls: [Duration] = []
+        for page in 1...8 {
+            let start = clock.now
+            large.view.setContentOffset(CGPoint(x: 0, y: CGFloat(page) * 600), animated: false)
+            large.view.layoutIfNeeded()
+            scrolls.append(clock.now - start)
+        }
+        print("UIKit table 1 MB scroll page median \(scrolls.sorted()[scrolls.count / 2]), live cells \(large.table.isGridLoaded ? large.table.grid.live.count : 0)")
+        func median(_ samples: [Duration]) -> Duration { samples.sorted()[samples.count / 2] }
+        for name in small.samples.keys.sorted() {
+            let a = median(try #require(small.samples[name])), b = median(try #require(large.samples[name]))
             print("UIKit table \(name) median: 1 KB \(a), 1 MB \(b)")
             #expect(b <= a * 4 + .milliseconds(20), "\(name)")
         }

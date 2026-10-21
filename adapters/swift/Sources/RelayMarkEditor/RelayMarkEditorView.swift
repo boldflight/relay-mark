@@ -232,14 +232,14 @@ enum NativeProseCodec {
             let font = result.attribute(.font, at: local(widget.range).location, effectiveRange: nil) as? PlatformFont
                 ?? PlatformFont.systemFont(ofSize: 13)
             result.addAttribute(.attachment, value: InlineAtomAttachment.attachment(title: title,
-                description: widget.kind == .dataView ? "Data view" : "Authored widget", font: font), range: local(widget.range))
+                description: widget.kind == .dataView ? String(localized: "Data view", bundle: .module, comment: "VoiceOver description of an embedded data view.") : String(localized: "Authored widget", bundle: .module, comment: "VoiceOver description of an embedded authored widget."), font: font), range: local(widget.range))
         }
         for atom in entityReferenceAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
             NSMaxRange(local(atom.range)) <= result.length &&
             (result.string as NSString).substring(with: local(atom.range)) == "\u{FFFC}" {
             let font = result.attribute(.font, at: local(atom.range).location, effectiveRange: nil) as? PlatformFont
                 ?? PlatformFont.systemFont(ofSize: 13)
-            let title = "Reference: \(atom.label)"
+            let title = String(localized: "Reference: \(atom.label)", bundle: .module, comment: "Text and VoiceOver label of a block reference chip; the placeholder is the referenced item's title.")
             result.addAttribute(.attachment, value: InlineAtomAttachment.attachment(
                 title: title, description: title, font: font), range: local(atom.range))
         }
@@ -464,7 +464,7 @@ private enum InlineAtomAttachment {
                            font: PlatformFont) -> NSTextAttachment {
         let title = kind == .relayTag ? label : "@\(label)"
         return attachment(title: title,
-            description: kind == .relayTag ? "Tag \(label)" : "Reference \(label)", font: font)
+            description: kind == .relayTag ? String(localized: "Tag \(label)", bundle: .module, comment: "VoiceOver label of a tag chip; the placeholder is the tag.") : String(localized: "Reference \(label)", bundle: .module, comment: "VoiceOver label of an inline reference chip; the placeholder is the referenced item's title."), font: font)
     }
 
     static func attachment(title: String, description: String, font: PlatformFont) -> NSTextAttachment {
@@ -511,9 +511,9 @@ private enum PaperControlAttachment {
                            font: PlatformFont) -> NSTextAttachment {
         let title: String
         switch atom.control {
-        case .button: title = "Button: \(atom.displayLabel)"
-        case .anchor: title = "Anchor: \(atom.displayLabel)"
-        case .connection: title = "Connection: \(atom.displayLabel)"
+        case .button: title = String(localized: "Button: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the button's label.")
+        case .anchor: title = String(localized: "Anchor: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the anchor's name.")
+        case .connection: title = String(localized: "Connection: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the connection's label.")
         }
         // The control is an authored declaration. Clicking or executing it is a
         // separate host action, never a TextKit or CRDT side effect.
@@ -526,8 +526,8 @@ private enum AgentSuggestionAttachment {
     static func attachment(atom: RelayMarkCollaborativeProse.SuggestionAtom,
                            font: PlatformFont) -> NSTextAttachment {
         let preview = atom.content.replacingOccurrences(of: "\n", with: " ")
-        let title = "Suggestion (\(atom.kind)): \(preview)"
-        let description = "Agent suggestion, \(atom.review), \(atom.kind). \(atom.content)"
+        let title = String(localized: "Suggestion (\(atom.kind)): \(preview)", bundle: .module, comment: "Agent suggestion chip; the placeholders are the suggestion kind and its text.")
+        let description = String(localized: "Agent suggestion, \(atom.review), \(atom.kind). \(atom.content)", bundle: .module, comment: "VoiceOver description of an agent suggestion: review state, kind, then its text.")
         // The authored Markdown stays on the Yrs atom. This preview never
         // converts an Accept or Dismiss tap into a CRDT or domain action.
         return InlineAtomAttachment.attachment(title: title, description: description, font: font)
@@ -563,11 +563,11 @@ enum MediaAtomAttachment {
         attachment.bounds = CGRect(x: 0, y: 0, width: size.width * scale, height: size.height * scale)
         #if os(macOS)
         if let described = image.copy() as? NSImage {
-            described.accessibilityDescription = atom.alt.map { "Image: \($0)" } ?? "Image"
+            described.accessibilityDescription = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
             attachment.image = described
         }
         #else
-        attachment.accessibilityLabel = atom.alt.map { "Image: \($0)" } ?? "Image"
+        attachment.accessibilityLabel = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
         #endif
         images.setObject(attachment, forKey: key)
         return attachment
@@ -579,11 +579,11 @@ enum MediaAtomAttachment {
         let description: String
         switch atom.kind {
         case .image:
-            title = atom.alt.map { "Image: \($0)" } ?? "Image"
+            title = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
             description = title
         case .videoEmbed:
-            title = "Video"
-            description = "Video attachment"
+            title = String(localized: "Video", bundle: .module, comment: "Label of a video attachment in the paper.")
+            description = String(localized: "Video attachment", bundle: .module, comment: "VoiceOver description of a video attachment.")
         }
         // Authenticated media retrieval and playback are host capabilities.
         // The authored source and ID remain in Yrs, not the TextKit attachment.
@@ -597,7 +597,7 @@ private final class ThematicBreakAttachment: NSTextAttachment {
     static let shared: ThematicBreakAttachment = {
         let attachment = ThematicBreakAttachment(data: nil, ofType: nil)
         #if !os(macOS)
-        attachment.accessibilityLabel = String(localized: "Horizontal rule")
+        attachment.accessibilityLabel = String(localized: "Horizontal rule", bundle: .module, comment: "VoiceOver label for a horizontal rule in the paper.")
         #endif
         return attachment
     }()
@@ -617,7 +617,7 @@ private final class ThematicBreakAttachment: NSTextAttachment {
             NSBezierPath(rect: CGRect(x: 0, y: rect.midY, width: rect.width, height: 1)).fill()
             return true
         }
-        image.accessibilityDescription = String(localized: "Horizontal rule")
+        image.accessibilityDescription = String(localized: "Horizontal rule", bundle: .module, comment: "VoiceOver label for a horizontal rule in the paper.")
         #else
         let image = UIGraphicsImageRenderer(size: size).image { context in
             UIColor.separator.setFill()
@@ -897,6 +897,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
+            view.selectionActions = services.selectionActions
         }
     }
 }
@@ -918,12 +919,24 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
         view.register([.onScrollingOutOfViewport, .onEditingInlineParagraphs],
                       forTextAttachmentViewProviderType: RelayTableAttachmentViewProvider.self)
+        #if DEBUG
+        RelayTextKit1Guard.install()
+        #endif
         return view
     }
     /// The view does not own its content storage; this keeps the stack alive.
     private var contentStorage: NSTextContentStorage?
     let paper = RelayPaperViewState()
     var paperStorage: NSTextStorage { textStorage ?? NSTextStorage() }
+    var selectionActions: [RelayMarkSelectionAction] = []
+    var viewSelections: [NSRange] { selectedRanges.map(\.rangeValue) }
+    /// A Genmoji has no RelayMark node: inserted, it would be lost on the next render.
+    override var supportsAdaptiveImageGlyph: Bool { get { false } set {} }
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        (super.accessibilityCustomActions() ?? []) + paperAccessibilityActions().map { action in
+            NSAccessibilityCustomAction(name: action.name) { action.perform() }
+        }
+    }
     var isPaperEditable: Bool {
         get { isEditable }
         set { isEditable = newValue }
@@ -934,7 +947,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     func unmarkPaperText() { unmarkText() }
     func paperNeedsDisplay() { needsDisplay = true }
     func replaceAllText(_ text: NSAttributedString) {
-        textStorage?.setAttributedString(text)
+        performPaperEdit { textStorage?.setAttributedString(text) }
     }
     func focus(_ cell: RelayTableCellTextView, selecting range: NSRange) {
         if NSMaxRange(range) <= cell.string.utf16.count, cell.selectedRange() != range { cell.setSelectedRange(range) }
@@ -1086,7 +1099,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     private func receiveImage(_ pasteboard: NSPasteboard, range: NSRange) -> Bool {
         guard hasImage(pasteboard), let items = pasteboard.pasteboardItems else { return false }
         if items.count > 1 {
-            guard items.count <= 4096 else { onImageInputFailure?("Too many images in this paste. No item was inserted."); return true }
+            guard items.count <= 4096 else { onImageInputFailure?(String(localized: "Too many images in this paste. No item was inserted.", bundle: .module, comment: "Shown when a paste holds more images than the paper accepts.")); return true }
             var files: [RelayMarkImageFile] = []
             var reads: [() -> Data?] = []; let maximumBytes = imagePolicy.maximumBytes
             for item in items {
@@ -1104,7 +1117,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
                     files.append(.init(filename: RelayNativeImageRepresentation.filename(nil, identifier: type.rawValue), contentType: mime))
                     reads.append { item.data(forType: type) }
                 } else {
-                    onImageInputFailure?("Every item must be a supported image. No subset was inserted."); return true
+                    onImageInputFailure?(String(localized: "Every item must be a supported image. No subset was inserted.", bundle: .module, comment: "Shown when some pasted or dropped items are not supported images.")); return true
                 }
             }
             // Every reservation precedes the first file/provider byte read.
@@ -1114,7 +1127,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         }
         guard let item = items.first else { return true }
         if let (file, possibleMime) = imageFile(item) {
-            guard let mime = possibleMime else { onImageInputFailure?("This image type is not supported. No image was inserted."); return true }
+            guard let mime = possibleMime else { onImageInputFailure?(String(localized: "This image type is not supported. No image was inserted.", bundle: .module, comment: "Shown when a pasted or dropped image type is not supported.")); return true }
             guard let intake = onBeginImageInput?(range, file.lastPathComponent, mime) else { return true }
             let access = file.startAccessingSecurityScopedResource()
             defer { if access { file.stopAccessingSecurityScopedResource() } }
@@ -1123,7 +1136,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             intake.receive(try? Data(contentsOf: file)); return true
         }
         guard let type = item.types.first(where: { imagePolicy.mime($0.rawValue) != nil }) else {
-            onImageInputFailure?("This image type is not supported. No image was inserted."); return true
+            onImageInputFailure?(String(localized: "This image type is not supported. No image was inserted.", bundle: .module, comment: "Shown when a pasted or dropped image type is not supported.")); return true
         }
         guard let mime = imagePolicy.mime(type.rawValue),
               let intake = onBeginImageInput?(range, RelayNativeImageRepresentation.filename(nil, identifier: type.rawValue), mime)
@@ -1155,7 +1168,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             // Snapshot ordered item handles before reserving or requesting bytes.
             let items = NSPasteboard.general.pasteboardItems ?? []
             guard !items.isEmpty, items.allSatisfy({ $0.types.contains(.html) }) else {
-                onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
+                onImageInputFailure?(String(localized: "Mixed clipboard representations cannot be inserted as a subset. No item was inserted.", bundle: .module, comment: "Shown when a paste mixes formatted and other items.")); return
             }
             guard let intake = onBeginStructuredPaste?(selectedRange(), items.count, NSPasteboard.general.string(forType: .string)) else { return }
             for (index, item) in items.enumerated() { intake.receive(item.data(forType: .html), at: index) }
@@ -1192,7 +1205,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             // Snapshot ordered item handles before reserving or requesting bytes.
             let items = NSPasteboard.general.pasteboardItems ?? []
             guard !items.isEmpty, items.allSatisfy({ $0.types.contains(.html) }) else {
-                onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
+                onImageInputFailure?(String(localized: "Mixed clipboard representations cannot be inserted as a subset. No item was inserted.", bundle: .module, comment: "Shown when a paste mixes formatted and other items.")); return
             }
             guard let intake = onBeginStructuredPaste?(selectedRange(), items.count, NSPasteboard.general.string(forType: .string)) else { return }
             for (index, item) in items.enumerated() { intake.receive(item.data(forType: .html), at: index) }
@@ -1309,10 +1322,15 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         }
         super.insertText(insertString, replacementRange: replacementRange)
     }
+    override func textViewportLayoutControllerDidLayout(_ controller: NSTextViewportLayoutController) {
+        super.textViewportLayoutControllerDidLayout(controller)
+        viewportDidLayout(controller)
+    }
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        drawListMarkers(geometry: geometry, origin: textContainerOrigin, emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
+        drawListMarkers(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut,
+                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
         drawRemoteSelections(paper.remoteSelections, resolveColor: collaboratorColor, geometry: geometry,
             origin: textContainerOrigin, length: string.utf16.count) { [weak self] offset in
                 guard let self, let window = self.window else { return nil }
@@ -1363,7 +1381,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
     public static func dismantleUIView(_ container: CollaborationTextContainer, coordinator: Coordinator) {
         if let view = container.textView { coordinator.text.retire(view) }
     }
-    @MainActor final class TextCoordinator: NSObject, UITextViewDelegate, UITextPasteDelegate {
+    @MainActor final class TextCoordinator: NSObject, UITextViewDelegate, UITextPasteDelegate, UITextFormattingViewController.Delegate {
         /// The host's services; tests may set the closures below directly.
         var services = RelayMarkEditorServices() {
             didSet {
@@ -1463,6 +1481,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             view.backgroundColor = .clear
             view.textContainerInset = UIEdgeInsets(top: 20, left: 5, bottom: 8, right: 5)
             view.allowsEditingTextAttributes = true
+            view.textFormattingConfiguration = CollaborationTextView.formattingPanel
             view.adjustsFontForContentSizeCategory = true
             view.accessibilityLabel = accessibilityLabel
             view.onSessionEdit = { [weak self, weak view] in
@@ -1539,11 +1558,11 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             }
         }
 
-        func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        func textView(_ textView: UITextView, shouldChangeTextInRanges ranges: [NSValue], replacementText text: String) -> Bool {
             guard !updating, let view = textView as? CollaborationTextView, !view.retired,
                 view.editingSession == nil || view.editingSession === session else { return false }
             view.pasteCommand = nil
-            return editor.shouldChange(view, range: range, replacement: text, pasting: false)
+            return editor.shouldChange(view, ranges: ranges.map(\.rangeValue), replacement: text)
         }
         private static var pasteToken: NSAttributedString.Key { NSAttributedString.Key("RelayTransientPasteToken") }
         func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: any UITextPasteConfigurationSupporting,
@@ -1696,6 +1715,26 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             return view.paper.tables.spans.filter { NSLocationInRange($0.view, enclosingRange) }
                 .map { NSValue(range: NSRange(location: $0.view, length: 1)) }
         }
+        /// The formatting panel's changes are the paper's marks, applied by the
+        /// session; a change the paper has no mark for is refused, never shown and lost.
+        func textView(_ textView: UITextView, willBeginFormattingWith viewController: UITextFormattingViewController) {
+            viewController.delegate = self
+        }
+        func textFormattingViewController(_ viewController: UITextFormattingViewController,
+                                          didChangeValue changeValue: UITextFormattingViewController.ChangeValue) {
+            guard let view = editor.attachedView as? CollaborationTextView, !view.retired, !updating, view.markedTextRange == nil,
+                  view.editingSession === session, session.isEditable else { return }
+            let applied: Bool
+            switch changeValue {
+            case .bold(let on): applied = view.setMark(.bold, enabled: on)
+            case .italic(let on): applied = view.setMark(.italic, enabled: on)
+            case .strikethrough(let on): applied = view.setMark(.strike, enabled: on)
+            default: applied = false
+            }
+            guard applied else { RelayPaperRefusal.feedback(); return }
+            update(view)
+            viewController.formattingDescriptor = .init(string: view.textStorage, range: view.selectedRange)
+        }
         func textViewDidChangeSelection(_ view: UITextView) {
             guard !updating, let view = view as? CollaborationTextView, !view.retired, view.markedTextRange == nil,
                 view.editingSession == nil || view.editingSession === session else { return }
@@ -1712,6 +1751,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
+            view.selectionActions = services.selectionActions
         }
     }
 }
@@ -1760,6 +1800,33 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     private var contentStorage: NSTextContentStorage?
     let paper = RelayPaperViewState()
     var paperStorage: NSTextStorage { textStorage }
+    /// The keyboard keeps its language per context; the paper and its cells are one.
+    static let keyboardContext = "relay.paper"
+    override var textInputContextIdentifier: String? { Self.keyboardContext }
+    var selectionActions: [RelayMarkSelectionAction] = []
+    var viewSelections: [NSRange] { selectedRanges }
+    override var accessibilityCustomActions: [UIAccessibilityCustomAction]? {
+        get {
+            (super.accessibilityCustomActions ?? []) + paperAccessibilityActions().map { action in
+                let custom = UIAccessibilityCustomAction(name: action.name) { _ in action.perform() }
+                if action.edits { custom.category = UIAccessibilityCustomAction.editCategory }
+                return custom
+            }
+        }
+        set { super.accessibilityCustomActions = newValue }
+    }
+    /// Underline has no mark in the paper: TextKit would show it until the next
+    /// render and then drop it, so it is not offered and is refused.
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(toggleUnderline(_:)) { return false }
+        return super.canPerformAction(action, withSender: sender)
+    }
+    override func toggleUnderline(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    /// The formatting panel offers only the paper's marks: bold, italic, underline
+    /// (refused) and strikethrough. Fonts, sizes, colours and alignment are not paper.
+    static var formattingPanel: UITextFormattingViewController.Configuration {
+        UITextFormattingViewController.Configuration(groups: [.group([.component(.fontAttributes, .automatic)])])
+    }
     var isPaperEditable: Bool {
         get { isEditable }
         set { isEditable = newValue }
@@ -1781,6 +1848,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     /// Only the table rows near the screen keep cell text views.
     override func layoutSubviews() {
         super.layoutSubviews()
+        assert(textLayoutManager != nil, "The paper switched to TextKit 1 compatibility mode")
         for span in paper.tables.spans where span.table.isGridLoaded && span.table.grid.superview != nil {
             span.table.grid.updateVisible(in: convert(bounds, to: span.table.grid))
         }
@@ -1842,21 +1910,25 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         let location = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
         if let onPaperButton, let offset = geometry.characterOffset(at: location), onPaperButton(offset) { return }
+        guard isEditable, let onTaskCheckbox, let offset = taskCheckboxOffset(at: point) else { return }
+        _ = onTaskCheckbox(offset)
+    }
+    /// The task whose checkbox marker is under `point` in view coordinates.
+    func taskCheckboxOffset(at point: CGPoint) -> Int? {
         let taskItems = paper.viewTaskItems
-        guard isEditable, let onTaskCheckbox, !taskItems.isEmpty else { return }
-        if let offset = taskMarkerHit(at: location, geometry: geometry, taskItems: taskItems) {
-            _ = onTaskCheckbox(offset)
-        }
+        guard !taskItems.isEmpty, let geometry = RelayTextGeometry(textLayoutManager) else { return nil }
+        let location = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
+        return taskMarkerHit(at: location, geometry: geometry, taskItems: taskItems)
     }
     private func receiveImageProviders(_ providers: [NSItemProvider], range: NSRange) -> Bool {
         guard providers.contains(where: { $0.registeredTypeIdentifiers.contains(where: { RelayNativeImageRepresentation.isImage($0) }) }) else { return false }
         if providers.count > 1 {
-            guard providers.count <= 4096 else { onImageInputFailure?("Too many images in this input. No item was inserted."); return true }
+            guard providers.count <= 4096 else { onImageInputFailure?(String(localized: "Too many images in this input. No item was inserted.", bundle: .module, comment: "Shown when a paste or drop holds more images than the paper accepts.")); return true }
             var files: [RelayMarkImageFile] = [], identifiers: [String] = []
             for provider in providers {
                 guard let identifier = provider.registeredTypeIdentifiers.first(where: { imagePolicy.mime($0) != nil }),
                       let mime = imagePolicy.mime(identifier) else {
-                    onImageInputFailure?("Every item must be a supported image. No subset was inserted."); return true
+                    onImageInputFailure?(String(localized: "Every item must be a supported image. No subset was inserted.", bundle: .module, comment: "Shown when some pasted or dropped items are not supported images.")); return true
                 }
                 files.append(.init(filename: RelayNativeImageRepresentation.filename(provider.suggestedName, identifier: identifier), contentType: mime))
                 identifiers.append(identifier)
@@ -1871,7 +1943,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         }
         guard let provider = providers.first else { return true }
         guard let identifier = provider.registeredTypeIdentifiers.first(where: { imagePolicy.mime($0) != nil }) else {
-            onImageInputFailure?("This image type is not supported. No image was inserted."); return true
+            onImageInputFailure?(String(localized: "This image type is not supported. No image was inserted.", bundle: .module, comment: "Shown when a pasted or dropped image type is not supported.")); return true
         }
         guard let mime = imagePolicy.mime(identifier),
               let intake = onBeginImageInput?(range, RelayNativeImageRepresentation.filename(provider.suggestedName, identifier: identifier), mime)
@@ -1938,7 +2010,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         // HTML never falls through UIKit's default converter. A mixed item list
         // remains on the clipboard intact; all-HTML delivery is ordered by slot.
         guard !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.html.identifier) }) else {
-            onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
+            onImageInputFailure?(String(localized: "Mixed clipboard representations cannot be inserted as a subset. No item was inserted.", bundle: .module, comment: "Shown when a paste mixes formatted and other items.")); return
         }
         guard let intake = onBeginStructuredPaste?(selectedRange, providers.count, plainText) else { return }
         for (index, provider) in providers.enumerated() {
@@ -1950,12 +2022,12 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     override func toggleBoldface(_ sender: Any?) {
         guard !retired, isEditable, markedTextRange == nil, compositionCompletion == nil else { return }
         guard NSMaxRange(selectedRange) <= viewLength else { return }
-        if let session = editingSession, session.toggleMarkNatively(.bold, range: paperSelection) { onSessionEdit?() }
+        if toggleMark(.bold) { onSessionEdit?() }
     }
     override func toggleItalics(_ sender: Any?) {
         guard !retired, isEditable, markedTextRange == nil, compositionCompletion == nil else { return }
         guard NSMaxRange(selectedRange) <= viewLength else { return }
-        if let session = editingSession, session.toggleMarkNatively(.italic, range: paperSelection) { onSessionEdit?() }
+        if toggleMark(.italic) { onSessionEdit?() }
     }
     fileprivate let collaborationUndo = CollaborationUndoManager()
     weak var editingSession: (any RelayPaperTextEditing)?
@@ -2051,12 +2123,17 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         }
         super.insertText(text)
     }
+    override func textViewportLayoutControllerDidLayout(_ controller: NSTextViewportLayoutController) {
+        super.textViewportLayoutControllerDidLayout(controller)
+        viewportDidLayout(controller)
+    }
     override func draw(_ rect: CGRect) {
         super.draw(rect)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
         let origin = CGPoint(x: textContainerInset.left, y: textContainerInset.top)
         if let context = UIGraphicsGetCurrentContext() { drawFound(in: context) }
-        drawListMarkers(geometry: geometry, origin: origin, emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
+        drawListMarkers(geometry: geometry, origin: origin, laidOut: paper.laidOut,
+                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems)
         drawRemoteSelections(paper.remoteSelections, resolveColor: collaboratorColor, geometry: geometry, origin: origin, length: text.utf16.count) { [weak self] offset in
                 guard let self, let position = self.position(from: self.beginningOfDocument, offset: offset) else { return nil }
                 return self.caretRect(for: position)
@@ -2096,13 +2173,9 @@ struct RelayTextGeometry {
         return NSTextRange(location: start, end: end)
     }
 
-    /// The offsets currently laid out on screen, or everything before the first layout.
-    var visibleRange: NSRange {
-        guard let viewport = manager.textViewportLayoutController.viewportRange else {
-            return NSRange(location: 0, length: length)
-        }
-        let start = offset(viewport.location)
-        return NSRange(location: start, length: max(0, offset(viewport.endLocation) - start))
+    func range(_ textRange: NSTextRange) -> NSRange {
+        let start = offset(textRange.location)
+        return NSRange(location: start, length: max(0, offset(textRange.endLocation) - start))
     }
 
     func segmentFrames(_ range: NSRange) -> [CGRect] {
@@ -2142,6 +2215,33 @@ struct RelayTextGeometry {
         guard let line = lines.first(where: { NSLocationInRange(inner, $0.characterRange) }) ?? lines.last else { return nil }
         let bounds = line.typographicBounds
         return CGRect(x: frame.minX - padding, y: frame.minY + bounds.minY, width: frame.width + padding, height: bounds.height)
+    }
+
+    /// Whether TextKit resolved the paragraph at `offset` to run right to left.
+    func isRightToLeft(at offset: Int) -> Bool {
+        guard let location = location(offset) else { return false }
+        return manager.baseWritingDirection(at: location) == .rightToLeft
+    }
+
+    /// The offsets of the laid-out paragraph across the line at `y`.
+    func paragraphRange(atY y: CGFloat) -> NSRange? {
+        let width = manager.textContainer?.size.width ?? 0
+        return manager.textLayoutFragment(for: CGPoint(x: width / 2, y: y)).map { range($0.rangeInElement) }
+    }
+
+    /// Where a paragraph's list or task marker of `width` is drawn, on the
+    /// paragraph's leading side: beside its first character, or inside the
+    /// indent of an empty paragraph.
+    func markerFrame(at offset: Int, width: CGFloat, empty: Bool, headIndent: CGFloat) -> CGRect? {
+        let rightToLeft = isRightToLeft(at: offset)
+        if empty {
+            guard let line = lineFrame(at: offset), line.height > 0 else { return nil }
+            let x = rightToLeft ? line.maxX - padding - headIndent + 7 : line.minX + padding + headIndent - width - 7
+            return CGRect(x: x, y: line.minY, width: width, height: line.height)
+        }
+        guard let character = characterFrame(at: offset) else { return nil }
+        let x = rightToLeft ? character.maxX + 7 : character.minX - width - 7
+        return CGRect(x: x, y: character.minY, width: width, height: character.height)
     }
 
     /// The character whose drawn frame contains `point`, never the nearest one.
@@ -2221,8 +2321,11 @@ private func drawRemoteSelections(_ selections: [RelayMarkRemoteSelection], reso
 @MainActor
 private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
                            taskItems: [RelayMarkCollaborativeProse.TaskItem]) -> Int? {
+    // Only the tasks on the tapped line can have a checkbox under it.
+    guard let line = geometry.paragraphRange(atY: point.y) else { return nil }
     let storage = geometry.storage
-    for item in taskItems {
+    for item in taskItems where item.firstParagraphRange.location >= line.location &&
+        item.firstParagraphRange.location <= NSMaxRange(line) {
         let offset = item.firstParagraphRange.location
         guard offset >= 0, offset <= storage.length else { continue }
         let label = item.checked ? "☑" : "☐"
@@ -2230,51 +2333,43 @@ private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
             ? (storage.attribute(.font, at: offset, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15))
             : PlatformFont.systemFont(ofSize: 15)
         let width = (label as NSString).size(withAttributes: [.font: font]).width
-        let rect: CGRect
-        let markerX: CGFloat
-        if item.firstParagraphRange.length == 0 {
-            guard let line = geometry.lineFrame(at: offset) else { continue }
-            rect = line
-            let style = offset < storage.length
-                ? storage.attribute(.paragraphStyle, at: offset, effectiveRange: nil) as? NSParagraphStyle
-                : nil
-            markerX = rect.minX + geometry.padding + (style?.headIndent ?? 18) - width - 7
-        } else {
-            guard let character = geometry.characterFrame(at: offset) else { continue }
-            rect = character
-            markerX = rect.minX - width - 7
-        }
-        if CGRect(x: markerX - 3, y: rect.minY - 3, width: width + 6,
-                  height: max(rect.height, font.ascender - font.descender + font.leading) + 6).contains(point) { return offset }
+        let style = offset < storage.length
+            ? storage.attribute(.paragraphStyle, at: offset, effectiveRange: nil) as? NSParagraphStyle
+            : nil
+        guard let marker = geometry.markerFrame(at: offset, width: width, empty: item.firstParagraphRange.length == 0,
+                                                headIndent: style?.headIndent ?? 18) else { continue }
+        if CGRect(x: marker.minX - 3, y: marker.minY - 3, width: width + 6,
+                  height: max(marker.height, font.ascender - font.descender + font.leading) + 6).contains(point) { return offset }
     }
     return nil
 }
 
 @MainActor
-private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint,
+private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint, laidOut: NSTextRange?,
                              emptyBlocks: [RelayEmptyProseBlock], taskItems: [RelayMarkCollaborativeProse.TaskItem]) {
     let storage = geometry.storage
     let source = storage.string as NSString
-    let visible = geometry.visibleRange
+    let visible = laidOut.map(geometry.range) ?? NSRange(location: 0, length: storage.length)
     func isVisible(_ offset: Int) -> Bool { offset >= visible.location && offset <= NSMaxRange(visible) }
     let taskMarkers = Dictionary(uniqueKeysWithValues: taskItems.map {
         ($0.firstParagraphRange.location, $0.checked ? "☑" : "☐")
     })
     for block in emptyBlocks where block.offset >= 0 && block.offset <= storage.length && isVisible(block.offset) {
-        guard let marker = NativeProseCodec.listMarker(block.intent),
-              let line = geometry.lineFrame(at: block.offset), line.height > 0 else { continue }
+        guard let marker = NativeProseCodec.listMarker(block.intent) else { continue }
         let attrs = NativeProseCodec.emptyAttributes(block.intent)
         let style = attrs[.paragraphStyle] as? NSParagraphStyle
         let label = NSAttributedString(string: taskMarkers[block.offset] ?? marker.label, attributes: attrs)
-        label.draw(at: CGPoint(x: origin.x + line.minX + geometry.padding + (style?.headIndent ?? 0) - label.size().width - 7,
-                               y: origin.y + line.minY))
+        guard let frame = geometry.markerFrame(at: block.offset, width: label.size().width, empty: true,
+                                               headIndent: style?.headIndent ?? 0) else { continue }
+        label.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY))
     }
     storage.enumerateAttribute(.relayListMarker, in: NSIntersectionRange(visible, NSRange(location: 0, length: storage.length))) { value, range, _ in
         guard let label = value as? String, range.location < source.length,
-              range.location == 0 || source.character(at: range.location - 1) == 10,
-              let rect = geometry.characterFrame(at: range.location) else { return }
+              range.location == 0 || source.character(at: range.location - 1) == 10 else { return }
         let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15)
         let marker = NSAttributedString(string: label, attributes: [.font: font, .foregroundColor: PlatformColor.labelColorCompat])
-        marker.draw(at: CGPoint(x: rect.minX + origin.x - marker.size().width - 7, y: rect.minY + origin.y))
+        guard let frame = geometry.markerFrame(at: range.location, width: marker.size().width, empty: false,
+                                               headIndent: 0) else { return }
+        marker.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY))
     }
 }

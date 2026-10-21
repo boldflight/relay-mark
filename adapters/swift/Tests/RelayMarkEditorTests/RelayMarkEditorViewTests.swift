@@ -233,7 +233,7 @@ struct RelayMarkEditorCollaborativeTextViewTests {
         // Programmatic UIKeyInput insertion bypasses UIKit's keyboard delegate
         // preflight; as the keyboard does, ask it first. Return is applied by
         // the coordinator itself, so UIKit inserts nothing.
-        if coordinator.textView(view, shouldChangeTextIn: view.selectedRange, replacementText: "\n") { view.insertText("\n") }
+        if coordinator.textView(view, shouldChangeTextInRanges: [NSValue(range: view.selectedRange)], replacementText: "\n") { view.insertText("\n") }
         #endif
         try editor.finishNativeComposition()
         #expect(receipts.count == 1)
@@ -242,7 +242,7 @@ struct RelayMarkEditorCollaborativeTextViewTests {
         insert("Next 🌍", into: view)
         #else
         // The first text of the new paragraph is applied by the coordinator itself.
-        if coordinator.textView(view, shouldChangeTextIn: view.selectedRange, replacementText: "Next 🌍") { insert("Next 🌍", into: view) }
+        if coordinator.textView(view, shouldChangeTextInRanges: [NSValue(range: view.selectedRange)], replacementText: "Next 🌍") { insert("Next 🌍", into: view) }
         #endif
         try editor.finishNativeComposition()
         #expect(receipts.count == 2)
@@ -428,7 +428,7 @@ struct RelayMarkEditorCollaborativeTextViewTests {
         // Formatting-only delegate callbacks must not replace pending text intent.
         #expect(coordinator.textView(view, shouldChangeTextIn: range, replacementString: nil))
         #else
-        #expect(coordinator.textView(view, shouldChangeTextIn: range, replacementText: "Hello"))
+        #expect(coordinator.textView(view, shouldChangeTextInRanges: [NSValue(range: range)], replacementText: "Hello"))
         #endif
         // A keystroke inside one text leaf is held as typing, not as a whole-paper replacement.
         #expect(coordinator.pendingTyping?.range == range && coordinator.pendingTyping?.text == "Hello")

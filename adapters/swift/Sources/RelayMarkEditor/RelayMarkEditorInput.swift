@@ -127,7 +127,7 @@ public struct RelayMarkEditFailure: Error, LocalizedError {
 
 public struct RelayMarkPasteUnavailable: LocalizedError {
     public init() {}
-    public var errorDescription: String? { "This clipboard content can't be pasted here." }
+    public var errorDescription: String? { String(localized: "This clipboard content can't be pasted here.", bundle: .module, comment: "Shown when the clipboard holds nothing the paper can paste.") }
 }
 
 /// Ephemeral captured delivery closure; checkpoint and selection are captured
@@ -145,9 +145,9 @@ public final class RelayMarkPasteIntake {
         self.init(itemCount: 1, receive: { _, bytes in receive(bytes) }, failure: failure)
     }
     public func receive(_ data: Data?, at index: Int = 0) {
-        guard index >= 0, index < itemCount, !completed.contains(index) else { reportFailure("The clipboard provider delivered an invalid item."); return }
+        guard index >= 0, index < itemCount, !completed.contains(index) else { reportFailure(String(localized: "The clipboard provider delivered an invalid item.", bundle: .module, comment: "Paste failure shown on the paper.")); return }
         guard let data, !data.isEmpty, data.count <= 4_194_304 else {
-            reportFailure("The HTML clipboard payload could not be read within the supported input limit."); return
+            reportFailure(String(localized: "The HTML clipboard payload could not be read within the supported input limit.", bundle: .module, comment: "Paste failure shown on the paper.")); return
         }
         completed.insert(index); receiveBytes(index, data)
     }
@@ -164,9 +164,9 @@ public final class RelayMarkImageIntake {
         self.maximumBytes = maximumBytes; receiveBytes = receive; reportFailure = failure
     }
     public func receive(_ bytes: Data?) {
-        guard !delivered else { reportFailure("The image provider delivered the same input twice."); return }
+        guard !delivered else { reportFailure(String(localized: "The image provider delivered the same input twice.", bundle: .module, comment: "Image input failure shown on the paper.")); return }
         guard let bytes, !bytes.isEmpty, bytes.count <= maximumBytes else {
-            reportFailure("The image could not be read within the supported input limit."); return
+            reportFailure(String(localized: "The image could not be read within the supported input limit.", bundle: .module, comment: "Image input failure shown on the paper.")); return
         }
         delivered = true; receiveBytes(bytes)
     }

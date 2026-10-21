@@ -18,6 +18,9 @@ final class RelayPaperViewState {
     var taskItems: [RelayMarkCollaborativeProse.TaskItem] = []
     /// View offsets; peers' selections inside tables are not drawn.
     var remoteSelections: [RelayMarkRemoteSelection] = []
+    /// The paragraphs the last viewport layout pass laid out; nil before the
+    /// first pass. Markers are drawn for these only.
+    var laidOut: NSTextRange?
 
     /// Empty blocks at view offsets, for drawing.
     var viewEmptyBlocks: [RelayEmptyProseBlock] {
@@ -53,6 +56,13 @@ protocol RelayPaperTextView: AnyObject {
     var hasMarkedInput: Bool { get }
     /// The selection in view offsets.
     var viewSelection: NSRange { get }
+    /// The selection's ranges in view offsets, in order; a selection across
+    /// mixed-direction text has several.
+    var viewSelections: [NSRange] { get }
+    /// The host's commands on the selection.
+    var selectionActions: [RelayMarkSelectionAction] { get }
+    /// Toggles the task whose first paragraph starts at a view offset.
+    var onTaskCheckbox: ((Int) -> Bool)? { get }
     func showSelection(_ range: NSRange)
     func cancelCompositionCompletion()
     func unmarkPaperText()
@@ -107,6 +117,62 @@ extension RelayPaperTextView {
                                                inferFontChanges: inferFontChanges)
     }
 
+    /// Changes the view's text storage outside TextKit's own editing as one
+    /// content-storage transaction, so layout and the viewport see one change.
+    func performPaperEdit<T>(_ edit: () -> T) -> T {
+        guard let content = textLayoutManager?.textContentManager else { return edit() }
+        var result: T?
+        content.performEditingTransaction { result = edit() }
+        return result!
+    }
+
+    /// Toggles an inline mark over every selected range together: on unless
+    /// every range has it already. A caret toggles the mark for the next typing.
+    func toggleMark(_ mark: RelayMarkFormattingMark) -> Bool {
+        guard let session = editingSession else { return false }
+        let ranges = viewSelections.map(paper.tables.paper).filter { $0.length > 0 }
+        guard ranges.count > 1 else { return session.toggleMarkNatively(mark, range: paperSelection) }
+        let text = session.text, flag = mark.inlineIntent
+        return setMark(mark, enabled: !ranges.allSatisfy { range in
+            Range(range, in: text).map { text[$0].runs.allSatisfy { ($0.inlinePresentationIntent ?? []).contains(flag) } } ?? false
+        })
+    }
+
+    /// Sets or removes an inline mark over every selected range.
+    func setMark(_ mark: RelayMarkFormattingMark, enabled: Bool) -> Bool {
+        guard let session = editingSession else { return false }
+        let ranges = viewSelections.map(paper.tables.paper).filter { $0.length > 0 }
+        var changed = false
+        for range in ranges.reversed() { changed = session.formatNatively(range: range, mark: mark, enabled: enabled) || changed }
+        return changed
+    }
+
+    /// Commands VoiceOver offers on the paper: toggling the task at the caret,
+    /// whose checkbox is drawn rather than read, and the host's commands on the
+    /// selection, which belong in the Edit rotor (`edits`).
+    func paperAccessibilityActions() -> [(name: String, edits: Bool, perform: () -> Bool)] {
+        guard !retired, isPaperEditable else { return [] }
+        var actions: [(name: String, edits: Bool, perform: () -> Bool)] = []
+        let caret = viewSelection.location
+        if let toggle = onTaskCheckbox, let item = paper.viewTaskItems.first(where: {
+            NSLocationInRange(caret, $0.firstParagraphRange) || NSMaxRange($0.firstParagraphRange) == caret }) {
+            let name = item.checked ? String(localized: "Mark as not done", bundle: .module, comment: "VoiceOver action that unchecks the task at the caret.") : String(localized: "Mark as done", bundle: .module, comment: "VoiceOver action that checks the task at the caret.")
+            actions.append((name, false, { toggle(item.firstParagraphRange.location) }))
+        }
+        for action in selectionActions {
+            actions.append((action.name, true, { [weak self] in self.map { action.perform($0.paperSelection) } ?? false }))
+        }
+        return actions
+    }
+
+    /// The viewport finished a layout pass, for a scroll, an edit or a resize:
+    /// markers and overlays are drawn again over the paragraphs it laid out.
+    /// TextKit allows reading the controller's state only here.
+    func viewportDidLayout(_ controller: NSTextViewportLayoutController) {
+        paper.laidOut = controller.viewportRange
+        paperNeedsDisplay()
+    }
+
     /// The table's attachment character is laid out again, at its grid's new size.
     func tableChanged(_ table: RelayTableAttachment) {
         guard let span = paper.tables.spans.first(where: { $0.table === table }), let manager = textLayoutManager,
@@ -128,6 +194,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
     /// A keystroke inside one text leaf, applied without reading the whole paper.
     var pendingTyping: (view: NSRange, paper: NSRange, text: String)?
     private weak var view: (any RelayPaperTextView)?
+    var attachedView: (any RelayPaperTextView)? { view }
     /// The last change TextKit made to the view's characters on its own.
     private var textKitEdit: (range: NSRange, delta: Int)?
     private var storageObserver: NSObjectProtocol?
@@ -196,6 +263,31 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         // is the exception; it stays in the view until the input method commits it.
         if composition != nil || view.hasMarkedInput { return true }
         refuse()
+        return false
+    }
+
+    /// Decides a replacement over every range of the selection. A selection
+    /// across mixed-direction text has several: the text replaces the first and
+    /// the others are deleted, last first, never the text between them.
+    func shouldChange(_ view: any RelayPaperTextView, ranges: [NSRange], replacement: String) -> Bool {
+        let ranges = ranges.sorted { $0.location < $1.location }
+        guard ranges.count > 1 else {
+            return shouldChange(view, range: ranges.first ?? view.viewSelection, replacement: replacement, pasting: false)
+        }
+        guard !updating, owns(view), session.isEditable, composition == nil, !view.hasMarkedInput,
+              ranges.allSatisfy({ NSMaxRange($0) <= view.viewLength }) else { return false }
+        pendingTyping = nil
+        let tables = view.paper.tables
+        guard !ranges.contains(where: tables.touchesTableLine) else { refuse(); return false }
+        for (index, range) in ranges.enumerated().reversed() {
+            let paper = tables.paper(range), text = index == 0 ? replacement : ""
+            let applied = session.canTypeNatively(range: paper, replacement: text) && session.typeNatively(range: paper, replacement: text)
+                || session.editStructureNatively(range: paper, replacement: text)
+            guard applied else { refuse(); break }
+        }
+        let first = tables.paper(ranges[0])
+        session.setNativeSelection(NSRange(location: first.location + replacement.utf16.count, length: 0))
+        update(view)
         return false
     }
 
@@ -313,7 +405,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             return
         }
         if let rendered = view.paper.renderedRevision, let splice = session.textSplice,
-           rendered == (splice.from, revision.media, revision.editable), splice.to == revision.text, applied(splice, to: view) {
+           rendered == (splice.from, revision.media, revision.editable), splice.to == revision.text, view.performPaperEdit({ applied(splice, to: view) }) {
             view.paper.renderedRevision = revision
             syncSelection(view)
             return
@@ -496,8 +588,10 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             let delta = typing.text.utf16.count - typing.range.length
             shift(view, replacing: typing.range, by: delta)
             view.paper.tables.viewEdited(at: location + typing.range.length, delta: delta)
-            NativeProseCodec.restyle(view.paperStorage, range: NSRange(location: location, length: typing.text.utf16.count),
-                                     paper: typing.range.location, from: session.text, taskItems: view.paper.taskItems)
+            view.performPaperEdit {
+                NativeProseCodec.restyle(view.paperStorage, range: NSRange(location: location, length: typing.text.utf16.count),
+                                         paper: typing.range.location, from: session.text, taskItems: view.paper.taskItems)
+            }
         }
         session.setNativeSelection(view.paperSelection)
         update(view)

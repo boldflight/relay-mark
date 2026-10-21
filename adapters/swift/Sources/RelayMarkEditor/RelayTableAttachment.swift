@@ -53,7 +53,7 @@ final class RelayTableAttachment: NSTextAttachment {
         self.identity = identity; self.start = start; self.cells = cells
         super.init(data: nil, ofType: nil)
         #if !os(macOS)
-        accessibilityLabel = String(localized: "Table")
+        accessibilityLabel = String(localized: "Table", bundle: .module, comment: "VoiceOver label of a table in the paper.")
         #endif
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -366,6 +366,8 @@ struct RelayTableGeometry {
 #if os(macOS)
 /// One cell's text, edited in a standard TextKit 2 text view.
 final class RelayTableCellTextView: NSTextView {
+    /// A Genmoji has no RelayMark node: inserted, it would be lost on the next render.
+    override var supportsAdaptiveImageGlyph: Bool { get { false } set {} }
     var index = 0
     weak var grid: RelayTableGridView?
     override var undoManager: UndoManager? { grid?.table.editor?.tableUndoManager ?? super.undoManager }
@@ -383,6 +385,20 @@ final class RelayTableCellTextView: NSTextView {
 final class RelayTableCellTextView: UITextView {
     var index = 0
     weak var grid: RelayTableGridView?
+    override var textInputContextIdentifier: String? { CollaborationTextView.keyboardContext }
+    /// VoiceOver's lines rotor and read-all go on to the neighbouring cell in reading order.
+    override var accessibilityPreviousTextNavigationElement: Any? {
+        get { index > 0 ? grid?.cellView(index - 1) : nil }
+        set {}
+    }
+    override var accessibilityNextTextNavigationElement: Any? {
+        get { grid.flatMap { index + 1 < $0.table.cells.count ? $0.cellView(index + 1) : nil } }
+        set {}
+    }
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        assert(textLayoutManager != nil, "A table cell switched to TextKit 1 compatibility mode")
+    }
     override var undoManager: UndoManager? { grid?.table.editor?.tableUndoManager ?? super.undoManager }
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         if presses.count == 1, let key = presses.first?.key, key.charactersIgnoringModifiers == "\t",
@@ -412,7 +428,7 @@ final class RelayTableGridView: PlatformTableView {
         #if os(macOS)
         wantsLayer = true
         setAccessibilityRole(.table)
-        setAccessibilityLabel(String(localized: "Table"))
+        setAccessibilityLabel(String(localized: "Table", bundle: .module, comment: "VoiceOver label of a table in the paper."))
         #else
         accessibilityContainerType = .dataTable
         #endif
@@ -581,6 +597,9 @@ final class RelayTableGridView: PlatformTableView {
     private func make() -> RelayTableCellTextView {
         #if os(macOS)
         let view = RelayTableCellTextView(usingTextLayoutManager: true)
+        #if DEBUG
+        RelayTextKit1Guard.install()
+        #endif
         view.isRichText = true
         view.isVerticallyResizable = false; view.isHorizontallyResizable = false
         view.textContainerInset = NSSize(width: RelayTableGeometry.padding, height: RelayTableGeometry.padding)
