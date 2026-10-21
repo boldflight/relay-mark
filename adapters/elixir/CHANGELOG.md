@@ -1,5 +1,11 @@
 # RelayMark Elixir adapter release notes
 
+## 0.7.4
+
+- Tag atoms accept normalized Relay tag names from any script (`#仕事`,
+  `#ラーメン`), checked against Relay's shared tag-name table. `_` is no
+  longer part of a tag name, as on the Relay server.
+
 ## 0.7.3
 
 - Licensed under MIT OR Apache-2.0 (Copyright Bold Flight LLC); the package
