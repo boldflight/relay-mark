@@ -31,23 +31,28 @@ pub fn normalize_document(document: &Value) -> Result<Value> {
 /// [`normalize_document`] of a document the caller gives up, so its blocks
 /// are freed before the normalized ones are built.
 pub fn normalize_owned_document(document: Value) -> Result<Value> {
-    let blocks = normalized_blocks(&document)?;
+    let prosemirror = to_prosemirror(&document)?;
     let Value::Object(mut result) = document else { unreachable!("validated document object") };
+    // The original blocks go before the normalized ones are built.
+    result.insert("blocks".into(), Value::Null);
+    let normalized = editor_schema().normalize_owned(prosemirror)?;
+    let blocks = to_relaymark(&normalized)?["blocks"].take();
+    drop(normalized);
     result.insert("blocks".into(), blocks);
     Ok(Value::Object(result))
 }
 
 fn normalized_blocks(document: &Value) -> Result<Value> {
-    let prosemirror = to_prosemirror(document)?;
-    let normalized = editor_schema().normalize(&prosemirror)?;
-    drop(prosemirror);
+    let normalized = editor_schema().normalize_owned(to_prosemirror(document)?)?;
     Ok(to_relaymark(&normalized)?["blocks"].take())
 }
 
 /// Document AST to its portable XML snapshot.
 pub fn document_to_snapshot(document: &Value) -> Result<Value> {
-    let document = normalize_document(document)?;
+    let mut document = normalize_document(document)?;
     let prosemirror = to_prosemirror(&document)?;
+    // Only the envelope's metadata is read from here on.
+    document["blocks"] = Value::Null;
     prosemirror_to_snapshot(&prosemirror, &document)
 }
 
@@ -196,24 +201,24 @@ fn snapshot_prosemirror(snapshot: &Value) -> Result<Value> {
     Ok(json!({"type": "doc", "content": nodes(&snapshot["children"], 0)?}))
 }
 
-/// Portable XML snapshot to the document AST, with its normalized editor JSON.
-pub fn snapshot_to_document_with_prosemirror(snapshot: &Value) -> Result<(Value, Value)> {
+/// Portable XML snapshot to the document AST. Each intermediate tree is freed
+/// as soon as the next is built: a large paper's peak is a few trees, not all.
+pub fn snapshot_to_document(snapshot: &Value) -> Result<Value> {
     let prosemirror = snapshot_prosemirror(snapshot)?;
-    to_relaymark(&prosemirror)?;
-    let normalized = editor_schema().normalize(&prosemirror)?;
+    // Refuse what the reference runtime refuses before normalizing.
+    drop(to_relaymark(&prosemirror)?);
+    let normalized = editor_schema().normalize_owned(prosemirror)?;
     let mut document = to_relaymark(&normalized)?;
+    drop(normalized);
     if let Some(metadata) = snapshot.get("metadata") {
         only(metadata, &METADATA_KEYS, "Invalid portable snapshot shape")?;
         for (key, value) in metadata.as_object().into_iter().flatten() {
             document[key.as_str()] = value.clone();
         }
     }
-    let editor = to_prosemirror(&document)?;
-    Ok((document, editor))
-}
-
-pub fn snapshot_to_document(snapshot: &Value) -> Result<Value> {
-    Ok(snapshot_to_document_with_prosemirror(snapshot)?.0)
+    // The document must also convert back to editor JSON.
+    drop(to_prosemirror(&document)?);
+    Ok(document)
 }
 
 // ---- Physical XML attributes: form settings are encoded one field per attribute ----

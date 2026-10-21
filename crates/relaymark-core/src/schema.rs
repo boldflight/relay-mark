@@ -109,9 +109,11 @@ impl EditorSchema {
         self.mark_index.get(name).map(|&index| &self.marks[index])
     }
 
-    /// `Node.fromJSON` + `check()` + `toJSON()` of a whole editor document.
-    pub fn normalize(&self, document: &Value) -> Result<Value> {
-        let node = self.node_from_json(document)?;
+    /// `Node.fromJSON` + `check()` + `toJSON()` of a whole editor document the
+    /// caller gives up, freed before the normalized JSON is built.
+    pub fn normalize_owned(&self, document: Value) -> Result<Value> {
+        let node = self.node_from_json(&document)?;
+        drop(document);
         self.check(&node)?;
         Ok(node.into_json())
     }
@@ -323,13 +325,13 @@ mod tests {
         let doc = json!({"type":"doc","content":[{"type":"paragraph","content":[
             {"type":"text","text":"A"},{"type":"text","text":"B"},
             {"type":"text","text":"C","marks":[{"type":"bold"}]}]}]});
-        let normalized = schema.normalize(&doc).unwrap();
+        let normalized = schema.normalize_owned(doc).unwrap();
         assert_eq!(normalized["content"][0]["content"][0]["text"], "AB");
         assert_eq!(normalized["content"][0]["attrs"], json!({"relaymarkId": null}));
         let callout_without_body = json!({"type":"doc","content":[{"type":"callout","content":[{"type":"calloutTitle"}]}]});
-        assert!(schema.normalize(&callout_without_body).is_err());
+        assert!(schema.normalize_owned(callout_without_body).is_err());
         let code_with_bold = json!({"type":"doc","content":[{"type":"paragraph","content":[
             {"type":"text","text":"x","marks":[{"type":"bold"},{"type":"code"}]}]}]});
-        assert!(schema.normalize(&code_with_bold).is_err());
+        assert!(schema.normalize_owned(code_with_bold).is_err());
     }
 }

@@ -57,11 +57,15 @@ pub fn import_document(html: Option<&str>, namespace: &str) -> Result<Value> {
     let mut inventory = inspect(&dom, body)?;
     let schema = schema();
     let document = canonical_parser().parse(&mut dom, body, Some(Whitespace::Full))?;
+    drop(dom);
     schema.check(&document)?;
     validate_projection(schema, &document, &mut inventory)?;
+    // Each tree is freed once the next is built.
     let prosemirror = schema.to_json(&document);
+    drop(document);
     let snapshot = crate::snapshot::prosemirror_to_snapshot(&prosemirror, &Value::Object(Map::new()))?;
-    let mut imported = crate::migrate::import_document_snapshot(&snapshot, namespace)?;
+    drop(prosemirror);
+    let mut imported = crate::migrate::import_owned_document_snapshot(snapshot, namespace)?;
     let mut normalizations = Vec::new();
     if source.is_empty() {
         normalizations.push(normalization(vec![("operation", "empty_retained_html".into()), ("source_value", html.map_or(Value::Null, Value::from))]));

@@ -198,8 +198,13 @@ pub fn import_document_source(source: &str, namespace: &str) -> Result<Value> {
 /// Finite XML migration. Returns edits for the host's existing CRDT
 /// transaction; it never allocates a replica or rewrites text, items or history.
 pub fn import_document_snapshot(original: &Value, namespace: &str) -> Result<Value> {
+    import_owned_document_snapshot(original.clone(), namespace)
+}
+
+/// [`import_document_snapshot`] of a snapshot the caller gives up.
+pub fn import_owned_document_snapshot(original: Value, namespace: &str) -> Result<Value> {
     require_namespace(namespace)?;
-    let mut snapshot = original.clone();
+    let mut snapshot = original;
     let mut changes: Vec<Value> = Vec::new();
     let mut identity = mapping();
     let mut seen: HashSet<String> = HashSet::new();
