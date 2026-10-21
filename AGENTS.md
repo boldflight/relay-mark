@@ -11,6 +11,13 @@ and licensing.
   compatibility identity. Conformance envelopes and the generated JavaScript,
   Elixir and Swift bindings use that same contract; the AST carries no separate
   version. Package versions keep their ecosystem meaning.
+- Editor behavior has one platform-neutral owner. Input rules, slash and
+  editing commands, marks and their shortcuts live in relaymark-core and the
+  shared Swift editor model, and the UIKit (iOS, iPadOS, visionOS) and AppKit
+  (macOS) text views are thin adapters that map events into it. Never define a
+  command, input rule or menu item in only one adapter. A test runs the shared
+  catalog through every adapter, so a behavior missing on one Apple platform
+  fails the build instead of shipping.
 - Packages stay on 0.x and bump only the patch digit, even for breaking
   changes.
 - Strict semantic-version tags release the reference runtime and root Swift
