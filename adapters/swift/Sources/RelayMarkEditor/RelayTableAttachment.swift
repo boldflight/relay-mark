@@ -29,6 +29,8 @@ protocol RelayTableEditing: AnyObject {
     var tableUndoManager: UndoManager? { get }
     func tableCellDidChange(_ table: RelayTableAttachment, at index: Int, text: NSAttributedString)
     func tableCellDidSelect(_ table: RelayTableAttachment, at index: Int, range: NSRange)
+    /// The host's commands on the selection, run on the paper's selection in a cell.
+    var cellSelectionActions: [(name: String, perform: () -> Bool)] { get }
 }
 
 /// A table is one attachment character in the paper's text. Its cells are
@@ -366,6 +368,12 @@ struct RelayTableGeometry {
 #if os(macOS)
 /// One cell's text, edited in a standard TextKit 2 text view.
 final class RelayTableCellTextView: NSTextView {
+    /// VoiceOver in a cell reaches the paper's selection commands.
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        (super.accessibilityCustomActions() ?? []) + (grid?.table.editor?.cellSelectionActions ?? []).map { action in
+            NSAccessibilityCustomAction(name: action.name) { action.perform() }
+        }
+    }
     /// A Genmoji has no RelayMark node: inserted, it would be lost on the next render.
     override var supportsAdaptiveImageGlyph: Bool { get { false } set {} }
     var index = 0
@@ -386,6 +394,17 @@ final class RelayTableCellTextView: UITextView {
     var index = 0
     weak var grid: RelayTableGridView?
     override var textInputContextIdentifier: String? { CollaborationTextView.keyboardContext }
+    /// VoiceOver in a cell reaches the paper's selection commands in its Edit rotor.
+    override var accessibilityCustomActions: [UIAccessibilityCustomAction]? {
+        get {
+            (super.accessibilityCustomActions ?? []) + (grid?.table.editor?.cellSelectionActions ?? []).map { action in
+                let custom = UIAccessibilityCustomAction(name: action.name) { _ in action.perform() }
+                custom.category = UIAccessibilityCustomAction.editCategory
+                return custom
+            }
+        }
+        set { super.accessibilityCustomActions = newValue }
+    }
     /// VoiceOver's lines rotor and read-all go on to the neighbouring cell in reading order.
     override var accessibilityPreviousTextNavigationElement: Any? {
         get { index > 0 ? grid?.cellView(index - 1) : nil }

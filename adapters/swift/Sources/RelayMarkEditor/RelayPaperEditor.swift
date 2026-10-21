@@ -705,6 +705,16 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         update(view)
     }
 
+    var cellSelectionActions: [(name: String, perform: () -> Bool)] {
+        guard let view, owns(view) else { return [] }
+        return view.selectionActions.map { action in
+            (action.name, { [weak self] in
+                guard let self, let selection = self.session.nativeSelection else { return false }
+                return action.perform(selection)
+            })
+        }
+    }
+
     func tableCellDidSelect(_ table: RelayTableAttachment, at index: Int, range: NSRange) {
         guard !updating, let view, owns(view), table.cells.indices.contains(index) else { return }
         let cell = table.paperRange(of: index)
