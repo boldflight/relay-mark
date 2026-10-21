@@ -17,21 +17,22 @@ original names and control flow so behavior can be checked line by line.
 
 | Upstream | Version | License | Ported in |
 | --- | --- | --- | --- |
-| [prosemirror-model](https://github.com/ProseMirror/prosemirror-model) | 1.25.12 | MIT | `adapters/swift/Sources/RelayMarkModel/PMModel.swift`, `PMStructure.swift` |
-| [prosemirror-transform](https://github.com/ProseMirror/prosemirror-transform) | 1.12.2 | MIT | `adapters/swift/Sources/RelayMarkModel/PMTransform.swift`, `PMStructure.swift` |
-| [prosemirror-state](https://github.com/ProseMirror/prosemirror-state) | 1.4.4 | MIT | `adapters/swift/Sources/RelayMarkModel/PMCommands.swift` |
-| [prosemirror-commands](https://github.com/ProseMirror/prosemirror-commands) | 1.7.2 | MIT | `adapters/swift/Sources/RelayMarkModel/PMCommands.swift` |
-| [prosemirror-schema-list](https://github.com/ProseMirror/prosemirror-schema-list) | 1.5.1 | MIT | `adapters/swift/Sources/RelayMarkModel/PMCommands.swift` |
+| [prosemirror-model](https://github.com/ProseMirror/prosemirror-model) | 1.25.12 | MIT | `adapters/swift/Sources/RelayMarkModel/PMModel.swift`, `PMStructure.swift`; `crates/relaymark-core/src/pm/model.rs`, `pm/schema.rs`, `html_import/model.rs`, `html_import/parser.rs` |
+| [prosemirror-transform](https://github.com/ProseMirror/prosemirror-transform) | 1.12.2 | MIT | `adapters/swift/Sources/RelayMarkModel/PMTransform.swift`, `PMStructure.swift`; `crates/relaymark-core/src/pm/step.rs`, `pm/transform.rs` |
+| [prosemirror-state](https://github.com/ProseMirror/prosemirror-state) | 1.4.4 | MIT | `adapters/swift/Sources/RelayMarkModel/PMCommands.swift`; `crates/relaymark-core/src/pm/state.rs` |
+| [prosemirror-commands](https://github.com/ProseMirror/prosemirror-commands) | 1.7.2 | MIT | `adapters/swift/Sources/RelayMarkModel/PMCommands.swift`; `crates/relaymark-core/src/pm/commands.rs` |
+| [prosemirror-schema-list](https://github.com/ProseMirror/prosemirror-schema-list) | 1.5.1 | MIT | `adapters/swift/Sources/RelayMarkModel/PMCommands.swift`; `crates/relaymark-core/src/pm/commands.rs` |
+| [prosemirror-tables](https://github.com/ProseMirror/prosemirror-tables) | 1.8.5 | MIT | `crates/relaymark-core/src/pm/tables.rs`, `pm/state.rs` (`CellSelection`) |
 | [Tiptap](https://github.com/ueberdosis/tiptap) (core commands and keymaps) | 3.x | MIT | `adapters/swift/Sources/RelayMarkModel/PMCommands.swift` |
+| [Tiptap](https://github.com/ueberdosis/tiptap) (extensions' parseHTML rules) | 3.31.3 | MIT | `crates/relaymark-core/src/html_import/rules.rs` (foreign rules), `src/document-html-foreign.js` |
 | [markdown-it](https://github.com/markdown-it/markdown-it) (link normalization) | 15.0.2 | MIT | `crates/relaymark-core/src/mdurl.rs` |
-| [mdurl](https://github.com/markdown-it/mdurl) | 2.1.0 | MIT | `crates/relaymark-core/src/mdurl.rs` |
+| [mdurl](https://github.com/markdown-it/mdurl) (its `url.parse` follows Node.js) | 2.1.0 | MIT | `crates/relaymark-core/src/mdurl.rs` |
 | [punycode.js](https://github.com/mathiasbynens/punycode.js) | 2.3.1 | MIT | `crates/relaymark-core/src/mdurl.rs` |
 
 ## Bundled JavaScript
 
-The generated runtimes under `adapters/swift/Sources/RelayMarkSwift/Resources/`
-and `adapters/elixir/priv/collaboration/` (built by
-`scripts/build-collaboration.mjs`) include these packages:
+The generated runtime under `adapters/elixir/priv/collaboration/` (built by
+`scripts/build-collaboration.mjs`) includes these packages:
 
 | Package | Version | License | Copyright |
 | --- | --- | --- | --- |
@@ -72,6 +73,8 @@ Applies to every component above marked MIT. Copyright lines:
 - Copyright (c) 2025, Tiptap GmbH (Tiptap)
 - Copyright (c) 2014 Vitaly Puzrin, Alex Kocharin (markdown-it)
 - Copyright (c) 2015 Vitaly Puzrin, Alex Kocharin (mdurl)
+- Copyright Joyent, Inc. and other Node contributors (Node.js `url.parse`, as
+  adapted by mdurl)
 - Copyright (c) 2015 Vitaly Puzrin (linkify-it)
 - Copyright Mathias Bynens <https://mathiasbynens.be/> (punycode.js, uc.micro)
 - Copyright (c) 2022 Paul Miller (https://paulmillr.com) (@noble/hashes)

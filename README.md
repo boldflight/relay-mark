@@ -165,18 +165,10 @@ a table row without its table, text after `</body>`) can import differently.
 
 ### Ported source
 
-Parts of `relaymark-core` are ports of MIT-licensed JavaScript, each file
-headed with its source and notice (see `THIRD_PARTY_NOTICES.md`):
-
-- `src/pm/`: prosemirror-model 1.25.12, prosemirror-transform 1.12.2,
-  prosemirror-state 1.4.4, prosemirror-commands 1.7.2,
-  prosemirror-schema-list 1.5.1 and prosemirror-tables 1.8.5.
-- `src/html_import/model.rs`, `parser.rs`: prosemirror-model 1.25.12
-  (including `DOMParser`).
-- `src/html_import/rules.rs` (foreign rules) and `src/document-html-foreign.js`:
-  the parseHTML rules of the TipTap 3.31.3 extensions.
-- `src/mdurl.rs`: markdown-it 15.0.2, mdurl 2.1.0 (whose `url.parse` follows
-  Node.js) and punycode.js 2.3.1.
+Parts of `relaymark-core` (`src/pm/`, the HTML import's model, parser and
+foreign rules, and `src/mdurl.rs`) are ports of MIT-licensed JavaScript. Each
+file is headed with its source and notice; `THIRD_PARTY_NOTICES.md` lists them
+under "Ported source".
 
 ## Swift package distribution
 
