@@ -744,12 +744,44 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
     public var offersInlineMarks: Bool { true }
 
     /// Adds `mark` unless the whole selection already has it, then removes it.
+    /// At a caret it toggles the mark for the next text typed there.
     func toggleMarkNatively(_ mark: RelayMarkFormattingMark, range: NSRange) -> Bool {
-        guard range.length > 0, let bounds = Range(range, in: text) else { return false }
+        if range.length == 0 { return toggleTypingMark(mark, at: range.location) }
+        guard let bounds = Range(range, in: text) else { return false }
         if mark == .code, text[bounds].characters.contains(where: { $0 == "\n" || $0 == "\u{2028}" }) { return false }
         let flag = mark.inlineIntent
         let enabled = !text[bounds].runs.allSatisfy { ($0.inlinePresentationIntent ?? []).contains(flag) }
         return formatNatively(range: range, mark: mark, enabled: enabled)
+    }
+
+    /// The marks the next text typed at `caret` takes: a stored mark change made
+    /// there, else the marks of the text before it (the start of a leaf takes the text after).
+    func typingMarks(at caret: Int) -> [String: Any]? {
+        if let stored = storedTyping, storedTypingOffset() == caret,
+           let value = try? JSONSerialization.jsonObject(with: stored.attributes) as? [String: Any] { return value }
+        guard let position = (try? currentProjection())?.position(atUTF16: caret),
+              let runs = try? document.textRuns(path: position.path) else { return nil }
+        var offset = 0
+        for run in runs {
+            let end = offset + run.text.utf16.count
+            if position.index > offset && position.index <= end || position.index == 0 { return run.attributes }
+            offset = end
+        }
+        return [:]
+    }
+
+    /// Stored marks, as ProseMirror keeps them: no document change until text is typed.
+    private func toggleTypingMark(_ mark: RelayMarkFormattingMark, at caret: Int) -> Bool {
+        guard isEditable, pending == nil, activeComposition == nil, var marks = typingMarks(at: caret) else { return false }
+        if marks[mark.rawValue] != nil { marks[mark.rawValue] = nil }
+        else {
+            // Code is exclusive with the other marks, as when formatting a selection.
+            for other in (mark == .code ? ["bold", "italic", "strike", "link"] : ["code"]) { marks[other] = nil }
+            marks[mark.rawValue] = [String: Any]()
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: marks, options: [.sortedKeys]),
+              (try? retainTypingContext(data, caret: caret)) != nil else { return false }
+        return true
     }
 
     /// Adds or removes one inline mark over a selection with windowed

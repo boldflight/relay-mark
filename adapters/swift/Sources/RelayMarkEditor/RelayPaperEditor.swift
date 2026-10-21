@@ -265,7 +265,9 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
     }
 
     func selectionDidChange(_ view: any RelayPaperTextView) {
-        guard !updating, owns(view), !view.hasMarkedInput else { return }
+        // A keystroke TextKit is inserting moves the caret before the session types it;
+        // the session places the caret itself, keeping marks stored for that keystroke.
+        guard !updating, owns(view), !view.hasMarkedInput, pendingTyping == nil else { return }
         session.setNativeSelection(view.paperSelection)
         view.applyEmptyTypingStyle()
     }

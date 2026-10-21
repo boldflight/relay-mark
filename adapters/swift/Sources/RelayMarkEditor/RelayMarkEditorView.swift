@@ -1219,13 +1219,19 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     /// windowed mark command when `convert` changes exactly that trait.
     func formatNatively(convert: (NSFont) -> NSFont) -> Bool {
         let selection = selectedRange()
-        guard let session = editingSession, selection.length > 0,
-              let font = textStorage?.attribute(.font, at: selection.location, effectiveRange: nil) as? NSFont else { return false }
+        // At a caret the font is the one the next typed text takes.
+        let shown = selection.length > 0 ? textStorage?.attribute(.font, at: selection.location, effectiveRange: nil) : typingAttributes[.font]
+        guard let session = editingSession, let font = shown as? NSFont else { return false }
         let before = font.fontDescriptor.symbolicTraits, after = convert(font).fontDescriptor.symbolicTraits
         let changed = [(RelayMarkFormattingMark.bold, NSFontDescriptor.SymbolicTraits.bold), (.italic, .italic)]
             .filter { before.contains($0.1) != after.contains($0.1) }
-        guard changed.count == 1, after.subtracting([.bold, .italic]) == before.subtracting([.bold, .italic]),
-              session.formatNatively(range: paper.tables.paper(selection), mark: changed[0].0, enabled: after.contains(changed[0].1)) else { return false }
+        guard changed.count == 1, after.subtracting([.bold, .italic]) == before.subtracting([.bold, .italic]) else { return false }
+        if selection.length == 0 {
+            guard session.toggleMarkNatively(changed[0].0, range: paper.tables.paper(selection)) else { return false }
+            typingAttributes[.font] = convert(font)
+            return true
+        }
+        guard session.formatNatively(range: paper.tables.paper(selection), mark: changed[0].0, enabled: after.contains(changed[0].1)) else { return false }
         onSessionEdit?()
         return true
     }
