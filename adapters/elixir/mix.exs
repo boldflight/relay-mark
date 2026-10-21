@@ -60,7 +60,13 @@ defmodule RelayMarkElixir.MixProject do
   defp docs do
     [
       main: "readme",
-      extras: ["README.md", "CHANGELOG.md"],
+      extras: [
+        "README.md",
+        "CHANGELOG.md",
+        "LICENSE-MIT",
+        "LICENSE-APACHE",
+        "THIRD_PARTY_NOTICES.md"
+      ],
       source_ref: "elixir-#{@version}"
     ]
   end
