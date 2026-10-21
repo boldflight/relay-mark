@@ -1,6 +1,15 @@
 // swift-tools-version: 6.4
 
+import Foundation
 import PackageDescription
+
+// relaymark-core, built and published by scripts/build-swift-engine.zsh as a
+// release asset. RELAYMARK_LOCAL_ENGINE=1 uses the script's local build instead.
+let engineURL = ""
+let engineChecksum = ""
+let engine: Target = ProcessInfo.processInfo.environment["RELAYMARK_LOCAL_ENGINE"] == nil
+    ? .binaryTarget(name: "RelayMarkFFI", url: engineURL, checksum: engineChecksum)
+    : .binaryTarget(name: "RelayMarkFFI", path: "target/swift-engine/RelayMarkFFI.xcframework")
 
 let package = Package(
     name: "RelayMark",
@@ -63,11 +72,7 @@ let package = Package(
             path: "adapters/swift/Tests/RelayMarkNativeCollaborationTests",
             resources: [.process("Fixtures")]
         ),
-        // relaymark-core, built by scripts/build-swift-engine.zsh.
-        .binaryTarget(
-            name: "RelayMarkFFI",
-            path: "adapters/swift/RelayMarkFFI.xcframework"
-        ),
+        engine,
         .target(
             name: "RelayMarkEngine",
             dependencies: ["RelayMarkFFI"],
