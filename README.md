@@ -158,8 +158,8 @@ version tags. Through the `0.6.x` pre-1.0 line, public adapter APIs and valid
 portable document meaning remain compatible; breaking changes are reserved for
 1.0.
 
-Active first-party Swift applications may follow `main` during pre-1.0
-development when their build service has repository access:
+Swift applications developed alongside RelayMark may follow `main` during
+pre-1.0 development:
 
 ```swift
 .package(
@@ -168,7 +168,7 @@ development when their build service has repository access:
 )
 ```
 
-This lets Relay repositories converge without coordinated manifest edits for
+This lets dependent repositories converge without coordinated manifest edits for
 every compatible change. Published semantic-version tags remain the stable
 distribution boundary for external or intentionally frozen consumers, which
 may use a compatible range and commit `Package.resolved`. The repository root
@@ -186,8 +186,8 @@ checks are current.
 
 ## Elixir package distribution
 
-`RelayMark` is distributed on Hex as `relay_mark_elixir`. Active first-party
-Relay Elixir applications consume the latest published Hex release:
+`RelayMark` is distributed on Hex as `relay_mark_elixir`. Elixir applications
+can track the latest published Hex release:
 
 ```elixir
 {:relay_mark_elixir, ">= 0.6.1"}
