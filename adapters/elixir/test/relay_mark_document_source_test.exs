@@ -783,13 +783,24 @@ defmodule RelayMark.DocumentSourceTest do
     assert {:ok, xml} = RelayMark.DocumentXML.from_document(ast)
     assert {:ok, ^ast} = RelayMark.DocumentXML.to_document(xml)
   end
+
   test "authored FileRef retains its physical reference and rich children through body projection" do
     id = "11111111-1111-4111-8111-111111111111"
-    source = ~s|@FileRef(id: "#{id}", uri: "/m/#{id}", label: "Care Ω.pdf", scope: "private") {\n**Retained** file context\n}|
+
+    source =
+      ~s|@FileRef(id: "#{id}", uri: "/m/#{id}", label: "Care Ω.pdf", scope: "private") {\n**Retained** file context\n}|
+
     assert {:ok, ast} = RelayMark.parse_document(source, namespace: "authored-file-projection")
     [file] = ast["blocks"]
     assert file["type"] == "relay.file_ref"
-    assert file["props"] == %{"id" => id, "uri" => "/m/#{id}", "label" => "Care Ω.pdf", "scope" => "private"}
+
+    assert file["props"] == %{
+             "id" => id,
+             "uri" => "/m/#{id}",
+             "label" => "Care Ω.pdf",
+             "scope" => "private"
+           }
+
     assert {:ok, exact} = RelayMark.serialize_document(ast)
     assert {:ok, ^ast} = RelayMark.parse_document(exact)
     assert {:ok, markdown} = RelayMark.project_document_markdown(ast)
@@ -805,14 +816,31 @@ defmodule RelayMark.DocumentSourceTest do
 
   test "SourceBundle wrapped FileRef projects through the canonical directive registry without losing its original" do
     id = "11111111-1111-4111-8111-111111111111"
-    source = ~s|@SourceBundle(id: "care-sources", title: "Care Ω", revision: 0, scope: "private") {\n@FileRef(id: "#{id}", uri: "/m/#{id}", label: "Care Ω.pdf", scope: "private") {\n**Retained** file context\n}\n}|
+
+    source =
+      ~s|@SourceBundle(id: "care-sources", title: "Care Ω", revision: 0, scope: "private") {\n@FileRef(id: "#{id}", uri: "/m/#{id}", label: "Care Ω.pdf", scope: "private") {\n**Retained** file context\n}\n}|
+
     assert {:ok, ast} = RelayMark.parse_document(source, namespace: "source-bundle-file-wrap")
     [bundle] = ast["blocks"]
     [file] = bundle["content"]
     assert bundle["type"] == "relay.source_bundle"
-    assert bundle["props"] == %{"id" => "care-sources", "title" => "Care Ω", "revision" => 0, "scope" => "private"}
+
+    assert bundle["props"] == %{
+             "id" => "care-sources",
+             "title" => "Care Ω",
+             "revision" => 0,
+             "scope" => "private"
+           }
+
     assert file["type"] == "relay.file_ref"
-    assert file["props"] == %{"id" => id, "uri" => "/m/#{id}", "label" => "Care Ω.pdf", "scope" => "private"}
+
+    assert file["props"] == %{
+             "id" => id,
+             "uri" => "/m/#{id}",
+             "label" => "Care Ω.pdf",
+             "scope" => "private"
+           }
+
     assert {:ok, exact} = RelayMark.serialize_document(ast)
     assert {:ok, ^ast} = RelayMark.parse_document(exact)
     assert {:ok, markdown} = RelayMark.project_document_markdown(ast)
@@ -825,14 +853,31 @@ defmodule RelayMark.DocumentSourceTest do
   end
 
   test "maintained evidence claim comparison corpus remains readable through the same directive registry" do
-    ast = Path.expand("../../../spec/relaymark/collaboration/fixtures/canonical-directives.json", __DIR__)
-          |> File.read!() |> Jason.decode!()
+    ast =
+      Path.expand(
+        "../../../spec/relaymark/collaboration/fixtures/canonical-directives.json",
+        __DIR__
+      )
+      |> File.read!()
+      |> Jason.decode!()
+
     assert {:ok, exact} = RelayMark.serialize_document(ast)
     assert {:ok, normalized} = RelayMark.parse_document(exact)
     assert {:ok, projection} = RelayMark.project_document(normalized)
     for name <- ["EvidenceRef", "Claim", "Comparison"], do: assert(projection.body =~ "@#{name}(")
     assert {:ok, ^normalized} = RelayMark.parse_document(exact)
-    assert {:error, _} = RelayMark.project_document_markdown(%{"type" => "relaymark.document", "blocks" => [%{"id" => "b00000000000040008000000000000001", "type" => "relay.unknown", "props" => %{}, "content" => []}]})
-  end
 
+    assert {:error, _} =
+             RelayMark.project_document_markdown(%{
+               "type" => "relaymark.document",
+               "blocks" => [
+                 %{
+                   "id" => "b00000000000040008000000000000001",
+                   "type" => "relay.unknown",
+                   "props" => %{},
+                   "content" => []
+                 }
+               ]
+             })
+  end
 end

@@ -113,17 +113,19 @@ defmodule RelayMark do
   """
   @spec validate_document(map(), map()) :: :ok | {:error, [RelayMark.Diagnostic.t()]}
   def validate_document(document, validation_context \\ %{}) do
-    with :ok <- Schema.validate(document, :document) do
-      case Engine.json("validate", document, %{"context" => validation_context}) do
-        {:ok, []} ->
-          :ok
+    # One call: a large paper crosses the NIF boundary as JSON once.
+    case Engine.json("validate_document", document, %{"context" => validation_context}) do
+      {:ok, %{"schema" => [_ | _] = errors}} ->
+        Schema.result(errors, :document)
 
-        {:ok, diagnostics} ->
-          {:error, diagnostics}
+      {:ok, %{"diagnostics" => []}} ->
+        :ok
 
-        {:error, reason} ->
-          {:error, [RelayMark.Diagnostic.error("relaymark.schema.invalid", reason)]}
-      end
+      {:ok, %{"diagnostics" => diagnostics}} ->
+        {:error, diagnostics}
+
+      {:error, reason} ->
+        {:error, [RelayMark.Diagnostic.error("relaymark.schema.invalid", reason)]}
     end
   end
 

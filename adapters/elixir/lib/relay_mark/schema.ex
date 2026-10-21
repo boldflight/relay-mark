@@ -30,19 +30,25 @@ defmodule RelayMark.Schema do
     {schema, code, message} = Map.fetch!(@schemas, subject)
 
     case RelayMark.Engine.json("schema", value, %{"schema" => schema}) do
-      {:ok, []} ->
-        :ok
-
-      {:ok, errors} ->
-        path =
-          errors
-          |> Enum.map(&(&1["instance_path"] || ""))
-          |> Enum.max_by(&{length(String.split(&1, "/", trim: true)), byte_size(&1)})
-
-        {:error, [RelayMark.Diagnostic.error(code, message, path: path)]}
-
-      {:error, _} ->
-        {:error, [RelayMark.Diagnostic.error(code, message)]}
+      {:ok, errors} -> result(errors, subject)
+      {:error, _} -> {:error, [RelayMark.Diagnostic.error(code, message)]}
     end
+  end
+
+  @doc false
+  # The engine's schema errors for `subject` as one diagnostic at the deepest
+  # failing instance path.
+  @spec result([map()], atom()) :: :ok | {:error, [RelayMark.Diagnostic.t()]}
+  def result([], _subject), do: :ok
+
+  def result(errors, subject) do
+    {_schema, code, message} = Map.fetch!(@schemas, subject)
+
+    path =
+      errors
+      |> Enum.map(&(&1["instance_path"] || ""))
+      |> Enum.max_by(&{length(String.split(&1, "/", trim: true)), byte_size(&1)})
+
+    {:error, [RelayMark.Diagnostic.error(code, message, path: path)]}
   end
 end

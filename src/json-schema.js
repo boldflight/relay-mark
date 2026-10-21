@@ -14,6 +14,7 @@ const supportedKeywords = new Set([
   "enum",
   "items",
   "maximum",
+  "maxLength",
   "minimum",
   "minItems",
   "minLength",
@@ -107,6 +108,10 @@ function validateValue(value, schema, context) {
   if (typeof value === "string") {
     if (Number.isInteger(schema.minLength) && [...value].length < schema.minLength) {
       errors.push(failure(context, `must contain at least ${schema.minLength} characters`));
+    }
+
+    if (Number.isInteger(schema.maxLength) && [...value].length > schema.maxLength) {
+      errors.push(failure(context, `must contain at most ${schema.maxLength} characters`));
     }
 
     if (typeof schema.pattern === "string" && !new RegExp(schema.pattern, "u").test(value)) {

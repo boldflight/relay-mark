@@ -137,12 +137,16 @@ fn dispatch(job: &str, input: &[u8], options: &[u8]) -> Answer {
                 value_out,
             )
         }
-        "validate" => {
+        "validate_document" => {
+            let document = json(input)?;
+            let schema = rm::validate_schema(&document, "relaymark-document.schema.json");
+            if !schema.is_empty() {
+                return Ok(value_out(serde_json::json!({ "schema": schema })));
+            }
             let context = options.get("context").cloned().unwrap_or(Value::Null);
-            Ok(value_out(Value::Array(rm::validate(
-                &json(input)?,
-                &context,
-            ))))
+            Ok(value_out(
+                serde_json::json!({ "diagnostics": rm::validate(&document, &context) }),
+            ))
         }
         "schema" => Ok(value_out(Value::Array(rm::validate_schema(
             &json(input)?,

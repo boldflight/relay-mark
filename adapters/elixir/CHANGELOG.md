@@ -16,7 +16,12 @@
   snapshot text runs carry `"attributes": {}`, Markdown is read as markdown-it
   reads it, a mark nested in the same mark merges instead of refusing the
   document, and a historical paragraph without a body imports empty. Error
-  `reason`s are the engine's messages.
+  `reason`s are the engine's messages, and a malformed `@Button(...)` line
+  stays ordinary text, as on web.
+- `validate_document/2` crosses the NIF once, checking the JSON Schema and the
+  RelayMark rules in one call. The schema check accepts `maxLength` (an
+  `ai_authored` `run_id` is at most 64 characters) and parses its schemas and
+  patterns once, so a 100 KB paper validates in milliseconds.
 
 - Stops packaging the custom history and attribution adapters
   (`text-items.js`, `prose-operation.js`, `prose-lineage.js`,
