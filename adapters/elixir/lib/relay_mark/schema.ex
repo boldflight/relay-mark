@@ -1,147 +1,54 @@
 defmodule RelayMark.Schema do
   @moduledoc false
+  # The packaged RelayMark JSON Schemas, checked by the canonical engine.
 
-  @document_schema_path Path.expand(
-                          "../../priv/relaymark/schemas/relaymark-document.schema.json",
-                          __DIR__
-                        )
-  @diagnostic_schema_path Path.expand(
-                            "../../priv/relaymark/schemas/relaymark-diagnostic.schema.json",
-                            __DIR__
-                          )
-  @manifest_schema_path Path.expand(
-                          "../../priv/relaymark/schemas/relaymark-manifest.schema.json",
-                          __DIR__
-                        )
-  @layer_composition_schema_path Path.expand(
-                                   "../../priv/relaymark/schemas/relaymark-layer-composition.schema.json",
-                                   __DIR__
-                                 )
+  @schemas %{
+    document:
+      {"relaymark-document.schema.json", "relaymark.schema.invalid",
+       "Document does not conform to the RelayMark document schema."},
+    manifest:
+      {"relaymark-manifest.schema.json", "relaymark.manifest.schema.invalid",
+       "Manifest does not conform to the RelayMark manifest schema."},
+    diagnostic:
+      {"relaymark-diagnostic.schema.json", "relaymark.diagnostic.schema.invalid",
+       "Diagnostic does not conform to the RelayMark diagnostic schema."},
+    layer_composition:
+      {"relaymark-layer-composition.schema.json", "relaymark.layer_composition.schema.invalid",
+       "Layer composition does not conform to the RelayMark layer composition schema."}
+  }
 
-  @external_resource @document_schema_path
-  @external_resource @diagnostic_schema_path
-  @external_resource @manifest_schema_path
-  @external_resource @layer_composition_schema_path
+  def validate_document_schema(document), do: validate(document, :document)
+  def validate_manifest_schema(manifest), do: validate(manifest, :manifest)
+  def validate_diagnostic_schema(diagnostic), do: validate(diagnostic, :diagnostic)
 
-  @document_schema @document_schema_path
-                   |> File.read!()
-                   |> Jason.decode!()
-                   |> JSV.build!(warnings: :silent)
-
-  @diagnostic_schema @diagnostic_schema_path
-                     |> File.read!()
-                     |> Jason.decode!()
-                     |> JSV.build!(warnings: :silent)
-
-  @manifest_schema @manifest_schema_path
-                   |> File.read!()
-                   |> Jason.decode!()
-                   |> put_in(
-                     ["properties", "diagnostics", "items"],
-                     @diagnostic_schema_path |> File.read!() |> Jason.decode!()
-                   )
-                   |> JSV.build!(warnings: :silent)
-
-  @layer_composition_schema @layer_composition_schema_path
-                            |> File.read!()
-                            |> Jason.decode!()
-                            |> JSV.build!(warnings: :silent)
-
-  @spec validate_document_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
-  def validate_document_schema(document), do: validate(@document_schema, document)
-
-  @spec validate_diagnostic_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
-  def validate_diagnostic_schema(diagnostic), do: validate(@diagnostic_schema, diagnostic)
-
-  @spec validate_manifest_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
-  def validate_manifest_schema(manifest), do: validate(@manifest_schema, manifest)
-
-  @spec validate_layer_composition_schema(term()) :: :ok | {:error, JSV.ValidationError.t()}
   def validate_layer_composition_schema(composition),
-    do: validate(@layer_composition_schema, composition)
+    do: validate(composition, :layer_composition)
 
-  @spec diagnostic(JSV.ValidationError.t(), :document | :manifest) ::
-          RelayMark.Diagnostic.t()
-  def diagnostic(error, subject \\ :document)
+  @spec validate(term(), :document | :manifest | :diagnostic | :layer_composition) ::
+          :ok | {:error, [RelayMark.Diagnostic.t()]}
+  def validate(value, subject) do
+    {schema, code, message} = Map.fetch!(@schemas, subject)
 
-  def diagnostic(%JSV.ValidationError{} = error, subject)
-      when subject in [:document, :manifest] do
-    normalized = JSV.normalize_error(error, keys: :strings, sort: :asc)
-    units = error_units(normalized)
-
-    unit =
-      Enum.max_by(
-        units,
-        &instance_location_specificity/1,
-        fn -> %{"instanceLocation" => "#"} end
-      )
-
-    options =
-      [path: normalize_instance_location(unit["instanceLocation"])]
-      |> maybe_put_meta(diagnostic_meta(units, unit))
-
-    {code, message} = diagnostic_identity(subject)
-    RelayMark.Diagnostic.error(code, message, options)
-  end
-
-  def diagnostic(_error, subject) when subject in [:document, :manifest] do
-    {code, message} = diagnostic_identity(subject)
-    RelayMark.Diagnostic.error(code, message)
-  end
-
-  defp validate(schema, value) do
-    case JSV.validate(value, schema, cast: false) do
-      {:ok, _validated} -> :ok
-      {:error, error} -> {:error, error}
+    case RelayMark.Engine.json("schema", value, %{"schema" => schema}) do
+      {:ok, errors} -> result(errors, subject)
+      {:error, _} -> {:error, [RelayMark.Diagnostic.error(code, message)]}
     end
   end
 
-  defp error_units(value) when is_list(value), do: Enum.flat_map(value, &error_units/1)
+  @doc false
+  # The engine's schema errors for `subject` as one diagnostic at the deepest
+  # failing instance path.
+  @spec result([map()], atom()) :: :ok | {:error, [RelayMark.Diagnostic.t()]}
+  def result([], _subject), do: :ok
 
-  defp error_units(%{} = value) do
-    current = if is_binary(value["instanceLocation"]), do: [value], else: []
-    current ++ Enum.flat_map(Map.values(value), &error_units/1)
+  def result(errors, subject) do
+    {_schema, code, message} = Map.fetch!(@schemas, subject)
+
+    path =
+      errors
+      |> Enum.map(&(&1["instance_path"] || ""))
+      |> Enum.max_by(&{length(String.split(&1, "/", trim: true)), byte_size(&1)})
+
+    {:error, [RelayMark.Diagnostic.error(code, message, path: path)]}
   end
-
-  defp error_units(_value), do: []
-
-  defp instance_location_specificity(unit) do
-    location = unit["instanceLocation"]
-    {length(String.split(location, "/", trim: true)), byte_size(location)}
-  end
-
-  defp normalize_instance_location("#"), do: ""
-  defp normalize_instance_location("#" <> pointer), do: pointer
-  defp normalize_instance_location(pointer), do: pointer
-
-  defp diagnostic_identity(:document),
-    do:
-      {"relaymark.schema.invalid", "Document does not conform to the RelayMark document schema."}
-
-  defp diagnostic_identity(:manifest),
-    do:
-      {"relaymark.manifest.schema.invalid",
-       "Manifest does not conform to the RelayMark manifest schema."}
-
-  defp diagnostic_meta(units, unit) do
-    reasons =
-      units
-      |> Enum.flat_map(&Map.get(&1, "errors", []))
-      |> Enum.map(&Map.get(&1, "kind"))
-      |> Enum.reject(&is_nil/1)
-      |> Enum.map(&to_string/1)
-      |> Enum.uniq()
-      |> Enum.sort()
-      |> Enum.join(",")
-
-    %{}
-    |> maybe_put_value("reason", reasons)
-    |> maybe_put_value("schema_location", unit["schemaLocation"])
-  end
-
-  defp maybe_put_value(map, _key, value) when value in [nil, ""], do: map
-  defp maybe_put_value(map, key, value), do: Map.put(map, key, value)
-
-  defp maybe_put_meta(options, meta) when map_size(meta) == 0, do: options
-  defp maybe_put_meta(options, meta), do: Keyword.put(options, :meta, meta)
 end

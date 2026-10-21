@@ -1,0 +1,25 @@
+[package]
+name = "relay_mark_nif"
+version = "0.1.0"
+description = "Erlang NIF binding of relaymark-core for the relay_mark_elixir adapter"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# A copy of crates/relaymark-core with the spec files it compiles in, laid out
+# as in the repository; lib/relay_mark/native.ex refreshes it at compile time.
+relaymark-core = { path = "../relaymark/crates/relaymark-core" }
+rustler = "0.37"
+serde_json = { version = "1", features = ["preserve_order"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+
+# Its own workspace, not the repository's.
+[workspace]

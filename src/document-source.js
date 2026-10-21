@@ -243,14 +243,16 @@ function inertInlineTokens(tokens){const output=[];for(let i=0;i<tokens.length;i
  const t=tokens[i];if(t.type==='link_open'&&!safeLinkHref(t.attrGet('href'))){let end=i+1;while(end<tokens.length&&tokens[end].type!=='link_close')end++;if(end===tokens.length)throw new TypeError('Invalid CommonMark link nesting');const label=inlineMarkdown(inline(tokens.slice(i+1,end)));output.push({type:'text',nesting:0,content:`[${label}](${t.attrGet('href')})`});i=end;}
  else if(t.type==='image'&&!safeImageSource(t.attrGet('src')))output.push({type:'text',nesting:0,content:literalImage(t)});else output.push(t);
  }return output;}
-function inline(tokens){const output=[],marks=[];for(const t of inertInlineTokens(tokens)){if(t.nesting){const types={strong:'bold',em:'italic',s:'strike',link:'link'};const key=t.type.replace(/_(open|close)$/,'');const mark=types[key];if(!mark)throw new TypeError('Unsupported inline '+t.type);if(t.nesting===1)marks.push(mark==='link'?{type:'link',attrs:linkAttributes(t.attrGet('href'),{title:t.attrGet('title')})}:{type:mark});else marks.pop();continue;}
+function inline(tokens){const output=[],marks=[];for(const t of inertInlineTokens(tokens)){if(t.nesting){const types={strong:'bold',em:'italic',s:'strike',link:'link'};const key=t.type.replace(/_(open|close)$/,'');const mark=types[key];if(!mark)throw new TypeError('Unsupported inline '+t.type);// A mark nested in the same mark (`**a **b** c**`) merges into it.
+ if(t.nesting===1)marks.push(marks.some(m=>m?.type===mark)?null:mark==='link'?{type:'link',attrs:linkAttributes(t.attrGet('href'),{title:t.attrGet('title')})}:{type:mark});else marks.pop();continue;}
  if(t.type==='html_inline'&&/^<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->$/u.test(t.content)){const previous=output.at(-1);if(previous?.type==='text'&&previous.text.endsWith(' ')){previous.text=previous.text.slice(0,-1);if(!previous.text)output.pop();}continue;}
  if(t.type==='relay_atom'){output.push(t.meta);continue;}
  if(t.type==='hardbreak'){output.push({type:'hard_break'});continue;}
  if(t.type==='code_inline'){output.push(mapInline({type:'text',text:t.content,marks:[{type:'code'}]}));continue;}
  if(!['text','softbreak','html_inline'].includes(t.type))throw new TypeError('Unsupported CommonMark inline '+t.type);
  const text=(t.type==='softbreak'?'\n':t.content).replace(/ ?<!--relay-task-draft:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}-->/gu,'');
- if(text)output.push(mapInline({type:'text',text,...(marks.length?{marks:marks.toSorted((a,b)=>marksOrder.indexOf(a.type)-marksOrder.indexOf(b.type))}:{})}));
+ const active=marks.filter(Boolean);
+ if(text)output.push(mapInline({type:'text',text,...(active.length?{marks:active.toSorted((a,b)=>marksOrder.indexOf(a.type)-marksOrder.indexOf(b.type))}:{})}));
  }return output;}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const attrs=a=>Object.entries(a).filter(([,v])=>v!=null).map(([k,v])=>' '+k+'="'+esc(v)+'"').join('');
@@ -278,7 +280,8 @@ function markdown(n){const p=n.props||{};switch(n.type){case 'paragraph':case 'r
  case 'image':return '!['+(p.alt||'')+']('+p.src+')';case 'list':case 'task_list':return n.content.map((item,i)=>{const marker=n.type==='task_list'?(item.props.checked?'- [x] ':'- [ ] '):p.kind==='ordered'?(p.start+i)+'. ':'- ';const[first,...rest]=item.content.map(markdown).join('\n\n').split('\n');return marker+first+rest.map(x=>'\n'+' '.repeat(marker.length)+x).join('');}).join('\n');
  case 'table':{const rows=n.content.map(r=>'| '+r.content.map(c=>c.content.map(markdown).join(' ').replace(/\|/g,'\\|').replace(/\n/g,'<br>')).join(' | ')+' |');const separator='| '+n.content[0].content.map(c=>({left:':---',center:':---:',right:'---:'}[c.props.align]||'---')).join(' | ')+' |';return [rows[0],separator,...rows.slice(1)].join('\n');}
  case 'relay.form_option':return '- '+inlineMarkdown(n.content);case 'relay.paper_control':case 'relay.entity_reference':return p.source;
- default:{const generic=directiveNodeForType(n.type);if(generic)return '@'+directiveForType(generic.type).name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+n.content.map(markdown).join('\n\n')+'\n}';const name={'relay.callout':'Callout','relay.form_question':'Question','relay.agent_suggestion':'AgentSuggestion','relay.data_view':'DataView','relay.video_embed':'Video'}[n.type];if(!name)throw new TypeError('Unsupported block projection');const body=n.type==='relay.agent_suggestion'?inlineMarkdown(n.content):n.content.map(markdown).join('\n\n');return '@'+name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+body+'\n}';}
+ default:{const generic=directiveNodeForType(n.type);if(generic)return '@'+directiveForType(generic.type).name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+n.content.map(markdown).join('\n\n')+'\n}';// The registered directive name, so the projection imports again.
+ const name=['relay.callout','relay.form_question','relay.agent_suggestion','relay.data_view','relay.video_embed'].includes(n.type)?directiveForType(n.type).name:null;if(!name)throw new TypeError('Unsupported block projection');const body=n.type==='relay.agent_suggestion'?inlineMarkdown(n.content):n.content.map(markdown).join('\n\n');return '@'+name+'('+Object.entries(p).map(([k,v])=>k+': '+JSON.stringify(v)).join(', ')+') {\n'+body+'\n}';}
 }}
 
 import {importPublication} from './form-publication-import.js';

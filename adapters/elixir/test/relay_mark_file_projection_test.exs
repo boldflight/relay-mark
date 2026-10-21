@@ -34,10 +34,10 @@ defmodule RelayMark.FileProjectionTest do
         "scope: \"private\", uri: \"/m/11111111-1111-4111-8111-111111111111\") {\n\n}\n\n" <>
         "**Keep 世界** beside the file.\n"
 
-    assert {:ok, projected} = RelayMark.DocumentSource.project_markdown(authored)
+    assert {:ok, projected} = RelayMark.project_document_markdown(authored)
     assert projected == expected
     # Readable Markdown is derived; the exact canonical interchange retains IDs.
-    assert {:ok, canonical_source} = RelayMark.DocumentSource.serialize(authored)
-    assert {:ok, ^authored} = RelayMark.DocumentSource.parse(canonical_source)
+    assert {:ok, canonical_source} = RelayMark.serialize_document(authored)
+    assert {:ok, ^authored} = RelayMark.parse_document(canonical_source)
   end
 end

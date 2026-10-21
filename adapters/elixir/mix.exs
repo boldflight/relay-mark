@@ -1,7 +1,7 @@
 defmodule RelayMarkElixir.MixProject do
   use Mix.Project
 
-  @version "0.7.1"
+  @version "0.7.2"
   @source_url "https://github.com/boldflight/relay-mark"
 
   def project do
@@ -27,9 +27,8 @@ defmodule RelayMarkElixir.MixProject do
 
   defp deps do
     [
-      {:jsv, ">= 0.22.0"},
       {:jason, "~> 1.4"},
-      {:mdex, "~> 0.13.5"},
+      {:rustler, "~> 0.37.1", runtime: false},
       {:ex_doc, "~> 0.40.3", only: :dev, runtime: false}
     ]
   end
@@ -41,7 +40,12 @@ defmodule RelayMarkElixir.MixProject do
       links: %{"Source" => @source_url},
       files: [
         "lib",
-        "priv",
+        "priv/collaboration",
+        "priv/relaymark",
+        "native/relay_mark_nif/Cargo.toml",
+        "native/relay_mark_nif/Cargo.lock",
+        "native/relay_mark_nif/src",
+        "native/relaymark",
         ".formatter.exs",
         "mix.exs",
         "README.md",

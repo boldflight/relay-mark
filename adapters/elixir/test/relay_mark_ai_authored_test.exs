@@ -17,7 +17,7 @@ defmodule RelayMark.AiAuthoredTest do
     run_id = "4f1c2b7a-5d6e-4f80-9a1b-2c3d4e5f6a7b"
 
     assert Enum.map(runs, & &1["attributes"]) == [
-             nil,
+             %{},
              %{"bold" => %{}, "ai_authored" => %{"run_id" => run_id}},
              %{"ai_authored" => %{"run_id" => run_id}}
            ]

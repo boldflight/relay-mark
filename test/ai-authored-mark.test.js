@@ -32,3 +32,17 @@ test('ai_authored survives the portable snapshot and is valid typing context', a
   assert.equal(validateTextAttributes({bold: {}, ai_authored: {run_id: 'run'}}), true)
   assert.throws(() => validateTextAttributes({ai_authored: {}}))
 })
+
+test('the document schema admits a run_id of at most 64 characters', async () => {
+  const {validateJSONSchema} = await import('../src/json-schema.js')
+  const {fileURLToPath} = await import('node:url')
+  const schemaURL = new URL('../spec/relaymark/schemas/relaymark-document.schema.json', import.meta.url)
+  const schema = JSON.parse(readFileSync(schemaURL))
+  const withRun = run_id => {
+    const ast = structuredClone(fixture.ast)
+    ast.blocks[0].content[2].run_id = run_id
+    return validateJSONSchema(ast, schema, fileURLToPath(schemaURL))
+  }
+  assert.deepEqual(withRun('r'.repeat(64)), [])
+  assert.notDeepEqual(withRun('r'.repeat(65)), [])
+})

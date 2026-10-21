@@ -56,28 +56,6 @@ defmodule RelayMark.SourceCompatibilityTest do
     assert hd(result.document["blocks"])["props"]["tone"] == "neutral"
   end
 
-  test "a relocated source module imports registered directives from installed application priv" do
-    source = Path.expand("../lib/relay_mark/document_source.ex", __DIR__)
-    directive = "@Callout(tone: \"info\") {\nRetained body.\n}\n"
-
-    expression = """
-    Code.compiler_options(ignore_module_conflict: true)
-    Code.compile_string(File.read!(#{inspect(source)}), "/absent-relaymark-source/lib/relay_mark/document_source.ex")
-    case RelayMark.import_source(#{inspect(directive)}, namespace: "relocated-source") do
-      {:ok, %{document: %{"blocks" => [%{"type" => "relay.callout"}]}}} -> IO.puts("RELOCATED_DIRECTIVE_OK")
-      _ -> System.halt(3)
-    end
-    """
-
-    paths = :code.get_path() |> Enum.flat_map(&["-pa", List.to_string(&1)])
-
-    {output, exit_code} =
-      System.cmd("elixir", paths ++ ["-e", expression], stderr_to_stdout: true)
-
-    assert exit_code == 0, output
-    assert output =~ "RELOCATED_DIRECTIVE_OK"
-  end
-
   test "source compatibility has one exact cross-runtime document and identity mapping" do
     fixture =
       Path.expand(

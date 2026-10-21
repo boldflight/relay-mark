@@ -6,17 +6,7 @@ defmodule RelayMark.AgentAnswer do
   envelope metadata and are never inserted into the RelayMark document.
   """
 
-  alias RelayMark.{
-    Diagnostic,
-    Document,
-    JSON,
-    Manifest,
-    ManifestProjection,
-    Schema,
-    SemanticValidator
-  }
-
-  @profile "relaymark.agent_answer"
+  alias RelayMark.{Diagnostic, Document, Manifest}
 
   @type validated_pair :: %{
           document: Document.t(),
@@ -30,74 +20,43 @@ defmodule RelayMark.AgentAnswer do
   def validate_transported_pair(document_json, manifest_json, validation_context \\ %{})
       when is_binary(document_json) and is_binary(manifest_json) and
              is_map(validation_context) do
-    with {:ok, document} <- decode_json(document_json, "document"),
-         {:ok, manifest} <- decode_json(manifest_json, "manifest") do
-      diagnostics =
-        case Schema.validate_document_schema(document) do
-          {:error, _schema_error} ->
-            [
-              Diagnostic.error(
-                "relaymark.schema.invalid",
-                "Document does not conform to the RelayMark document schema."
-              )
-            ]
+    with :ok <- json_object(document_json, "document"),
+         :ok <- json_object(manifest_json, "manifest") do
+      options = %{"manifest" => manifest_json, "context" => validation_context}
 
-          :ok ->
-            if get_in(document, ["frontmatter", "profile"]) == @profile do
-              SemanticValidator.validate(document, validation_context)
-            else
-              [
-                Diagnostic.error(
-                  "relaymark.agent_answer.profile",
-                  "Transported Agent Answer document must declare frontmatter.profile relaymark.agent_answer."
-                )
-              ]
-            end
-        end
+      case RelayMark.Engine.call("transported_pair", document_json, options) do
+        {:ok, output} ->
+          case Jason.decode!(output) do
+            %{"diagnostics" => [], "document" => document, "manifest" => manifest} = result ->
+              {:ok,
+               %{
+                 document: Document.from_map(document),
+                 manifest: Manifest.from_map(manifest),
+                 document_digest: result["document_digest"],
+                 manifest_digest: result["manifest_digest"]
+               }}
 
-      diagnostics =
-        if diagnostics == [] and ManifestProjection.project(document, []) != manifest do
-          [
-            Diagnostic.error(
-              "relaymark.agent_answer.manifest_mismatch",
-              "Transported relaymark.agent_answer manifest must exactly match the canonical projection of its document."
-            )
-          ]
-        else
-          diagnostics
-        end
+            %{"diagnostics" => diagnostics} ->
+              {:error, diagnostics}
+          end
 
-      if diagnostics == [] do
-        {:ok,
-         %{
-           document: Document.from_map(document),
-           manifest: Manifest.from_map(manifest),
-           document_digest: digest(document_json),
-           manifest_digest: digest(manifest_json)
-         }}
-      else
-        {:error, diagnostics}
+        {:error, _} ->
+          {:error, [json_error("document")]}
       end
     end
   end
 
-  defp decode_json(json, label) do
-    case JSON.decode(json) do
-      {:ok, value} when is_map(value) ->
-        {:ok, value}
-
-      _error ->
-        {:error,
-         [
-           Diagnostic.error(
-             "relaymark.transport.#{label}_json",
-             "Transported RelayMark #{label} must be valid UTF-8 JSON."
-           )
-         ]}
+  defp json_object(json, label) do
+    case RelayMark.JSON.decode(json) do
+      {:ok, value} when is_map(value) -> :ok
+      _ -> {:error, [json_error(label)]}
     end
   end
 
-  defp digest(bytes) do
-    "sha256:" <> (:crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower))
-  end
+  defp json_error(label),
+    do:
+      Diagnostic.error(
+        "relaymark.transport.#{label}_json",
+        "Transported RelayMark #{label} must be valid UTF-8 JSON."
+      )
 end

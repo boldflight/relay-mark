@@ -24,16 +24,6 @@
       "markSet": null
     },
     {
-      "name": "doc",
-      "content": "block+",
-      "attrs": {
-        "relaymark": {
-          "default": {}
-        }
-      },
-      "markSet": []
-    },
-    {
       "name": "blockquote",
       "content": "block+",
       "group": "block",
@@ -55,6 +45,16 @@
         }
       },
       "markSet": []
+    },
+    {
+      "name": "doc",
+      "content": "block+",
+      "markSet": [],
+      "attrs": {
+        "relaymark": {
+          "default": {}
+        }
+      }
     },
     {
       "name": "hardBreak",
@@ -852,7 +852,16 @@
         "projection": {
           "default": "chart"
         },
+        "columns": {
+          "default": null
+        },
         "filter": {
+          "default": null
+        },
+        "sort": {
+          "default": null
+        },
+        "group": {
           "default": null
         },
         "limit": {
@@ -945,6 +954,18 @@
       "name": "subscript",
       "excludes": [
         "subscript"
+      ]
+    },
+    {
+      "name": "ai_authored",
+      "inclusive": false,
+      "attrs": {
+        "run_id": {
+          "default": null
+        }
+      },
+      "excludes": [
+        "ai_authored"
       ]
     }
   ]
