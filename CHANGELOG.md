@@ -5,7 +5,9 @@
 - `RelayMarkSourceCodec`, HTML and clipboard import and the attribute codecs
   run in relaymark-core, the canonical Rust engine the server also uses,
   through `RelayMarkFFI.xcframework` (uniffi; Apple silicon slices for iOS,
-  macOS and visionOS, built by `scripts/build-swift-engine.zsh`). The bundled
+  macOS and visionOS, built by `scripts/build-swift-engine.zsh` and fetched
+  from an `engine-<commit>` release asset; it needs an `api.github.com` read
+  credential). The bundled
   `document-source.js` is gone; output is byte-identical.
 - Editor commands (lists, tables with `fixTables`, marks, blocks), step
   application, the causal write plan and clipboard anchor and heading plans

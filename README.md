@@ -192,6 +192,17 @@ and release builds use the same Xcode; there is no older-Xcode compatibility
 gate. GitHub Actions runs no Swift job: `swift test` run locally, with
 Xcode 27.1, is the Swift check, and Xcode Cloud builds the apps that use it.
 
+The canonical engine reaches Swift as `RelayMarkFFI.xcframework`, which is
+never committed. `scripts/build-swift-engine.zsh --publish` builds it from
+relaymark-core, uploads the zip as the `engine-<commit>` release asset and
+writes its URL and checksum into `Package.swift`; commit that with the
+regenerated binding. Because the repository is private, SwiftPM and Xcode
+download the asset through the GitHub API with a read credential for
+`api.github.com` from `~/.netrc` or the keychain (Xcode Cloud: an
+environment secret written to `~/.netrc` by `ci_post_clone.sh`). To try an
+unpublished engine, run the script without `--publish` and build with
+`RELAYMARK_LOCAL_ENGINE=1`.
+
 Routine releases are made directly from `main`. Branches and pull requests are
 optional, not release prerequisites. Any verified `main` commit may receive an
 annotated semantic-version tag after release metadata and the relevant local
