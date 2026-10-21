@@ -196,6 +196,17 @@ fn replays_editing() {
     replay_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reference/editing-corpus.jsonl.gz"));
 }
 
+/// Rows added through cells that span both rows and columns, recorded with
+///
+///     RELAYMARK_RECORD=spans.jsonl node --import ./crates/relaymark-core/tools/record.mjs \
+///       crates/relaymark-core/tools/edit-corpus.mjs --spans crates/relaymark-core/tests/reference/spans
+///
+/// keeping the content-edit calls.
+#[test]
+fn replays_table_spans() {
+    replay_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reference/table-spans.jsonl.gz"));
+}
+
 /// Any further recorded corpus (see `tools/corpus.mjs`).
 #[test]
 fn replays_a_recorded_corpus() {

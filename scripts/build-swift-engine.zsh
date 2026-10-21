@@ -58,7 +58,7 @@ done
 
 xcodebuild -create-xcframework $libraries -output $framework
 rm -rf $work
-ditto -c -k --sequesterRsrc --keepParent $framework $archive
+ditto -c -k --norsrc --keepParent $framework $archive
 checksum=$(xcrun swift package compute-checksum $archive)
 
 if $publish; then

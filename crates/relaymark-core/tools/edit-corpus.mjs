@@ -8,6 +8,9 @@
 // oracles). Each parsed paper gets N random maintained Transform edits, whose
 // steps are replayed through applyContentEdit and prepareContentEditWrite, and
 // random editor commands at random selections through createContentEditCommand.
+// With --spans, each table instead gets every rectangle of two or three rows
+// and two columns merged, and rows are added before and after every cell
+// of the result, so cells spanning both rows and columns meet inserted rows.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { Transform } from 'prosemirror-transform';
@@ -20,6 +23,7 @@ import { applyContentEdit, prepareContentEditWrite, createContentEditCommand, pl
 const schema = createCanonicalEditorSchema();
 const args = process.argv.slice(2);
 let edits = 20;
+let spans = false;
 const sources = [];
 const documents = [];
 function walk(path) {
@@ -39,6 +43,7 @@ function walk(path) {
 }
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--edits') edits = Number(args[++i]);
+  else if (args[i] === '--spans') spans = true;
   else walk(args[i]);
 }
 
@@ -139,6 +144,29 @@ function commandsOn(json, doc, depth = 0) {
   }
 }
 
+function cellPositions(doc) {
+  const rows = [];
+  doc.descendants((node, pos) => {
+    if (node.type.spec.tableRole === 'row') rows.push([]);
+    const role = node.type.spec.tableRole;
+    if (role === 'cell' || role === 'header_cell') rows[rows.length - 1].push(pos);
+    return !role || role === 'table' || role === 'row';
+  });
+  return rows;
+}
+function rectangleSpans(json, doc) {
+  const rows = cellPositions(doc);
+  for (const height of [2, 3]) for (let r = 0; r + height <= rows.length; r++) for (let c = 0; c + 2 <= rows[r].length; c++) {
+    const head = rows[r + height - 1][c + 1];
+    if (head === undefined) continue;
+    const merged = attempt(() => createContentEditCommand(json, { command: 'mergeCells', selection: { type: 'cell', anchor: rows[r][c], head } }));
+    if (!merged) continue;
+    for (const cell of cellPositions(schema.nodeFromJSON(merged.document)).flat())
+      for (const command of ['addRowBefore', 'addRowAfter'])
+        attempt(() => createContentEditCommand(merged.document, { command, selection: { type: 'cell', anchor: cell, head: cell } }));
+  }
+}
+
 let papers = 0;
 const asts = [...documents];
 for (const source of sources) {
@@ -151,6 +179,7 @@ for (const ast of asts) {
   if (!json) continue;
   papers++;
   const doc = schema.nodeFromJSON(json);
+  if (spans) { rectangleSpans(json, doc); continue; }
   for (let n = 0; n < edits; n++) {
     const tr = new Transform(doc);
     const count = 1 + Math.floor(random() * 3);

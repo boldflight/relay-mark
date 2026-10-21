@@ -1084,3 +1084,38 @@ impl Transform {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::Value;
+    use std::io::Read;
+
+    /// Replace fitting against prosemirror-transform, recorded by
+    /// `tools/fitter-corpus.mjs` (see there): the same steps, or a refusal.
+    #[test]
+    fn fits_slices_as_the_reference() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/reference/fitter-corpus.jsonl.gz");
+        let mut text = String::new();
+        flate2::read::GzDecoder::new(std::fs::File::open(path).unwrap()).read_to_string(&mut text).unwrap();
+        let mut lines = text.lines().map(|line| serde_json::from_str::<Value>(line).unwrap());
+        let papers: Vec<Node> = lines.next().unwrap()["papers"].as_array().unwrap().iter().map(|doc| Node::from_json(doc).unwrap()).collect();
+        let mut mismatches = Vec::new();
+        for (n, case) in lines.enumerate() {
+            let at = |key: &str| case[key].as_u64().unwrap() as usize;
+            let mut tr = Transform::new(papers[at("paper")].clone());
+            let slice = Slice::from_json(Some(&case["slice"])).unwrap();
+            let actual = tr.replace(at("from"), at("to"), &slice).map(|()| Value::Array(tr.steps.iter().map(Step::to_json).collect()));
+            let same = match (&actual, case.get("steps")) {
+                // Byte for byte: key order is part of the step encoding.
+                (Ok(steps), Some(expected)) => serde_json::to_string(steps).unwrap() == serde_json::to_string(expected).unwrap(),
+                (Err(_), None) => true,
+                _ => false,
+            };
+            if !same {
+                mismatches.push(n + 1);
+            }
+        }
+        assert!(mismatches.is_empty(), "fitter mismatches at cases {mismatches:?}");
+    }
+}
