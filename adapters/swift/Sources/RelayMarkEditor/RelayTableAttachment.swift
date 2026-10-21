@@ -53,7 +53,7 @@ final class RelayTableAttachment: NSTextAttachment {
         self.identity = identity; self.start = start; self.cells = cells
         super.init(data: nil, ofType: nil)
         #if !os(macOS)
-        accessibilityLabel = String(localized: "Table")
+        accessibilityLabel = String(localized: "Table", bundle: .module, comment: "VoiceOver label of a table in the paper.")
         #endif
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -428,7 +428,7 @@ final class RelayTableGridView: PlatformTableView {
         #if os(macOS)
         wantsLayer = true
         setAccessibilityRole(.table)
-        setAccessibilityLabel(String(localized: "Table"))
+        setAccessibilityLabel(String(localized: "Table", bundle: .module, comment: "VoiceOver label of a table in the paper."))
         #else
         accessibilityContainerType = .dataTable
         #endif

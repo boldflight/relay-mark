@@ -156,7 +156,7 @@ extension RelayPaperTextView {
         let caret = viewSelection.location
         if let toggle = onTaskCheckbox, let item = paper.viewTaskItems.first(where: {
             NSLocationInRange(caret, $0.firstParagraphRange) || NSMaxRange($0.firstParagraphRange) == caret }) {
-            let name = item.checked ? String(localized: "Mark as not done") : String(localized: "Mark as done")
+            let name = item.checked ? String(localized: "Mark as not done", bundle: .module, comment: "VoiceOver action that unchecks the task at the caret.") : String(localized: "Mark as done", bundle: .module, comment: "VoiceOver action that checks the task at the caret.")
             actions.append((name, false, { toggle(item.firstParagraphRange.location) }))
         }
         for action in selectionActions {

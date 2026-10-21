@@ -232,14 +232,14 @@ enum NativeProseCodec {
             let font = result.attribute(.font, at: local(widget.range).location, effectiveRange: nil) as? PlatformFont
                 ?? PlatformFont.systemFont(ofSize: 13)
             result.addAttribute(.attachment, value: InlineAtomAttachment.attachment(title: title,
-                description: widget.kind == .dataView ? "Data view" : "Authored widget", font: font), range: local(widget.range))
+                description: widget.kind == .dataView ? String(localized: "Data view", bundle: .module, comment: "VoiceOver description of an embedded data view.") : String(localized: "Authored widget", bundle: .module, comment: "VoiceOver description of an embedded authored widget."), font: font), range: local(widget.range))
         }
         for atom in entityReferenceAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
             NSMaxRange(local(atom.range)) <= result.length &&
             (result.string as NSString).substring(with: local(atom.range)) == "\u{FFFC}" {
             let font = result.attribute(.font, at: local(atom.range).location, effectiveRange: nil) as? PlatformFont
                 ?? PlatformFont.systemFont(ofSize: 13)
-            let title = "Reference: \(atom.label)"
+            let title = String(localized: "Reference: \(atom.label)", bundle: .module, comment: "Text and VoiceOver label of a block reference chip; the placeholder is the referenced item's title.")
             result.addAttribute(.attachment, value: InlineAtomAttachment.attachment(
                 title: title, description: title, font: font), range: local(atom.range))
         }
@@ -464,7 +464,7 @@ private enum InlineAtomAttachment {
                            font: PlatformFont) -> NSTextAttachment {
         let title = kind == .relayTag ? label : "@\(label)"
         return attachment(title: title,
-            description: kind == .relayTag ? "Tag \(label)" : "Reference \(label)", font: font)
+            description: kind == .relayTag ? String(localized: "Tag \(label)", bundle: .module, comment: "VoiceOver label of a tag chip; the placeholder is the tag.") : String(localized: "Reference \(label)", bundle: .module, comment: "VoiceOver label of an inline reference chip; the placeholder is the referenced item's title."), font: font)
     }
 
     static func attachment(title: String, description: String, font: PlatformFont) -> NSTextAttachment {
@@ -511,9 +511,9 @@ private enum PaperControlAttachment {
                            font: PlatformFont) -> NSTextAttachment {
         let title: String
         switch atom.control {
-        case .button: title = "Button: \(atom.displayLabel)"
-        case .anchor: title = "Anchor: \(atom.displayLabel)"
-        case .connection: title = "Connection: \(atom.displayLabel)"
+        case .button: title = String(localized: "Button: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the button's label.")
+        case .anchor: title = String(localized: "Anchor: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the anchor's name.")
+        case .connection: title = String(localized: "Connection: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the connection's label.")
         }
         // The control is an authored declaration. Clicking or executing it is a
         // separate host action, never a TextKit or CRDT side effect.
@@ -526,8 +526,8 @@ private enum AgentSuggestionAttachment {
     static func attachment(atom: RelayMarkCollaborativeProse.SuggestionAtom,
                            font: PlatformFont) -> NSTextAttachment {
         let preview = atom.content.replacingOccurrences(of: "\n", with: " ")
-        let title = "Suggestion (\(atom.kind)): \(preview)"
-        let description = "Agent suggestion, \(atom.review), \(atom.kind). \(atom.content)"
+        let title = String(localized: "Suggestion (\(atom.kind)): \(preview)", bundle: .module, comment: "Agent suggestion chip; the placeholders are the suggestion kind and its text.")
+        let description = String(localized: "Agent suggestion, \(atom.review), \(atom.kind). \(atom.content)", bundle: .module, comment: "VoiceOver description of an agent suggestion: review state, kind, then its text.")
         // The authored Markdown stays on the Yrs atom. This preview never
         // converts an Accept or Dismiss tap into a CRDT or domain action.
         return InlineAtomAttachment.attachment(title: title, description: description, font: font)
@@ -563,11 +563,11 @@ enum MediaAtomAttachment {
         attachment.bounds = CGRect(x: 0, y: 0, width: size.width * scale, height: size.height * scale)
         #if os(macOS)
         if let described = image.copy() as? NSImage {
-            described.accessibilityDescription = atom.alt.map { "Image: \($0)" } ?? "Image"
+            described.accessibilityDescription = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
             attachment.image = described
         }
         #else
-        attachment.accessibilityLabel = atom.alt.map { "Image: \($0)" } ?? "Image"
+        attachment.accessibilityLabel = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
         #endif
         images.setObject(attachment, forKey: key)
         return attachment
@@ -579,11 +579,11 @@ enum MediaAtomAttachment {
         let description: String
         switch atom.kind {
         case .image:
-            title = atom.alt.map { "Image: \($0)" } ?? "Image"
+            title = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
             description = title
         case .videoEmbed:
-            title = "Video"
-            description = "Video attachment"
+            title = String(localized: "Video", bundle: .module, comment: "Label of a video attachment in the paper.")
+            description = String(localized: "Video attachment", bundle: .module, comment: "VoiceOver description of a video attachment.")
         }
         // Authenticated media retrieval and playback are host capabilities.
         // The authored source and ID remain in Yrs, not the TextKit attachment.
@@ -597,7 +597,7 @@ private final class ThematicBreakAttachment: NSTextAttachment {
     static let shared: ThematicBreakAttachment = {
         let attachment = ThematicBreakAttachment(data: nil, ofType: nil)
         #if !os(macOS)
-        attachment.accessibilityLabel = String(localized: "Horizontal rule")
+        attachment.accessibilityLabel = String(localized: "Horizontal rule", bundle: .module, comment: "VoiceOver label for a horizontal rule in the paper.")
         #endif
         return attachment
     }()
@@ -617,7 +617,7 @@ private final class ThematicBreakAttachment: NSTextAttachment {
             NSBezierPath(rect: CGRect(x: 0, y: rect.midY, width: rect.width, height: 1)).fill()
             return true
         }
-        image.accessibilityDescription = String(localized: "Horizontal rule")
+        image.accessibilityDescription = String(localized: "Horizontal rule", bundle: .module, comment: "VoiceOver label for a horizontal rule in the paper.")
         #else
         let image = UIGraphicsImageRenderer(size: size).image { context in
             UIColor.separator.setFill()
@@ -1099,7 +1099,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     private func receiveImage(_ pasteboard: NSPasteboard, range: NSRange) -> Bool {
         guard hasImage(pasteboard), let items = pasteboard.pasteboardItems else { return false }
         if items.count > 1 {
-            guard items.count <= 4096 else { onImageInputFailure?("Too many images in this paste. No item was inserted."); return true }
+            guard items.count <= 4096 else { onImageInputFailure?(String(localized: "Too many images in this paste. No item was inserted.", bundle: .module, comment: "Shown when a paste holds more images than the paper accepts.")); return true }
             var files: [RelayMarkImageFile] = []
             var reads: [() -> Data?] = []; let maximumBytes = imagePolicy.maximumBytes
             for item in items {
@@ -1117,7 +1117,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
                     files.append(.init(filename: RelayNativeImageRepresentation.filename(nil, identifier: type.rawValue), contentType: mime))
                     reads.append { item.data(forType: type) }
                 } else {
-                    onImageInputFailure?("Every item must be a supported image. No subset was inserted."); return true
+                    onImageInputFailure?(String(localized: "Every item must be a supported image. No subset was inserted.", bundle: .module, comment: "Shown when some pasted or dropped items are not supported images.")); return true
                 }
             }
             // Every reservation precedes the first file/provider byte read.
@@ -1127,7 +1127,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         }
         guard let item = items.first else { return true }
         if let (file, possibleMime) = imageFile(item) {
-            guard let mime = possibleMime else { onImageInputFailure?("This image type is not supported. No image was inserted."); return true }
+            guard let mime = possibleMime else { onImageInputFailure?(String(localized: "This image type is not supported. No image was inserted.", bundle: .module, comment: "Shown when a pasted or dropped image type is not supported.")); return true }
             guard let intake = onBeginImageInput?(range, file.lastPathComponent, mime) else { return true }
             let access = file.startAccessingSecurityScopedResource()
             defer { if access { file.stopAccessingSecurityScopedResource() } }
@@ -1136,7 +1136,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             intake.receive(try? Data(contentsOf: file)); return true
         }
         guard let type = item.types.first(where: { imagePolicy.mime($0.rawValue) != nil }) else {
-            onImageInputFailure?("This image type is not supported. No image was inserted."); return true
+            onImageInputFailure?(String(localized: "This image type is not supported. No image was inserted.", bundle: .module, comment: "Shown when a pasted or dropped image type is not supported.")); return true
         }
         guard let mime = imagePolicy.mime(type.rawValue),
               let intake = onBeginImageInput?(range, RelayNativeImageRepresentation.filename(nil, identifier: type.rawValue), mime)
@@ -1168,7 +1168,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             // Snapshot ordered item handles before reserving or requesting bytes.
             let items = NSPasteboard.general.pasteboardItems ?? []
             guard !items.isEmpty, items.allSatisfy({ $0.types.contains(.html) }) else {
-                onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
+                onImageInputFailure?(String(localized: "Mixed clipboard representations cannot be inserted as a subset. No item was inserted.", bundle: .module, comment: "Shown when a paste mixes formatted and other items.")); return
             }
             guard let intake = onBeginStructuredPaste?(selectedRange(), items.count, NSPasteboard.general.string(forType: .string)) else { return }
             for (index, item) in items.enumerated() { intake.receive(item.data(forType: .html), at: index) }
@@ -1205,7 +1205,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
             // Snapshot ordered item handles before reserving or requesting bytes.
             let items = NSPasteboard.general.pasteboardItems ?? []
             guard !items.isEmpty, items.allSatisfy({ $0.types.contains(.html) }) else {
-                onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
+                onImageInputFailure?(String(localized: "Mixed clipboard representations cannot be inserted as a subset. No item was inserted.", bundle: .module, comment: "Shown when a paste mixes formatted and other items.")); return
             }
             guard let intake = onBeginStructuredPaste?(selectedRange(), items.count, NSPasteboard.general.string(forType: .string)) else { return }
             for (index, item) in items.enumerated() { intake.receive(item.data(forType: .html), at: index) }
@@ -1923,12 +1923,12 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     private func receiveImageProviders(_ providers: [NSItemProvider], range: NSRange) -> Bool {
         guard providers.contains(where: { $0.registeredTypeIdentifiers.contains(where: { RelayNativeImageRepresentation.isImage($0) }) }) else { return false }
         if providers.count > 1 {
-            guard providers.count <= 4096 else { onImageInputFailure?("Too many images in this input. No item was inserted."); return true }
+            guard providers.count <= 4096 else { onImageInputFailure?(String(localized: "Too many images in this input. No item was inserted.", bundle: .module, comment: "Shown when a paste or drop holds more images than the paper accepts.")); return true }
             var files: [RelayMarkImageFile] = [], identifiers: [String] = []
             for provider in providers {
                 guard let identifier = provider.registeredTypeIdentifiers.first(where: { imagePolicy.mime($0) != nil }),
                       let mime = imagePolicy.mime(identifier) else {
-                    onImageInputFailure?("Every item must be a supported image. No subset was inserted."); return true
+                    onImageInputFailure?(String(localized: "Every item must be a supported image. No subset was inserted.", bundle: .module, comment: "Shown when some pasted or dropped items are not supported images.")); return true
                 }
                 files.append(.init(filename: RelayNativeImageRepresentation.filename(provider.suggestedName, identifier: identifier), contentType: mime))
                 identifiers.append(identifier)
@@ -1943,7 +1943,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         }
         guard let provider = providers.first else { return true }
         guard let identifier = provider.registeredTypeIdentifiers.first(where: { imagePolicy.mime($0) != nil }) else {
-            onImageInputFailure?("This image type is not supported. No image was inserted."); return true
+            onImageInputFailure?(String(localized: "This image type is not supported. No image was inserted.", bundle: .module, comment: "Shown when a pasted or dropped image type is not supported.")); return true
         }
         guard let mime = imagePolicy.mime(identifier),
               let intake = onBeginImageInput?(range, RelayNativeImageRepresentation.filename(provider.suggestedName, identifier: identifier), mime)
@@ -2010,7 +2010,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         // HTML never falls through UIKit's default converter. A mixed item list
         // remains on the clipboard intact; all-HTML delivery is ordered by slot.
         guard !providers.isEmpty, providers.allSatisfy({ $0.hasItemConformingToTypeIdentifier(UTType.html.identifier) }) else {
-            onImageInputFailure?("Mixed clipboard representations cannot be inserted as a subset. No item was inserted."); return
+            onImageInputFailure?(String(localized: "Mixed clipboard representations cannot be inserted as a subset. No item was inserted.", bundle: .module, comment: "Shown when a paste mixes formatted and other items.")); return
         }
         guard let intake = onBeginStructuredPaste?(selectedRange, providers.count, plainText) else { return }
         for (index, provider) in providers.enumerated() {

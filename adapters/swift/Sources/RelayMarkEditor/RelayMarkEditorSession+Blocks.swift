@@ -251,7 +251,7 @@ extension RelayMarkEditorSession {
     enum CalloutTitleFailure: LocalizedError {
         case changed
         var errorDescription: String? {
-            "The paper or selection changed. Select an untitled callout and try again."
+            String(localized: "The paper or selection changed. Select an untitled callout and try again.", bundle: .module, comment: "Shown when a callout's target moved.")
         }
     }
 

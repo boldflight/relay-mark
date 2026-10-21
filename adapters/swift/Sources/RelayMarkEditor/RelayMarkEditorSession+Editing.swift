@@ -33,12 +33,12 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         noteFallback("edit")
         let original = String(text.characters), proposed = String(candidate.characters)
         if let nativeReplacement, !nativeReplacement.matches(original: original, proposed: proposed) {
-            retain(candidate, reason: "The native replacement no longer matches this paper.")
+            retain(candidate, reason: String(localized: "The native replacement no longer matches this paper.", bundle: .module, comment: "Shown on the paper when an edit is kept for review."))
             return
         }
         if let nativePaste {
             guard let nativeReplacement, nativePaste.matches(nativeReplacement, current: text) else {
-                retain(candidate, reason: "The paste selection changed before it could be saved.")
+                retain(candidate, reason: String(localized: "The paste selection changed before it could be saved.", bundle: .module, comment: "Shown on the paper when a paste is kept for review."))
                 return
             }
         }
@@ -62,7 +62,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         if let nativePaste, let nativeReplacement {
             guard let scoped = nativePaste.attributedCandidate(replacement: nativeReplacement,
                                                                rendered: candidate) else {
-                retain(candidate, reason: "The paste selection changed before it could be saved.")
+                retain(candidate, reason: String(localized: "The paste selection changed before it could be saved.", bundle: .module, comment: "Shown on the paper when a paste is kept for review."))
                 return
             }
             storedTyping = nil
@@ -304,7 +304,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
             pending = RelayMarkLocalTransaction(id: try preparedOperationID(), update: change.update)
             retryPersistence()
         } catch {
-            let reason = "This join could not be applied without changing unsupported structure."
+            let reason = String(localized: "This join could not be applied without changing unsupported structure.", bundle: .module, comment: "Shown on the paper when a join is kept for review.")
             if let candidate { retain(candidate, reason: reason) } else { failure = reason }
         }
     }
@@ -331,7 +331,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
                     removed: (before as NSString).substring(with: command.range), inserted: command.replacement))
             retryPersistence()
         } catch {
-            retain(candidate, reason: "This selection could not be replaced without changing unsupported structure.")
+            retain(candidate, reason: String(localized: "This selection could not be replaced without changing unsupported structure.", bundle: .module, comment: "Shown on the paper when a replacement is kept for review."))
         }
     }
 
@@ -417,7 +417,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
             try retainTypingContext(result.change.storedTextAttributes, caret: caret)
             pending = RelayMarkLocalTransaction(id: try preparedOperationID(), update: result.change.update)
             retryPersistence()
-        } catch { retain(candidate, reason: "This Return needs a supported structural boundary.") }
+        } catch { retain(candidate, reason: String(localized: "This Return needs a supported structural boundary.", bundle: .module, comment: "Shown on the paper when a Return is kept for review.")) }
     }
 
     private func retainTypingContext(_ attributes: Data?, caret: Int) throws {
@@ -588,7 +588,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
             try retainTypingContext(changed.change.storedTextAttributes, caret: selection)
             pending = RelayMarkLocalTransaction(id: try preparedOperationID(), update: changed.change.update)
             retryPersistence()
-        } catch { retain(candidate, reason: "This Return needs a supported structural boundary.") }
+        } catch { retain(candidate, reason: String(localized: "This Return needs a supported structural boundary.", bundle: .module, comment: "Shown on the paper when a Return is kept for review.")) }
     }
 
 
@@ -880,11 +880,11 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         guard isEditable, pending == nil, activeComposition == nil else { return }
         noteFallback("formatting")
         guard command.baseline == text else {
-            retain(candidate, reason: "The formatting selection changed before it could be saved.")
+            retain(candidate, reason: String(localized: "The formatting selection changed before it could be saved.", bundle: .module, comment: "Shown on the paper when formatting is kept for review."))
             return
         }
         guard supportsFormattingRange(command.range) else {
-            retain(candidate, reason: "This selection contains an unsupported formatting target. Your candidate is retained.")
+            retain(candidate, reason: String(localized: "This selection contains an unsupported formatting target. Your candidate is retained.", bundle: .module, comment: "Shown on the paper when formatting is kept for review."))
             return
         }
         guard let formatting = RelayNativeRichEdit.formattingChange(
@@ -1070,6 +1070,6 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
 
     func preserveRejectedPaste(_ candidate: AttributedString, id: UUID) {
         guard !isInvalidated else { return }
-        retain(candidate, reason: "This pasted input could not be inserted.")
+        retain(candidate, reason: String(localized: "This pasted input could not be inserted.", bundle: .module, comment: "Shown on the paper when a paste is kept for review."))
     }
 }

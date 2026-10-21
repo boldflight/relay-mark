@@ -159,7 +159,7 @@ public final class RelayMarkEditorSession {
             pending = RelayMarkLocalTransaction(id: try preparedOperationID(), update: result.update)
             retryPersistence()
         } catch {
-            retain(candidate, reason: "This edit contains unsupported structure or marks.")
+            retain(candidate, reason: String(localized: "This edit contains unsupported structure or marks.", bundle: .module, comment: "Shown on the paper when an edit is kept for review."))
         }
     }
 
@@ -204,7 +204,7 @@ public final class RelayMarkEditorSession {
               let item = nativeTaskItems.first(where: { $0.firstParagraphRange.location == offset }) else { return false }
         if item.entityID != nil {
             guard let onLinkedTaskItem else {
-                failure = "This task is linked to an item its host updates, and no host is handling it. The checkbox has not changed."
+                failure = String(localized: "This task is linked to an item its host updates, and no host is handling it. The checkbox has not changed.", bundle: .module, comment: "Shown when a linked task's checkbox cannot change.")
                 return false
             }
             return onLinkedTaskItem(item)
@@ -261,7 +261,7 @@ public final class RelayMarkEditorSession {
     enum TaskListInsertionFailure: LocalizedError {
         case changed
         public var errorDescription: String? {
-            "The paper or selection changed. Place the cursor at the end of a paragraph and try again."
+            String(localized: "The paper or selection changed. Place the cursor at the end of a paragraph and try again.", bundle: .module, comment: "Shown when an insertion's target moved.")
         }
     }
 
@@ -808,7 +808,8 @@ public final class RelayMarkEditorSession {
         try nativeCompositionFinalizer?.finish()
     }
 
-    public func invalidate(reason: String = "This editing session is no longer active.") {
+    public func invalidate(reason: String? = nil) {
+        let reason = reason ?? String(localized: "This editing session is no longer active.", bundle: .module, comment: "Shown when the paper's editing session has ended.")
         invalidated = true
         storedTyping = nil
         let refresh = nativeCompositionFinalizer?.refresh
@@ -857,14 +858,14 @@ extension RelayMarkEditorSession {
     public enum InlineAtomEditFailure: LocalizedError {
         case changed
         public var errorDescription: String? {
-            "The paper or selection changed. Select the reference or insertion point and try again."
+            String(localized: "The paper or selection changed. Select the reference or insertion point and try again.", bundle: .module, comment: "Shown when a reference's target moved.")
         }
     }
 
     public enum AuthoredBlockEditFailure: LocalizedError {
         case changed
         public var errorDescription: String? {
-            "The paper or selection changed. Select the authored block or insertion point and try again."
+            String(localized: "The paper or selection changed. Select the authored block or insertion point and try again.", bundle: .module, comment: "Shown when an authored block's target moved.")
         }
     }
 
