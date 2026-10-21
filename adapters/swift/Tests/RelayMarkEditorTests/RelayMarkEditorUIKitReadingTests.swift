@@ -120,6 +120,30 @@ struct RelayMarkEditorUIKitReadingTests {
         #expect(String(paper.editor.text.characters) == "Hello world")
     }
 
+    /// The formatting panel offers only the paper's marks and applies them through
+    /// the session; a font size the paper cannot store is refused, not shown and lost.
+    @Test func theFormattingPanelAppliesOnlyThePapersMarks() throws {
+        let paper = try mount(markdown: "Hello world")
+        defer { paper.retire() }
+        var refusals = 0
+        let feedback = RelayPaperRefusal.feedback
+        RelayPaperRefusal.feedback = { refusals += 1 }
+        defer { RelayPaperRefusal.feedback = feedback }
+        let configuration = try #require(paper.view.textFormattingConfiguration)
+        #expect(configuration.groups.flatMap(\.components).map(\.componentKey) == [.fontAttributes])
+        let panel = UITextFormattingViewController(configuration: configuration)
+        paper.coordinator.textView(paper.view, willBeginFormattingWith: panel)
+        paper.view.selectedRanges = [NSRange(location: 0, length: 5)]
+        panel.delegate?.textFormattingViewController(panel, didChangeValue: .bold(true))
+        let hello = try #require(paper.editor.text.runs.first)
+        #expect(String(paper.editor.text[hello.range].characters) == "Hello")
+        #expect(hello.inlinePresentationIntent?.contains(.stronglyEmphasized) == true)
+        panel.delegate?.textFormattingViewController(panel, didChangeValue: .fontSize(30))
+        #expect(refusals == 1)
+        let font = paper.view.textStorage.attribute(.font, at: 7, effectiveRange: nil) as? UIFont
+        #expect(font.map { $0.pointSize < 30 } == true)
+    }
+
     /// The keyboard keeps a language per context: the paper is one context,
     /// apart from search and title fields, so Japanese stays Japanese here.
     @Test func thePaperIsItsOwnKeyboardContext() throws {

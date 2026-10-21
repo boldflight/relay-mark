@@ -133,9 +133,15 @@ extension RelayPaperTextView {
         let ranges = viewSelections.map(paper.tables.paper).filter { $0.length > 0 }
         guard ranges.count > 1 else { return session.toggleMarkNatively(mark, range: paperSelection) }
         let text = session.text, flag = mark.inlineIntent
-        let enabled = !ranges.allSatisfy { range in
+        return setMark(mark, enabled: !ranges.allSatisfy { range in
             Range(range, in: text).map { text[$0].runs.allSatisfy { ($0.inlinePresentationIntent ?? []).contains(flag) } } ?? false
-        }
+        })
+    }
+
+    /// Sets or removes an inline mark over every selected range.
+    func setMark(_ mark: RelayMarkFormattingMark, enabled: Bool) -> Bool {
+        guard let session = editingSession else { return false }
+        let ranges = viewSelections.map(paper.tables.paper).filter { $0.length > 0 }
         var changed = false
         for range in ranges.reversed() { changed = session.formatNatively(range: range, mark: mark, enabled: enabled) || changed }
         return changed
@@ -188,6 +194,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
     /// A keystroke inside one text leaf, applied without reading the whole paper.
     var pendingTyping: (view: NSRange, paper: NSRange, text: String)?
     private weak var view: (any RelayPaperTextView)?
+    var attachedView: (any RelayPaperTextView)? { view }
     /// The last change TextKit made to the view's characters on its own.
     private var textKitEdit: (range: NSRange, delta: Int)?
     private var storageObserver: NSObjectProtocol?

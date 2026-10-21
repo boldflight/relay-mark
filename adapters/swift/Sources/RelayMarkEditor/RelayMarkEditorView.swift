@@ -1381,7 +1381,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
     public static func dismantleUIView(_ container: CollaborationTextContainer, coordinator: Coordinator) {
         if let view = container.textView { coordinator.text.retire(view) }
     }
-    @MainActor final class TextCoordinator: NSObject, UITextViewDelegate, UITextPasteDelegate {
+    @MainActor final class TextCoordinator: NSObject, UITextViewDelegate, UITextPasteDelegate, UITextFormattingViewController.Delegate {
         /// The host's services; tests may set the closures below directly.
         var services = RelayMarkEditorServices() {
             didSet {
@@ -1481,6 +1481,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             view.backgroundColor = .clear
             view.textContainerInset = UIEdgeInsets(top: 20, left: 5, bottom: 8, right: 5)
             view.allowsEditingTextAttributes = true
+            view.textFormattingConfiguration = CollaborationTextView.formattingPanel
             view.adjustsFontForContentSizeCategory = true
             view.accessibilityLabel = accessibilityLabel
             view.onSessionEdit = { [weak self, weak view] in
@@ -1714,6 +1715,26 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             return view.paper.tables.spans.filter { NSLocationInRange($0.view, enclosingRange) }
                 .map { NSValue(range: NSRange(location: $0.view, length: 1)) }
         }
+        /// The formatting panel's changes are the paper's marks, applied by the
+        /// session; a change the paper has no mark for is refused, never shown and lost.
+        func textView(_ textView: UITextView, willBeginFormattingWith viewController: UITextFormattingViewController) {
+            viewController.delegate = self
+        }
+        func textFormattingViewController(_ viewController: UITextFormattingViewController,
+                                          didChangeValue changeValue: UITextFormattingViewController.ChangeValue) {
+            guard let view = editor.attachedView as? CollaborationTextView, !view.retired, !updating, view.markedTextRange == nil,
+                  view.editingSession === session, session.isEditable else { return }
+            let applied: Bool
+            switch changeValue {
+            case .bold(let on): applied = view.setMark(.bold, enabled: on)
+            case .italic(let on): applied = view.setMark(.italic, enabled: on)
+            case .strikethrough(let on): applied = view.setMark(.strike, enabled: on)
+            default: applied = false
+            }
+            guard applied else { RelayPaperRefusal.feedback(); return }
+            update(view)
+            viewController.formattingDescriptor = .init(string: view.textStorage, range: view.selectedRange)
+        }
         func textViewDidChangeSelection(_ view: UITextView) {
             guard !updating, let view = view as? CollaborationTextView, !view.retired, view.markedTextRange == nil,
                 view.editingSession == nil || view.editingSession === session else { return }
@@ -1801,6 +1822,11 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         return super.canPerformAction(action, withSender: sender)
     }
     override func toggleUnderline(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    /// The formatting panel offers only the paper's marks: bold, italic, underline
+    /// (refused) and strikethrough. Fonts, sizes, colours and alignment are not paper.
+    static var formattingPanel: UITextFormattingViewController.Configuration {
+        UITextFormattingViewController.Configuration(groups: [.group([.component(.fontAttributes, .automatic)])])
+    }
     var isPaperEditable: Bool {
         get { isEditable }
         set { isEditable = newValue }
