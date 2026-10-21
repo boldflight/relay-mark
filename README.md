@@ -195,8 +195,8 @@ Relay Elixir applications consume the latest published Hex release:
 
 The application lockfile records the exact tested release. An intentional
 `mix deps.update relay_mark_elixir` selects the newest stable package without
-requiring a manifest edit. Production Docker builds must not depend on access
-to this private Git repository.
+requiring a manifest edit. Production builds use the published Hex package,
+not a Git dependency on this repository.
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and
 directive registry required at compile time, while repository tests enforce
