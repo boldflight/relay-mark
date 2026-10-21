@@ -1,6 +1,14 @@
 # RelayMark Elixir adapter release notes
 
-## Unreleased
+## 0.7.3
+
+- Licensed under MIT OR Apache-2.0 (Copyright Bold Flight LLC); the package
+  ships `LICENSE-MIT`, `LICENSE-APACHE` and `THIRD_PARTY_NOTICES.md`.
+- `relaymark-core` frees each intermediate tree as soon as the next is built,
+  lowering peak memory on large documents; conversion output is unchanged.
+- The NIF runs engine jobs through the shared `relaymark-core` job table.
+
+## 0.7.2
 
 - Every conversion and validation now runs in `relaymark-core`, the canonical
   RelayMark engine in Rust, through one NIF compiled from source (Rust 1.99.1;
