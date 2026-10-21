@@ -12,6 +12,7 @@
 //! | Document to HTML | [`render_html`] |
 //! | Validation | [`normalize_document`], [`validate`], [`project_manifest`], [`compile`] |
 //! | Snapshot / editor import | [`document_to_snapshot`], [`snapshot_to_document`], [`document_to_prosemirror`], [`prosemirror_to_document`], [`import`] |
+//! | HTML import | [`import::html`], [`import::clipboard_html`] |
 //!
 //! Values are JSON ([`serde_json::Value`]) with object key order preserved, so
 //! [`to_json`] reproduces the reference runtime's bytes. The specification in
@@ -27,6 +28,7 @@ mod compose;
 mod controls;
 mod error;
 mod html;
+mod html_import;
 mod inline;
 mod json;
 mod json_schema;
@@ -226,6 +228,21 @@ pub mod import {
     /// Detached preview of an aggregate-settings archive.
     pub fn aggregate_settings_snapshot(snapshot: &Value) -> Result<Value> {
         crate::migrate::import_aggregate_settings_snapshot(snapshot)
+    }
+
+    /// Retained rendered HTML (`None`: retained as absent): the snapshot
+    /// import's result plus the normalizations the HTML import made. Only HTML
+    /// whose every element, attribute, mark and character the canonical rules
+    /// account for is admitted.
+    pub fn html(html: Option<&str>, namespace: &str) -> Result<Value> {
+        crate::html_import::import_document(html, namespace)
+    }
+
+    /// Clipboard HTML to an editor slice: `{slice: {content, openStart,
+    /// openEnd}, normalizations}`. Relay's own clipboard HTML is read exactly;
+    /// HTML from other applications is read as the web editor reads a paste.
+    pub fn clipboard_html(html: &str, namespace: &str) -> Result<Value> {
+        crate::html_import::import_clipboard(html, namespace)
     }
 
     /// Saved form publication: `{document, identity_mapping, normalizations}`.

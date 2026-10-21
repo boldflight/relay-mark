@@ -124,10 +124,12 @@ if (result.diagnostics.length > 0) reject(result.diagnostics);
 `crates/relaymark-core` implements every RelayMark conversion once, in Rust, on
 comrak: Markdown to document, the stored `relaymark-ast` source, readable
 Markdown, safe HTML, validation and manifests, ProseMirror and XML snapshot
-conversion, and the finite historical imports. It compiles in the editor
+conversion, HTML import (retained rendered HTML and clipboard HTML, Relay's own
+or another application's), and the finite historical imports. It compiles in the editor
 schema, directive registry and JSON Schemas from `spec/relaymark/`, and its
-output is byte-identical to the JavaScript reference runtime. No platform
-uses it yet; Rustler, uniffi and WebAssembly bindings come next. The pinned
+output is byte-identical to the JavaScript reference runtime. The Elixir
+adapter runs on it through a Rustler NIF; uniffi and WebAssembly bindings come
+next. The pinned
 toolchain is in `rust-toolchain.toml`.
 
 ```sh
@@ -138,7 +140,8 @@ cargo run --release --example relaymark -- parse < doc.md
 `tests/differential.rs` replays calls recorded from the reference runtime
 (`crates/relaymark-core/tools/record.mjs`, driven over a corpus by
 `tools/corpus.mjs`) and requires identical refusals and bytes. The reference
-test suite's calls are committed and always replay; larger corpora replay with
+test suite's calls and an HTML import corpus (`tests/reference/`) are committed
+and always replay; larger corpora replay with
 `RELAYMARK_ORACLE=calls.jsonl cargo test --release --test differential`.
 `examples/bench.rs`, `tools/bench.mjs` and `tools/bench.exs` time the same job
 in each engine.
@@ -148,7 +151,11 @@ its host engine: a diagnostic about malformed directive attributes carries
 the engine's own message, not V8's `JSON.parse` wording (JavaScriptCore words
 it differently again), and an `http(s)` link or image whose punycode host
 decodes to characters WHATWG URL parsing forbids (no-break space, zero-width
-joiner) is refused, where Node's URL parser accepts it.
+joiner) is refused, where Node's URL parser accepts it. HTML is parsed as the
+HTML standard (and browsers) parse it, where the reference runtime uses
+linkedom: malformed markup they build different trees for (an invalid end tag,
+a table row without its table, text after `</body>`) can import differently.
+`tools/html-dom.mjs` leaves such inputs out of the HTML oracle.
 
 ## Swift package distribution
 

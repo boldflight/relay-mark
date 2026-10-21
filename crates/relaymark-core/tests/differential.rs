@@ -92,6 +92,22 @@ fn replay(name: &str, raw: &[Value]) -> Option<Outcome> {
             let retained = options.get("source").and_then(Value::as_str).map(str::to_owned);
             result(rm::import::form_publication(&arg(0)?, &ns, retained.as_deref()), Outcome::Value)
         }
+        "document-html.importDocumentHTML" => {
+            let options = arg(0)?;
+            let html = match options.get("html") {
+                None | Some(Value::Null) => None,
+                Some(Value::String(html)) => Some(html.clone()),
+                Some(_) => return None,
+            };
+            let ns = options.get("namespace").and_then(Value::as_str)?.to_owned();
+            result(rm::import::html(html.as_deref(), &ns), Outcome::Value)
+        }
+        "document-html.importClipboardHTML" => {
+            let options = arg(0)?;
+            let html = options.get("html").and_then(Value::as_str)?.to_owned();
+            let ns = options.get("namespace").and_then(Value::as_str)?.to_owned();
+            result(rm::import::clipboard_html(&html, &ns), Outcome::Value)
+        }
         "document-snapshot.documentToSnapshot" => result(rm::document_to_snapshot(&arg(0)?), Outcome::Value),
         "document-snapshot.snapshotToDocument" => result(rm::snapshot_to_document(&arg(0)?), Outcome::Value),
         "document-snapshot.normalizeDocument" => result(rm::normalize_document(&arg(0)?), Outcome::Value),
@@ -132,6 +148,21 @@ fn replay(name: &str, raw: &[Value]) -> Option<Outcome> {
 #[test]
 fn replays_the_reference_test_suite() {
     replay_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reference/js-test-suite.jsonl"));
+}
+
+/// HTML import on rendered, foreign and mutated HTML, recorded with
+///
+///     RELAYMARK_RECORD=calls.jsonl node --import ./crates/relaymark-core/tools/record.mjs \
+///       crates/relaymark-core/tools/corpus.mjs --max-bytes 6000 --mutate-html 500 \
+///       crates/relaymark-core/tests/reference/js-test-suite.jsonl spec/relaymark \
+///       crates/relaymark-core/tests/reference/html
+///
+/// and curated with `tools/html-dom.mjs`: the reference runtime parses HTML
+/// with linkedom, this crate as the HTML standard does, so tag soup the two
+/// build different trees for is left out.
+#[test]
+fn replays_html_import() {
+    replay_file(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/reference/html-corpus.jsonl"));
 }
 
 /// Any further recorded corpus (see `tools/corpus.mjs`).

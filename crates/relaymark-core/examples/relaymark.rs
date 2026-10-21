@@ -23,8 +23,10 @@ fn main() {
         "snapshot" => relaymark_core::document_to_snapshot(&document()).map(|v| relaymark_core::to_json(&v)),
         "prosemirror" => relaymark_core::document_to_prosemirror(&document()).map(|v| relaymark_core::to_json(&v)),
         "compile" => Ok(relaymark_core::to_json(&relaymark_core::compile(&input))),
+        "import-html" => relaymark_core::import::html(Some(&input), namespace.as_deref().unwrap_or("cli")).map(|v| relaymark_core::to_json(&v)),
+        "import-clipboard" => relaymark_core::import::clipboard_html(&input, namespace.as_deref().unwrap_or("cli")).map(|v| relaymark_core::to_json(&v)),
         _ => {
-            eprintln!("usage: relaymark <parse|serialize|markdown|html|snapshot|prosemirror|compile> [namespace] < input");
+            eprintln!("usage: relaymark <parse|serialize|markdown|html|snapshot|prosemirror|compile|import-html|import-clipboard> [namespace] < input");
             std::process::exit(2);
         }
     };

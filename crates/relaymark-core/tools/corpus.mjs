@@ -5,9 +5,13 @@
 //     crates/relaymark-core/tools/corpus.mjs [--mutate N] [--max-bytes B] <input>...
 //
 // Inputs: a CommonMark `spec.json` (its examples), a JSON array of sources, a JSONL oracle (its
-// recorded parseDocument sources), Markdown/RelayMark files, or directories of
-// them. `--mutate N` adds N deterministic line-level mutations of the
-// collected sources and `--mutate-chars N` N character-level ones.
+// recorded parseDocument sources), Markdown/RelayMark files, HTML files or
+// `.html.json` arrays of HTML (rendered or written by other applications), or
+// directories of them.
+// `--mutate N` adds N deterministic line-level mutations of the collected
+// sources, `--mutate-chars N` N character-level ones and `--mutate-html N` N
+// tag-level mutations of rendered and foreign HTML, read both as retained
+// HTML and as clipboard HTML.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -16,10 +20,13 @@ import {
 } from '../../../src/document-source.js';
 import { relayMarkToProseMirror, proseMirrorToRelayMark } from '../../../src/document-adapter.js';
 import { compileRelayMark } from '../../../src/runtime.js';
+import { importDocumentHTML, importClipboardHTML } from '../../../src/document-html.js';
 
 const args = process.argv.slice(2);
 let mutations = 0;
 let characterMutations = 0;
+let htmlMutations = 0;
+const htmlSources = [];
 let maxBytes = 200_000;
 const sources = [];
 
@@ -29,6 +36,10 @@ function walk(path) {
       if (entry === 'node_modules' || entry.startsWith('.')) continue;
       walk(join(path, entry));
     }
+  } else if (path.endsWith('.html')) {
+    htmlSources.push(readFileSync(path, 'utf8'));
+  } else if (path.endsWith('.html.json')) {
+    htmlSources.push(...JSON.parse(readFileSync(path, 'utf8')));
   } else if (/\.(md|relaymark)$/.test(path)) {
     sources.push(readFileSync(path, 'utf8'));
   } else if (path.endsWith('.json')) {
@@ -51,6 +62,7 @@ function walk(path) {
 for (let i = 0; i < args.length; i++) {
   if (args[i] === '--mutate') mutations = Number(args[++i]);
   else if (args[i] === '--mutate-chars') characterMutations = Number(args[++i]);
+  else if (args[i] === '--mutate-html') htmlMutations = Number(args[++i]);
   else if (args[i] === '--max-bytes') maxBytes = Number(args[++i]);
   else walk(args[i]);
 }
@@ -107,10 +119,38 @@ for (const source of sources) {
   attempt(() => serializeDocument(ast));
   const markdown = attempt(() => projectDocumentMarkdown(ast));
   if (markdown !== undefined) attempt(() => parseDocument(markdown, { namespace: 'corpus-markdown' }));
-  attempt(() => renderDocument(ast));
+  const html = attempt(() => renderDocument(ast));
+  if (html !== undefined) htmlSources.push(html);
   const snapshot = attempt(() => documentToSnapshot(ast));
   if (snapshot) attempt(() => snapshotToDocument(snapshot));
   const pm = attempt(() => relayMarkToProseMirror(ast));
   if (pm) attempt(() => proseMirrorToRelayMark(pm));
 }
-console.error(`corpus: ${sources.length} sources, ${parsed} parsed`);
+// Rendered HTML stripped of Relay's attributes reads like another application's.
+const foreign = html => html.replace(/ (data-[a-z-]+|class|id)(="[^"]*")?/g, '');
+const tags = ['<b>', '</b>', '<b style="font-weight: normal">', '<span style="font-weight: 700">', '<span style="font-weight:400">',
+  '<i style="font-style: normal">', '<span style="font-style: italic">', '<span style="text-decoration: underline line-through">',
+  '<span style="vertical-align: super">', '<sub>', '<del>', '<strike>', '</span>', '<br>', '<br/>', '\n', '  ', '\t', '&nbsp;', '<div>', '</div>',
+  '<ul>', '<ol start="3" type="a">', '<li>', '</li>', '</ul>', '<ul data-type="taskList"><li data-type="taskItem" data-checked>',
+  '<table>', '<tr>', '<td colspan="2" colwidth="80,90">', '<th>', '</table>', '<pre style="white-space: pre-wrap">', '<pre><code class="language-js">',
+  '</code></pre>', '<h3>', '</h3>', '<blockquote>', '<hr>', '<img src="https://example.test/a.png" alt="a">', '<img src="data:image/png;base64,AA">',
+  '<a href="https://example.test/x">', '<a href="javascript:alert(1)">', '</a>', '<!-- c -->', '<script>x()</script>', '<style>p{}</style>',
+  '<meta charset="utf-8">', '<p data-pm-slice="1 1 []">', '<p data-relaymarkid="legacy">', '<span data-ai-authored data-run-id="r1">', '<code>', '</p>', '<p>'];
+const htmlBase = htmlSources.slice();
+for (const html of htmlBase) htmlSources.push(foreign(html));
+for (let n = 0; n < htmlMutations && htmlBase.length; n++) {
+  let html = pick(htmlBase);
+  if (random() < 0.5) html = foreign(html);
+  const steps = 1 + Math.floor(random() * 4);
+  for (let s = 0; s < steps; s++) {
+    const at = Math.floor(random() * (html.length + 1));
+    html = random() < 0.85 ? html.slice(0, at) + pick(tags) + html.slice(at) : html.slice(0, at) + html.slice(at + 1 + Math.floor(random() * 8));
+  }
+  htmlSources.push(html);
+}
+for (const html of htmlSources) {
+  if (Buffer.byteLength(html) > maxBytes) continue;
+  attempt(() => importDocumentHTML({ html, namespace: 'corpus-html' }));
+  attempt(() => importClipboardHTML({ html, namespace: 'corpus-clipboard' }));
+}
+console.error(`corpus: ${sources.length} sources, ${parsed} parsed, ${htmlSources.length} HTML`);
