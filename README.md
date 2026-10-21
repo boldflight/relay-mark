@@ -196,10 +196,8 @@ The canonical engine reaches Swift as `RelayMarkFFI.xcframework`, which is
 never committed. `scripts/build-swift-engine.zsh --publish` builds it from
 relaymark-core, uploads the zip as the `engine-<commit>` release asset and
 writes its URL and checksum into `Package.swift`; commit that with the
-regenerated binding. Because the repository is private, SwiftPM and Xcode
-download the asset through the GitHub API with a read credential for
-`api.github.com` from `~/.netrc` or the keychain (Xcode Cloud: an
-environment secret written to `~/.netrc` by `ci_post_clone.sh`). To try an
+regenerated binding. SwiftPM and Xcode download it from the release, without
+credentials, and check the checksum. To try an
 unpublished engine, run the script without `--publish` and build with
 `RELAYMARK_LOCAL_ENGINE=1`.
 

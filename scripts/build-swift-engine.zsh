@@ -65,10 +65,7 @@ if $publish; then
   tag=engine-$(git rev-parse --short=12 HEAD)
   gh release create $tag $archive -R $repository --target $(git rev-parse HEAD) --prerelease \
     --title "Swift engine $tag" --notes "relaymark-core for the Swift package, built by scripts/build-swift-engine.zsh."
-  # The repository is private: SwiftPM downloads the asset through the API
-  # (the .zip suffix is required by SwiftPM and ignored by GitHub), with an
-  # api.github.com credential from ~/.netrc or the keychain.
-  url=$(gh release view $tag -R $repository --json assets -q '.assets[0].apiUrl').zip
+  url=https://github.com/$repository/releases/download/$tag/RelayMarkFFI.xcframework.zip
   sed -i '' -E \
     -e "s#^let engineURL = \".*\"#let engineURL = \"$url\"#" \
     -e "s#^let engineChecksum = \".*\"#let engineChecksum = \"$checksum\"#" Package.swift
