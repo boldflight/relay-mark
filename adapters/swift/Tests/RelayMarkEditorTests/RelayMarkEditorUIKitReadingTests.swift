@@ -40,13 +40,13 @@ struct RelayMarkEditorUIKitReadingTests {
         return try mount(document, services: services)
     }
 
-    private func mount(fixture name: String) throws -> Mounted {
+    private func mount(fixture name: String, services: RelayMarkEditorServices = .init()) throws -> Mounted {
         let url = try #require(Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Fixtures"))
         let object = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         let document = RelayMarkNativeDocument()
         let encoded = try #require(object["update"] as? String)
         try document.applyUpdate(try #require(Data(base64Encoded: encoded)))
-        return try mount(document)
+        return try mount(document, services: services)
     }
 
     // MARK: TextKit 2 only
@@ -219,6 +219,25 @@ struct RelayMarkEditorUIKitReadingTests {
         #expect(make.category == UIAccessibilityCustomAction.editCategory)
         #expect(make.actionHandler?(make) == true)
         #expect(performed == [NSRange(location: 5, length: 3)])
+    }
+
+    /// VoiceOver focused in a table cell reaches the same Edit-rotor commands as
+    /// in the paper, acting on the selection in that cell.
+    @Test func selectionCommandsAreInTheEditRotorInsideTableCells() throws {
+        var performed: [NSRange] = []
+        var services = RelayMarkEditorServices()
+        services.selectionActions = [RelayMarkSelectionAction(name: "Delete Row") { performed.append($0); return true }]
+        let paper = try mount(fixture: "table-mixed-v3-draft", services: services)
+        defer { paper.retire() }
+        let table = try #require(paper.view.paper.tables.spans.first?.table)
+        let cell = table.grid.cellView(0)
+        cell.selectedRange = NSRange(location: 1, length: 0)
+        table.grid.textViewDidChangeSelection(cell)
+        let action = try #require((cell.accessibilityCustomActions ?? []).first { $0.name == "Delete Row" })
+        #expect(action.category == UIAccessibilityCustomAction.editCategory)
+        #expect(action.actionHandler?(action) == true)
+        #expect(performed == [paper.editor.nativeSelection])
+        #expect(performed.first?.location == table.paperRange(of: 0).location + 1)
     }
 
     /// Each cell is its own text view; the lines rotor and read-all move from
