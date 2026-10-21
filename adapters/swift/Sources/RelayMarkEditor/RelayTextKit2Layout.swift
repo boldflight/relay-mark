@@ -119,3 +119,21 @@ final class RelayCalloutFragment: NSTextLayoutFragment {
         super.draw(at: point, in: context)
     }
 }
+
+#if os(macOS) && DEBUG
+/// TextKit 1 compatibility mode is a one-way switch away from the paper's
+/// TextKit 2 layout. Debug builds and tests stop at the first paper or cell
+/// view that takes it. UIKit posts no notification; its views assert in layout.
+@MainActor enum RelayTextKit1Guard {
+    private static var installed = false
+    static func install() {
+        guard !installed else { return }
+        installed = true
+        NotificationCenter.default.addObserver(forName: NSTextView.willSwitchToNSLayoutManagerNotification,
+                                               object: nil, queue: nil) { note in
+            guard note.object is CollaborationTextView || note.object is RelayTableCellTextView else { return }
+            assertionFailure("A paper text view switched to TextKit 1 compatibility mode")
+        }
+    }
+}
+#endif

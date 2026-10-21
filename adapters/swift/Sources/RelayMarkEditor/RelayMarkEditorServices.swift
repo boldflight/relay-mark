@@ -39,6 +39,16 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     func activatePaperButton(id: String)
 }
 
+/// A host command on the paper's selection, such as making a task from it.
+/// VoiceOver offers it in the Edit rotor beside Cut, Copy and Paste.
+@MainActor public struct RelayMarkSelectionAction {
+    /// The localized command name VoiceOver speaks.
+    public let name: String
+    /// Runs the command on the selection, in paper offsets; false if it could not.
+    public let perform: (NSRange) -> Bool
+    public init(name: String, perform: @escaping (NSRange) -> Bool) { self.name = name; self.perform = perform }
+}
+
 /// What the editor asks of its host. A missing service is a capability the
 /// editor does not offer: images and rich pastes are refused, fragment links
 /// and buttons do nothing.
@@ -54,13 +64,17 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     /// The color of a collaborator's caret, from the color their client
     /// publishes. The default shows hex colors and grays anything else.
     public var collaboratorColor: (String) -> Color
+    /// Commands on the selection that assistive technologies offer as edit actions.
+    public var selectionActions: [RelayMarkSelectionAction]
 
     public init(images: (any RelayMarkImageService)? = nil, paste: (any RelayMarkPasteService)? = nil,
                 links: (any RelayMarkLinkService)? = nil, paperControls: (any RelayMarkPaperControlService)? = nil,
                 imageStore: RelayMarkImageStore? = nil, inputRefused: ((String) -> Void)? = nil,
-                collaboratorColor: @escaping (String) -> Color = RelayMarkEditorServices.hexColor) {
+                collaboratorColor: @escaping (String) -> Color = RelayMarkEditorServices.hexColor,
+                selectionActions: [RelayMarkSelectionAction] = []) {
         self.images = images; self.paste = paste; self.links = links; self.paperControls = paperControls
         self.imageStore = imageStore; self.inputRefused = inputRefused; self.collaboratorColor = collaboratorColor
+        self.selectionActions = selectionActions
     }
 
     /// `#rrggbb` as that color; anything else gray.

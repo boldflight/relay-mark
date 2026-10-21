@@ -897,6 +897,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
+            view.selectionActions = services.selectionActions
         }
     }
 }
@@ -918,12 +919,24 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
         view.register([.onScrollingOutOfViewport, .onEditingInlineParagraphs],
                       forTextAttachmentViewProviderType: RelayTableAttachmentViewProvider.self)
+        #if DEBUG
+        RelayTextKit1Guard.install()
+        #endif
         return view
     }
     /// The view does not own its content storage; this keeps the stack alive.
     private var contentStorage: NSTextContentStorage?
     let paper = RelayPaperViewState()
     var paperStorage: NSTextStorage { textStorage ?? NSTextStorage() }
+    var selectionActions: [RelayMarkSelectionAction] = []
+    var viewSelections: [NSRange] { selectedRanges.map(\.rangeValue) }
+    /// A Genmoji has no RelayMark node: inserted, it would be lost on the next render.
+    override var supportsAdaptiveImageGlyph: Bool { get { false } set {} }
+    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+        (super.accessibilityCustomActions() ?? []) + paperAccessibilityActions().map { action in
+            NSAccessibilityCustomAction(name: action.name) { action.perform() }
+        }
+    }
     var isPaperEditable: Bool {
         get { isEditable }
         set { isEditable = newValue }
@@ -934,7 +947,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     func unmarkPaperText() { unmarkText() }
     func paperNeedsDisplay() { needsDisplay = true }
     func replaceAllText(_ text: NSAttributedString) {
-        textStorage?.setAttributedString(text)
+        performPaperEdit { textStorage?.setAttributedString(text) }
     }
     func focus(_ cell: RelayTableCellTextView, selecting range: NSRange) {
         if NSMaxRange(range) <= cell.string.utf16.count, cell.selectedRange() != range { cell.setSelectedRange(range) }
@@ -1544,11 +1557,11 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             }
         }
 
-        func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+        func textView(_ textView: UITextView, shouldChangeTextInRanges ranges: [NSValue], replacementText text: String) -> Bool {
             guard !updating, let view = textView as? CollaborationTextView, !view.retired,
                 view.editingSession == nil || view.editingSession === session else { return false }
             view.pasteCommand = nil
-            return editor.shouldChange(view, range: range, replacement: text, pasting: false)
+            return editor.shouldChange(view, ranges: ranges.map(\.rangeValue), replacement: text)
         }
         private static var pasteToken: NSAttributedString.Key { NSAttributedString.Key("RelayTransientPasteToken") }
         func textPasteConfigurationSupporting(_ textPasteConfigurationSupporting: any UITextPasteConfigurationSupporting,
@@ -1717,6 +1730,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
+            view.selectionActions = services.selectionActions
         }
     }
 }
@@ -1765,6 +1779,28 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     private var contentStorage: NSTextContentStorage?
     let paper = RelayPaperViewState()
     var paperStorage: NSTextStorage { textStorage }
+    /// The keyboard keeps its language per context; the paper and its cells are one.
+    static let keyboardContext = "relay.paper"
+    override var textInputContextIdentifier: String? { Self.keyboardContext }
+    var selectionActions: [RelayMarkSelectionAction] = []
+    var viewSelections: [NSRange] { selectedRanges }
+    override var accessibilityCustomActions: [UIAccessibilityCustomAction]? {
+        get {
+            (super.accessibilityCustomActions ?? []) + paperAccessibilityActions().map { action in
+                let custom = UIAccessibilityCustomAction(name: action.name) { _ in action.perform() }
+                if action.edits { custom.category = UIAccessibilityCustomAction.editCategory }
+                return custom
+            }
+        }
+        set { super.accessibilityCustomActions = newValue }
+    }
+    /// Underline has no mark in the paper: TextKit would show it until the next
+    /// render and then drop it, so it is not offered and is refused.
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if action == #selector(toggleUnderline(_:)) { return false }
+        return super.canPerformAction(action, withSender: sender)
+    }
+    override func toggleUnderline(_ sender: Any?) { RelayPaperRefusal.feedback() }
     var isPaperEditable: Bool {
         get { isEditable }
         set { isEditable = newValue }
@@ -1786,6 +1822,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     /// Only the table rows near the screen keep cell text views.
     override func layoutSubviews() {
         super.layoutSubviews()
+        assert(textLayoutManager != nil, "The paper switched to TextKit 1 compatibility mode")
         for span in paper.tables.spans where span.table.isGridLoaded && span.table.grid.superview != nil {
             span.table.grid.updateVisible(in: convert(bounds, to: span.table.grid))
         }
@@ -1959,12 +1996,12 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     override func toggleBoldface(_ sender: Any?) {
         guard !retired, isEditable, markedTextRange == nil, compositionCompletion == nil else { return }
         guard NSMaxRange(selectedRange) <= viewLength else { return }
-        if let session = editingSession, session.toggleMarkNatively(.bold, range: paperSelection) { onSessionEdit?() }
+        if toggleMark(.bold) { onSessionEdit?() }
     }
     override func toggleItalics(_ sender: Any?) {
         guard !retired, isEditable, markedTextRange == nil, compositionCompletion == nil else { return }
         guard NSMaxRange(selectedRange) <= viewLength else { return }
-        if let session = editingSession, session.toggleMarkNatively(.italic, range: paperSelection) { onSessionEdit?() }
+        if toggleMark(.italic) { onSessionEdit?() }
     }
     fileprivate let collaborationUndo = CollaborationUndoManager()
     weak var editingSession: (any RelayPaperTextEditing)?

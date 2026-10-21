@@ -49,6 +49,169 @@ struct RelayMarkEditorUIKitReadingTests {
         return try mount(document)
     }
 
+    // MARK: TextKit 2 only
+
+    /// UITextView silently and permanently drops to TextKit 1 for content it
+    /// cannot lay out on TextKit 2. Every kind of paper content must keep it.
+    @Test(arguments: ["rich-image-v3-draft", "rich-callout-v3-draft", "rich-quote-v3",
+                      "entity-reference-v3-draft", "inline-atoms-v3-draft", "paper-controls-v3-draft",
+                      "table-mixed-v3-draft", "task-list-v3-draft", "markdown-blocks-v3-draft"])
+    func everyKindOfPaperStaysOnTextKit2(fixture: String) throws {
+        let paper = try mount(fixture: fixture)
+        defer { paper.retire() }
+        let manager = try #require(paper.view.textLayoutManager)
+        manager.ensureLayout(for: manager.documentRange)
+        paper.view.setContentOffset(CGPoint(x: 0, y: max(0, paper.view.contentSize.height - 600)), animated: false)
+        paper.view.layoutIfNeeded()
+        paper.view.layer.displayIfNeeded()
+        #expect(paper.view.textLayoutManager != nil, "\(fixture) switched the paper to TextKit 1")
+    }
+
+    @Test func scriptsAndDirectionsStayOnTextKit2() throws {
+        let paper = try mount(markdown: """
+        # עברית ו-English באותה שורה
+
+        مرحبا بالعالم، هذا نص عربي طويل يلتف على عدة أسطر في الورقة.
+
+        - [ ] हिन्दी में कार्य
+        - [x] ಕನ್ನಡ ಪಠ್ಯ 👩‍👩‍👧‍👦 🇯🇵
+
+        日本語の文章です。
+        """)
+        defer { paper.retire() }
+        let manager = try #require(paper.view.textLayoutManager)
+        manager.ensureLayout(for: manager.documentRange)
+        paper.view.layer.displayIfNeeded()
+        #expect(paper.view.textLayoutManager != nil)
+    }
+
+    /// Rich HTML holding a table goes to the host as a structured paste; none of
+    /// it reaches TextKit's storage, where an NSTextTable would force TextKit 1.
+    @Test func pastingAnHTMLTableLeavesThePaperOnTextKit2() throws {
+        let paper = try mount(markdown: "Before\n\nAfter")
+        defer { paper.retire() }
+        let html = "<table><tr><td>a</td><td>b</td></tr></table>"
+        let provider = NSItemProvider(item: Data(html.utf8) as NSData, typeIdentifier: UTType.html.identifier)
+        paper.view.selectedRanges = [NSRange(location: 6, length: 0)]
+        paper.view.paste(itemProviders: [provider])
+        paper.view.layoutIfNeeded()
+        #expect(paper.view.textLayoutManager != nil)
+        #expect(paper.view.text == "Before\nAfter")
+    }
+
+    // MARK: Input the paper cannot keep
+
+    /// Underline is not a mark the paper can store. Offered, TextKit would show
+    /// it until the next render, then drop it without saving.
+    @Test func underlineIsNotOfferedAndIsRefused() throws {
+        let paper = try mount(markdown: "Hello world")
+        defer { paper.retire() }
+        var refusals = 0
+        let feedback = RelayPaperRefusal.feedback
+        RelayPaperRefusal.feedback = { refusals += 1 }
+        defer { RelayPaperRefusal.feedback = feedback }
+        paper.window.makeKeyAndVisible()
+        #expect(paper.view.becomeFirstResponder())
+        paper.view.selectedRanges = [NSRange(location: 0, length: 5)]
+        #expect(!paper.view.canPerformAction(#selector(UIResponderStandardEditActions.toggleUnderline(_:)), withSender: nil))
+        #expect(paper.view.canPerformAction(#selector(UIResponderStandardEditActions.toggleBoldface(_:)), withSender: nil))
+        paper.view.toggleUnderline(nil)
+        #expect(refusals == 1)
+        #expect(String(paper.editor.text.characters) == "Hello world")
+    }
+
+    /// The keyboard keeps a language per context: the paper is one context,
+    /// apart from search and title fields, so Japanese stays Japanese here.
+    @Test func thePaperIsItsOwnKeyboardContext() throws {
+        let paper = try mount(fixture: "table-mixed-v3-draft")
+        defer { paper.retire() }
+        #expect(paper.view.textInputContextIdentifier == "relay.paper")
+        let table = try #require(paper.view.paper.tables.spans.first?.table)
+        #expect(table.grid.cellView(0).textInputContextIdentifier == "relay.paper")
+    }
+
+    // MARK: Natural Selection
+
+    /// A selection across mixed-direction text is several ranges. UIKit hands a
+    /// delegate without the ranges method their union, which takes the text
+    /// between them too.
+    @Test func deletingABidiSelectionKeepsTheTextBetweenItsRanges() throws {
+        let paper = try mount(markdown: "Hello world again")
+        defer { paper.retire() }
+        paper.view.selectedRanges = [NSRange(location: 0, length: 2), NSRange(location: 6, length: 5)]
+        paper.view.deleteBackward()
+        #expect(String(paper.editor.text.characters) == "llo  again")
+        #expect(paper.view.text == "llo  again")
+    }
+
+    @Test func boldOverABidiSelectionLeavesTheTextBetweenPlain() throws {
+        let paper = try mount(markdown: "Hello world again")
+        defer { paper.retire() }
+        paper.view.selectedRanges = [NSRange(location: 0, length: 5), NSRange(location: 12, length: 5)]
+        paper.view.toggleBoldface(nil)
+        func bold(_ offset: Int) -> Bool {
+            paper.editor.text.runs.first { run in
+                let start = paper.editor.text.characters.distance(from: paper.editor.text.startIndex, to: run.range.lowerBound)
+                let end = paper.editor.text.characters.distance(from: paper.editor.text.startIndex, to: run.range.upperBound)
+                return offset >= start && offset < end
+            }.map { ($0.inlinePresentationIntent ?? []).contains(.stronglyEmphasized) } ?? false
+        }
+        #expect(bold(0) && bold(14))
+        #expect(!bold(7), "the text between the ranges was formatted")
+    }
+
+    // MARK: VoiceOver
+
+    /// A task's checkbox is drawn, not text, so VoiceOver gets its state and
+    /// its toggle from an action on the paper at the caret.
+    @Test func voiceOverChecksTheTaskAtTheCaret() throws {
+        let paper = try mount(markdown: "- [ ] Open task\n- [x] Done task")
+        defer { paper.retire() }
+        paper.view.selectedRanges = [NSRange(location: 3, length: 0)]
+        paper.coordinator.textViewDidChangeSelection(paper.view)
+        let actions = paper.view.accessibilityCustomActions ?? []
+        let check = try #require(actions.first { $0.name == "Mark as done" })
+        #expect(!actions.contains { $0.name == "Mark as not done" })
+        #expect(check.actionHandler?(check) == true)
+        #expect(paper.editor.nativeTaskItems.first?.checked == true)
+        let done = (paper.view.text as NSString).range(of: "Done")
+        paper.view.selectedRanges = [NSRange(location: done.location, length: 0)]
+        paper.coordinator.textViewDidChangeSelection(paper.view)
+        #expect((paper.view.accessibilityCustomActions ?? []).contains { $0.name == "Mark as not done" })
+    }
+
+    /// The host's commands on selected text join VoiceOver's Edit rotor beside
+    /// Cut, Copy and Paste, and act on the paper's selection.
+    @Test func selectionCommandsAreInTheEditRotor() throws {
+        var performed: [NSRange] = []
+        var services = RelayMarkEditorServices()
+        services.selectionActions = [RelayMarkSelectionAction(name: "Make Task") { performed.append($0); return true }]
+        let paper = try mount(markdown: "Call Ada tomorrow", services: services)
+        defer { paper.retire() }
+        paper.view.selectedRanges = [NSRange(location: 5, length: 3)]
+        paper.coordinator.textViewDidChangeSelection(paper.view)
+        let actions = paper.view.accessibilityCustomActions ?? []
+        let make = try #require(actions.first { $0.name == "Make Task" })
+        #expect(make.category == UIAccessibilityCustomAction.editCategory)
+        #expect(make.actionHandler?(make) == true)
+        #expect(performed == [NSRange(location: 5, length: 3)])
+    }
+
+    /// Each cell is its own text view; the lines rotor and read-all move from
+    /// one cell to the next in reading order instead of stopping at its edge.
+    @Test func voiceOverReadsATableCellByCell() throws {
+        let paper = try mount(fixture: "table-mixed-v3-draft")
+        defer { paper.retire() }
+        let table = try #require(paper.view.paper.tables.spans.first?.table)
+        #expect(table.cells.count >= 3)
+        let first = table.grid.cellView(0), second = table.grid.cellView(1)
+        #expect(first.accessibilityNextTextNavigationElement as AnyObject? === second)
+        #expect(second.accessibilityPreviousTextNavigationElement as AnyObject? === first)
+        #expect(first.accessibilityPreviousTextNavigationElement == nil)
+        let last = table.grid.cellView(table.cells.count - 1)
+        #expect(last.accessibilityNextTextNavigationElement == nil)
+    }
+
     // MARK: Task markers
 
     /// A right-to-left task's checkbox is on the right, where it is drawn, and a

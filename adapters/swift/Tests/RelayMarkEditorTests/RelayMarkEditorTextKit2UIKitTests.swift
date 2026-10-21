@@ -151,7 +151,7 @@ struct RelayMarkEditorTextKit2UIKitTests {
             }
             // As the keyboard does: the delegate decides, then UIKit inserts.
             func key(_ text: String) {
-                if coordinator.textView(view, shouldChangeTextIn: view.selectedRange, replacementText: text) { view.insertText(text) }
+                if coordinator.textView(view, shouldChangeTextInRanges: [NSValue(range: view.selectedRange)], replacementText: text) { view.insertText(text) }
             }
             for index in 0..<4 {
                 let marker = " r1c\(1 + index * 2)."

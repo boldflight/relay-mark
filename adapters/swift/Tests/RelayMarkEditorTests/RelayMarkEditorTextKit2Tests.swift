@@ -14,7 +14,7 @@ import UIKit
 @MainActor
 struct RelayMarkEditorTextKit2Tests {
     private static let forbidden = try! NSRegularExpression(
-        pattern: #"\blayoutManager\b|NSLayoutManager|numberOfGlyphs|glyphIndex|glyphRange|CollaborationTextView\(frame"#)
+        pattern: #"\blayoutManager\b|(?<!willSwitchTo)NSLayoutManager|numberOfGlyphs|glyphIndex|glyphRange|CollaborationTextView\(frame"#)
 
     @Test func sourcesNeverReachForATextKit1LayoutManager() throws {
         let sources = URL(fileURLWithPath: #filePath)
