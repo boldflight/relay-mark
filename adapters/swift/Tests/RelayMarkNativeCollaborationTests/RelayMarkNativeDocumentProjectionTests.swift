@@ -112,6 +112,27 @@ final class RelayMarkNativeDocumentProjectionTests: XCTestCase {
         }
         XCTAssertThrowsError(try RelayMarkNativeDocumentProjection.project(snapshot: colored))
         XCTAssertThrowsError(try RelayMarkCollaborativeProse(snapshot: colored, dialect: .rich))
+        // Bug caught: a normalized Japanese tag refused, so the paper holding it
+        // cannot be projected (spec/relaymark/conformance/tag-names.json).
+        let japanese = try changed { blocks in
+            var paragraph = blocks[0]
+            var children = paragraph["children"] as! [[String: Any]]
+            var tag = children[3]
+            var attrs = tag["attributes"] as! [String: Any]
+            attrs["name"] = "仕事"
+            attrs["source"] = "[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #仕事]]"
+            tag["attributes"] = attrs
+            children[3] = tag
+            paragraph["children"] = children
+            blocks[0] = paragraph
+        }
+        let projected = try RelayMarkNativeDocumentProjection.project(snapshot: japanese)
+        let labels = projected.blocks.first?.content.compactMap { item -> String? in
+            if case let .inline(inline) = item { return inline.label } else { return nil }
+        }
+        XCTAssertEqual(labels, ["Ada Lovelace", "#仕事"])
+        XCTAssertEqual(try RelayMarkCollaborativeProse(snapshot: japanese, dialect: .rich).inlineAtoms.map(\.label),
+                       ["Ada Lovelace", "#仕事", "Prepare review"])
     }
 
     func testTaskDomainTitleUsesMarkedUnicodeXmlTextWithoutInlineAtomPresentation() throws {

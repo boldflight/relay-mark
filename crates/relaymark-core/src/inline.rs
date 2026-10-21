@@ -226,9 +226,11 @@ fn entity_type_name(value: &str) -> bool {
     re(&TYPE, r"^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$").is_match(value)
 }
 
+/// A normalized Relay tag name: lowercase letters, marks and numbers from any
+/// script, `_` and inner `-` (spec/relaymark/conformance/tag-names.json).
 fn tag_name(value: &str) -> bool {
     static TAG: OnceLock<Regex> = OnceLock::new();
-    re(&TAG, r"^[a-z0-9][a-z0-9_-]*$").is_match(value)
+    re(&TAG, r"^[\p{Ll}\p{Lm}\p{Lo}\p{M}\p{N}_][\p{Ll}\p{Lm}\p{Lo}\p{M}\p{N}_-]*$").is_match(value)
 }
 
 fn identity(id: Option<&Value>) -> Result<String> {
@@ -344,4 +346,24 @@ pub fn parse_atom_source(source: &str) -> Option<Value> {
 
 pub fn source_for_atom(node: &Value) -> Result<String> {
     Ok(unmap_atom(node)?["attrs"]["source"].as_str().unwrap_or_default().to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Bug caught: a normalized non-ASCII tag (`#仕事`) refused as an authored
+    // atom, so a document holding it cannot be saved or loaded.
+    #[test]
+    fn every_normalized_relay_tag_name_is_an_authored_tag_atom() {
+        let fixture: Value = serde_json::from_str(include_str!("../../../spec/relaymark/conformance/tag-names.json")).unwrap();
+        for row in fixture["cases"].as_array().unwrap() {
+            let Some(tag) = row["tag"].as_str() else { continue };
+            let source = format!("[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #{tag}]]");
+            assert_eq!(parse_atom_source(&source).map(|atom| atom["props"]["name"].clone()), Some(json!(tag)), "{tag}");
+        }
+        for name in ["Work", "ΣΑΣ", "two words", "-lead", "a|b", "仕事 メモ"] {
+            assert_eq!(parse_atom_source(&format!("[[Tag: 9712027d-18db-448e-8514-cea7c215d6f7 | #{name}]]")), None, "{name}");
+        }
+    }
 }

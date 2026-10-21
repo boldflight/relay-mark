@@ -677,7 +677,7 @@ public struct RelayMarkCollaborativeProse {
             guard Set(attributes.keys).isSubset(of: ["id", "name", "color", "source"]),
                   let id = attributes["id"] as? String, validUUID(id),
                   let name = attributes["name"] as? String,
-                  name.range(of: "^[a-z0-9][a-z0-9_-]*$", options: .regularExpression) != nil,
+                  RelayMarkTagName.isNormalized(name),
                   let source = attributes["source"] as? String,
                   source == "[[Tag: \(id) | #\(name)]]",
                   (attributes["color"] == nil || attributes["color"] is NSNull) else { return nil }
