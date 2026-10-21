@@ -54,6 +54,23 @@ final class RelayMarkNativeAIAuthoredTests: XCTestCase {
         XCTAssertEqual(try RelayMarkNativeDocumentProjection.project(document: peer), expected)
     }
 
+    /// A generation built on the device is the agent's: all its text but code
+    /// is grey, and the marked document is the one the paper holds.
+    func testMarkingAGeneratedDocumentMarksAllItsTextButCode() throws {
+        let source = "## Decisions\n\n- Ship **Friday** with [notes](https://example.com/n)\n- Run `make`\n\n```\nlet x = 1\n```\n\nDone."
+        let marked = try RelayMarkAgentAuthorship.markDocument(
+            RelayMarkSourceCodec.parseDocument(source, namespace: "device-draft"), runID: run)
+        let native = RelayMarkNativeDocument()
+        try native.initializeDocument(authoredAST: marked)
+        XCTAssertEqual(try RelayMarkDocument.decodeJSON(native.authoredDocument()), try RelayMarkDocument.decodeJSON(marked))
+        let text = try native.richProseProjection().text
+        let plain = text.runs.filter { $0[RelayMarkAIAuthoredAttribute.self] == nil }
+            .map { String(text[$0.range].characters) }.joined()
+        XCTAssertEqual(plain.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }, ["make", "let", "x", "=", "1"])
+        XCTAssertThrowsError(try RelayMarkAgentAuthorship.markDocument(marked, runID: String(repeating: "r", count: 65)))
+    }
+
     func testTypedAndPastedTextInsideAgentTextIsUnmarked() throws {
         let native = try seeded()
         // Typing inherits the surrounding bold, but not the agent's mark.

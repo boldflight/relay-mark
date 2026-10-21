@@ -13,6 +13,9 @@
   -commands/-schema-list/-tables checked against recorded JavaScript output.
   `content-edit-runtime.js` is removed, and no Swift product imports
   JavaScriptCore.
+- Adds `RelayMarkAgentAuthorship.markDocument(_:runID:)`, which marks a whole
+  document's text, code excepted, as one agent run's `ai_authored` text, for
+  a generation a client builds itself.
 - Adds `RelayMarkEditor`, the native TextKit 2 editor for RelayMark papers on
   macOS and iOS, moved from relay-swift: an editor session over one Yjs
   replica whose edits re-render only the nodes they change, tables as
