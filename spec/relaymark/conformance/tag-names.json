@@ -5,8 +5,8 @@
     "NFKC-normalize the input (full-width ASCII such as '＃' and 'Ａ', half-width kana and the ideographic space fold here)",
     "trim surrounding whitespace, then drop leading '#' characters",
     "lowercase each character with its full, context-free Unicode lowercase mapping (no final-sigma rule)",
-    "keep letters (L), combining marks (M) and decimal digits (Nd); replace each run of anything else (spaces, '_', '-', '#', punctuation, symbols, emoji) with '-'",
-    "a tag starts with a letter or digit: trim leading '-' and combining marks, and trailing '-'; an empty result is no tag (null)"
+    "keep letters (L), combining marks (M), decimal digits (Nd) and letter numbers (Nl, such as 〇); replace each run of anything else (spaces, '_', '-', '#', punctuation, symbols, emoji) with '-'",
+    "a tag starts with a letter or number: trim leading '-' and combining marks, and trailing '-'; an empty result is no tag (null)"
   ],
   "cases": [
     {
@@ -219,7 +219,11 @@
     },
     {
       "input": "二〇二六年",
-      "tag": "二-二六年"
+      "tag": "二〇二六年"
+    },
+    {
+      "input": "〇",
+      "tag": "〇"
     }
   ],
   "triggers": {

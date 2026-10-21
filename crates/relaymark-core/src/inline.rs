@@ -226,12 +226,12 @@ fn entity_type_name(value: &str) -> bool {
     re(&TYPE, r"^[A-Z][A-Za-z0-9]*(?: [A-Z][A-Za-z0-9]*)*$").is_match(value)
 }
 
-/// A normalized Relay tag name: a lowercase, modifier or other letter or a
-/// decimal digit from any script, then those, combining marks and `-`
-/// (spec/relaymark/conformance/tag-names.json).
+/// A normalized Relay tag name: a lowercase, modifier or other letter, a
+/// decimal digit or a letter number (〇) from any script, then those,
+/// combining marks and `-` (spec/relaymark/conformance/tag-names.json).
 fn tag_name(value: &str) -> bool {
     static TAG: OnceLock<Regex> = OnceLock::new();
-    re(&TAG, r"^[\p{Ll}\p{Lm}\p{Lo}\p{Nd}][\p{Ll}\p{Lm}\p{Lo}\p{M}\p{Nd}-]*$").is_match(value)
+    re(&TAG, r"^[\p{Ll}\p{Lm}\p{Lo}\p{Nd}\p{Nl}][\p{Ll}\p{Lm}\p{Lo}\p{M}\p{Nd}\p{Nl}-]*$").is_match(value)
 }
 
 fn identity(id: Option<&Value>) -> Result<String> {
