@@ -110,6 +110,26 @@ struct RelayMarkEditorCollaborativeTextViewTests {
     }
 
     #if os(macOS)
+    /// Format > Font > Bold (⌘B) with nothing selected marks the next typed text.
+    @Test func fontMenuBoldAtACaretMarksTheNextTypedText() throws {
+        let editor = try session("Hello")
+        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
+        let view = coordinator.makeTextView(accessibilityLabel: "Paper")
+        defer { coordinator.retire(view) }
+        view.setSelectedRange(NSRange(location: 5, length: 0))
+        let manager = NSFontManager.shared
+        let oldTarget = manager.target, oldAction = manager.action
+        defer { manager.target = oldTarget; manager.action = oldAction }
+        manager.target = view; manager.action = #selector(NSTextView.changeFont(_:))
+        manager.setSelectedFont(try #require(view.font), isMultiple: false)
+        let item = NSMenuItem(title: "Bold", action: nil, keyEquivalent: ""); item.tag = Int(NSFontTraitMask.boldFontMask.rawValue)
+        manager.addFontTrait(item)
+        view.insertText(" bold", replacementRange: view.selectedRange())
+        let runs = editor.text.runs.map { (String(editor.text[$0.range].characters), $0.inlinePresentationIntent ?? []) }
+        #expect(runs.map(\.0) == ["Hello", " bold"], "\(runs)")
+        #expect(runs.last?.1.contains(.stronglyEmphasized) == true)
+    }
+
     /// Format menu items the paper has no mark for (Underline, colors, alignment,
     /// baseline, kerning, a font size or family) are disabled and never change the
     /// view only for the next redraw to undo; Bold and Italic stay available.

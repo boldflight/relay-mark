@@ -4,6 +4,7 @@ import Testing
 import RelayMarkCollaboration
 import RelayMarkNativeCollaboration
 import RelayMarkSwift
+import RelayMarkProseProjection
 
 @MainActor
 struct RelayMarkEditorInlineMarkTests {
@@ -47,6 +48,26 @@ struct RelayMarkEditorInlineMarkTests {
         try peer.applyUpdate(try #require(saved.last).update)
         #expect(relayPaperInlineSemantics(try peer.richProseProjection().text) == relayPaperInlineSemantics(editor.text))
         #expect(NativeProseCodec.value(NativeProseCodec.attributed(editor.text)) == editor.text)
+    }
+
+    /// A mark command at a caret marks the next characters typed there, as the web's
+    /// stored marks do; the same command again turns it back off. Nothing is written
+    /// until text is typed.
+    @Test(arguments: [RelayMarkFormattingMark.bold, .italic, .strike, .code])
+    func aMarkAtTheCaretMarksTheNextTypedText(mark: RelayMarkFormattingMark) throws {
+        let document = RelayMarkNativeDocument()
+        _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("Hello", namespace: "caret-marks"))
+        var saved: [RelayMarkLocalTransaction] = []
+        let editor = try RelayMarkEditorSession(document: document, persist: { saved.append($0) })
+        editor.setNativeSelection(NSRange(location: 5, length: 0))
+        editor.toggleInlineMark(mark)
+        #expect(saved.isEmpty && editor.failure == nil)
+        #expect(editor.typeNatively(range: NSRange(location: 5, length: 0), replacement: " marked"))
+        editor.toggleInlineMark(mark)
+        #expect(editor.typeNatively(range: NSRange(location: 12, length: 0), replacement: " plain"))
+        let runs = editor.text.runs.map { (String(editor.text[$0.range].characters), $0.inlinePresentationIntent ?? []) }
+        #expect(runs.map(\.0) == ["Hello", " marked", " plain"], "\(runs)")
+        #expect(runs.map { $0.1.contains(mark.inlineIntent) } == [false, true, false])
     }
 
     @Test func strikeReplacesCodeAtomicallyAndClearsOnSecondCommand() throws {
