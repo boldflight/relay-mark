@@ -21,6 +21,18 @@ final class RelayPaperViewState {
     /// The paragraphs the last viewport layout pass laid out; nil before the
     /// first pass. Markers are drawn for these only.
     var laidOut: NSTextRange?
+    /// View offsets that folded sections hide, in order. TextKit does not lay out
+    /// a paragraph that starts inside one; its text is unchanged.
+    var hidden: [NSRange] = []
+
+    func isHidden(_ offset: Int) -> Bool {
+        var low = 0, high = hidden.count
+        while low < high {
+            let middle = (low + high) / 2
+            if NSMaxRange(hidden[middle]) <= offset { low = middle + 1 } else { high = middle }
+        }
+        return low < hidden.count && hidden[low].location <= offset
+    }
 
     /// Empty blocks at view offsets, for drawing.
     var viewEmptyBlocks: [RelayEmptyProseBlock] {
@@ -63,6 +75,8 @@ protocol RelayPaperTextView: AnyObject {
     var selectionActions: [RelayMarkSelectionAction] { get }
     /// Toggles the task whose first paragraph starts at a view offset.
     var onTaskCheckbox: ((Int) -> Bool)? { get }
+    /// The session changed outside TextKit's own editing; the coordinator shows it.
+    var onSessionEdit: (() -> Void)? { get }
     func showSelection(_ range: NSRange)
     func cancelCompositionCompletion()
     func unmarkPaperText()
@@ -151,9 +165,16 @@ extension RelayPaperTextView {
     /// whose checkbox is drawn rather than read, and the host's commands on the
     /// selection, which belong in the Edit rotor (`edits`).
     func paperAccessibilityActions() -> [(name: String, edits: Bool, perform: () -> Bool)] {
-        guard !retired, isPaperEditable else { return [] }
+        guard !retired else { return [] }
         var actions: [(name: String, edits: Bool, perform: () -> Bool)] = []
         let caret = viewSelection.location
+        if let section = sectionAtCaret, let session = editingSession {
+            let folded = session.foldedSections.contains(section.id)
+            let name = folded ? String(localized: "Expand section", bundle: .module, comment: "VoiceOver action that shows a folded section's content.")
+                : String(localized: "Collapse section", bundle: .module, comment: "VoiceOver action that hides a section's content under its heading.")
+            actions.append((name, false, { [weak self] in self?.toggleSection(section.id) ?? false }))
+        }
+        guard isPaperEditable else { return actions }
         if let toggle = onTaskCheckbox, let item = paper.viewTaskItems.first(where: {
             NSLocationInRange(caret, $0.firstParagraphRange) || NSMaxRange($0.firstParagraphRange) == caret }) {
             let name = item.checked ? String(localized: "Mark as not done", bundle: .module, comment: "VoiceOver action that unchecks the task at the caret.") : String(localized: "Mark as done", bundle: .module, comment: "VoiceOver action that checks the task at the caret.")
@@ -163,6 +184,36 @@ extension RelayPaperTextView {
             actions.append((action.name, true, { [weak self] in self.map { action.perform($0.paperSelection) } ?? false }))
         }
         return actions
+    }
+
+    /// The section whose heading holds the caret.
+    var sectionAtCaret: RelayPaperSection? {
+        guard let heading = headingParagraph(at: viewSelection.location) else { return nil }
+        let start = paper.tables.paper(heading.location)
+        return editingSession?.sections.first { $0.heading.location == start }
+    }
+
+    /// Folds or unfolds a section and shows the result.
+    @discardableResult func toggleSection(_ id: String) -> Bool {
+        guard let session = editingSession, session.toggleSection(id) else { return false }
+        refreshFolding()
+        onSessionEdit?()
+        return true
+    }
+
+    /// Hides what the session's folded sections hold, and shows what they no
+    /// longer hold: only the paragraphs whose visibility changed are laid out again.
+    func refreshFolding() {
+        let hidden = (editingSession?.hiddenSectionRanges ?? []).compactMap { paper.tables.view($0) }
+        guard hidden != paper.hidden else { return }
+        let changed = (paper.hidden + hidden).reduce(nil as NSRange?) { union, range in union.map { NSUnionRange($0, range) } ?? range }
+        paper.hidden = hidden
+        if let changed, let manager = textLayoutManager, let range = RelayTextGeometry(manager)?.textRange(
+            NSRange(location: changed.location, length: min(changed.length, viewLength - changed.location))) {
+            manager.invalidateLayout(for: range)
+            manager.textViewportLayoutController.layoutViewport()
+        }
+        paperNeedsDisplay()
     }
 
     /// The viewport finished a layout pass, for a scroll, an edit or a resize:
@@ -361,6 +412,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         // the session places the caret itself, keeping marks stored for that keystroke.
         guard !updating, owns(view), !view.hasMarkedInput, pendingTyping == nil else { return }
         session.setNativeSelection(view.paperSelection)
+        view.refreshFolding()
         view.applyEmptyTypingStyle()
     }
 
@@ -452,6 +504,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             guard let range = tables.view(peer.range), let caret = tables.view(peer.caretLocation) else { return nil }
             return RelayMarkRemoteSelection(id: peer.id, name: peer.name, color: peer.color, range: range, caretLocation: caret)
         }
+        view.refreshFolding()
         view.paperNeedsDisplay()
     }
 
