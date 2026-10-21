@@ -1326,6 +1326,8 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
 /// The paper's text view: TextKit 2 over one editor session.
 public struct RelayMarkEditorView: UIViewRepresentable {
     typealias Session = RelayMarkEditorSession
+    /// Names the editor's task-checkbox tap among the text view's recognizers.
+    static let taskTapName = "relaymark.task-checkbox"
     var session: Session
     var accessibilityLabel: String
     var services = RelayMarkEditorServices()
@@ -1476,6 +1478,9 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 }
                 let tap = UITapGestureRecognizer(target: view, action: #selector(CollaborationTextView.handleTaskTap(_:)))
                 tap.cancelsTouchesInView = false
+                tap.name = RelayMarkEditorView.taskTapName
+                // Recognized alongside UITextView's own taps, which place the caret.
+                tap.delegate = view.taskTapDelegate
                 view.addGestureRecognizer(tap)
             }
             view.collaborationUndo.undoAction = { [weak self, weak view] in
@@ -1727,6 +1732,13 @@ public final class CollaborationTextContainer: UIView {
 }
 @MainActor
 final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDelegate, RelayPaperTextView {
+    /// Lets the task-checkbox tap recognize together with the text view's own
+    /// taps. Without it the checkbox tap wins and a tap never focuses the paper.
+    final class SimultaneousTapDelegate: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+    }
+    let taskTapDelegate = SimultaneousTapDelegate()
     /// The host's image capability and collaborator colors, from its services.
     var imagePolicy = RelayNativeImageRepresentation()
     var collaboratorColor: (String) -> Color = RelayMarkEditorServices.hexColor

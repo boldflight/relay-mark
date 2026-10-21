@@ -80,6 +80,20 @@ struct RelayMarkEditorTextKit2UIKitTests {
     /// The table cost gate on UIKit: typing and Return in a cell's text view and
     /// in body text, Bold and Undo, in a 1 MB paper whose 2,000-cell table is one
     /// attachment, cost at most four times their 1 KB cost plus 20 ms.
+    /// The task-checkbox tap must not win over UITextView's own taps, or a tap
+    /// in the paper never places the caret and the keyboard never appears.
+    @Test func taskTapLeavesTheTextViewsOwnTapsWorking() throws {
+        let (_, coordinator, view) = try mount()
+        defer { coordinator.retire(view) }
+        let recognizers = view.gestureRecognizers ?? []
+        let task = try #require(recognizers.first { $0.name == RelayMarkEditorView.taskTapName })
+        let others = recognizers.filter { $0 !== task }
+        #expect(!others.isEmpty)
+        for other in others {
+            #expect(task.delegate?.gestureRecognizer?(task, shouldRecognizeSimultaneouslyWith: other) == true)
+        }
+    }
+
     @Test func tableEditsCostTheSameInASmallAndALargePaper() throws {
         func paper(bytes: Int) throws -> RelayMarkNativeDocument {
             let columns = 8, filler = String(repeating: "w", count: 40)

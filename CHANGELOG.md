@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- iOS: a tap in a paper places the caret and shows the keyboard again. The
+  editor's task-checkbox tap now recognizes alongside UITextView's own taps
+  instead of winning over them, which had left papers impossible to focus.
 - `RelayMarkSourceCodec`, HTML and clipboard import and the attribute codecs
   run in relaymark-core, the canonical Rust engine the server also uses,
   through `RelayMarkFFI.xcframework` (uniffi; Apple silicon slices for iOS,
