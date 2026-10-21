@@ -3,13 +3,14 @@
 ## Unreleased
 
 - The package links one Rust library. `RelayMarkFFI.xcframework` now holds
-  `crates/relaymark-apple`, a single static library with relaymark-core's
-  binding and yrs's (`crates/yniffi`, vendored from Relay's yswift fork at the
-  same Yrs revision). YSwift's Swift sources are package targets, and the
-  yswift package dependency is gone. Apps and test bundles that linked both
-  former static libraries had two Rust standard libraries and failed on a
-  duplicate `rust_eh_personality`. `Origin.origin` is now `Data`
-  ([one Rust library on Apple platforms](docs/engineering/apple-rust-library.md)).
+  `crates/relaymark-apple`, a megazord static library built from
+  relaymark-ffi and yrs's binding `crates/yniffi` (vendored from Relay's
+  yswift fork at the same Yrs revision), with one C module, `RelayMarkFFI`,
+  under the separate Swift modules. YSwift's Swift sources are package
+  targets, and the yswift package dependency is gone. Apps and test bundles
+  that linked both former static libraries had two Rust standard libraries
+  and failed on a duplicate `rust_eh_personality`. `Origin.origin` is now
+  `Data` ([one Rust library on Apple platforms](docs/engineering/apple-rust-library.md)).
 - Tag atoms accept normalized Relay tag names from any script (`#仕事`,
   `#ラーメン`, `#二〇二六年`): a lowercase, modifier or other letter, decimal
   digit or letter number first, then those, combining marks and `-`. `_` is no longer part of

@@ -43,18 +43,35 @@ done
 rm -rf $out
 cargo run --locked --release -p relaymark-apple --features bindgen --bin uniffi-bindgen -- \
   generate --library target/aarch64-apple-darwin/release/librelaymark_apple.a --language swift --out-dir $work/generated
-# Each binding's C module in a folder of its own name, where the Swift
-# compiler finds its module map: one include directory serves them all.
-for module source in relaymark_ffi $sources/RelayMarkEngine/RelayMarkFFI.swift yniffi $sources/Yniffi/Yniffi.swift; do
-  mkdir -p $work/headers/${module}FFI ${source:h}
-  mv $work/generated/${module}FFI.h $work/headers/${module}FFI/
-  mv $work/generated/${module}FFI.modulemap $work/headers/${module}FFI/module.modulemap
-  mv $work/generated/$module.swift $source
+# Megazord packaging, as in Mozilla's application-services: every binding
+# shares one C module, RelayMarkFFI (each crate's uniffi.toml), so the
+# xcframework has one module map and one umbrella header over each
+# binding's header. The folder named after the module is where the Swift
+# compiler finds the module map.
+module_dir=$work/headers/RelayMarkFFI
+mkdir -p $module_dir
+umbrella=()
+for crate source in relaymark_ffi $sources/RelayMarkEngine/RelayMarkFFI.swift yniffi $sources/Yniffi/Yniffi.swift; do
+  # A binding that imports another module would compile to nothing.
+  if ! grep -qx 'import RelayMarkFFI' $work/generated/$crate.swift; then
+    print -u2 "$crate does not import RelayMarkFFI; set ffi_module_name in its uniffi.toml."
+    exit 1
+  fi
+  mv $work/generated/${crate}FFI.h $module_dir/
+  rm $work/generated/${crate}FFI.modulemap
+  mkdir -p ${source:h}
+  mv $work/generated/$crate.swift $source
+  umbrella+=("#include \"${crate}FFI.h\"")
 done
 if [[ -n $(ls $work/generated) ]]; then
   print -u2 "Unplaced bindings: $(ls $work/generated). Add each new binding to the loop above."
   exit 1
 fi
+print -l -- "// Every uniffi binding in librelaymark_apple.a." $umbrella > $module_dir/RelayMarkFFI.h
+print -r -- 'module RelayMarkFFI {
+    umbrella header "RelayMarkFFI.h"
+    export *
+}' > $module_dir/module.modulemap
 
 libraries=()
 for target in $targets; do

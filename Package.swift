@@ -3,9 +3,10 @@
 import Foundation
 import PackageDescription
 
-// The package's one Rust library (crates/relaymark-apple: relaymark-core and
-// yrs), built and published by scripts/build-swift-engine.zsh as a release
-// asset. RELAYMARK_LOCAL_ENGINE=1 uses the script's local build instead.
+// The package's one Rust library, the crates/relaymark-apple megazord
+// (relaymark-ffi and yniffi under one C module, RelayMarkFFI), built and
+// published by scripts/build-swift-engine.zsh as a release asset.
+// RELAYMARK_LOCAL_ENGINE=1 uses the script's local build instead.
 let engineURL = "https://github.com/boldflight/relay-mark/releases/download/engine-98b442011a3e/RelayMarkFFI.xcframework.zip"
 let engineChecksum = "51290afae048dfffc668a55908d7e151ceb24976d43ed3f738d1ffdba7f5c62a"
 let engine: Target = ProcessInfo.processInfo.environment["RELAYMARK_LOCAL_ENGINE"] == nil

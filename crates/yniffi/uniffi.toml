@@ -1,0 +1,6 @@
+# Every binding in the Apple library shares one C module, RelayMarkFFI;
+# only the header's file name is this crate's own. See
+# docs/engineering/apple-rust-library.md.
+[bindings.swift]
+ffi_module_name = "RelayMarkFFI"
+ffi_module_filename = "yniffiFFI"

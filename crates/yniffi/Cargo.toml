@@ -14,7 +14,7 @@ name = "yniffi"
 # boldflight/y-crdt branch relay. Collaboration with the server (Yex/Yjs)
 # depends on this exact revision; change it only together with the server.
 yrs = { git = "https://github.com/boldflight/y-crdt.git", rev = "02745a0526fc927bb71e3ba551450df66a287d6c", features = ["sync"] }
-thiserror = "1.0.38"
+thiserror = "2"
 uniffi = "0.32"
 serde_json = "1.0"
 
