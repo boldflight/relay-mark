@@ -4,6 +4,10 @@
 //! (`normalizeLink`, `normalizeLinkText`, `validateLink`, with mdurl 2 and
 //! punycode.js 2). CommonMark itself leaves destinations raw; RelayMark's
 //! stored hrefs are these normalized forms, so the engine reproduces them.
+//!
+//! markdown-it and mdurl are Copyright (c) 2014-2015 Vitaly Puzrin and Alex
+//! Kocharin, and punycode.js is Copyright Mathias Bynens, all used under the
+//! MIT License; see THIRD_PARTY_NOTICES.md.
 
 use crate::json::{js_trim, utf16_len};
 

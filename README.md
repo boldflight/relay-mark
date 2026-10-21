@@ -186,8 +186,8 @@ version tags. Through the `0.6.x` pre-1.0 line, public adapter APIs and valid
 portable document meaning remain compatible; breaking changes are reserved for
 1.0.
 
-Active first-party Swift applications may follow `main` during pre-1.0
-development when their build service has repository access:
+Swift applications developed alongside RelayMark may follow `main` during
+pre-1.0 development:
 
 ```swift
 .package(
@@ -196,7 +196,7 @@ development when their build service has repository access:
 )
 ```
 
-This lets Relay repositories converge without coordinated manifest edits for
+This lets dependent repositories converge without coordinated manifest edits for
 every compatible change. Published semantic-version tags remain the stable
 distribution boundary for external or intentionally frozen consumers, which
 may use a compatible range and commit `Package.resolved`. The repository root
@@ -225,8 +225,8 @@ checks are current.
 
 ## Elixir package distribution
 
-`RelayMark` is distributed on Hex as `relay_mark_elixir`. Active first-party
-Relay Elixir applications consume the latest published Hex release:
+`RelayMark` is distributed on Hex as `relay_mark_elixir`. Elixir applications
+can track the latest published Hex release:
 
 ```elixir
 {:relay_mark_elixir, ">= 0.6.1"}
@@ -234,8 +234,8 @@ Relay Elixir applications consume the latest published Hex release:
 
 The application lockfile records the exact tested release. An intentional
 `mix deps.update relay_mark_elixir` selects the newest stable package without
-requiring a manifest edit. Production Docker builds must not depend on access
-to this private Git repository.
+requiring a manifest edit. Production builds use the published Hex package,
+not a Git dependency on this repository.
 
 The Hex package is self-contained. It bundles the exact JSON Schemas and
 directive registry required at compile time, while repository tests enforce
@@ -253,3 +253,23 @@ Ordinary additive work does not consume another minor version.
 
 The reference runtime intentionally starts small. Its job is to make the draft
 spec executable before richer client/editor adapters exist.
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+  <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or
+  <http://opensource.org/licenses/MIT>)
+
+at your option.
+
+Portions are derived from or bundle third-party software under their own
+licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.

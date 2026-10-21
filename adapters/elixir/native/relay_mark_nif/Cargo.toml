@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Erlang NIF binding of relaymark-core for the relay_mark_elixir adapter"
 edition = "2024"
 rust-version = "1.99"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 publish = false
 
 [lib]

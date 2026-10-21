@@ -9,6 +9,10 @@ import Foundation
 // priority, and a chain dispatches whatever it built even when one of its
 // commands returns false. PMState therefore accumulates every step so later
 // handlers see the same intermediate document the browser would.
+//
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, and
+// Tiptap is Copyright (c) 2025, Tiptap GmbH, both used under the MIT License;
+// see THIRD_PARTY_NOTICES.md.
 
 package enum PMSelection: Equatable {
     case text(Int)

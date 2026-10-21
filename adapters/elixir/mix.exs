@@ -36,7 +36,7 @@ defmodule RelayMarkElixir.MixProject do
   defp package do
     [
       name: "relay_mark_elixir",
-      licenses: ["MIT"],
+      licenses: ["MIT", "Apache-2.0"],
       links: %{"Source" => @source_url},
       files: [
         "lib",
@@ -49,7 +49,9 @@ defmodule RelayMarkElixir.MixProject do
         ".formatter.exs",
         "mix.exs",
         "README.md",
-        "LICENSE",
+        "LICENSE-MIT",
+        "LICENSE-APACHE",
+        "THIRD_PARTY_NOTICES.md",
         "CHANGELOG.md"
       ]
     ]

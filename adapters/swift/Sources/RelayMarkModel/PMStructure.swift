@@ -4,6 +4,10 @@ import Foundation
 // structure.ts (liftTarget, lift, canJoin, join, setNodeMarkup) as used by
 // prosemirror-commands and TipTap keymaps. The canonical schema declares no
 // linebreakReplacement, so join's newline conversion paths are absent.
+//
+// ProseMirror is Copyright (C) 2015-2017 by Marijn Haverbeke and others, and
+// Tiptap is Copyright (c) 2025, Tiptap GmbH, both used under the MIT License;
+// see THIRD_PARTY_NOTICES.md.
 
 package struct PMNodeRange {
     package let from$: PMResolvedPos
