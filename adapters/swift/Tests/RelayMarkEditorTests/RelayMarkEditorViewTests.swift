@@ -109,6 +109,41 @@ struct RelayMarkEditorCollaborativeTextViewTests {
         coordinator.retire(view)
     }
 
+    #if os(macOS)
+    /// Format menu items the paper has no mark for (Underline, colors, alignment,
+    /// baseline, kerning, a font size or family) are disabled and never change the
+    /// view only for the next redraw to undo; Bold and Italic stay available.
+    @Test func formatMenuItemsThePaperCannotHonourAreDisabledAndRefused() throws {
+        var transactions: [RelayMarkLocalTransaction] = []
+        let editor = try session("Hello", persistTransaction: { transactions.append($0) })
+        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
+        let view = coordinator.makeTextView(accessibilityLabel: "Paper")
+        defer { coordinator.retire(view); RelayPaperRefusal.feedback = {} }
+        var refusals = 0
+        RelayPaperRefusal.feedback = { refusals += 1 }
+        view.setSelectedRange(NSRange(location: 0, length: 5))
+        func item(_ action: Selector) -> NSMenuItem { NSMenuItem(title: "", action: action, keyEquivalent: "") }
+        for action in [#selector(NSText.underline(_:)), #selector(NSText.alignCenter(_:)), #selector(NSTextView.superscript(_:)),
+                       #selector(NSTextView.useStandardKerning(_:)), #selector(NSTextView.changeColor(_:))] {
+            #expect(!view.validateUserInterfaceItem(item(action)), "\(action) should be disabled")
+        }
+        #expect(view.validateUserInterfaceItem(item(#selector(NSTextView.changeFont(_:)))))
+        view.underline(nil)
+        view.alignCenter(nil)
+        #expect(refusals == 2)
+        #expect(view.textStorage?.attribute(.underlineStyle, at: 0, effectiveRange: nil) == nil)
+        let manager = NSFontManager.shared
+        let oldTarget = manager.target, oldAction = manager.action
+        defer { manager.target = oldTarget; manager.action = oldAction }
+        manager.target = view; manager.action = #selector(NSTextView.changeFont(_:))
+        manager.setSelectedFont(try #require(view.font), isMultiple: false)
+        let bigger = NSMenuItem(title: "Bigger", action: nil, keyEquivalent: ""); bigger.tag = 3 // NSSizeUpFontAction
+        manager.modifyFont(bigger)
+        #expect(refusals == 3, "A font size change the paper cannot keep must say so")
+        #expect(transactions.isEmpty && String(editor.text.characters) == "Hello")
+    }
+    #endif
+
     @Test func finishingEmptyNativeCompositionDoesNotPermanentlySuppressFormattingHistory() throws {
         var receipts: [RelayMarkLocalTransaction] = []
         let editor = try session("Hello", persistTransaction: { receipts.append($0) })

@@ -948,7 +948,51 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
         paperFinder.finder.findBarContainer = enclosingScrollView
         paperFinder.finder.performAction(action)
     }
+    /// Format menu actions with no mark in the paper. TextKit would apply them to the
+    /// view alone and the next redraw would undo them, so they are disabled and refused.
+    static let unsupportedFormatting: Set<Selector> = [
+        #selector(underline(_:)), #selector(changeColor(_:)), #selector(changeAttributes(_:)),
+        #selector(alignLeft(_:)), #selector(alignCenter(_:)), #selector(alignRight(_:)),
+        #selector(alignJustified(_:)),
+        #selector(superscript(_:)), #selector(NSTextView.`subscript`(_:)), #selector(unscript(_:)),
+        #selector(raiseBaseline(_:)), #selector(lowerBaseline(_:)),
+        #selector(useStandardKerning(_:)), #selector(turnOffKerning(_:)),
+        #selector(tightenKerning(_:)), #selector(loosenKerning(_:)),
+        #selector(useStandardLigatures(_:)), #selector(turnOffLigatures(_:)), #selector(useAllLigatures(_:)),
+        #selector(pasteFont(_:)), #selector(pasteRuler(_:)),
+        #selector(makeBaseWritingDirectionLeftToRight(_:)), #selector(makeBaseWritingDirectionRightToLeft(_:)),
+        #selector(makeBaseWritingDirectionNatural(_:)), #selector(makeTextWritingDirectionLeftToRight(_:)),
+        #selector(makeTextWritingDirectionRightToLeft(_:)), #selector(makeTextWritingDirectionNatural(_:)),
+    ]
+    override func underline(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func changeColor(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func changeAttributes(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func alignLeft(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func alignCenter(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func alignRight(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func alignJustified(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func superscript(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func `subscript`(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func unscript(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func raiseBaseline(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func lowerBaseline(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func useStandardKerning(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func turnOffKerning(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func tightenKerning(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func loosenKerning(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func useStandardLigatures(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func turnOffLigatures(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func useAllLigatures(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func pasteFont(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func pasteRuler(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func makeBaseWritingDirectionLeftToRight(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func makeBaseWritingDirectionRightToLeft(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func makeBaseWritingDirectionNatural(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func makeTextWritingDirectionLeftToRight(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func makeTextWritingDirectionRightToLeft(_ sender: Any?) { RelayPaperRefusal.feedback() }
+    override func makeTextWritingDirectionNatural(_ sender: Any?) { RelayPaperRefusal.feedback() }
     override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if let action = item.action, Self.unsupportedFormatting.contains(action) { return false }
         if item.action == #selector(performTextFinderAction(_:)) {
             paperFinder.finder.findBarContainer = enclosingScrollView
             return NSTextFinder.Action(rawValue: item.tag).map { paperFinder.finder.validateAction($0) } ?? false
@@ -1168,7 +1212,8 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView {
     override func changeFont(_ sender: Any?) {
         guard !retired, isEditable, !hasMarkedText(), compositionCompletion == nil else { return }
         guard NSMaxRange(selectedRange()) <= viewLength else { return }
-        if let manager = sender as? NSFontManager { _ = formatNatively(convert: manager.convert) }
+        // A font change with no mark in the paper (a size or family) is refused, not shown and undone.
+        if let manager = sender as? NSFontManager, !formatNatively(convert: manager.convert) { RelayPaperRefusal.feedback() }
     }
     /// Bold or italic toggled through the font menu or panel becomes one
     /// windowed mark command when `convert` changes exactly that trait.
