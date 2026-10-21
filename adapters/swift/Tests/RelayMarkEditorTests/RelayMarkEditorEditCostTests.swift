@@ -32,6 +32,34 @@ struct RelayMarkEditorEditCostTests {
 
     private func median(_ samples: [Duration]) -> Duration { samples.sorted()[samples.count / 2] }
 
+    /// One paper set up for a gate: a round of its measured edits, and the checks
+    /// once every round has run.
+    private struct Probe {
+        var round: @MainActor (Int) async throws -> [(name: String, cost: Duration)]
+        var finish: @MainActor () throws -> Void
+    }
+
+    /// Both papers are edited in alternating rounds, so a load spike on the
+    /// machine falls on both, and each operation is compared by its median over
+    /// the rounds rather than against one fast small-paper run.
+    private func gate(_ label: String, rounds: Int, small: Int = 1_024, large: Int = 1_048_576,
+                      _ probe: (Int) async throws -> Probe) async throws {
+        let a = try await probe(small)
+        await Task.yield()
+        let b = try await probe(large)
+        var costs: (small: [String: [Duration]], large: [String: [Duration]]) = ([:], [:])
+        for index in 0..<rounds {
+            for sample in try await a.round(index) { costs.small[sample.name, default: []].append(sample.cost) }
+            for sample in try await b.round(index) { costs.large[sample.name, default: []].append(sample.cost) }
+        }
+        try a.finish(); try b.finish()
+        for name in costs.small.keys.sorted() {
+            let x = median(try #require(costs.small[name])), y = median(try #require(costs.large[name]))
+            print("\(label) \(name) median: \(small / 1_024) KB \(x), 1 MB \(y)")
+            #expect(Self.withinGate(y, of: x), "\(label) \(name)")
+        }
+    }
+
     /// One typed character through the session: the leaf edit, the projection and the journal hand-off.
     private func sessionKeystroke(bytes: Int) async throws -> Duration {
         var saved = 0
@@ -106,7 +134,7 @@ struct RelayMarkEditorEditCostTests {
     }
 
     /// A peer's Return: its update, the re-projection of the touched node and the view splice.
-    private func remoteReturn(bytes: Int) async throws -> Duration {
+    private func remoteReturn(bytes: Int) async throws -> Probe {
         let document = try paper(bytes: bytes)
         let peer = RelayMarkNativeDocument(); try peer.applyUpdate(document.encodeUpdate())
         await Task.yield()
@@ -122,36 +150,31 @@ struct RelayMarkEditorEditCostTests {
         #if os(macOS)
         let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
         let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
         await Task.yield()
         coordinator.update(view)
         #endif
         let clock = ContinuousClock()
-        let samples = try updates.map { update in
-            try clock.measure {
-                try editor.applyRemoteUpdate(update)
+        return Probe(round: { index in
+            [("peer return", try clock.measure {
+                try editor.applyRemoteUpdate(updates[index])
                 #if os(macOS)
                 coordinator.update(view)
                 #endif
-            }
-        }
-        let expected = String(try peer.richProseProjection().text.characters)
-        #expect(editor.textSplice?.nodes != nil && String(editor.text.characters) == expected)
-        #if os(macOS)
-        #expect(view.string == String(editor.text.characters))
-        #endif
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+            })]
+        }, finish: {
+            let expected = String(try peer.richProseProjection().text.characters)
+            #expect(editor.textSplice?.nodes != nil && String(editor.text.characters) == expected)
+            #if os(macOS)
+            #expect(view.string == String(editor.text.characters))
+            coordinator.retire(view)
+            #endif
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+        })
     }
 
     @Test("A peer's Return costs the same in a 1 KB and a 1 MB paper")
     func remoteReturnIsIndependentOfPaperSize() async throws {
-        let small = try await remoteReturn(bytes: 1_024)
-        // Other main-actor tests run between the two papers.
-        await Task.yield()
-        let large = try await remoteReturn(bytes: 1_048_576)
-        print("Remote Return median: 1 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("Remote", rounds: 10, remoteReturn)
     }
 
     #if os(macOS)
@@ -419,92 +442,86 @@ struct RelayMarkEditorEditCostTests {
         return median(samples)
     }
 
-    /// Return inside a paragraph, then Backspace joining it back, through the real AppKit text view.
-    private func structuralKeystrokes(bytes: Int) async throws -> (split: Duration, join: Duration) {
-        var saved = 0
-        let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in saved += 1 })
+    /// The paper's AppKit view as in the app: scrolling inside a window-sized viewport.
+    private func mountView(_ editor: RelayMarkEditorSession) async -> (RelayMarkEditorView.TextCoordinator, CollaborationTextView) {
         await Task.yield()
         let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
         let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
         await Task.yield()
         let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         view.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
         view.isVerticallyResizable = true
         view.textContainer?.widthTracksTextView = true
         scroll.documentView = view
-        let original = view.string
-        let clock = ContinuousClock()
-        var splits: [Duration] = [], joins: [Duration] = []
-        for index in 0..<6 {
+        return (coordinator, view)
+    }
+
+    /// Return inside a paragraph, then Backspace joining it back, through the real AppKit text view.
+    private func structuralKeystrokes(bytes: Int) async throws -> Probe {
+        var saved = 0
+        let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in saved += 1 })
+        let (coordinator, view) = await mountView(editor)
+        let original = view.string, clock = ContinuousClock()
+        return Probe(round: { index in
             view.setSelectedRange(NSRange(location: 20 + index * 113, length: 0))
-            splits.append(clock.measure { view.insertNewline(nil) })
-            joins.append(clock.measure { view.deleteBackward(nil) })
-        }
-        #expect(saved == 12 && editor.failure == nil && view.string == original && String(editor.text.characters) == original)
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return (median(splits), median(joins))
+            return [("split", clock.measure { view.insertNewline(nil) }), ("join", clock.measure { view.deleteBackward(nil) })]
+        }, finish: {
+            #expect(saved == 12 && editor.failure == nil && view.string == original && String(editor.text.characters) == original)
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
+    }
+
+    @Test("Return and joining blocks cost the same in a 1 KB and a 1 MB paper")
+    func structuralKeystrokesAreIndependentOfPaperSize() async throws {
+        // TextKit's layout grows mildly with length, as for a typed character; Relay's own work does not.
+        try await gate("Return and join", rounds: 6, structuralKeystrokes)
     }
 
     /// Typing over a selection that spans two paragraphs, through the real AppKit text view.
-    private func spanningReplacement(bytes: Int) async throws -> Duration {
+    private func spanningReplacement(bytes: Int) async throws -> Probe {
         var saved = 0
         let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in saved += 1 })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
+        let (coordinator, view) = await mountView(editor)
         let clock = ContinuousClock()
-        let samples = (0..<4).map { index in
+        return Probe(round: { index in
             // Paragraph pairs ahead of earlier replacements keep their offsets.
             view.setSelectedRange(NSRange(location: 1_000 - index * 226 + 100, length: 30))
-            return clock.measure { view.insertText("x", replacementRange: NSRange(location: NSNotFound, length: 0)) }
-        }
-        #expect(saved == 4 && editor.failure == nil && view.string == String(editor.text.characters))
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+            return [("spanning replacement", clock.measure { view.insertText("x", replacementRange: NSRange(location: NSNotFound, length: 0)) })]
+        }, finish: {
+            #expect(saved == 4 && editor.failure == nil && view.string == String(editor.text.characters))
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Typing over a selection across paragraphs costs the same in a 1 KB and a 1 MB paper")
     func spanningReplacementIsIndependentOfPaperSize() async throws {
-        let small = try await spanningReplacement(bytes: 2_048)
-        await Task.yield()
-        let large = try await spanningReplacement(bytes: 1_048_576)
-        print("Spanning replacement median: 2 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("Spanning", rounds: 4, small: 2_048, spanningReplacement)
     }
 
     /// Japanese input: marked candidates, then the committed word, through the real AppKit text view.
-    private func compositionCommit(bytes: Int) async throws -> Duration {
+    private func compositionCommit(bytes: Int) async throws -> Probe {
         var saved = 0
         let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in saved += 1 })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
+        let (coordinator, view) = await mountView(editor)
         let clock = ContinuousClock()
-        var samples: [Duration] = []
-        for index in 0..<6 {
+        return Probe(round: { index in
             view.setSelectedRange(NSRange(location: 5 + index * 3, length: 0))
             view.setMarkedText("に", selectedRange: NSRange(location: 1, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
             view.setMarkedText("にほ", selectedRange: NSRange(location: 2, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
-            samples.append(clock.measure { view.insertText("日本", replacementRange: NSRange(location: NSNotFound, length: 0)) })
-        }
-        #expect(saved == 6 && editor.failure == nil && String(editor.text.characters).hasPrefix("Lorem日本"))
-        #expect(view.string == String(editor.text.characters))
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+            return [("commit", clock.measure { view.insertText("日本", replacementRange: NSRange(location: NSNotFound, length: 0)) })]
+        }, finish: {
+            #expect(saved == 6 && editor.failure == nil && String(editor.text.characters).hasPrefix("Lorem日本"))
+            #expect(view.string == String(editor.text.characters))
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("A committed Japanese word costs the same in a 1 KB and a 1 MB paper")
     func compositionCommitIsIndependentOfPaperSize() async throws {
-        let small = try await compositionCommit(bytes: 1_024)
-        await Task.yield()
-        let large = try await compositionCommit(bytes: 1_048_576)
-        print("Composition commit median: 1 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("Composition", rounds: 6, compositionCommit)
     }
 
     /// The Bold menu command as the font manager converts the selection's font.
@@ -516,161 +533,124 @@ struct RelayMarkEditorEditCostTests {
         })
     }
 
-    private func formatting(bytes: Int) async throws -> Duration {
+    private func formatting(bytes: Int) async throws -> Probe {
         var saved = 0
         let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in saved += 1 })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
+        let (coordinator, view) = await mountView(editor)
         let clock = ContinuousClock()
-        let samples = (0..<6).map { index in
-            clock.measure { embolden(view, range: NSRange(location: 6 + index * 113, length: 5)) }
-        }
-        #expect(saved == 6 && editor.failure == nil)
-        #expect(editor.text.runs.contains { String(editor.text[$0.range].characters) == "ipsum" && $0.inlinePresentationIntent == .stronglyEmphasized })
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+        return Probe(round: { index in
+            [("bold", clock.measure { embolden(view, range: NSRange(location: 6 + index * 113, length: 5)) })]
+        }, finish: {
+            #expect(saved == 6 && editor.failure == nil)
+            #expect(editor.text.runs.contains { String(editor.text[$0.range].characters) == "ipsum" && $0.inlinePresentationIntent == .stronglyEmphasized })
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Bolding a word costs the same in a 1 KB and a 1 MB paper")
     func formattingIsIndependentOfPaperSize() async throws {
-        let small = try await formatting(bytes: 1_024)
-        await Task.yield()
-        let large = try await formatting(bytes: 1_048_576)
-        print("Bold median: 1 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("Formatting", rounds: 6, formatting)
     }
 
     /// Tab and Shift-Tab on a list item, through the real AppKit text view.
-    private func listDepth(bytes: Int) async throws -> Duration {
+    private func listDepth(bytes: Int) async throws -> Probe {
         var saved = 0
         let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes, prefix: "- one\n- two\n- three\n\n"),
-                                                          persist: { _ in saved += 1 })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
+                                                persist: { _ in saved += 1 })
+        let (coordinator, view) = await mountView(editor)
         let original = view.string, clock = ContinuousClock()
-        var samples: [Duration] = []
-        for _ in 0..<4 {
+        return Probe(round: { _ in
             view.setSelectedRange(NSRange(location: 5, length: 0))
-            samples.append(clock.measure { view.insertTab(nil); coordinator.update(view) })
-            samples.append(clock.measure { view.insertBacktab(nil); coordinator.update(view) })
-        }
-        #expect(saved == 8 && editor.failure == nil && view.string == original)
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+            return [("indent", clock.measure { view.insertTab(nil); coordinator.update(view) }),
+                    ("outdent", clock.measure { view.insertBacktab(nil); coordinator.update(view) })]
+        }, finish: {
+            #expect(saved == 8 && editor.failure == nil && view.string == original)
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Indenting a list item costs the same in a 1 KB and a 1 MB paper")
     func listDepthIsIndependentOfPaperSize() async throws {
-        let small = try await listDepth(bytes: 1_024)
-        await Task.yield()
-        let large = try await listDepth(bytes: 1_048_576)
-        print("List depth median: 1 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("List depth", rounds: 4, listDepth)
     }
 
     /// Pasting three lines of plain text over a word, through the session and the real AppKit view.
     /// The system clipboard is left alone; the view's paste hands the session the same text.
-    private func plainPaste(bytes: Int) async throws -> Duration {
+    private func plainPaste(bytes: Int) async throws -> Probe {
         var saved = 0
         let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in saved += 1 })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
+        let (coordinator, view) = await mountView(editor)
         let clock = ContinuousClock()
-        let samples = (0..<4).map { index in
-            clock.measure {
+        return Probe(round: { index in
+            [("plain paste", clock.measure {
                 #expect(editor.pastePlainTextNatively(range: NSRange(location: 6 + index * 113, length: 5), text: "one\ntwo\nthree"))
                 coordinator.update(view)
-            }
-        }
-        #expect(saved == 4 && editor.failure == nil && view.string == String(editor.text.characters))
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+            })]
+        }, finish: {
+            #expect(saved == 4 && editor.failure == nil && view.string == String(editor.text.characters))
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Pasting lines costs the same in a 1 KB and a 1 MB paper")
     func plainPasteIsIndependentOfPaperSize() async throws {
-        let small = try await plainPaste(bytes: 1_024)
-        await Task.yield()
-        let large = try await plainPaste(bytes: 1_048_576)
-        print("Plain paste median: 1 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("Paste", rounds: 4, plainPaste)
     }
 
     /// Pasting formatted HTML (a heading, a bold paragraph and a list) through the session and the real AppKit view.
-    private func richPaste(bytes: Int) async throws -> Duration {
+    private func richPaste(bytes: Int) async throws -> Probe {
         var saved = 0
         let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { _ in saved += 1 })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
+        let (coordinator, view) = await mountView(editor)
         let html = "<h2>Pasted</h2><p>Some <strong>bold</strong> text</p><ul><li>one</li><li>two</li></ul>"
         let clock = ContinuousClock()
-        var samples: [Duration] = []
-        for index in 0..<4 {
+        return Probe(round: { index in
             editor.setNativeSelection(NSRange(location: 6 + index * 113, length: 0))
             let start = clock.now
             let paste = try editor.prepareStructuredClipboard(html: html, capture: editor.captureStructuredPaste())
             try await editor.insertStructuredPaste(paste, authorize: { _ in })
             coordinator.update(view)
-            samples.append(clock.now - start)
-        }
-        #expect(saved == 4 && editor.failure == nil && view.string == String(editor.text.characters))
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+            return [("rich paste", clock.now - start)]
+        }, finish: {
+            #expect(saved == 4 && editor.failure == nil && view.string == String(editor.text.characters))
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Pasting formatted HTML costs the same in a 1 KB and a 1 MB paper")
     func richPasteIsIndependentOfPaperSize() async throws {
-        let small = try await richPaste(bytes: 1_024)
-        await Task.yield()
-        let large = try await richPaste(bytes: 1_048_576)
-        print("Rich paste median: 1 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("Paste", rounds: 4, richPaste)
     }
 
     /// Cmd-Z and Shift-Cmd-Z of a Return, through the session and the real AppKit view.
-    private func history(bytes: Int) async throws -> Duration {
+    private func history(bytes: Int) async throws -> Probe {
         var saved: [Data] = []
         let editor = try RelayMarkEditorSession(document: try paper(bytes: bytes), persist: { saved.append($0.update) })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
+        let (coordinator, view) = await mountView(editor)
         let original = view.string, clock = ContinuousClock()
-        var samples: [Duration] = []
-        for index in 0..<4 {
+        return Probe(round: { index in
             view.setSelectedRange(NSRange(location: 20 + index * 113, length: 0))
             view.insertNewline(nil)
-            samples.append(clock.measure { editor.undo(); coordinator.update(view) })
-            samples.append(clock.measure { editor.redo(); coordinator.update(view) })
+            let undo = clock.measure { editor.undo(); coordinator.update(view) }
+            let redo = clock.measure { editor.redo(); coordinator.update(view) }
             editor.undo(); coordinator.update(view)
-        }
-        #expect(editor.failure == nil && view.string == original && String(editor.text.characters) == original)
-        // Each saved undo is its own small transaction, not the paper's whole delete set.
-        #expect(saved.count == 16 && saved.allSatisfy { $0.count < 512 })
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return median(samples)
+            return [("undo", undo), ("redo", redo)]
+        }, finish: {
+            #expect(editor.failure == nil && view.string == original && String(editor.text.characters) == original)
+            // Each saved undo is its own small transaction, not the paper's whole delete set.
+            #expect(saved.count == 16 && saved.allSatisfy { $0.count < 512 })
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Undo and redo cost the same in a 1 KB and a 1 MB paper")
     func historyIsIndependentOfPaperSize() async throws {
-        let small = try await history(bytes: 1_024)
-        await Task.yield()
-        let large = try await history(bytes: 1_048_576)
-        print("Undo/redo median: 1 KB \(small), 1 MB \(large)")
-        #expect(Self.withinGate(large, of: small))
+        try await gate("History", rounds: 4, history)
     }
 
     /// A paper that is one long list. Task lists stop at RelayMark's 4096-item
@@ -689,28 +669,18 @@ struct RelayMarkEditorEditCostTests {
 
     /// Typing, Return, Tab, Cmd-B and Cmd-Z in a list item, and a peer's typing
     /// and new item, through the session and the real AppKit view.
-    private func listEdits(bytes: Int, marker: String) async throws -> [String: Duration] {
+    private func listEdits(bytes: Int, marker: String) async throws -> Probe {
         let document = try listPaper(bytes: bytes, marker: marker)
         let peer = RelayMarkNativeDocument(); try peer.applyUpdate(document.encodeUpdate())
         var saved = 0
         let editor = try RelayMarkEditorSession(document: document, persist: { _ in saved += 1 })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
-        // As in the app, the text view scrolls inside a window-sized viewport.
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
-        view.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
-        view.isVerticallyResizable = true
-        view.textContainer?.widthTracksTextView = true
-        scroll.documentView = view
+        let (coordinator, view) = await mountView(editor)
         let clock = ContinuousClock()
-        var samples: [String: [Duration]] = [:]
-        func measure(_ name: String, _ work: () throws -> Void) rethrows {
-            let start = clock.now; try work(); samples[name, default: []].append(clock.now - start)
-        }
-        for index in 0..<4 {
+        return Probe(round: { index in
+            var samples: [(name: String, cost: Duration)] = []
+            func measure(_ name: String, _ work: () throws -> Void) rethrows {
+                let start = clock.now; try work(); samples.append((name, clock.now - start))
+            }
             let text = view.string as NSString, found = text.range(of: " \(1 + index * 2).")
             #expect(found.location != NSNotFound)
             let item = text.lineRange(for: found)
@@ -727,7 +697,7 @@ struct RelayMarkEditorEditCostTests {
             // A peer's new item, shaped as an existing one with fresh identities.
             let list = try #require((try JSONSerialization.jsonObject(with: peer.snapshot()) as? [String: Any])?["children"] as? [[String: Any]])[0]
             var template = try #require((list["children"] as? [[String: Any]])?.first)
-            func fresh(_ node: [String: Any]) -> [String: Any] {
+            @MainActor func fresh(_ node: [String: Any]) -> [String: Any] {
                 var node = node
                 if var attributes = node["attributes"] as? [String: Any], attributes["relaymarkId"] != nil {
                     attributes["relaymarkId"] = RelayMarkNativeRichXML.freshID(); node["attributes"] = attributes
@@ -739,23 +709,19 @@ struct RelayMarkEditorEditCostTests {
             let added = try peer.replaceSnapshotNodes(parentPath: [0], start: 1 + index * 2, count: 0, nodes: [template])
             try measure("peer item") { try editor.applyRemoteUpdate(added); coordinator.update(view) }
             try peer.applyUpdate(document.encodeUpdate(since: peer.stateVector()))
-        }
-        #expect(editor.failure == nil && view.string == String(editor.text.characters))
-        #expect(String(editor.text.characters) == String(try peer.richProseProjection().text.characters))
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return samples.mapValues(median)
+            return samples
+        }, finish: {
+            #expect(editor.failure == nil && view.string == String(editor.text.characters))
+            let projected = String(try peer.richProseProjection().text.characters)
+            #expect(String(editor.text.characters) == projected)
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Editing a long list costs the same at 1 KB and 1 MB", arguments: ["-", "- [ ]"])
     func listEditsAreIndependentOfListLength(marker: String) async throws {
-        let small = try await listEdits(bytes: 1_024, marker: marker)
-        await Task.yield()
-        let large = try await listEdits(bytes: 1_048_576, marker: marker)
-        for name in small.keys.sorted() {
-            let (a, b) = (try #require(small[name]), try #require(large[name]))
-            print("List \(marker) \(name) median: 1 KB \(a), 1 MB \(b)")
-            #expect(Self.withinGate(b, of: a), "\(name)")
-        }
+        try await gate("List \(marker)", rounds: 4) { try await listEdits(bytes: $0, marker: marker) }
     }
 
     /// A paper holding one table of eight-column rows, as many as fit up to
@@ -777,29 +743,19 @@ struct RelayMarkEditorEditCostTests {
 
     /// Typing, Return, Bold and Undo in a table cell's text view, and a peer's
     /// typing in a cell, through the session and the real AppKit views.
-    private func tableEdits(bytes: Int) async throws -> [String: Duration] {
+    private func tableEdits(bytes: Int) async throws -> Probe {
         let document = try tablePaper(bytes: bytes)
         let peer = RelayMarkNativeDocument(); try peer.applyUpdate(document.encodeUpdate())
         let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
-        await Task.yield()
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Cost")
-        defer { coordinator.retire(view) }
-        await Task.yield()
-        // As in the app, the text view scrolls inside a window-sized viewport.
-        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
-        view.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
-        view.isVerticallyResizable = true
-        view.textContainer?.widthTracksTextView = true
-        scroll.documentView = view
+        let (coordinator, view) = await mountView(editor)
         view.textLayoutManager?.textViewportLayoutController.layoutViewport()
         let table = try #require(view.paper.tables.spans.first?.table)
         let clock = ContinuousClock()
-        var samples: [String: [Duration]] = [:]
-        func measure(_ name: String, _ work: () throws -> Void) rethrows {
-            let start = clock.now; try work(); samples[name, default: []].append(clock.now - start)
-        }
-        for index in 0..<4 {
+        return Probe(round: { index in
+            var samples: [(name: String, cost: Duration)] = []
+            func measure(_ name: String, _ work: () throws -> Void) rethrows {
+                let start = clock.now; try work(); samples.append((name, clock.now - start))
+            }
             let marker = " r1c\(1 + index * 2)."
             let cellIndex = try #require(table.cells.firstIndex { $0.text.string.contains(marker) })
             let cell = table.grid.cellView(cellIndex)
@@ -814,35 +770,19 @@ struct RelayMarkEditorEditCostTests {
             let typed = try peer.typeText("p", replacing: 0, at: 1, path: path).update
             try measure("peer type") { try editor.applyRemoteUpdate(typed); coordinator.update(view) }
             try peer.applyUpdate(document.encodeUpdate(since: peer.stateVector()))
-        }
-        #expect(editor.failure == nil && view.paperString == String(editor.text.characters))
-        #expect(String(editor.text.characters) == String(try peer.richProseProjection().text.characters))
-        #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
-        return samples.mapValues(median)
+            return samples
+        }, finish: {
+            #expect(editor.failure == nil && view.paperString == String(editor.text.characters))
+            let projected = String(try peer.richProseProjection().text.characters)
+            #expect(String(editor.text.characters) == projected)
+            #expect(editor.fallbackEdits == 0, "a whole-paper path ran")
+            coordinator.retire(view)
+        })
     }
 
     @Test("Editing a table costs the same in a 1 KB and a 1 MB paper")
     func tableEditsAreIndependentOfPaperSize() async throws {
-        let small = try await tableEdits(bytes: 1_024)
-        await Task.yield()
-        let large = try await tableEdits(bytes: 1_048_576)
-        for name in small.keys.sorted() {
-            let (a, b) = (try #require(small[name]), try #require(large[name]))
-            print("Table \(name) median: 1 KB \(a), 1 MB \(b)")
-            #expect(Self.withinGate(b, of: a), "\(name)")
-        }
-    }
-
-    @Test("Return and joining blocks cost the same in a 1 KB and a 1 MB paper")
-    func structuralKeystrokesAreIndependentOfPaperSize() async throws {
-        let small = try await structuralKeystrokes(bytes: 1_024)
-        // Other main-actor tests run between the two papers.
-        await Task.yield()
-        let large = try await structuralKeystrokes(bytes: 1_048_576)
-        print("Return median: 1 KB \(small.split), 1 MB \(large.split); join median: 1 KB \(small.join), 1 MB \(large.join)")
-        // TextKit's layout grows mildly with length, as for a typed character; Relay's own work does not.
-        #expect(Self.withinGate(large.split, of: small.split))
-        #expect(Self.withinGate(large.join, of: small.join))
+        try await gate("Table", rounds: 4, tableEdits)
     }
 
     @Test("A keystroke in the real text view stays far below whole-paper cost on a 1 MB paper")
