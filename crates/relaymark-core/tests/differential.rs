@@ -112,6 +112,16 @@ fn replay(name: &str, raw: &[Value]) -> Option<Outcome> {
         "document-links.safeImageSource" => Outcome::Value(Value::Bool(rm::safe_image_source(&text(0)?))),
         "content-edit.encodeDocumentAttributes" => result(rm::encode_attributes(&text(0)?, &arg(1)?), Outcome::Value),
         "content-edit.decodeDocumentAttributes" => result(rm::decode_attributes(&text(0)?, &arg(1)?), Outcome::Value),
+        "content-edit.applyContentEdit" => {
+            let options = arg(2);
+            let maximum = options.as_ref().and_then(|o| o.get("maximumSteps").cloned());
+            result(rm::edit::apply(&arg(0)?, &arg(1)?, maximum.as_ref()), Outcome::Value)
+        }
+        "content-edit-write.planContentEditTextWrite" => {
+            let span = raw.get(5).filter(|v| v.get("$undefined").is_none()).and_then(decode);
+            result(rm::edit::plan_text_write(&arg(0)?, &arg(1)?, &arg(2)?, &arg(3)?, &arg(4)?, span.as_ref()), Outcome::Value)
+        }
+        "content-edit.prepareContentEditWrite" => result(rm::edit::prepare_write(&arg(0)?, &arg(1)?, &arg(2)?), Outcome::Value),
         "document-snapshot.documentToSnapshot" => result(rm::document_to_snapshot(&arg(0)?), Outcome::Value),
         "document-snapshot.snapshotToDocument" => result(rm::snapshot_to_document(&arg(0)?), Outcome::Value),
         "document-snapshot.normalizeDocument" => result(rm::normalize_document(&arg(0)?), Outcome::Value),

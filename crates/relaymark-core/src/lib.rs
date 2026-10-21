@@ -25,6 +25,7 @@
 mod adapter;
 mod compile;
 mod compose;
+mod content_edit;
 mod controls;
 mod error;
 mod html;
@@ -39,6 +40,8 @@ mod manifest;
 mod mdurl;
 mod migrate;
 mod node_kind;
+#[allow(dead_code)]
+mod pm;
 mod registry;
 mod schema;
 mod snapshot;
@@ -244,6 +247,44 @@ pub fn directive_definitions() -> Value {
         })
         .collect();
     Value::Array(definitions)
+}
+
+/// Native editing: canonical step application and the causal write plan,
+/// over admitted editor JSON (content-edit.js).
+pub mod edit {
+    use super::{Result, Value};
+
+    /// `applyContentEdit(document, operation, {maximumSteps})`: `{document,
+    /// authored_document, step_maps, retained_ranges, inserted_ranges,
+    /// copied_subtree_ranges}`.
+    pub fn apply(document: &Value, operation: &Value, maximum_steps: Option<&Value>) -> Result<Value> {
+        let maximum = match maximum_steps {
+            None => 512,
+            Some(value) => match value.as_u64().filter(|n| (1..=4096).contains(n)) {
+                Some(n) => n as usize,
+                None => return Err(crate::Error::new("Invalid or oversized canonical content edit")),
+            },
+        };
+        crate::content_edit::apply_content_edit(document, operation, maximum).map(|applied| applied.to_json())
+    }
+
+    /// `planContentEditTextWrite(prepared, sourceParent, sourceGroup,
+    /// targetParent, targetGroup, sourceSpan?)`: a Yjs text delta.
+    pub fn plan_text_write(
+        prepared: &Value,
+        source_parent: &Value,
+        source_group: &Value,
+        target_parent: &Value,
+        target_group: &Value,
+        span: Option<&Value>,
+    ) -> Result<Value> {
+        crate::content_edit::plan_text_write(prepared, source_parent, source_group, target_parent, target_group, span)
+    }
+
+    /// `prepareContentEditWrite(before, steps, after)`.
+    pub fn prepare_write(before: &Value, steps: &Value, after: &Value) -> Result<Value> {
+        crate::content_edit::prepare_content_edit_write(before, steps, after)
+    }
 }
 
 /// Finite historical conversions, each run once at a recorded boundary with a
