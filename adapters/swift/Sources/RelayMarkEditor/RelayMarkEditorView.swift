@@ -1,3 +1,4 @@
+import Accessibility
 import Foundation
 import RelayMarkCollaboration
 import UniformTypeIdentifiers
@@ -952,7 +953,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
 }
 
 @MainActor
-final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContentStorageDelegate {
+final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContentStorageDelegate, AXCustomContentProvider {
     /// The host's image capability and collaborator colors, from its services.
     var imagePolicy = RelayNativeImageRepresentation()
     var collaboratorColor: (String) -> Color = RelayMarkEditorServices.hexColor
@@ -990,6 +991,13 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
         (super.accessibilityCustomActions() ?? []) + paperAccessibilityActions().map { action in
             NSAccessibilityCustomAction(name: action.name) { action.perform() }
         }
+    }
+    nonisolated var accessibilityCustomContent: [AXCustomContent]! {
+        get {
+            let content = MainActor.assumeIsolated { paperAccessibilityContent() }
+            return content.map { AXCustomContent(label: $0.label, value: $0.value) }
+        }
+        set {}
     }
     var isPaperEditable: Bool {
         get { isEditable }
@@ -1929,7 +1937,7 @@ public final class CollaborationTextContainer: UIView {
     }
 }
 @MainActor
-final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDelegate, RelayPaperTextView, NSTextContentStorageDelegate {
+final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDelegate, RelayPaperTextView, NSTextContentStorageDelegate, AXCustomContentProvider {
     /// Lets the task-checkbox tap recognize together with the text view's own
     /// taps. Without it the checkbox tap wins and a tap never focuses the paper.
     final class SimultaneousTapDelegate: NSObject, UIGestureRecognizerDelegate {
@@ -1992,6 +2000,13 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
             }
         }
         set { super.accessibilityCustomActions = newValue }
+    }
+    nonisolated var accessibilityCustomContent: [AXCustomContent]! {
+        get {
+            let content = MainActor.assumeIsolated { paperAccessibilityContent() }
+            return content.map { AXCustomContent(label: $0.label, value: $0.value) }
+        }
+        set {}
     }
     override func toggleUnderline(_ sender: Any?) {
         guard !retired, isEditable, markedTextRange == nil, compositionCompletion == nil else { return }

@@ -55,6 +55,8 @@ protocol RelayPaperTextEditing: AnyObject {
     var nativeTableCells: [RelayMarkCollaborativeProse.TableCell] { get }
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] { get }
     var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] { get }
+    /// The unlinked task items a person started as draft Tasks (M10).
+    var armedTaskDrafts: [String] { get }
     var nativeInlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] { get }
     var nativeBlockAtoms: [RelayMarkCollaborativeProse.BlockAtom] { get }
     var nativeAuthoredWidgets: [RelayMarkCollaborativeProse.AuthoredWidget] { get }

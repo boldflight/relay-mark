@@ -129,6 +129,28 @@ struct RelayMarkEditorTaskDraftTests {
         #expect(paper.finished.map(\.done) == [false, true])
     }
 
+    // Bug caught: VoiceOver reading a draft and a linked Task as the same plain
+    // line, so a person never hears which items become Tasks.
+    @Test("VoiceOver hears whether the item at the caret is a draft or a linked Task")
+    func accessibilityContent() throws {
+        let paper = try Paper([["type": "paragraph", "content": [["type": "text", "text": "Notes"]]], ["type": "taskList", "content": [
+            ["type": "taskItem", "attrs": ["checked": false, "entityId": "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Call Ana"]]]]],
+            ["type": "taskItem", "attrs": ["checked": false],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Buy milk"]]]]]]]])
+        defer { paper.retire() }
+        func content() -> [String] { paper.view.accessibilityCustomContent.map { "\($0.label): \($0.value)" } }
+        let items = paper.editor.nativeTaskItems
+        paper.place(items[0].firstParagraphRange.location + 2)
+        #expect(content() == ["Checklist item: Task"])
+        paper.place(NSMaxRange(items[1].firstParagraphRange))
+        #expect(content() == ["Checklist item: Not a task"])
+        paper.editor.armTaskDrafts([items[1].id])
+        #expect(content() == ["Checklist item: Draft task"])
+        paper.place(0)
+        #expect(content().isEmpty)
+    }
+
     /// The Yjs anchor task creation sends: y-prosemirror's positions, with the
     /// same association, for a plain title and one ending in a reference. With
     /// RELAYMARK_TASK_ANCHOR_FIXTURE set it writes the document and anchors for

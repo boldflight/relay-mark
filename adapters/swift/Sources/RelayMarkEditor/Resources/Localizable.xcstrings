@@ -106,6 +106,17 @@
         }
       }
     },
+    "Checklist item" : {
+      "comment" : "VoiceOver label for the checklist item at the caret.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チェックリスト項目"
+          }
+        }
+      }
+    },
     "Code Block" : {
       "comment" : "Editor command that inserts a code block.",
       "localizations" : {
@@ -146,6 +157,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "区切り線"
+          }
+        }
+      }
+    },
+    "Draft task" : {
+      "comment" : "VoiceOver value of a checklist item that becomes a Task when finished.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下書きのタスク"
           }
         }
       }
@@ -304,6 +326,17 @@
         }
       }
     },
+    "Not a task" : {
+      "comment" : "VoiceOver value of a checklist item that is not linked to a Task.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タスクではありません"
+          }
+        }
+      }
+    },
     "Numbered List" : {
       "comment" : "Editor command that makes the block a numbered list.",
       "localizations" : {
@@ -427,6 +460,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "タグ %@"
+          }
+        }
+      }
+    },
+    "Task" : {
+      "comment" : "VoiceOver value of a checklist item linked to a Relay Task.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "タスク"
           }
         }
       }

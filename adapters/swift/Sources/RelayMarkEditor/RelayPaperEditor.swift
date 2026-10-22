@@ -188,6 +188,17 @@ extension RelayPaperTextView {
         return changed
     }
 
+    /// What VoiceOver says about the checklist item at the caret, whose checkbox
+    /// is drawn rather than read: a draft Task, a linked Task or a plain item.
+    func paperAccessibilityContent() -> [(label: String, value: String)] {
+        guard !retired, let session = editingSession, let item = paper.viewTaskItems.first(where: {
+            NSLocationInRange(viewSelection.location, $0.firstParagraphRange) || NSMaxRange($0.firstParagraphRange) == viewSelection.location }) else { return [] }
+        let value = item.entityID != nil ? String(localized: "Task", bundle: .module, comment: "VoiceOver value of a checklist item linked to a Relay Task.")
+            : session.armedTaskDrafts.contains(item.id) ? String(localized: "Draft task", bundle: .module, comment: "VoiceOver value of a checklist item that becomes a Task when finished.")
+            : String(localized: "Not a task", bundle: .module, comment: "VoiceOver value of a checklist item that is not linked to a Task.")
+        return [(String(localized: "Checklist item", bundle: .module, comment: "VoiceOver label for the checklist item at the caret."), value)]
+    }
+
     /// Commands VoiceOver offers on the paper: toggling the task at the caret,
     /// whose checkbox is drawn rather than read, and the host's commands on the
     /// selection, which belong in the Edit rotor (`edits`).

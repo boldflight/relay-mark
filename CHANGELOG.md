@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- VoiceOver hears what the checklist item at the caret is: the paper view's
+  custom content reads "Checklist item" with the value "Draft task", "Task" or
+  "Not a task", on AppKit and UIKit alike, since the checkbox is drawn rather
+  than read. `RelayPaperTextEditing` exposes `armedTaskDrafts` for it.
 - The Swift editor makes checklist items draft Tasks as the web does. A typed
   `[ ] `, the Checklist command on an empty line and Return in an armed item
   arm one; leaving it, Return and ticking it finish it, and
