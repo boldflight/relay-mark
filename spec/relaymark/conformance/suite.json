@@ -32,9 +32,14 @@
     "directive.relay.data_view",
     "directive.relay.layout",
     "renderer.capability_negotiation",
-    "composition.semantic_layers.v1"
+    "composition.semantic_layers.v1",
+    "editor.task_drafts.v1"
   ],
   "fixtures": [
+    {
+      "id": "task-drafts",
+      "cases": "../editor/task-drafts-v1.json"
+    },
     {
       "id": "task-paper",
       "source": "../examples/task-paper.relaymark",

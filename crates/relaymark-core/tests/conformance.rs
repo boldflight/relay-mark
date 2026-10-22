@@ -58,6 +58,13 @@ fn conformance_suite() {
     for f in fixtures {
         let id = f["id"].as_str().unwrap_or_default();
         let context = f.get("validation_context").cloned().unwrap_or(json!({}));
+        if let Some(path) = file("cases", f) {
+            let errors = job_case_errors(&read(&path));
+            if !errors.is_empty() {
+                failures.push(format!("{id}: {}", errors.join("; ")));
+            }
+            continue;
+        }
         let actual = if let Some(path) = file("input_composition", f) {
             let layers = read(&path);
             let composition = rm::compose_layers(&layers["layers"]);
@@ -102,7 +109,29 @@ fn conformance_suite() {
         }
     }
     assert!(failures.is_empty(), "{} of {} suite fixtures failed:\n{}", failures.len(), fixtures.len(), failures.join("\n"));
-    assert_eq!(fixtures.len(), 17, "suite size changed; update the report");
+    assert_eq!(fixtures.len(), 18, "suite size changed; update the report");
+}
+
+/// A `cases` fixture: editor rules run by job name, as Swift and the Elixir
+/// NIF call them, each case's `expected` being the job's exact output.
+fn job_case_errors(fixture: &Value) -> Vec<String> {
+    let mut errors = Vec::new();
+    for case in fixture["cases"].as_array().expect("cases") {
+        let name = case["name"].as_str().expect("case name");
+        let job = case["job"].as_str().expect("case job");
+        let input = serde_json::to_vec(&case["input"]).expect("case input");
+        let options = serde_json::to_vec(&case["options"]).expect("case options");
+        match rm::jobs::run(job, &input, &options) {
+            Ok(bytes) => {
+                let actual: Value = serde_json::from_slice(&bytes).expect("job output");
+                if canonical(&actual) != canonical(&case["expected"]) {
+                    errors.push(format!("{name}: {actual}"));
+                }
+            }
+            Err(error) => errors.push(format!("{name}: {error}")),
+        }
+    }
+    errors
 }
 
 /// Collaboration fixtures that are not document conversions: Yjs protocol

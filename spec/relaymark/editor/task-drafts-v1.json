@@ -1,0 +1,3316 @@
+{
+  "fixture_version": 1,
+  "description": "Which checklist items are draft Tasks, as every RelayMark editor decides it. The armed set is the client's local state, never stored in the document: callers pass it in and get the next one back. Documents are ProseMirror JSON with block identity. `task_drafts` lists unlinked task items, with operation_id = relaymarkId `b` + 32 lowercase hex as a lowercase UUID; any other id gives no draft. `task_draft_arm` takes [before, after] and an event: input_rule, command and split arm new items (command only empty ones, split only when `from` was armed), arm and disarm take ids, external (remote, paste, history) only prunes. `task_draft_boundary` lists the armed drafts with a title that Return, a caret move or a checkbox tap finishes; positions are ProseMirror positions, and a caret is in an item when pos < caret <= pos + 1 + first paragraph size. Each task_draft_arm case also names the editor `action` that produces it from `before` (or from `after` when `before` is null) at ProseMirror positions: typed text at a caret, an editor command over a selection, a key at a caret, a whole-document replace standing for any external change, or the event's own arm or disarm; editors replay it and must reach `after` (block identity aside) with the expected armed items.",
+  "cases": [
+    {
+      "name": "Unlinked items are drafts; armed ones are authored, others local; linked items are not drafts",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": true,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000003",
+                  "checked": false,
+                  "entityId": "11111111-1111-4111-8111-111111111111"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Linked"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000001",
+          "operation_id": "00000000-0000-0000-0000-000000000001",
+          "title": "Call Ana",
+          "text": "Call Ana",
+          "done": false,
+          "intent": "authored",
+          "parent_entity_id": null,
+          "path": [
+            0,
+            0
+          ]
+        },
+        {
+          "block_id": "b00000000000000000000000000000002",
+          "operation_id": "00000000-0000-0000-0000-000000000002",
+          "title": "Buy milk",
+          "text": "Buy milk",
+          "done": true,
+          "intent": "local",
+          "parent_entity_id": null,
+          "path": [
+            0,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "The title is the first paragraph's text trimmed, including ideographic spaces; text is exact",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "　 電話する 　"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000001",
+          "operation_id": "00000000-0000-0000-0000-000000000001",
+          "title": "電話する",
+          "text": "　 電話する 　",
+          "done": false,
+          "intent": "authored",
+          "parent_entity_id": null,
+          "path": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "An inline reference contributes no characters to the title",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Email "
+                      },
+                      {
+                        "type": "relayReference",
+                        "attrs": {
+                          "entityType": "Person",
+                          "entityId": "33333333-3333-4333-8333-333333333333",
+                          "label": "x",
+                          "source": null
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "text": " today"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": []
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000001",
+          "operation_id": "00000000-0000-0000-0000-000000000001",
+          "title": "Email  today",
+          "text": "Email  today",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": null,
+          "path": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "An empty item is still a draft, with an empty title",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000001",
+          "operation_id": "00000000-0000-0000-0000-000000000001",
+          "title": "",
+          "text": "",
+          "done": false,
+          "intent": "authored",
+          "parent_entity_id": null,
+          "path": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "An item whose relaymarkId is not b plus 32 lowercase hex has no draft",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "bAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Uppercase"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b1234",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Short"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "x11111111111111111111111111111111",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Prefix"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000004",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Valid"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": []
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000004",
+          "operation_id": "00000000-0000-0000-0000-000000000004",
+          "title": "Valid",
+          "text": "Valid",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": null,
+          "path": [
+            0,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "name": "The parent is the nearest enclosing linked task item",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": "11111111-1111-4111-8111-111111111111"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Outer"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "relaymarkId": "b00000000000000000000000000000002",
+                          "checked": false,
+                          "entityId": "22222222-2222-4222-8222-222222222222"
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Middle"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "taskList",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "taskItem",
+                                "attrs": {
+                                  "relaymarkId": "b00000000000000000000000000000003",
+                                  "checked": false,
+                                  "entityId": null
+                                },
+                                "content": [
+                                  {
+                                    "type": "paragraph",
+                                    "attrs": {
+                                      "relaymarkId": null
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Inner"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": []
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000003",
+          "operation_id": "00000000-0000-0000-0000-000000000003",
+          "title": "Inner",
+          "text": "Inner",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": "22222222-2222-4222-8222-222222222222",
+          "path": [
+            0,
+            0,
+            1,
+            0,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "An unlinked enclosing task item is skipped for an outer linked one",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": "11111111-1111-4111-8111-111111111111"
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Outer"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "relaymarkId": "b00000000000000000000000000000002",
+                          "checked": false,
+                          "entityId": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Middle"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "taskList",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "taskItem",
+                                "attrs": {
+                                  "relaymarkId": "b00000000000000000000000000000003",
+                                  "checked": false,
+                                  "entityId": null
+                                },
+                                "content": [
+                                  {
+                                    "type": "paragraph",
+                                    "attrs": {
+                                      "relaymarkId": null
+                                    },
+                                    "content": [
+                                      {
+                                        "type": "text",
+                                        "text": "Inner"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": []
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000002",
+          "operation_id": "00000000-0000-0000-0000-000000000002",
+          "title": "Middle",
+          "text": "Middle",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": "11111111-1111-4111-8111-111111111111",
+          "path": [
+            0,
+            0,
+            1,
+            0
+          ]
+        },
+        {
+          "block_id": "b00000000000000000000000000000003",
+          "operation_id": "00000000-0000-0000-0000-000000000003",
+          "title": "Inner",
+          "text": "Inner",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": "11111111-1111-4111-8111-111111111111",
+          "path": [
+            0,
+            0,
+            1,
+            0,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "A Task reference in an enclosing list item's first paragraph is the parent; other types are not",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "attrs": {
+                  "relaymarkId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Plan "
+                      },
+                      {
+                        "type": "relayReference",
+                        "attrs": {
+                          "entityType": "Task",
+                          "entityId": "11111111-1111-4111-8111-111111111111",
+                          "label": "x",
+                          "source": null
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "relaymarkId": "b00000000000000000000000000000001",
+                          "checked": false,
+                          "entityId": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Step"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "attrs": {
+                  "relaymarkId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "See "
+                      },
+                      {
+                        "type": "relayReference",
+                        "attrs": {
+                          "entityType": "Note",
+                          "entityId": "33333333-3333-4333-8333-333333333333",
+                          "label": "x",
+                          "source": null
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "relaymarkId": "b00000000000000000000000000000002",
+                          "checked": false,
+                          "entityId": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Other"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": []
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000001",
+          "operation_id": "00000000-0000-0000-0000-000000000001",
+          "title": "Step",
+          "text": "Step",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": "11111111-1111-4111-8111-111111111111",
+          "path": [
+            0,
+            0,
+            1,
+            0
+          ]
+        },
+        {
+          "block_id": "b00000000000000000000000000000002",
+          "operation_id": "00000000-0000-0000-0000-000000000002",
+          "title": "Other",
+          "text": "Other",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": null,
+          "path": [
+            0,
+            1,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Entity type matching for a reference parent ignores case",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "attrs": {
+                  "relaymarkId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "relayReference",
+                        "attrs": {
+                          "entityType": "task",
+                          "entityId": "22222222-2222-4222-8222-222222222222",
+                          "label": "x",
+                          "source": null
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "relaymarkId": "b00000000000000000000000000000001",
+                          "checked": false,
+                          "entityId": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Step"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": []
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000001",
+          "operation_id": "00000000-0000-0000-0000-000000000001",
+          "title": "Step",
+          "text": "Step",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": "22222222-2222-4222-8222-222222222222",
+          "path": [
+            0,
+            0,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "A typed checklist arms its new item",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "[ ]"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "input_rule"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "action": {
+        "type": "text",
+        "caret": 4,
+        "text": " "
+      }
+    },
+    {
+      "name": "A typed checklist arms its new item even with text after the caret",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "[ ]Call Ana"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "input_rule"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "action": {
+        "type": "text",
+        "caret": 4,
+        "text": " "
+      }
+    },
+    {
+      "name": "A typed checklist arms only items that are new, not other unarmed items",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Old"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "[ ]"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Old"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "input_rule"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000002"
+        ]
+      },
+      "action": {
+        "type": "text",
+        "caret": 13,
+        "text": " "
+      }
+    },
+    {
+      "name": "The checklist command arms a new empty item",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              }
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "command"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "action": {
+        "type": "command",
+        "command": "editor.list.task",
+        "from": 1,
+        "to": 1
+      }
+    },
+    {
+      "name": "The checklist command never arms converted lines that have text",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Call Ana"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005b"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Buy milk"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Buy milk"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "command"
+        }
+      },
+      "expected": {
+        "armed": []
+      },
+      "action": {
+        "type": "command",
+        "command": "editor.list.task",
+        "from": 1,
+        "to": 19
+      }
+    },
+    {
+      "name": "The checklist command arms only the empty items among converted lines",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Call Ana"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005b"
+              }
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "command"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000002"
+        ]
+      },
+      "action": {
+        "type": "command",
+        "command": "editor.list.task",
+        "from": 1,
+        "to": 11
+      }
+    },
+    {
+      "name": "A whitespace-only converted line counts as empty",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": " "
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": " "
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "command"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "action": {
+        "type": "command",
+        "command": "editor.list.task",
+        "from": 1,
+        "to": 2
+      }
+    },
+    {
+      "name": "Return in an armed item arms the new half and keeps the first",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": " Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "event": {
+          "kind": "split",
+          "from": "b00000000000000000000000000000001"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000001",
+          "b00000000000000000000000000000002"
+        ]
+      },
+      "action": {
+        "type": "key",
+        "key": "Enter",
+        "caret": 7
+      }
+    },
+    {
+      "name": "Return in an unarmed item arms nothing",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": " Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "split",
+          "from": "b00000000000000000000000000000001"
+        }
+      },
+      "expected": {
+        "armed": []
+      },
+      "action": {
+        "type": "key",
+        "key": "Enter",
+        "caret": 7
+      }
+    },
+    {
+      "name": "Return in a linked item arms nothing",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": "11111111-1111-4111-8111-111111111111"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": "11111111-1111-4111-8111-111111111111"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "split",
+          "from": "b00000000000000000000000000000001"
+        }
+      },
+      "expected": {
+        "armed": []
+      },
+      "action": {
+        "type": "key",
+        "key": "Enter",
+        "caret": 11
+      }
+    },
+    {
+      "name": "A remote change, paste or history step never arms a new item",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "relaymarkId": "b0000000000000000000000000000005a"
+              }
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Pasted"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "external"
+        }
+      },
+      "expected": {
+        "armed": []
+      },
+      "action": {
+        "type": "replace"
+      }
+    },
+    {
+      "name": "A remote change prunes a deleted or newly linked armed item",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Gone"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Linked"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000003",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Kept"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": "11111111-1111-4111-8111-111111111111"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Linked"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000003",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Kept"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001",
+          "b00000000000000000000000000000002",
+          "b00000000000000000000000000000003"
+        ],
+        "event": {
+          "kind": "external"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000003"
+        ]
+      },
+      "action": {
+        "type": "replace"
+      }
+    },
+    {
+      "name": "Arming by id arms existing unlinked items only",
+      "job": "task_draft_arm",
+      "input": [
+        null,
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "A"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": "11111111-1111-4111-8111-111111111111"
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "B"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [],
+        "event": {
+          "kind": "arm",
+          "ids": [
+            "b00000000000000000000000000000001",
+            "b00000000000000000000000000000002",
+            "b00000000000000000000000000000009"
+          ]
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "action": {
+        "type": "arm"
+      }
+    },
+    {
+      "name": "Disarming by id keeps the item as a checklist item",
+      "job": "task_draft_arm",
+      "input": [
+        null,
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "A"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "B"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001",
+          "b00000000000000000000000000000002"
+        ],
+        "event": {
+          "kind": "disarm",
+          "ids": [
+            "b00000000000000000000000000000001"
+          ]
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000002"
+        ]
+      },
+      "action": {
+        "type": "disarm"
+      }
+    },
+    {
+      "name": "The armed set comes back in document order",
+      "job": "task_draft_arm",
+      "input": [
+        null,
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000002",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "B"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "A"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001",
+          "b00000000000000000000000000000002"
+        ],
+        "event": {
+          "kind": "external"
+        }
+      },
+      "expected": {
+        "armed": [
+          "b00000000000000000000000000000002",
+          "b00000000000000000000000000000001"
+        ]
+      },
+      "action": {
+        "type": "replace"
+      }
+    },
+    {
+      "name": "Return finishes the armed draft with a title",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "return",
+        "before": 11
+      },
+      "expected": [
+        "b00000000000000000000000000000001"
+      ]
+    },
+    {
+      "name": "Return finishes nothing when the draft's title is empty",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "return",
+        "before": 3
+      },
+      "expected": []
+    },
+    {
+      "name": "Return during composition finishes nothing",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "return",
+        "before": 11,
+        "composing": true
+      },
+      "expected": []
+    },
+    {
+      "name": "Return in an unarmed item finishes nothing",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [],
+        "key": "return",
+        "before": 11
+      },
+      "expected": []
+    },
+    {
+      "name": "Moving to another item finishes the armed draft left",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "move",
+        "before": 5,
+        "after": 17
+      },
+      "expected": [
+        "b00000000000000000000000000000001"
+      ]
+    },
+    {
+      "name": "Moving within the same item finishes nothing",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "move",
+        "before": 5,
+        "after": 7
+      },
+      "expected": []
+    },
+    {
+      "name": "Moving out of the checklist finishes the armed draft left",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "move",
+        "before": 5,
+        "after": 28
+      },
+      "expected": [
+        "b00000000000000000000000000000001"
+      ]
+    },
+    {
+      "name": "Moving from outside any draft finishes nothing",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "move",
+        "before": 28,
+        "after": 5
+      },
+      "expected": []
+    },
+    {
+      "name": "The caret just after the first paragraph is still in the item",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "move",
+        "before": 12,
+        "after": 17
+      },
+      "expected": [
+        "b00000000000000000000000000000001"
+      ]
+    },
+    {
+      "name": "The position before an item is outside it",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "move",
+        "before": 5,
+        "after": 1
+      },
+      "expected": [
+        "b00000000000000000000000000000001"
+      ]
+    },
+    {
+      "name": "Ticking an armed draft's checkbox finishes it",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000002"
+        ],
+        "key": "checkbox",
+        "block": "b00000000000000000000000000000002"
+      },
+      "expected": [
+        "b00000000000000000000000000000002"
+      ]
+    },
+    {
+      "name": "Ticking an unarmed item's checkbox finishes nothing",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [],
+        "key": "checkbox",
+        "block": "b00000000000000000000000000000002"
+      },
+      "expected": []
+    }
+  ]
+}

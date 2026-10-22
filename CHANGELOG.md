@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- relaymark-core decides which checklist items are draft Tasks, for every
+  editor, through three jobs. `task_drafts` lists the unlinked task items, with
+  each item's title, its parent Task and an operation id derived from its block
+  identity. `task_draft_arm` gives the armed set after an editing event: a typed
+  checklist, the Checklist command (empty items only), Return in an armed item,
+  explicit arm and disarm, and remote, pasted or history changes, which only
+  prune. `task_draft_boundary` lists the armed drafts that Return, a caret move or
+  a checkbox tap finishes. The armed set stays the client's own state, never the
+  document's. The cases are in `spec/relaymark/editor/task-drafts-v1.json`.
 - The package links one Rust library. `RelayMarkFFI.xcframework` now holds
   `crates/relaymark-apple`, a megazord static library built from
   relaymark-ffi and yrs's binding `crates/yniffi` (vendored from Relay's
