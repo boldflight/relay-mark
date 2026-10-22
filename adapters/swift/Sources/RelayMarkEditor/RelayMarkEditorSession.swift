@@ -37,6 +37,9 @@ public final class RelayMarkEditorSession {
     @ObservationIgnored var projectionCache: (revision: Int, value: RelayMarkCollaborativeProse)?
     /// Sections of the text revision they were read from.
     @ObservationIgnored var sectionCache: (revision: Int, sections: [RelayPaperSection])?
+    /// A host's request to move keyboard focus into the paper, until a view takes it.
+    @ObservationIgnored var focusRequest: RelayPaperFocus?
+    @ObservationIgnored var onFocusRequest: (() -> Void)?
     /// Folded sections by destination name: this session's view state, never saved or synced.
     public internal(set) var foldedSections: Set<String> = []
     public var onSelectionChange: (() -> Void)?

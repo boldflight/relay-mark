@@ -804,6 +804,14 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                 guard let self, let view, !view.retired else { return }
                 self.update(view)
             }
+            session.onFocusRequest = { [weak self, weak view] in
+                guard let self, let view else { return }
+                takeFocusIfRequested(view)
+            }
+            view.onMovedToWindow = { [weak self, weak view] in
+                guard let self, let view else { return }
+                takeFocusIfRequested(view)
+            }
             if let taskSession = session as? RelayMarkEditorSession {
                 view.onTaskCheckbox = { [weak self, weak view] offset in
                     guard let self, let view, view.editingSession === session,
@@ -850,6 +858,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.setSelectedRange(NSRange(location: 0, length: 0))
             view.paper.remoteSelections = []
             view.unlinkPreviousTextElement()
+            if view.editingSession === session { session.onFocusRequest = nil }
             view.editingSession = nil
         }
         func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
@@ -901,6 +910,14 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         func update(_ view: CollaborationTextView) {
             apply(services, to: view)
             editor.update(view)
+        }
+        /// The host asked for focus in the paper: the view takes it, with the
+        /// session's selection, once it is in a window.
+        func takeFocusIfRequested(_ view: CollaborationTextView) {
+            guard session.focusRequest != nil, !view.retired, view.editingSession === session, let window = view.window else { return }
+            session.focusRequest = nil
+            update(view)
+            window.makeFirstResponder(view)
         }
         private func apply(_ services: RelayMarkEditorServices, to view: CollaborationTextView) {
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
@@ -1088,6 +1105,8 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     var onTaskCheckbox: ((Int) -> Bool)?
     /// The session changed outside TextKit's own editing; the coordinator shows it.
     var onSessionEdit: (() -> Void)?
+    /// The view entered a window, where it can take keyboard focus.
+    var onMovedToWindow: (() -> Void)?
     /// The host's text read before the paper. The paper holds it weakly; the title
     /// holds the paper, so VoiceOver reads them as one shared text.
     var previousTextElement: (() -> AnyObject?)?
@@ -1134,6 +1153,10 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
         guard paper.hoveredHeading != location else { return }
         paper.hoveredHeading = location
         needsDisplay = true
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        onMovedToWindow?()
     }
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
@@ -1575,6 +1598,14 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 guard let self, let view, !view.retired else { return }
                 self.update(view)
             }
+            session.onFocusRequest = { [weak self, weak view] in
+                guard let self, let view else { return }
+                takeFocusIfRequested(view)
+            }
+            view.onMovedToWindow = { [weak self, weak view] in
+                guard let self, let view else { return }
+                takeFocusIfRequested(view)
+            }
             if let taskSession = session as? RelayMarkEditorSession {
                 view.onTaskCheckbox = { [weak self, weak view] offset in
                     guard let self, let view, view.editingSession === session,
@@ -1629,6 +1660,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             view.selectedRange = NSRange(location: 0, length: 0)
             view.paper.remoteSelections = []
             view.unlinkPreviousTextElement()
+            if view.editingSession === session { session.onFocusRequest = nil }
             view.editingSession = nil
         }
         func textView(_ textView: UITextView, editMenuForTextInRanges ranges: [NSValue],
@@ -1843,6 +1875,14 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             apply(services, to: view)
             editor.update(view)
         }
+        /// The host asked for focus in the paper: the view takes it, with the
+        /// session's selection, once it is in a window.
+        func takeFocusIfRequested(_ view: CollaborationTextView) {
+            guard session.focusRequest != nil, !view.retired, view.editingSession === session, view.window != nil else { return }
+            session.focusRequest = nil
+            update(view)
+            view.becomeFirstResponder()
+        }
         private func apply(_ services: RelayMarkEditorServices, to view: CollaborationTextView) {
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
@@ -2022,6 +2062,12 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     var onTaskCheckbox: ((Int) -> Bool)?
     /// The session changed outside TextKit's own editing; the coordinator shows it.
     var onSessionEdit: (() -> Void)?
+    /// The view entered a window, where it can take keyboard focus.
+    var onMovedToWindow: (() -> Void)?
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        onMovedToWindow?()
+    }
     @objc func handleTaskTap(_ gesture: UITapGestureRecognizer) {
         guard gesture.state == .ended, !retired, markedTextRange == nil else { return }
         let point = gesture.location(in: self)
