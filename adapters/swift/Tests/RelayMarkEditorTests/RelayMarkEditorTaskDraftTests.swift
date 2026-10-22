@@ -129,6 +129,27 @@ struct RelayMarkEditorTaskDraftTests {
         #expect(paper.finished.map(\.done) == [false, true])
     }
 
+    // Bug caught: a checkbox tap while composing Japanese neither ticking the
+    // item nor finishing the draft, so the Task is never created (Douglas, M10).
+    @Test("A checkbox tap during IME composition commits the title and finishes the draft")
+    func checkboxDuringComposition() throws {
+        let paper = try Paper([["type": "paragraph"]]); defer { paper.retire() }
+        paper.place(0)
+        paper.type("[ ] ")
+        let item = try #require(paper.editor.nativeTaskItems.first)
+        #expect(paper.armedTitles == [""])
+        #if os(macOS)
+        paper.view.setMarkedText("電話する", selectedRange: NSRange(location: 4, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+        #else
+        paper.view.setMarkedText("電話する", selectedRange: NSRange(location: 4, length: 0))
+        #endif
+        #expect(paper.view.hasMarkedInput)
+        #expect(paper.view.onTaskCheckbox?(item.firstParagraphRange.location) == true)
+        #expect(paper.finished.map { ($0.title, $0.done) } .elementsEqual([("電話する", true)], by: ==))
+        // The composition ended in the session; AppKit's own marked range is not read headless.
+        #expect(paper.editor.activeComposition == nil && paper.editor.failure == nil)
+    }
+
     // Bug caught: VoiceOver reading a draft and a linked Task as the same plain
     // line, so a person never hears which items become Tasks.
     @Test("VoiceOver hears whether the item at the caret is a draft or a linked Task")
@@ -144,7 +165,7 @@ struct RelayMarkEditorTaskDraftTests {
         paper.place(items[0].firstParagraphRange.location + 2)
         #expect(content() == ["Checklist item: Task"])
         paper.place(NSMaxRange(items[1].firstParagraphRange))
-        #expect(content() == ["Checklist item: Not a task"])
+        #expect(content().isEmpty)
         paper.editor.armTaskDrafts([items[1].id])
         #expect(content() == ["Checklist item: Draft task"])
         paper.place(0)

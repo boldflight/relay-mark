@@ -326,17 +326,6 @@
         }
       }
     },
-    "Not a task" : {
-      "comment" : "VoiceOver value of a checklist item that is not linked to a Task.",
-      "localizations" : {
-        "ja" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "タスクではありません"
-          }
-        }
-      }
-    },
     "Numbered List" : {
       "comment" : "Editor command that makes the block a numbered list.",
       "localizations" : {

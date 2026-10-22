@@ -817,8 +817,11 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             }
             if let taskSession = session as? RelayMarkEditorSession {
                 view.onTaskCheckbox = { [weak self, weak view] offset in
-                    guard let self, let view, view.editingSession === session,
-                          taskSession.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
+                    guard let self, let view, view.editingSession === session else { return false }
+                    // A tap mid-composition commits the composed title first, so the
+                    // draft finishes with the words typed (Douglas, M10).
+                    if view.hasMarkedInput { do { try finishComposition(view) } catch { return false } }
+                    guard taskSession.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
                     self.update(view)
                     return true
                 }
@@ -995,7 +998,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     nonisolated var accessibilityCustomContent: [AXCustomContent]! {
         get {
             let content = MainActor.assumeIsolated { paperAccessibilityContent() }
-            return content.map { AXCustomContent(label: $0.label, value: $0.value) }
+            return content.map { let item = AXCustomContent(label: $0.label, value: $0.value); item.importance = .high; return item }
         }
         set {}
     }
@@ -1184,7 +1187,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
         }
         if !retired, !hasMarkedText(), let onPaperButton,
            let offset = characterOffset(at: point), onPaperButton(offset) { return }
-        if !retired, isEditable, !hasMarkedText(), let onTaskCheckbox,
+        if !retired, isEditable, let onTaskCheckbox,
            let offset = taskCheckboxOffset(at: point), onTaskCheckbox(offset) { return }
         super.mouseDown(with: event)
     }
@@ -1626,8 +1629,11 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             }
             if let taskSession = session as? RelayMarkEditorSession {
                 view.onTaskCheckbox = { [weak self, weak view] offset in
-                    guard let self, let view, view.editingSession === session,
-                          taskSession.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
+                    guard let self, let view, view.editingSession === session else { return false }
+                    // A tap mid-composition commits the composed title first, so the
+                    // draft finishes with the words typed (Douglas, M10).
+                    if view.hasMarkedInput { do { try finishComposition(view) } catch { return false } }
+                    guard taskSession.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
                     self.update(view)
                     return true
                 }
@@ -2004,7 +2010,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     nonisolated var accessibilityCustomContent: [AXCustomContent]! {
         get {
             let content = MainActor.assumeIsolated { paperAccessibilityContent() }
-            return content.map { AXCustomContent(label: $0.label, value: $0.value) }
+            return content.map { let item = AXCustomContent(label: $0.label, value: $0.value); item.importance = .high; return item }
         }
         set {}
     }
