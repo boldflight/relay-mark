@@ -66,6 +66,9 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     public var collaboratorColor: (String) -> Color
     /// Commands on the selection that assistive technologies offer as edit actions.
     public var selectionActions: [RelayMarkSelectionAction]
+    /// The text view read just before the paper, such as the host's title field:
+    /// VoiceOver's line-by-line reading and read-all go from it into the paper.
+    public var previousTextElement: (() -> AnyObject?)?
     /// The link to a section of this paper by its destination name, for
     /// "Copy link to this section"; nil offers no link.
     public var sectionLink: ((String) -> URL?)?

@@ -849,6 +849,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.paper.tables = RelayTableSpans(); view.paper.tableAttachments = [:]
             view.setSelectedRange(NSRange(location: 0, length: 0))
             view.paper.remoteSelections = []
+            view.unlinkPreviousTextElement()
             view.editingSession = nil
         }
         func textView(_ view: NSTextView, menu: NSMenu, for event: NSEvent, at charIndex: Int) -> NSMenu? {
@@ -906,6 +907,8 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
             view.selectionActions = services.selectionActions
+            view.previousTextElement = services.previousTextElement
+            view.linkPreviousTextElement()
         }
     }
 }
@@ -1085,6 +1088,22 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     var onTaskCheckbox: ((Int) -> Bool)?
     /// The session changed outside TextKit's own editing; the coordinator shows it.
     var onSessionEdit: (() -> Void)?
+    /// The host's text read before the paper. The paper holds it weakly; the title
+    /// holds the paper, so VoiceOver reads them as one shared text.
+    var previousTextElement: (() -> AnyObject?)?
+    override func accessibilitySharedTextUIElements() -> [Any]? {
+        guard let previous = previousTextElement?() else { return super.accessibilitySharedTextUIElements() }
+        return [previous, self]
+    }
+    func linkPreviousTextElement() {
+        guard let title = previousTextElement?() as? NSView else { return }
+        title.setAccessibilitySharedTextUIElements([title, self])
+    }
+    func unlinkPreviousTextElement() {
+        guard let title = previousTextElement?() as? NSView,
+              (title.accessibilitySharedTextUIElements() ?? []).contains(where: { $0 as AnyObject === self }) else { return }
+        title.setAccessibilitySharedTextUIElements(nil)
+    }
     /// The paper's leading margin is wider than its trailing one by the gutter.
     override var textContainerOrigin: NSPoint {
         let origin = super.textContainerOrigin
@@ -1609,6 +1628,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             view.paper.tables = RelayTableSpans(); view.paper.tableAttachments = [:]
             view.selectedRange = NSRange(location: 0, length: 0)
             view.paper.remoteSelections = []
+            view.unlinkPreviousTextElement()
             view.editingSession = nil
         }
         func textView(_ textView: UITextView, editMenuForTextInRanges ranges: [NSValue],
@@ -1828,6 +1848,8 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
             view.selectionActions = services.selectionActions
+            view.previousTextElement = services.previousTextElement
+            view.linkPreviousTextElement()
         }
     }
 }
@@ -1881,6 +1903,21 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     private var contentStorage: NSTextContentStorage?
     let paper = RelayPaperViewState()
     var paperStorage: NSTextStorage { textStorage }
+    /// The host's text read before the paper. The paper holds it weakly; the title
+    /// holds the paper, so VoiceOver's line reading crosses from one to the other.
+    var previousTextElement: (() -> AnyObject?)?
+    override var accessibilityPreviousTextNavigationElement: Any? {
+        get { previousTextElement?() ?? super.accessibilityPreviousTextNavigationElement }
+        set { super.accessibilityPreviousTextNavigationElement = newValue }
+    }
+    func linkPreviousTextElement() {
+        (previousTextElement?() as? NSObject)?.accessibilityNextTextNavigationElement = self
+    }
+    func unlinkPreviousTextElement() {
+        guard let title = previousTextElement?() as? NSObject,
+              title.accessibilityNextTextNavigationElement as AnyObject? === self else { return }
+        title.accessibilityNextTextNavigationElement = nil
+    }
     /// The keyboard keeps its language per context; the paper and its cells are one.
     static let keyboardContext = "relay.paper"
     override var textInputContextIdentifier: String? { Self.keyboardContext }
