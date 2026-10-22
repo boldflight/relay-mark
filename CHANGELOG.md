@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- The Swift editor makes checklist items draft Tasks as the web does. A typed
+  `[ ] `, the Checklist command on an empty line and Return in an armed item
+  arm one; leaving it, Return and ticking it finish it, and
+  `RelayMarkEditorSession.onTaskDraftsFinished` hands the host each finished
+  `RelayTaskDraft`. Hosts turn this on with `createsTaskDrafts`, and arm or keep
+  items local with `armTaskDrafts(_:)` and `keepTaskDraftsLocal(_:)`.
+  relaymark-core's task_draft jobs decide, reading an outline of the task items
+  only; nothing runs while no draft is armed. A peer's edit that shifts the text
+  never finishes a draft. `RelayMarkNativeDocument.taskTitleAnchor(itemPath:)`
+  gives the Yjs anchor task creation sends, as y-prosemirror makes it.
+  `onTypedShortcut` is gone; nothing used it.
 - relaymark-core decides which checklist items are draft Tasks, for every
   editor, through three jobs. `task_drafts` lists the unlinked task items, with
   each item's title, its parent Task and an operation id derived from its block

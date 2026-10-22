@@ -467,6 +467,14 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         guard isEditable, pending == nil, activeComposition == nil else { return false }
         let revisionBefore = document.revision, textBefore = textRevision
         var exit = false, removed: String?
+        // Return in an armed draft starts the next draft; only then are task items read.
+        let splitDraft: (before: [RelayMarkCollaborativeProse.TaskItem], from: String)? = {
+            guard replacement == "\n", !pasting, !armedTaskDrafts.isEmpty else { return nil }
+            let items = nativeTaskItems
+            guard let item = items.last(where: { range.location >= $0.firstParagraphRange.location && range.location <= NSMaxRange($0.firstParagraphRange) }),
+                  armedTaskDrafts.contains(item.id) else { return nil }
+            return (items, item.id)
+        }()
         // The first text typed where no text leaf exists yet, as in an empty
         // paragraph or cell, takes the stored marks there.
         let stored = storedTyping.flatMap { context -> (data: Data, value: [String: Any])? in
@@ -521,6 +529,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         let splice = rewrites.flatMap { splice($0, after: revisionBefore) }
         guard let projection = try? currentProjection() else { return true }
         text = projection.text
+        if let splitDraft { armTaskDrafts(event: ["kind": "split", "from": splitDraft.from], before: splitDraft.before) }
         // Return at a caret lands after the split, or on the block an empty item exits to.
         let caret: Int?
         if replacement == "\n", range.length == 0 {
@@ -552,6 +561,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         guard isEditable, pending == nil, activeComposition == nil, range.length == 0,
               let last = replacement.last, RelayMarkContentEditCodec.inputRuleTriggers.contains(last) else { return false }
         let revisionBefore = document.revision, textBefore = textRevision
+        let tasksBefore = createsTaskDrafts ? nativeTaskItems : nil
         let applied: (change: RelayMarkNativeRichEditing.Change, rule: String, rewrites: Rewritten?)?
         do {
             applied = try reading { paper in
@@ -581,7 +591,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         }
         pending = RelayMarkLocalTransaction(id: preparedLocalOperationID ?? UUID(), update: change.update, inputIntent: nil)
         retryPersistence()
-        onTypedShortcut?(rule)
+        if rule == "taskItem", let tasksBefore { armTaskDrafts(event: ["kind": "input_rule"], before: tasksBefore) }
         return true
     }
 

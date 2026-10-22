@@ -201,9 +201,17 @@ public final class RelayMarkEditorSession {
     /// A task item bound to an entity, whose checkbox the host changes through
     /// that entity's own update; nil, or false from it, leaves it unchanged.
     @ObservationIgnored public var onLinkedTaskItem: ((RelayMarkCollaborativeProse.TaskItem) -> Bool)?
-    /// A typed Markdown shortcut was applied, named by the node or mark it made
-    /// (`taskItem` for a checklist). Hosts that act on new structure hook here.
-    @ObservationIgnored public var onTypedShortcut: ((String) -> Void)?
+    /// Whether new checklist items start as draft Tasks. A host turns it on for
+    /// a paper whose checklist items it can make into Tasks.
+    @ObservationIgnored public var createsTaskDrafts = false
+    /// The draft Tasks this person started on purpose, by block identity: this
+    /// editor's own state, never stored in or sent with the document.
+    @ObservationIgnored public internal(set) var armedTaskDrafts: [String] = []
+    /// The armed item that held the caret, which leaving finishes.
+    @ObservationIgnored var caretTaskDraft: String?
+    /// Drafts a person finished by Return, leaving the item or ticking it. They
+    /// are no longer armed: the host makes them into Tasks, or arms them again.
+    @ObservationIgnored public var onTaskDraftsFinished: (([RelayTaskDraft]) -> Void)?
     /// While true, Undo and Redo wait, as for a host's command in flight.
     @ObservationIgnored public var pausesHistory = false
 
@@ -219,8 +227,11 @@ public final class RelayMarkEditorSession {
             }
             return onLinkedTaskItem(item)
         }
-        do { _ = try toggleTaskItems(item); return failure == nil }
-        catch { failure = error.localizedDescription; return false }
+        do {
+            _ = try toggleTaskItems(item)
+            finishTaskDraftOnCheckbox(item.id)
+            return failure == nil
+        } catch { failure = error.localizedDescription; return false }
     }
 
     /// Checks or unchecks `item` and the `items` reviewed with it as one
@@ -673,6 +684,7 @@ public final class RelayMarkEditorSession {
               range.location <= length, range.length <= length - range.location else { return }
         selectedRange = range
         revealSections(holding: range.location)
+        noteTaskDraftCaret(range.location)
         onSelectionChange?()
     }
 

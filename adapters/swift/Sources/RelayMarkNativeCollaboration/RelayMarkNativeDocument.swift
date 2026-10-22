@@ -838,6 +838,33 @@ public final class RelayMarkNativeDocument {
         }
     }
 
+    /// The anchor of a task item's first paragraph that task creation sends,
+    /// as y-prosemirror makes it on the web: from the start of its first text to
+    /// the end of its last, in Yjs's JSON form. The server resolves it against
+    /// the body it holds and refuses a moved or changed item.
+    public func taskTitleAnchor(itemPath: [Int]) throws -> (from: [String: Any], to: [String: Any]) {
+        let paragraph = itemPath + [0]
+        let shape: (first: String?, last: String?, count: Int, lastLength: Int) = try document.transactSync { transaction in
+            var node = self.root
+            for component in paragraph {
+                guard component >= 0, let child = node.child(at: UInt32(component), in: transaction) else { throw Failure.invalidAnchor }
+                node = child
+            }
+            guard node.tag(in: transaction) == "paragraph" else { throw Failure.invalidAnchor }
+            let children = node.children(in: transaction)
+            return (children.first?.kind(in: transaction), children.last?.kind(in: transaction), children.count,
+                    Int(children.last?.length(in: transaction) ?? 0))
+        }
+        // A title with no content makes no Task.
+        guard shape.count > 0 else { throw Failure.invalidAnchor }
+        let from = shape.first == "text" ? try anchor(path: paragraph + [0], index: 0, association: -1)
+            : try anchor(path: paragraph, index: 0, association: -1)
+        // y-prosemirror ends past a trailing atom with the paragraph's own end position.
+        let to = shape.last == "text" ? try anchor(path: paragraph + [shape.count - 1], index: shape.lastLength, association: -1)
+            : try anchor(path: paragraph, index: shape.count, association: 0)
+        return (try YDocument.relativePositionJSON(from: from), try YDocument.relativePositionJSON(from: to))
+    }
+
     /// Resolve a portable Yjs anchor against the current document. Deleted or
     /// foreign XML nodes have no path in this tree and therefore return nil.
     public func resolve(anchor: Data) throws -> Position? {

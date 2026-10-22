@@ -119,6 +119,9 @@ public extension RelayMarkEditorSession {
 
     /// Runs the command on the current selection.
     func perform(_ command: RelayMarkEditorCommand) {
+        // A new checklist made by the command arms its empty items; converted lines stay local.
+        let tasksBefore = command.id == "editor.list.task" && createsTaskDrafts ? nativeTaskItems : nil
+        defer { if let tasksBefore { armTaskDrafts(event: ["kind": "command"], before: tasksBefore) } }
         switch command.operation {
         case .block(let style): setSelectedBlockStyle(style)
         case .listDepth(let change): changeSelectedListDepth(change)
