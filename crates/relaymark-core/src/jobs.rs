@@ -155,6 +155,9 @@ fn dispatch(job: &str, input: &[u8], options: &[u8]) -> Answer {
             };
             Ok(value_out(Value::Bool(rm::edit::input_rule_matches(before, text))))
         }
+        "task_drafts" => engine(rm::edit::task_drafts(&json(input)?, &options), value_out),
+        "task_draft_arm" => engine(rm::edit::task_draft_arm(&json(input)?, &options), value_out),
+        "task_draft_boundary" => engine(rm::edit::task_draft_boundary(&json(input)?, &options), value_out),
         "clipboard_anchors" => engine(rm::edit::plan_clipboard_anchors(&json(input)?), value_out),
         "clipboard_headings" => engine(rm::edit::plan_clipboard_headings(&json(input)?), value_out),
         "contract" => Ok(value_out(rm::contract())),

@@ -48,6 +48,7 @@ mod registry;
 mod schema;
 mod snapshot;
 mod source;
+mod task_drafts;
 mod transport;
 mod validate;
 
@@ -315,6 +316,22 @@ pub mod edit {
     /// repairs for a paste, with their correspondence.
     pub fn plan_clipboard_headings(input: &Value) -> Result<Value> {
         crate::clipboard_navigation::plan_heading_navigation(input)
+    }
+
+    /// The unlinked task items a document holds as draft Tasks:
+    /// `[{block_id, operation_id, title, text, done, intent, parent_entity_id, path}]`.
+    pub fn task_drafts(document: &Value, options: &Value) -> Result<Value> {
+        crate::task_drafts::drafts(document, options)
+    }
+
+    /// `{armed}` after an editing event, from `[before, after]`.
+    pub fn task_draft_arm(documents: &Value, options: &Value) -> Result<Value> {
+        crate::task_drafts::arm(documents, options)
+    }
+
+    /// The armed drafts an editing boundary finishes, as block ids.
+    pub fn task_draft_boundary(document: &Value, options: &Value) -> Result<Value> {
+        crate::task_drafts::boundary(document, options)
     }
 
     /// `prepareContentEditWrite(before, steps, after)`.

@@ -7,6 +7,14 @@ import { projectManifest } from "./projections.js";
 import { validateTransportedAgentAnswerPair } from "./transport.js";
 import { validateDocument } from "./validator.js";
 import { composeLayerContributions } from "./composition.js";
+import { taskDrafts, taskDraftArm, taskDraftBoundary } from "./task-drafts.js";
+
+/** Editor rules by relaymark-core job name, as `cases` fixtures call them. */
+const editorJobs = {
+  task_drafts: taskDrafts,
+  task_draft_arm: taskDraftArm,
+  task_draft_boundary: taskDraftBoundary
+};
 
 export function runConformanceSuite(path) {
   const suitePath = resolve(path);
@@ -15,6 +23,11 @@ export function runConformanceSuite(path) {
   const fixtures = [];
 
   for (const fixture of suite.fixtures || []) {
+    if (fixture.cases) {
+      const errors = jobCaseErrors(JSON.parse(readFileSync(resolve(suiteDir, fixture.cases), "utf8")));
+      fixtures.push({ id: fixture.id, ok: errors.length === 0, errors });
+      continue;
+    }
     const actual = fixture.input_composition
       ? compileComposition(resolve(suiteDir, fixture.input_composition))
       : fixture.input_manifest
@@ -102,6 +115,37 @@ export function runConformanceSuite(path) {
     ok: fixtures.every((fixture) => fixture.ok),
     fixtures
   };
+}
+
+/** A `cases` fixture: each case names a job, and `expected` is that job's
+ * exact output for `input` and `options`, or `expected_error` its refusal. */
+function jobCaseErrors(fixture) {
+  const errors = [];
+
+  for (const { name, job, input, options, expected, expected_error: refusal } of fixture.cases || []) {
+    const run = editorJobs[job];
+
+    if (!run) {
+      errors.push(`${name}: unknown job ${job}`);
+      continue;
+    }
+
+    try {
+      const actual = run(structuredClone(input), structuredClone(options ?? null));
+
+      if (refusal !== undefined) {
+        errors.push(`${name}: answered ${JSON.stringify(actual)}`);
+      } else if (!equalCanonicalJSON(actual, expected)) {
+        errors.push(`${name}: ${JSON.stringify(actual)}`);
+      }
+    } catch (error) {
+      if (error.message !== refusal) {
+        errors.push(`${name}: ${error.message}`);
+      }
+    }
+  }
+
+  return errors;
 }
 
 function compileCanonicalAST(path, validationContext = {}) {

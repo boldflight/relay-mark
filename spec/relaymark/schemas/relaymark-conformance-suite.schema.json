@@ -40,6 +40,10 @@
         "source": {
           "type": "string"
         },
+        "cases": {
+          "description": "Editor rules run by relaymark-core job name: each case names a job, its input and options, and the job's exact output.",
+          "type": "string"
+        },
         "input_ast": {
           "type": "string"
         },
@@ -81,9 +85,27 @@
       },
       "oneOf": [
         {
+          "required": ["cases"],
+          "not": {
+            "anyOf": [
+              {"required": ["source"]},
+              {"required": ["input_ast"]},
+              {"required": ["input_manifest"]},
+              {"required": ["input_composition"]},
+              {"required": ["expected_ast"]},
+              {"required": ["expected_manifest"]},
+              {"required": ["expected_diagnostics"]},
+              {"required": ["expected_composition"]},
+              {"required": ["schemas"]},
+              {"required": ["validation_context"]}
+            ]
+          }
+        },
+        {
           "required": ["source"],
           "not": {
             "anyOf": [
+              {"required": ["cases"]},
               {"required": ["input_ast"]},
               {"required": ["input_manifest"]},
               {"required": ["input_composition"]}
@@ -94,6 +116,7 @@
           "required": ["input_ast"],
           "not": {
             "anyOf": [
+              {"required": ["cases"]},
               {"required": ["source"]},
               {"required": ["input_composition"]}
             ]
@@ -103,6 +126,7 @@
           "required": ["input_composition", "expected_composition"],
           "not": {
             "anyOf": [
+              {"required": ["cases"]},
               {"required": ["source"]},
               {"required": ["input_ast"]},
               {"required": ["input_manifest"]}
