@@ -32,6 +32,7 @@ mod error;
 mod html;
 mod html_import;
 mod inline;
+mod input_rules;
 pub mod jobs;
 mod json;
 mod json_schema;
@@ -287,6 +288,22 @@ pub mod edit {
     /// stored_text_attributes}`.
     pub fn command(document: &Value, request: &Value) -> Result<Value> {
         crate::content_edit::create_content_edit_command(document, request)
+    }
+
+    /// `{selection, text}` typed into `document`: the typed Markdown shortcut it
+    /// completes, as the editing command evidence plus `rule`, or null.
+    pub fn input_rule(document: &Value, request: &Value) -> Result<Value> {
+        crate::input_rules::apply(document, request)
+    }
+
+    /// The characters a typed shortcut can end with.
+    pub fn input_rule_triggers() -> &'static str {
+        crate::input_rules::triggers()
+    }
+
+    /// Whether typing `typed` after a textblock's `before` text could complete a shortcut.
+    pub fn input_rule_matches(before: &str, typed: &str) -> bool {
+        crate::input_rules::matches(before, typed)
     }
 
     /// `planClipboardAnchorAllocation(input)`: anchor renames for a paste.

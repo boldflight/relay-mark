@@ -49,6 +49,24 @@ public enum RelayMarkContentEditCodec {
     public static func command(document: Data, request: Data) throws -> Data {
         try RelayMarkEngineCall.run("edit_command", RelayMarkEngineCall.array([document, request]))
     }
+
+    /// The typed Markdown shortcut `{selection, text}` completes in `document`,
+    /// in the command evidence shape plus `rule`, or JSON null when none does.
+    public static func inputRule(document: Data, request: Data) throws -> Data {
+        try RelayMarkEngineCall.run("edit_input_rule", RelayMarkEngineCall.array([document, request]))
+    }
+
+    /// The characters a typed shortcut can end with; typing anything else completes none.
+    public static let inputRuleTriggers: Set<Character> = {
+        Set((try? RelayMarkEngineCall.text("input_rule_triggers", Data())) ?? "")
+    }()
+
+    /// Whether typing `text` after a block's `before` text could complete a shortcut.
+    public static func inputRuleMatches(before: String, text: String) -> Bool {
+        guard let request = try? RelayMarkEngineCall.json(["before": before, "text": text]),
+              let answer = try? RelayMarkEngineCall.run("input_rule_matches", request) else { return false }
+        return answer == Data("true".utf8)
+    }
     /// Pure clipboard Slice parser; returned context grants no host authority.
     public static func importClipboardHTML(_ html: String, namespace: String) throws -> Data {
         try RelayMarkEngineCall.run("import_clipboard_html", text: html, options: ["namespace": namespace])

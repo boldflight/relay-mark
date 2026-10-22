@@ -318,6 +318,12 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         }
         if tables.touchesTableLine(range) { refuse(); return false }
         let paper = tables.paper(range)
+        // A keystroke completing a typed Markdown shortcut becomes its structure or mark.
+        if composition == nil, !view.hasMarkedInput, !pasting,
+           session.applyInputRuleNatively(range: paper, replacement: replacement) {
+            update(view)
+            return false
+        }
         if composition == nil, !view.hasMarkedInput, !pasting,
            session.canTypeNatively(range: paper, replacement: replacement) {
             pendingTyping = (range, paper, replacement)

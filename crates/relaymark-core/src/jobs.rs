@@ -143,6 +143,18 @@ fn dispatch(job: &str, input: &[u8], options: &[u8]) -> Answer {
             let span = (!a[5].is_null()).then_some(&a[5]);
             engine(rm::edit::plan_text_write(&a[0], &a[1], &a[2], &a[3], &a[4], span), value_out)
         }
+        "edit_input_rule" => {
+            let a = arguments(input, 2)?;
+            engine(rm::edit::input_rule(&a[0], &a[1]), value_out)
+        }
+        "input_rule_triggers" => Ok(rm::edit::input_rule_triggers().as_bytes().to_vec()),
+        "input_rule_matches" => {
+            let request = json(input)?;
+            let (Some(before), Some(text)) = (request.get("before").and_then(Value::as_str), request.get("text").and_then(Value::as_str)) else {
+                return Err("Invalid input rule match".to_owned());
+            };
+            Ok(value_out(Value::Bool(rm::edit::input_rule_matches(before, text))))
+        }
         "clipboard_anchors" => engine(rm::edit::plan_clipboard_anchors(&json(input)?), value_out),
         "clipboard_headings" => engine(rm::edit::plan_clipboard_headings(&json(input)?), value_out),
         "contract" => Ok(value_out(rm::contract())),

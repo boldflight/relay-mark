@@ -543,6 +543,48 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         return true
     }
 
+    /// A keystroke that completes a typed Markdown shortcut (`- `, `[ ] `,
+    /// `**bold**`), applied as the web's input rules apply it: the shortcut's
+    /// text becomes the structure or mark, as one undo step, and the keystroke
+    /// itself is not typed. Only a rule's last character costs more than a
+    /// set lookup; marked (IME) input never reaches here.
+    func applyInputRuleNatively(range: NSRange, replacement: String) -> Bool {
+        guard isEditable, pending == nil, activeComposition == nil, range.length == 0,
+              let last = replacement.last, RelayMarkContentEditCodec.inputRuleTriggers.contains(last) else { return false }
+        let revisionBefore = document.revision, textBefore = textRevision
+        let applied: (change: RelayMarkNativeRichEditing.Change, rule: String, rewrites: Rewritten?)?
+        do {
+            applied = try reading { paper in
+                guard let block = paper.block(containingUTF16: range.location) else { return nil }
+                let offset = range.location - block.range.location
+                let window = NSRange(location: block.range.location + max(0, offset - 500), length: min(offset, 500))
+                guard let bounds = Range(window, in: text),
+                      RelayMarkNativeInputRule.mayComplete(before: String(text[bounds].characters), typing: replacement),
+                      let result = try ownedChange({ try RelayMarkNativeInputRule.apply(document: document, blockPath: block.path,
+                          utf16Offset: offset, text: replacement, paper: paper) },
+                          separateHistoryItem: true, update: { $0?.change.update ?? Data([0, 0]) }) else { return nil }
+                return (result.change, result.rule, rewritten(result.change, paper: paper))
+            }
+        } catch { return false }
+        guard let (change, rule, rewrites) = applied else { return false }
+        let splice = rewrites.flatMap { splice($0, after: revisionBefore) }
+        guard let projection = try? currentProjection() else { return true }
+        text = projection.text
+        let caret = change.caret.flatMap { caret in projection.blockRange(path: caret.blockPath).map { $0.location + caret.offset } }
+        let selection = min(caret ?? range.location, text.utf16.count)
+        setNativeSelection(NSRange(location: selection, length: 0))
+        try? retainTypingContext(change.storedTextAttributes, caret: selection)
+        if let splice, let restricted = splice.restricted {
+            var region = self.region(of: restricted)
+            region.content = splice.nodes?.content ?? region.content
+            textSplice = RelayTextSplice(from: textBefore, to: textRevision, ranges: splice.ranges, nodes: region)
+        }
+        pending = RelayMarkLocalTransaction(id: preparedLocalOperationID ?? UUID(), update: change.update, inputIntent: nil)
+        retryPersistence()
+        onTypedShortcut?(rule)
+        return true
+    }
+
     func handleNativeEdgeDeletion(backward: Bool) -> Bool {
         guard isEditable, pending == nil,
               activeComposition == nil, let selection = nativeSelection, selection.length == 0 else { return false }

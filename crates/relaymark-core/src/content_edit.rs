@@ -565,6 +565,12 @@ pub fn create_content_edit_command(document: &Value, request: &Value) -> Result<
             }
         }
     }
+    command_result(&doc, tr, kind)
+}
+
+/// A command's evidence for the native owner: its Steps, the document and
+/// selection they produce, the block identities they retain, and stored marks.
+pub(crate) fn command_result(doc: &Node, mut tr: crate::pm::state::Transaction, kind: &str) -> Result<Value> {
     tr.doc.check()?;
     let mut retained = Map::new();
     let final_doc = tr.doc.clone();

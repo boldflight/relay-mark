@@ -592,8 +592,29 @@ public enum RelayMarkNativeRichEditing {
         let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
         let response = try RelayMarkContentEditCodec.command(document: JSONSerialization.data(withJSONObject: source.json()),
             request: JSONSerialization.data(withJSONObject: ["command": name, "selection": selection]))
-        guard let result = try JSONSerialization.jsonObject(with: response) as? [String: Any],
-              let steps = result["steps"] as? [[String: Any]], let expected = result["document"] as? [String: Any],
+        guard let result = try JSONSerialization.jsonObject(with: response) as? [String: Any] else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        return try adopt(result, source: source, bridge: bridge, document: document, scope: scope)
+    }
+
+    /// The typed Markdown shortcut `text` completes at `selection`, as the web
+    /// editor's input rules apply it; nil when none does and the text is typed.
+    static func inputRule(document: RelayMarkNativeDocument, tree: [String: Any], text: String,
+                          selection: [String: Any], scope: Scope? = nil) throws -> (change: Change, rule: String)? {
+        let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
+        let response = try RelayMarkContentEditCodec.inputRule(document: JSONSerialization.data(withJSONObject: source.json()),
+            request: JSONSerialization.data(withJSONObject: ["selection": selection, "text": text]))
+        guard let result = try JSONSerialization.jsonObject(with: response, options: .fragmentsAllowed) as? [String: Any] else { return nil }
+        guard let rule = result["rule"] as? String else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+        return (try adopt(result, source: source, bridge: bridge, document: document, scope: scope).change, rule)
+    }
+
+    /// Applies a command's exact Steps through this native PM/Yrs owner and
+    /// checks they produce the document the command reported.
+    private static func adopt(_ result: [String: Any], source: PMNode, bridge: PMYXmlBridge, document: RelayMarkNativeDocument,
+                              scope: Scope?) throws -> (change: Change, kind: String, blockID: String?) {
+        guard let steps = result["steps"] as? [[String: Any]], let expected = result["document"] as? [String: Any],
               let finalSelection = result["selection"] as? [String: Any], let kind = result["kind"] as? String else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }

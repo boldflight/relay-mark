@@ -1050,6 +1050,69 @@ impl Transform {
         Ok(())
     }
 
+    /// `setBlockType`: every textblock in `from..to` becomes `ty`, with content
+    /// it cannot hold cleared and line breaks converted as prosemirror-transform does.
+    pub fn set_block_type(&mut self, from: usize, to: usize, ty: TypeId, attrs: Option<&Map>) -> Result<()> {
+        let s = schema();
+        let map_from = self.steps.len();
+        let mut targets = Vec::new();
+        self.doc.nodes_between(
+            from,
+            to,
+            &mut |node, pos, _, _| {
+                if node.is_textblock() {
+                    targets.push((node.clone(), pos));
+                    return false;
+                }
+                true
+            },
+            0,
+        );
+        let linebreak = (0..s.nodes.len()).find(|&t| s.nodes[t].linebreak_replacement);
+        for (node, pos) in targets {
+            let here = self.mapping.slice(map_from, self.mapping.maps.len()).map(pos, 1);
+            let attrs_here = s.node_attrs(ty, attrs)?;
+            if node.has_markup(ty, Some(&attrs_here), node.marks()) {
+                continue;
+            }
+            let rp = self.doc.resolve(here)?;
+            let index = rp.index(rp.depth);
+            if !rp.parent().can_replace_with(index, index + 1, ty, None)? {
+                continue;
+            }
+            let convert = linebreak.and_then(|lb| {
+                let (pre, support) = (s.nodes[ty].pre, s.match_type(s.nodes[ty].content, lb).is_some());
+                if pre && !support {
+                    Some(false)
+                } else if !pre && support {
+                    Some(true)
+                } else {
+                    None
+                }
+            });
+            if convert == Some(false) {
+                self.replace_linebreaks(&node, pos, map_from)?;
+            }
+            let at = self.mapping.slice(map_from, self.mapping.maps.len()).map(pos, 1);
+            self.clear_incompatible(at, ty, None, convert.is_none())?;
+            let mapping = self.mapping.slice(map_from, self.mapping.maps.len());
+            let (start, end) = (mapping.map(pos, 1), mapping.map(pos + node.node_size(), 1));
+            self.step(Step::ReplaceAround {
+                from: start,
+                to: end,
+                gap_from: start + 1,
+                gap_to: end - 1,
+                slice: Slice::new(Fragment::from_node(Node::create(ty, Some(&attrs_here), Fragment::empty(), node.marks().to_vec())?), 0, 0),
+                insert: 1,
+                structure: true,
+            })?;
+            if convert == Some(true) {
+                self.replace_newlines(&node, pos, map_from)?;
+            }
+        }
+        Ok(())
+    }
+
     fn replace_linebreaks(&mut self, node: &Node, pos: usize, map_from: usize) -> Result<()> {
         let mut offset = 0;
         for child in node.content().iter() {

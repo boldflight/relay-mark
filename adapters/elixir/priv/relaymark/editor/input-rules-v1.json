@@ -1,0 +1,1285 @@
+{
+  "fixture_version": 1,
+  "description": "Typed Markdown shortcuts every RelayMark editor applies, as the web editor's TipTap input rules do. Each case types `text` at the caret `caret` (a ProseMirror position) of `before`. `after` is the document afterwards, compared with schema defaults filled and block identity (relaymarkId, headingId) removed; null means no rule applies and the text is typed as usual. `selection` is the caret afterwards.",
+  "cases": [
+    {
+      "name": "A hyphen and space start a bullet list",
+      "rule": "bulletList",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "-"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 2,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "An asterisk and space start a bullet list",
+      "rule": "bulletList",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "*"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 2,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "A plus and space start a bullet list",
+      "rule": "bulletList",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "+"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 2,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "A number, period and space start a numbered list at that number",
+      "rule": "orderedList",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "3."
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 3,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "orderedList",
+            "attrs": {
+              "start": 3
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "A numbered list started after one continues it",
+      "rule": "orderedList",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "orderedList",
+            "attrs": {
+              "start": 1
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "2."
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 12,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "orderedList",
+            "attrs": {
+              "start": 1
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 10
+    },
+    {
+      "name": "A bullet started after a bullet list continues it",
+      "rule": "bulletList",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "-"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 11,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "One"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 10
+    },
+    {
+      "name": "Brackets and a space start a checklist",
+      "rule": "taskItem",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "[ ]"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "Brackets around x start a checked checklist item",
+      "rule": "taskItem",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "[x]"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": true
+                },
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "A hyphen, brackets and a space start a checklist",
+      "rule": "taskItem",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "- [ ]"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 6,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "Brackets typed in a bullet turn that item into a checklist",
+      "rule": "taskItem",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "[ ]"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 6,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "Brackets typed in a middle bullet split the list around the checklist",
+      "rule": "taskItem",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "[ ]"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "C"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 11,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "A"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "taskList",
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "checked": false
+                },
+                "content": [
+                  {
+                    "type": "paragraph"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "bulletList",
+            "content": [
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "C"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 10
+    },
+    {
+      "name": "A greater-than sign and space start a quote",
+      "rule": "blockquote",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": ">"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 2,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "blockquote",
+            "content": [
+              {
+                "type": "paragraph"
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 2
+    },
+    {
+      "name": "Hashes and a space make a heading of that level",
+      "rule": "heading",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "##"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 3,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 2
+            }
+          }
+        ]
+      },
+      "selection": 1
+    },
+    {
+      "name": "Six hashes make a level 6 heading",
+      "rule": "heading",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "######"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 7,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "heading",
+            "attrs": {
+              "level": 6
+            }
+          }
+        ]
+      },
+      "selection": 1
+    },
+    {
+      "name": "Three backticks and a language start a code block",
+      "rule": "codeBlock",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "```js"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 6,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "codeBlock",
+            "attrs": {
+              "language": "js"
+            }
+          }
+        ]
+      },
+      "selection": 1
+    },
+    {
+      "name": "Three backticks and a space start a code block",
+      "rule": "codeBlock",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "```"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "codeBlock",
+            "attrs": {
+              "language": null
+            }
+          }
+        ]
+      },
+      "selection": 1
+    },
+    {
+      "name": "Three tildes start a code block",
+      "rule": "codeBlock",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "~~~"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "codeBlock",
+            "attrs": {
+              "language": null
+            }
+          }
+        ]
+      },
+      "selection": 1
+    },
+    {
+      "name": "A third hyphen makes a divider",
+      "rule": "horizontalRule",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "--"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 3,
+      "text": "-",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "horizontalRule"
+          },
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      "selection": 2
+    },
+    {
+      "name": "Three underscores and a space make a divider",
+      "rule": "horizontalRule",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "___"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": " ",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "horizontalRule"
+          },
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      "selection": 2
+    },
+    {
+      "name": "Double asterisks make text bold",
+      "rule": "bold",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "**bold*"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 8,
+      "text": "*",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "bold",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 5
+    },
+    {
+      "name": "Bold applies after earlier text",
+      "rule": "bold",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Say **this*"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 12,
+      "text": "*",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Say "
+              },
+              {
+                "type": "text",
+                "text": "this",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 9
+    },
+    {
+      "name": "Double underscores make text bold",
+      "rule": "bold",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "__bold_"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 8,
+      "text": "_",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "bold",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 5
+    },
+    {
+      "name": "Asterisks make text italic",
+      "rule": "italic",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "*it"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": "*",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "it",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "Underscores make text italic",
+      "rule": "italic",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "_it"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": "_",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "it",
+                "marks": [
+                  {
+                    "type": "italic"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 3
+    },
+    {
+      "name": "Double tildes strike text through",
+      "rule": "strike",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "~~gone~"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 8,
+      "text": "~",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "gone",
+                "marks": [
+                  {
+                    "type": "strike"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 5
+    },
+    {
+      "name": "Backticks make inline code",
+      "rule": "code",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "`x"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 3,
+      "text": "`",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "x",
+                "marks": [
+                  {
+                    "type": "code"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 2
+    },
+    {
+      "name": "Double equals highlight text",
+      "rule": "highlight",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "==key="
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 7,
+      "text": "=",
+      "after": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "key",
+                "marks": [
+                  {
+                    "type": "highlight"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "selection": 4
+    },
+    {
+      "name": "A hyphen after text stays text",
+      "rule": "none",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "a -"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": " ",
+      "after": null
+    },
+    {
+      "name": "Shortcuts stay text inside a code block",
+      "rule": "none",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "codeBlock",
+            "attrs": {
+              "language": null
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "-"
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 2,
+      "text": " ",
+      "after": null
+    },
+    {
+      "name": "Asterisks around only spaces stay text",
+      "rule": "none",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "*  "
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 4,
+      "text": "*",
+      "after": null
+    },
+    {
+      "name": "A hyphen inside inline code stays text",
+      "rule": "none",
+      "before": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "-",
+                "marks": [
+                  {
+                    "type": "code"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "caret": 2,
+      "text": " ",
+      "after": null
+    }
+  ]
+}

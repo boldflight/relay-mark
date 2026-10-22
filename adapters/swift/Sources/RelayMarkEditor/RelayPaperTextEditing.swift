@@ -77,6 +77,8 @@ protocol RelayPaperTextEditing: AnyObject {
     var textSplice: RelayTextSplice? { get }
     /// Return, or removing one block separator, applied at the cost of the blocks it touches.
     func editStructureNatively(range: NSRange, replacement: String) -> Bool
+    /// A keystroke completing a typed Markdown shortcut, applied as one command.
+    func applyInputRuleNatively(range: NSRange, replacement: String) -> Bool
     /// Plain text pasted over a selection, at the cost of the blocks it touches.
     func pastePlainTextNatively(range: NSRange, text: String) -> Bool
     /// Rich text pasted over a selection, with its marks, at the cost of the blocks it touches.
@@ -128,6 +130,7 @@ extension RelayPaperTextEditing {
     var hiddenSectionRanges: [NSRange] { [] }
     @discardableResult func toggleSection(_ id: String) -> Bool { false }
     func editStructureNatively(range: NSRange, replacement: String) -> Bool { false }
+    func applyInputRuleNatively(range: NSRange, replacement: String) -> Bool { false }
     func pastePlainTextNatively(range: NSRange, text: String) -> Bool { false }
     func pasteNatively(range: NSRange, piece: AttributedString) -> Bool { false }
     func formatNatively(range: NSRange, mark: RelayMarkFormattingMark, enabled: Bool) -> Bool { false }

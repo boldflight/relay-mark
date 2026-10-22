@@ -201,6 +201,9 @@ public final class RelayMarkEditorSession {
     /// A task item bound to an entity, whose checkbox the host changes through
     /// that entity's own update; nil, or false from it, leaves it unchanged.
     @ObservationIgnored public var onLinkedTaskItem: ((RelayMarkCollaborativeProse.TaskItem) -> Bool)?
+    /// A typed Markdown shortcut was applied, named by the node or mark it made
+    /// (`taskItem` for a checklist). Hosts that act on new structure hook here.
+    @ObservationIgnored public var onTypedShortcut: ((String) -> Void)?
     /// While true, Undo and Redo wait, as for a host's command in flight.
     @ObservationIgnored public var pausesHistory = false
 
