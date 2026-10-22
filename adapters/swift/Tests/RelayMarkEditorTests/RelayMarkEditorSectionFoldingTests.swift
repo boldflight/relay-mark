@@ -235,6 +235,32 @@ struct RelayMarkEditorSectionFoldingTests {
         #expect(try disclosure("Sub", in: view).0.shown)
     }
 
+    #if os(macOS)
+    /// In a window, as the app hosts it, the paper settles in one layout: its
+    /// container is the width its margins leave, and no layout is left pending.
+    /// A container that disagrees with the view's width tracking makes AppKit
+    /// re-lay it out until it gives up ("failed to converge").
+    @Test func thePaperSettlesInOneLayout() throws {
+        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
+        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
+        let view = coordinator.makeTextView(accessibilityLabel: "Paper")
+        defer { coordinator.retire(view) }
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        scroll.documentView = view
+        let window = NSWindow(contentRect: scroll.frame, styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        window.contentView = scroll
+        view.frame = NSRect(x: 0, y: 0, width: 600, height: 400)
+        window.layoutIfNeeded()
+        let container = try #require(view.textContainer)
+        #expect(!view.needsLayout)
+        #expect(abs(container.size.width - (600 - RelayPaperMargins.leading - RelayPaperMargins.trailing)) < 0.5)
+        // Setting the width the view already tracks changes nothing.
+        let before = container.size
+        container.size = before
+        #expect(container.size == before)
+    }
+    #endif
+
     /// Every edit redraws the headings' disclosures. They are found from the
     /// laid-out text, so a paper of two thousand headings costs what a short one does.
     @Test func drawingHeadingDisclosuresCostsTheSameAtAnyLength() throws {

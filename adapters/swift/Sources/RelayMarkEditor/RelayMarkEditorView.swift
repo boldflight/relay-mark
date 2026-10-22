@@ -798,7 +798,9 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.autoresizingMask = [.width]
             view.textContainer?.widthTracksTextView = true
             view.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
-            view.textContainerInset = NSSize(width: RelayPaperMargins.trailing, height: 20)
+            // NSTextView's inset is the same on both sides: half the margins each,
+            // and textContainerOrigin moves the container toward the trailing edge.
+            view.textContainerInset = NSSize(width: (RelayPaperMargins.leading + RelayPaperMargins.trailing) / 2, height: 20)
             view.setAccessibilityLabel(accessibilityLabel)
             view.onSessionEdit = { [weak self, weak view] in
                 guard let self, let view, !view.retired else { return }
@@ -953,7 +955,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     static func textKit2(frame: CGRect = .zero) -> CollaborationTextView {
         let storage = NSTextContentStorage(), manager = RelayTextLayoutManager()
         storage.addTextLayoutManager(manager)
-        let container = RelayPaperTextContainer(size: CGSize(width: frame.width, height: CGFloat.greatestFiniteMagnitude))
+        let container = NSTextContainer(size: CGSize(width: frame.width, height: CGFloat.greatestFiniteMagnitude))
         manager.textContainer = container
         let view = Self(frame: frame, textContainer: container)
         view.contentStorage = storage
@@ -1123,10 +1125,12 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
               (title.accessibilitySharedTextUIElements() ?? []).contains(where: { $0 as AnyObject === self }) else { return }
         title.setAccessibilitySharedTextUIElements(nil)
     }
-    /// The paper's leading margin is wider than its trailing one by the gutter.
+    /// The paper's leading margin is wider than its trailing one by the gutter. The
+    /// symmetric inset already leaves the container its width; only its origin moves,
+    /// so the container agrees with the view's width tracking and layout settles.
     override var textContainerOrigin: NSPoint {
         let origin = super.textContainerOrigin
-        return NSPoint(x: origin.x + RelayPaperMargins.gutter, y: origin.y)
+        return NSPoint(x: origin.x + (RelayPaperMargins.leading - RelayPaperMargins.trailing) / 2, y: origin.y)
     }
     /// The pointer adapter: the heading under the pointer shows its chevron.
     private var hoverArea: NSTrackingArea?
