@@ -73,11 +73,11 @@ pub fn arm(documents: &Value, options: &Value) -> Result<Value> {
         let Some(ids) = event.get("ids").and_then(Value::as_array) else { bail!("Invalid task draft event") };
         ids.iter().map(|id| id.as_str().map(str::to_owned).ok_or_else(|| crate::Error::new("Invalid task draft event"))).collect()
     };
-    let after = items(after)?;
+    let after = identified(after)?;
     // New items are those that were no task item before; the platform assigns
     // identity to new blocks, so a split or conversion gives each a fresh id.
     let new = || -> Result<Vec<&Item>> {
-        let earlier: HashSet<String> = items(before)?.into_iter().map(|item| item.block_id).collect();
+        let earlier: HashSet<String> = identified(before)?.into_iter().map(|item| item.block_id).collect();
         Ok(after.iter().filter(|item| !item.linked && !earlier.contains(&item.block_id)).collect())
     };
     match event.get("kind").and_then(Value::as_str) {
@@ -112,11 +112,11 @@ pub fn boundary(document: &Value, options: &Value) -> Result<Value> {
         let Some(caret) = options.get(key).and_then(Value::as_u64) else { bail!("Invalid task draft boundary") };
         Ok(drafts.iter().find(|item| item.holds(caret as usize)))
     };
-    // Return while an input method is composing confirms the composition only.
-    if json::truthy(options.get("composing")) {
-        return Ok(json!([]));
-    }
+    // Return or a caret move while an input method is composing belongs to
+    // the composition; a checkbox tap does not.
+    let composing = json::truthy(options.get("composing"));
     let done = match options.get("key").and_then(Value::as_str) {
+        Some("return" | "move") if composing => None,
         Some("return") => caret("before")?.filter(finished),
         Some("move") => {
             let left = caret("before")?;
@@ -138,6 +138,18 @@ fn armed_option(options: &Value) -> Result<HashSet<String>> {
         Some(Value::Array(ids)) => ids.iter().map(|id| id.as_str().map(str::to_owned).ok_or_else(|| crate::Error::new("Invalid armed task drafts"))).collect(),
         Some(_) => bail!("Invalid armed task drafts"),
     }
+}
+
+/// The task items of a document once block identity is assigned. An editor
+/// that has not yet given a split's new half its own identity would leave that
+/// half silently unarmed, so the duplicate is refused instead.
+fn identified(document: &Value) -> Result<Vec<Item>> {
+    let found = items(document)?;
+    let mut seen = HashSet::new();
+    if !found.iter().all(|item| seen.insert(item.block_id.as_str())) {
+        bail!("Task items need distinct block identities");
+    }
+    Ok(found)
 }
 
 /// Every task item with a well-formed block identity, in document order.
@@ -193,7 +205,7 @@ fn parent(ancestors: &[&Node]) -> Option<String> {
             let mut reference = None;
             if let Some(first) = node.first_child() {
                 first.descendants(&mut |child, _, _, _| {
-                    if child.type_name() == "relayReference" && child.attr("entityType").as_str().is_some_and(|kind| kind.eq_ignore_ascii_case("task")) {
+                    if child.type_name() == "relayReference" && child.attr("entityType").as_str().is_some_and(|kind| kind.to_lowercase() == "task") {
                         reference = entity(child.attr("entityId"));
                     }
                     true
@@ -222,30 +234,6 @@ fn operation_id(block_id: &str) -> String {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
-
-    /// spec/relaymark/editor/task-drafts-v1.json, the cases the web editor passes too,
-    /// run by job name as Swift and the Elixir NIF call them.
-    #[test]
-    fn every_shared_case() {
-        let fixture: Value = serde_json::from_str(include_str!("../../../spec/relaymark/editor/task-drafts-v1.json")).expect("fixture");
-        let mut failures = Vec::new();
-        for case in fixture["cases"].as_array().expect("cases") {
-            let name = case["name"].as_str().expect("name");
-            let job = case["job"].as_str().expect("job");
-            let input = serde_json::to_vec(&case["input"]).expect("input");
-            let options = serde_json::to_vec(&case["options"]).expect("options");
-            match crate::jobs::run(job, &input, &options) {
-                Ok(bytes) => {
-                    let value: Value = serde_json::from_slice(&bytes).expect("job output");
-                    if value != case["expected"] {
-                        failures.push(format!("{name}: {value}"));
-                    }
-                }
-                Err(error) => failures.push(format!("{name}: {error}")),
-            }
-        }
-        assert!(failures.is_empty(), "{}", failures.join("\n"));
-    }
 
     /// A block an editor has not identified yet has no draft and no fallback
     /// idempotency key. Editors assign identity before asking, so this stays

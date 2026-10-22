@@ -35,7 +35,11 @@ with the source change that produced them.
 `spec/relaymark/conformance/suite.json` indexes the fixtures every runtime
 executes. Examples in `spec/relaymark/examples/` pair RelayMark source with
 its expected AST and manifest. Collaboration fixtures live under
-`spec/relaymark/collaboration/`.
+`spec/relaymark/collaboration/`. Editor rules live under
+`spec/relaymark/editor/` as `cases` fixtures: each case names a
+relaymark-core job, its input and options, and the job's exact output, so the
+reference runtime, the Rust engine and every client that calls the job table
+run the same cases.
 
 A change to document meaning starts in the specification: update the spec and
 its fixtures, then make every runtime pass them. The Rust engine must stay

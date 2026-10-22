@@ -1,6 +1,6 @@
 {
   "fixture_version": 1,
-  "description": "Which checklist items are draft Tasks, as every RelayMark editor decides it. The armed set is the client's local state, never stored in the document: callers pass it in and get the next one back. Documents are ProseMirror JSON with block identity. `task_drafts` lists unlinked task items, with operation_id = relaymarkId `b` + 32 lowercase hex as a lowercase UUID; any other id gives no draft. `task_draft_arm` takes [before, after] and an event: input_rule, command and split arm new items (command only empty ones, split only when `from` was armed), arm and disarm take ids, external (remote, paste, history) only prunes. `task_draft_boundary` lists the armed drafts with a title that Return, a caret move or a checkbox tap finishes; positions are ProseMirror positions, and a caret is in an item when pos < caret <= pos + 1 + first paragraph size. Each task_draft_arm case also names the editor `action` that produces it from `before` (or from `after` when `before` is null) at ProseMirror positions: typed text at a caret, an editor command over a selection, a key at a caret, a whole-document replace standing for any external change, or the event's own arm or disarm; editors replay it and must reach `after` (block identity aside) with the expected armed items.",
+  "description": "Which checklist items are draft Tasks, as every RelayMark editor decides it. The armed set is the client's local state, never stored in the document: callers pass it in and get the next one back. Documents are ProseMirror JSON with block identity. `task_drafts` lists unlinked task items, with operation_id = relaymarkId `b` + 32 lowercase hex as a lowercase UUID; any other id gives no draft. `task_draft_arm` takes [before, after] and an event: input_rule, command and split arm new items (command only empty ones, split only when `from` was armed), arm and disarm take ids, external (remote, paste, history) only prunes. Ids in arm and disarm are block ids, not operation ids. `after` is the document once block identity is assigned: task items with the same id are refused. For external, arm and disarm `before` may be null and is never read. A caller skips task_draft_arm for an external event while nothing is armed, and may prune by itself (armed ids that are still unlinked, well-formed task items in `after`) without calling the job, so a peer's edit never costs whole-document work. `task_draft_boundary` lists the armed drafts with a title that Return, a caret move or a checkbox tap finishes. `return` is unmodified Return (Shift-Return is a hard break, not a boundary); `move` is any caret move between `before` and `after`, a pointer press elsewhere included; `composing` (an input method composing) finishes nothing for return and move, while a checkbox tap still finishes. Positions are ProseMirror positions, and a caret is in an item when pos < caret <= pos + 1 + first paragraph size. Each task_draft_arm case also names the editor `action` that produces it (a case with `expected_error` instead of `expected` is a refusal and has none) from `before` (or from `after` when `before` is null) at ProseMirror positions: typed text at a caret, an editor command over a selection, a key at a caret, a whole-document replace standing for any external change, or the event's own arm or disarm; editors replay it and must reach `after` (block identity aside) with the expected armed items.",
   "cases": [
     {
       "name": "Unlinked items are drafts; armed ones are authored, others local; linked items are not drafts",
@@ -844,6 +844,98 @@
           "path": [
             0,
             1,
+            1,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Entity type matching lowercases as JavaScript does, so a Kelvin sign K matches",
+      "job": "task_drafts",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "bulletList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "listItem",
+                "attrs": {
+                  "relaymarkId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "relayReference",
+                        "attrs": {
+                          "entityType": "TASK",
+                          "entityId": "11111111-1111-4111-8111-111111111111",
+                          "label": "x",
+                          "source": null
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "taskList",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "taskItem",
+                        "attrs": {
+                          "relaymarkId": "b00000000000000000000000000000001",
+                          "checked": false,
+                          "entityId": null
+                        },
+                        "content": [
+                          {
+                            "type": "paragraph",
+                            "attrs": {
+                              "relaymarkId": null
+                            },
+                            "content": [
+                              {
+                                "type": "text",
+                                "text": "Step"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": []
+      },
+      "expected": [
+        {
+          "block_id": "b00000000000000000000000000000001",
+          "operation_id": "00000000-0000-0000-0000-000000000001",
+          "title": "Step",
+          "text": "Step",
+          "done": false,
+          "intent": "local",
+          "parent_entity_id": "11111111-1111-4111-8111-111111111111",
+          "path": [
+            0,
+            0,
             1,
             0
           ]
@@ -2366,6 +2458,114 @@
       }
     },
     {
+      "name": "Task items without distinct block identities are refused, not silently left unarmed",
+      "job": "task_draft_arm",
+      "input": [
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "doc",
+          "content": [
+            {
+              "type": "taskList",
+              "attrs": {
+                "relaymarkId": null
+              },
+              "content": [
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Call"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "taskItem",
+                  "attrs": {
+                    "relaymarkId": "b00000000000000000000000000000001",
+                    "checked": false,
+                    "entityId": null
+                  },
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "attrs": {
+                        "relaymarkId": null
+                      },
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": " Ana"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "event": {
+          "kind": "split",
+          "from": "b00000000000000000000000000000001"
+        }
+      },
+      "expected_error": "Task items need distinct block identities"
+    },
+    {
       "name": "Return finishes the armed draft with a title",
       "job": "task_draft_boundary",
       "input": {
@@ -2733,6 +2933,89 @@
       "expected": [
         "b00000000000000000000000000000001"
       ]
+    },
+    {
+      "name": "Moving during composition finishes nothing",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000001"
+        ],
+        "key": "move",
+        "before": 5,
+        "after": 17,
+        "composing": true
+      },
+      "expected": []
     },
     {
       "name": "Moving within the same item finishes nothing",
@@ -3228,6 +3511,90 @@
         ],
         "key": "checkbox",
         "block": "b00000000000000000000000000000002"
+      },
+      "expected": [
+        "b00000000000000000000000000000002"
+      ]
+    },
+    {
+      "name": "Ticking an armed draft's checkbox during composition still finishes it",
+      "job": "task_draft_boundary",
+      "input": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "taskList",
+            "attrs": {
+              "relaymarkId": null
+            },
+            "content": [
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000001",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Call Ana"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "taskItem",
+                "attrs": {
+                  "relaymarkId": "b00000000000000000000000000000002",
+                  "checked": false,
+                  "entityId": null
+                },
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "attrs": {
+                      "relaymarkId": null
+                    },
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Buy milk"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "attrs": {
+              "relaymarkId": "b0000000000000000000000000000005a"
+            },
+            "content": [
+              {
+                "type": "text",
+                "text": "x"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "armed": [
+          "b00000000000000000000000000000002"
+        ],
+        "key": "checkbox",
+        "block": "b00000000000000000000000000000002",
+        "composing": true
       },
       "expected": [
         "b00000000000000000000000000000002"

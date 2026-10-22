@@ -113,7 +113,8 @@ fn conformance_suite() {
 }
 
 /// A `cases` fixture: editor rules run by job name, as Swift and the Elixir
-/// NIF call them, each case's `expected` being the job's exact output.
+/// NIF call them, each case's `expected` being the job's exact output or its
+/// `expected_error` the refusal's message.
 fn job_case_errors(fixture: &Value) -> Vec<String> {
     let mut errors = Vec::new();
     for case in fixture["cases"].as_array().expect("cases") {
@@ -121,7 +122,14 @@ fn job_case_errors(fixture: &Value) -> Vec<String> {
         let job = case["job"].as_str().expect("case job");
         let input = serde_json::to_vec(&case["input"]).expect("case input");
         let options = serde_json::to_vec(&case["options"]).expect("case options");
+        let refusal = case.get("expected_error").and_then(Value::as_str);
         match rm::jobs::run(job, &input, &options) {
+            Ok(bytes) if refusal.is_some() => errors.push(format!("{name}: answered {}", String::from_utf8_lossy(&bytes))),
+            Err(error) if refusal.is_some() => {
+                if Some(error.as_str()) != refusal {
+                    errors.push(format!("{name}: refused with {error}"));
+                }
+            }
             Ok(bytes) => {
                 let actual: Value = serde_json::from_slice(&bytes).expect("job output");
                 if canonical(&actual) != canonical(&case["expected"]) {

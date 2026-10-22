@@ -118,11 +118,11 @@ export function runConformanceSuite(path) {
 }
 
 /** A `cases` fixture: each case names a job, and `expected` is that job's
- * exact output for `input` and `options`. */
+ * exact output for `input` and `options`, or `expected_error` its refusal. */
 function jobCaseErrors(fixture) {
   const errors = [];
 
-  for (const { name, job, input, options, expected } of fixture.cases || []) {
+  for (const { name, job, input, options, expected, expected_error: refusal } of fixture.cases || []) {
     const run = editorJobs[job];
 
     if (!run) {
@@ -133,11 +133,15 @@ function jobCaseErrors(fixture) {
     try {
       const actual = run(structuredClone(input), structuredClone(options ?? null));
 
-      if (!equalCanonicalJSON(actual, expected)) {
+      if (refusal !== undefined) {
+        errors.push(`${name}: answered ${JSON.stringify(actual)}`);
+      } else if (!equalCanonicalJSON(actual, expected)) {
         errors.push(`${name}: ${JSON.stringify(actual)}`);
       }
     } catch (error) {
-      errors.push(`${name}: ${error.message}`);
+      if (error.message !== refusal) {
+        errors.push(`${name}: ${error.message}`);
+      }
     }
   }
 

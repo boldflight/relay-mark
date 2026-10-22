@@ -10,7 +10,9 @@
   explicit arm and disarm, and remote, pasted or history changes, which only
   prune. `task_draft_boundary` lists the armed drafts that Return, a caret move or
   a checkbox tap finishes. The armed set stays the client's own state, never the
-  document's. The cases are in `spec/relaymark/editor/task-drafts-v1.json`.
+  document's. The cases are in `spec/relaymark/editor/task-drafts-v1.json`, the
+  first `cases` fixture in the conformance suite: the reference runtime
+  (`src/task-drafts.js`) and the Rust engine run them by job name.
 - The package links one Rust library. `RelayMarkFFI.xcframework` now holds
   `crates/relaymark-apple`, a megazord static library built from
   relaymark-ffi and yrs's binding `crates/yniffi` (vendored from Relay's
