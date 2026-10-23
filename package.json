@@ -21,22 +21,22 @@
   },
   "license": "MIT OR Apache-2.0",
   "devDependencies": {
-    "esbuild": "0.25.9",
+    "esbuild": "0.28.2",
     "y-protocols": "1.0.7",
     "yjs": "https://github.com/boldflight/yjs/releases/download/v13.6.33-relay.1/yjs-13.6.33.tgz"
   },
   "dependencies": {
-    "linkedom": "0.18.13",
-    "@noble/hashes": "^2.0.1",
+    "linkedom": "0.18.14",
+    "@noble/hashes": "^2.4.0",
     "@stablelib/base64": "2.0.1",
     "@tiptap/y-tiptap": "3.0.9",
-    "core-js-pure": "3.50.0",
-    "markdown-it": "^15.0.2",
+    "core-js-pure": "3.51.0",
+    "markdown-it": "^15.0.3",
     "prosemirror-commands": "1.7.2",
     "prosemirror-model": "1.25.12",
     "prosemirror-schema-list": "1.5.1",
     "prosemirror-state": "1.4.4",
     "prosemirror-tables": "1.8.5",
-    "prosemirror-transform": "1.12.2"
+    "prosemirror-transform": "1.12.4"
   }
 }
