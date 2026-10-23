@@ -72,6 +72,11 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     /// The link to a section of this paper by its destination name, for
     /// "Copy link to this section"; nil offers no link.
     public var sectionLink: ((String) -> URL?)?
+    /// Room below the paper's last line when the host lays the editor out under
+    /// its own bars and floating controls: the text scrolls under them and can
+    /// rest clear of them. Nil leaves the bottom to the system's safe-area
+    /// adjustment; a value replaces it.
+    public var bottomContentInset: CGFloat?
 
     public init(images: (any RelayMarkImageService)? = nil, paste: (any RelayMarkPasteService)? = nil,
                 links: (any RelayMarkLinkService)? = nil, paperControls: (any RelayMarkPaperControlService)? = nil,

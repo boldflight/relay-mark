@@ -724,6 +724,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         scroll.drawsBackground = false
         scroll.automaticallyAdjustsContentInsets = false
         scroll.documentView = context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel)
+        scroll.contentInsets.bottom = services.bottomContentInset ?? 0
         return scroll
     }
     public func updateNSView(_ scroll: NSScrollView, context: Context) {
@@ -738,6 +739,8 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             scroll.documentView = replacement
             if wasFocused { scroll.window?.makeFirstResponder(replacement) }
         } else if let view = scroll.documentView as? CollaborationTextView { context.coordinator.text.update(view) }
+        // The host's clearance below the last line, as on UIKit.
+        if scroll.contentInsets.bottom != services.bottomContentInset ?? 0 { scroll.contentInsets.bottom = services.bottomContentInset ?? 0 }
     }
     public static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
         if let view = scroll.documentView as? CollaborationTextView { coordinator.text.retire(view) }
@@ -1538,6 +1541,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         context.coordinator.text.services = services
         let container = CollaborationTextContainer()
         container.install(context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel))
+        container.textView.map(applyBottomInset)
         return container
     }
     public func updateUIView(_ container: CollaborationTextContainer, context: Context) {
@@ -1552,6 +1556,16 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             container.install(replacement)
             if wasFocused { replacement.becomeFirstResponder() }
         } else if let view = container.textView { context.coordinator.text.update(view) }
+        container.textView.map(applyBottomInset)
+    }
+    /// The host's room below the last line, in place of the safe-area adjustment.
+    private func applyBottomInset(_ view: CollaborationTextView) {
+        let behavior: UIScrollView.ContentInsetAdjustmentBehavior = services.bottomContentInset == nil ? .automatic : .never
+        let inset = services.bottomContentInset ?? 0
+        if view.contentInsetAdjustmentBehavior != behavior { view.contentInsetAdjustmentBehavior = behavior }
+        guard view.contentInset.bottom != inset else { return }
+        view.contentInset.bottom = inset
+        view.verticalScrollIndicatorInsets.bottom = inset
     }
     public static func dismantleUIView(_ container: CollaborationTextContainer, coordinator: Coordinator) {
         if let view = container.textView { coordinator.text.retire(view) }
