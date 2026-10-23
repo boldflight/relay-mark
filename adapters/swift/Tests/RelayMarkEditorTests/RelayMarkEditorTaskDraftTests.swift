@@ -195,7 +195,7 @@ struct RelayMarkEditorTaskDraftTests {
 
     // Bug caught: a checklist item made into a Task still drawn as a plain checkbox and text
     // (M11 C1), or its chip running into the next item or line.
-    @Test("A linked item's whole title carries its Task chip, and nothing around it does")
+    @Test("Each checklist item's whole title carries the item, a linked one its Task, and nothing around it does")
     func linkedItemTitleCarriesTaskChip() throws {
         let entity = "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"
         let paper = try Paper([["type": "taskList", "content": [
@@ -208,15 +208,17 @@ struct RelayMarkEditorTaskDraftTests {
         defer { paper.retire() }
         paper.coordinator.update(paper.view)
         let storage = paper.view.paperStorage, text = storage.string as NSString
-        func chip(_ word: String) -> [String?] {
+        func items(_ word: String) -> [String] {
             let range = text.range(of: word)
             return (range.location..<NSMaxRange(range)).map {
-                (storage.attribute(NSAttributedString.Key("RelayTaskChip"), at: $0, effectiveRange: nil) as? RelayTaskChip)?.entityID
+                guard let item = storage.attribute(NSAttributedString.Key("RelayTaskItem"), at: $0, effectiveRange: nil) as? RelayTaskItemRun
+                else { return "none" }
+                return item.entityID ?? "plain"
             }
         }
-        #expect(chip("Call Ana") == Array(repeating: entity, count: 8))
-        #expect(chip("Buy milk").allSatisfy { $0 == nil })
-        #expect(chip("After").allSatisfy { $0 == nil })
+        #expect(items("Call Ana") == Array(repeating: entity, count: 8))
+        #expect(items("Buy milk") == Array(repeating: "plain", count: 8))
+        #expect(items("After") == Array(repeating: "none", count: 5))
     }
 
     // Bug caught: a Task's status changed elsewhere never reaching its chip in an open paper,
@@ -227,19 +229,19 @@ struct RelayMarkEditorTaskDraftTests {
             ["type": "taskItem", "attrs": ["checked": false, "entityId": "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"],
              "content": [["type": "paragraph", "content": [["type": "text", "text": "Call Ana"]]]]]]]])
         defer { paper.retire() }
-        var reads = 0, symbol = "circle"
-        paper.editor.linkedTaskStatus = { _, _ in reads += 1; return .init(systemImage: symbol, tint: .red) }
+        var reads = 0, shape = RelayMarkTaskGlyph.Shape.open
+        paper.editor.linkedTaskStatus = { _, _ in reads += 1; return .init(shape, tint: .red) }
         let quiet = paper.editor.linkedTaskRevision
         paper.editor.linkedTasksChanged()
         #expect(paper.editor.linkedTaskRevision == quiet)
         let id = "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"
-        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.systemImage == "circle")
-        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.systemImage == "circle")
+        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.shape == .open)
+        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.shape == .open)
         #expect(reads == 1)
-        symbol = "circle.lefthalf.filled"
+        shape = .half
         paper.editor.linkedTasksChanged()
         #expect(paper.editor.linkedTaskRevision != quiet)
-        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.systemImage == "circle.lefthalf.filled")
+        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.shape == .half)
         #expect(reads == 2)
     }
 

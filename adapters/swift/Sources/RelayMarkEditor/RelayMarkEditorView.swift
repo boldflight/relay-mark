@@ -47,7 +47,7 @@ private extension NSAttributedString.Key {
     static let relayItalic = NSAttributedString.Key("RelayRenderedItalic")
     static let relayOfferedMarks = NSAttributedString.Key("RelayOfferedMarks")
     static let relayAIAuthored = NSAttributedString.Key("RelayAIAuthored")
-    static let relayTaskChip = NSAttributedString.Key("RelayTaskChip")
+    static let relayTaskItem = NSAttributedString.Key("RelayTaskItem")
 }
 
 @MainActor
@@ -97,9 +97,10 @@ enum NativeProseCodec {
         let taskMarkers = Dictionary(uniqueKeysWithValues: taskItems.map {
             ($0.firstParagraphRange.location, $0.checked ? "☑" : "☐")
         })
-        // A linked item's title runs carry its Task chip, which the text view draws.
-        let taskChips = Dictionary(uniqueKeysWithValues: taskItems.compactMap { item in
-            item.entityID.map { (item.firstParagraphRange.location, RelayTaskChip(entityID: $0, checked: item.checked)) }
+        // A checklist item's title runs carry the item, from which the text view draws its
+        // glyph and, for an item linked to a Task, the Task's chip.
+        let taskRuns = Dictionary(uniqueKeysWithValues: taskItems.map { item in
+            (item.firstParagraphRange.location, RelayTaskItemRun(entityID: item.entityID, checked: item.checked))
         })
         // Every run of a task's first paragraph carries its marker, however the runs split.
         var paragraphStart = paragraphStart ?? base
@@ -139,11 +140,13 @@ enum NativeProseCodec {
             if let run = run[RelayMarkAIAuthoredAttribute.self] {
                 attrs[.relayAIAuthored] = run; attrs[.foregroundColor] = PlatformColor.secondaryLabelColorCompat
             }
-            if let chip = taskChips[paragraphStart] {
-                attrs[.relayTaskChip] = chip
-                // A done Task's title reads subdued, as the web's done task chip does; the chip
-                // draws its line-through, since a strikethrough attribute would read back as a mark.
-                if chip.checked { attrs[.foregroundColor] = PlatformColor.secondaryLabelColorCompat }
+            // A block separator belongs to no title; whichever paragraph a render reaches it from,
+            // it stays unmarked.
+            if let task = taskRuns[paragraphStart], run.inlinePresentationIntent != nil {
+                attrs[.relayTaskItem] = task
+                // A ticked item's title reads subdued, as on the web; the text view draws its
+                // line-through, since a strikethrough attribute would read back as a mark.
+                if task.checked { attrs[.foregroundColor] = PlatformColor.secondaryLabelColorCompat }
             }
             if offered.contains(.subscript) || offered.contains(.superscript) {
                 attrs[.baselineOffset] = offered.contains(.subscript) ? -size * 0.25 : size * 0.35
@@ -169,7 +172,8 @@ enum NativeProseCodec {
                 let label = taskMarkers[paragraphStart] ?? marker.label
                 attrs[.relayListMarker] = label
                 let width = (label as NSString).size(withAttributes: [.font: font]).width
-                paragraph.headIndent = CGFloat(marker.depth - 1) * 24 + max(24, width + 10)
+                paragraph.headIndent = taskMarkers[paragraphStart] == nil
+                    ? CGFloat(marker.depth - 1) * 24 + max(24, width + 10) : taskIndent(font, depth: marker.depth)
                 paragraph.firstLineHeadIndent = paragraph.headIndent
             }
             attrs[.paragraphStyle] = paragraph
@@ -186,7 +190,7 @@ enum NativeProseCodec {
         for block in emptyBlocks where block.offset - base >= 0 && block.offset - base < result.length {
             // Style the existing newline glyph only. Its semantic attributes stay
             // absent, preserving the exact canonical attributed-text roundtrip.
-            if let paragraph = emptyAttributes(block.intent)[.paragraphStyle] {
+            if let paragraph = emptyParagraphStyle(block.intent, task: taskMarkers[block.offset] != nil) {
                 result.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: block.offset - base, length: 1))
             }
         }
@@ -410,6 +414,22 @@ enum NativeProseCodec {
             for key in blockKeys { attributes[key] = storage.attribute(key, at: anchor, effectiveRange: nil) }
             storage.setAttributes(attributes, range: target)
         }
+    }
+
+    /// A checklist item's text starts after its glyph and a gap, so the glyph sits at the item's edge.
+    static func taskIndent(_ font: PlatformFont, depth: Int) -> CGFloat {
+        CGFloat(depth - 1) * 24 + RelayTaskItemRun.diameter(font) + RelayTaskItemRun.textGap
+    }
+
+    /// An empty paragraph's style; an empty checklist item keeps its siblings' indent.
+    static func emptyParagraphStyle(_ intent: PresentationIntent, task: Bool) -> NSParagraphStyle? {
+        let attributes = emptyAttributes(intent)
+        guard let style = attributes[.paragraphStyle] as? NSParagraphStyle else { return nil }
+        guard task, let marker = listMarker(intent), let font = attributes[.font] as? PlatformFont,
+              let indented = style.mutableCopy() as? NSMutableParagraphStyle else { return style }
+        indented.headIndent = taskIndent(font, depth: marker.depth)
+        indented.firstLineHeadIndent = indented.headIndent
+        return indented
     }
 
     static func emptyAttributes(_ intent: PresentationIntent, inlineIntent: InlinePresentationIntent = [], link: URL? = nil, typingStyle: AttributedString? = nil) -> [NSAttributedString.Key: Any] {
@@ -1404,7 +1424,11 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     func applyEmptyTypingStyle() {
         let selection = paperSelection
         if selection.length == 0, let block = paper.emptyBlocks.first(where: { $0.offset == selection.location }) {
-            typingAttributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link, typingStyle: block.typingStyle)
+            var attributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link, typingStyle: block.typingStyle)
+            if paper.taskItems.contains(where: { $0.firstParagraphRange.location == block.offset }) {
+                attributes[.paragraphStyle] = NativeProseCodec.emptyParagraphStyle(block.intent, task: true)
+            }
+            typingAttributes = attributes
         }
     }
     var onDeclaredMarkedInput: ((String?, NSRange, NSRange, NSRange?, Bool) -> Bool)?
@@ -1470,10 +1494,10 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        let status = { [editingSession] (entityID: String, checked: Bool) in editingSession?.linkedTaskStatus(entityID: entityID, checked: checked) }
-        drawTaskChips(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut, status: status)
+        let glyph = { [editingSession] (item: RelayTaskItemRun) in taskGlyph(item, session: editingSession) }
+        drawTaskItems(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut, glyph: glyph)
         drawListMarkers(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut,
-                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems, status: status)
+                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems, glyph: glyph)
         drawSectionDisclosures(geometry: geometry, origin: textContainerOrigin)
         drawRemoteSelections(paper.remoteSelections.filter { !paper.isHidden($0.caretLocation) }, resolveColor: collaboratorColor, geometry: geometry,
             origin: textContainerOrigin, length: string.utf16.count) { [weak self] offset in
@@ -2267,7 +2291,11 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     func applyEmptyTypingStyle() {
         let selection = paperSelection
         if selection.length == 0, let block = paper.emptyBlocks.first(where: { $0.offset == selection.location }) {
-            typingAttributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link, typingStyle: block.typingStyle)
+            var attributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link, typingStyle: block.typingStyle)
+            if paper.taskItems.contains(where: { $0.firstParagraphRange.location == block.offset }) {
+                attributes[.paragraphStyle] = NativeProseCodec.emptyParagraphStyle(block.intent, task: true)
+            }
+            typingAttributes = attributes
         }
     }
     var onDeclaredMarkedInput: ((String?, NSRange, NSRange, NSRange?, Bool) -> Bool)?
@@ -2354,10 +2382,10 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
         let origin = CGPoint(x: textContainerInset.left, y: textContainerInset.top)
         if let context = UIGraphicsGetCurrentContext() { drawFound(in: context) }
-        let status = { [editingSession] (entityID: String, checked: Bool) in editingSession?.linkedTaskStatus(entityID: entityID, checked: checked) }
-        drawTaskChips(geometry: geometry, origin: origin, laidOut: paper.laidOut, status: status)
+        let glyph = { [editingSession] (item: RelayTaskItemRun) in taskGlyph(item, session: editingSession) }
+        drawTaskItems(geometry: geometry, origin: origin, laidOut: paper.laidOut, glyph: glyph)
         drawListMarkers(geometry: geometry, origin: origin, laidOut: paper.laidOut,
-                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems, status: status)
+                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems, glyph: glyph)
         drawSectionDisclosures(geometry: geometry, origin: origin)
         drawRemoteSelections(paper.remoteSelections.filter { !paper.isHidden($0.caretLocation) }, resolveColor: collaboratorColor, geometry: geometry, origin: origin, length: text.utf16.count) { [weak self] offset in
                 guard let self, let position = self.position(from: self.beginningOfDocument, offset: offset) else { return nil }
@@ -2555,23 +2583,17 @@ private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
         item.firstParagraphRange.location <= NSMaxRange(line) {
         let offset = item.firstParagraphRange.location
         guard offset >= 0, offset <= storage.length else { continue }
-        // A linked item's chip takes the tap on its status circle.
-        if item.entityID != nil, let chip = taskChipLayout(at: offset, geometry: geometry) {
-            if chip.circle.insetBy(dx: -6, dy: -6).contains(point) { return offset }
-            continue
+        let frame: CGRect?
+        if item.firstParagraphRange.length > 0 {
+            frame = taskItemLayout(at: offset, geometry: geometry)?.glyph
+        } else {
+            let font = offset < storage.length ? storage.attribute(.font, at: offset, effectiveRange: nil) as? PlatformFont : nil
+            let style = offset < storage.length ? storage.attribute(.paragraphStyle, at: offset, effectiveRange: nil) as? NSParagraphStyle : nil
+            frame = taskGlyphFrame(at: offset, empty: true, headIndent: style?.headIndent ?? 0, font: font ?? .systemFont(ofSize: 15),
+                                   gap: RelayTaskItemRun.textGap, geometry: geometry)
         }
-        let label = item.checked ? "☑" : "☐"
-        let font = offset < storage.length
-            ? (storage.attribute(.font, at: offset, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15))
-            : PlatformFont.systemFont(ofSize: 15)
-        let width = (label as NSString).size(withAttributes: [.font: font]).width
-        let style = offset < storage.length
-            ? storage.attribute(.paragraphStyle, at: offset, effectiveRange: nil) as? NSParagraphStyle
-            : nil
-        guard let marker = geometry.markerFrame(at: offset, width: width, empty: item.firstParagraphRange.length == 0,
-                                                headIndent: style?.headIndent ?? 18) else { continue }
-        if CGRect(x: marker.minX - 3, y: marker.minY - 3, width: width + 6,
-                  height: max(marker.height, font.ascender - font.descender + font.leading) + 6).contains(point) { return offset }
+        // The glyph takes the tap with a little room around it.
+        if let frame, frame.insetBy(dx: -6, dy: -6).contains(point) { return offset }
     }
     return nil
 }
@@ -2717,30 +2739,26 @@ extension RelayPaperTextView {
 @MainActor
 private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint, laidOut: NSTextRange?,
                              emptyBlocks: [RelayEmptyProseBlock], taskItems: [RelayMarkCollaborativeProse.TaskItem],
-                             status: (String, Bool) -> RelayMarkLinkedTaskStatus?) {
+                             glyph: (RelayTaskItemRun) -> RelayMarkTaskGlyph) {
     let storage = geometry.storage
     let source = storage.string as NSString
     let visible = laidOut.map(geometry.range) ?? NSRange(location: 0, length: storage.length)
     func isVisible(_ offset: Int) -> Bool { offset >= visible.location && offset <= NSMaxRange(visible) }
-    let taskMarkers = Dictionary(uniqueKeysWithValues: taskItems.map {
-        ($0.firstParagraphRange.location, $0.checked ? "☑" : "☐")
-    })
-    let linkedTasks = Dictionary(taskItems.compactMap { item in item.entityID.map { (item.firstParagraphRange.location, ($0, item.checked)) } },
-                                 uniquingKeysWith: { first, _ in first })
+    let tasks = Dictionary(taskItems.map { ($0.firstParagraphRange.location, RelayTaskItemRun(entityID: $0.entityID, checked: $0.checked)) },
+                           uniquingKeysWith: { first, _ in first })
     for block in emptyBlocks where block.offset >= 0 && block.offset <= storage.length && isVisible(block.offset) {
         guard let marker = NativeProseCodec.listMarker(block.intent) else { continue }
-        let attrs = NativeProseCodec.emptyAttributes(block.intent)
-        let style = attrs[.paragraphStyle] as? NSParagraphStyle
-        if let (entityID, checked) = linkedTasks[block.offset] {
-            // A linked item whose title is empty still shows its Task's status.
-            let font = attrs[.font] as? PlatformFont ?? .systemFont(ofSize: 15), size = RelayTaskChip.diameter(font)
-            guard let frame = geometry.markerFrame(at: block.offset, width: size, empty: true,
-                                                   headIndent: style?.headIndent ?? 0) else { continue }
-            drawTaskStatus(status(entityID, checked) ?? RelayTaskChip.fallback(checked: checked),
-                           in: CGRect(x: origin.x + frame.minX, y: origin.y + frame.midY - size / 2, width: size, height: size))
+        if let task = tasks[block.offset] {
+            // An empty checklist item still shows its glyph, where its title will start.
+            let font = NativeProseCodec.emptyAttributes(block.intent)[.font] as? PlatformFont ?? .systemFont(ofSize: 15)
+            guard let frame = taskGlyphFrame(at: block.offset, empty: true, headIndent: NativeProseCodec.taskIndent(font, depth: marker.depth),
+                                             font: font, gap: RelayTaskItemRun.textGap, geometry: geometry) else { continue }
+            drawTaskGlyph(glyph(task), in: frame.offsetBy(dx: origin.x, dy: origin.y))
             continue
         }
-        let label = NSAttributedString(string: taskMarkers[block.offset] ?? marker.label, attributes: attrs)
+        let attrs = NativeProseCodec.emptyAttributes(block.intent)
+        let style = attrs[.paragraphStyle] as? NSParagraphStyle
+        let label = NSAttributedString(string: marker.label, attributes: attrs)
         guard let frame = geometry.markerFrame(at: block.offset, width: label.size().width, empty: true,
                                                headIndent: style?.headIndent ?? 0) else { continue }
         label.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY))
@@ -2748,8 +2766,8 @@ private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint, laidO
     storage.enumerateAttribute(.relayListMarker, in: NSIntersectionRange(visible, NSRange(location: 0, length: storage.length))) { value, range, _ in
         guard let label = value as? String, range.location < source.length,
               range.location == 0 || source.character(at: range.location - 1) == 10,
-              // A linked item's chip draws its status circle in place of the checkbox.
-              storage.attribute(.relayTaskChip, at: range.location, effectiveRange: nil) == nil else { return }
+              // A checklist item's glyph is drawn with its title.
+              storage.attribute(.relayTaskItem, at: range.location, effectiveRange: nil) == nil else { return }
         let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15)
         let marker = NSAttributedString(string: label, attributes: [.font: font, .foregroundColor: PlatformColor.labelColorCompat])
         guard let frame = geometry.markerFrame(at: range.location, width: marker.size().width, empty: false,
@@ -2758,86 +2776,107 @@ private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint, laidO
     }
 }
 
-/// A checklist item linked to a Task, as the value of its title runs' chip
-/// attribute. The text view draws the Task chip from it, as the web's chip
-/// shows a Task: its status circle and title on the surfaced chip fill.
-final class RelayTaskChip: NSObject {
-    let entityID: String
+/// A checklist item, as the value of its title runs' text attribute. The text
+/// view draws the item's glyph from it and, for an item linked to a Task, the
+/// Task chip: the web chip's surfaced fill around the glyph and title.
+final class RelayTaskItemRun: NSObject {
+    let entityID: String?
     let checked: Bool
 
-    init(entityID: String, checked: Bool) {
+    init(entityID: String?, checked: Bool) {
         self.entityID = entityID
         self.checked = checked
     }
 
     override func isEqual(_ object: Any?) -> Bool {
-        guard let other = object as? RelayTaskChip else { return false }
+        guard let other = object as? RelayTaskItemRun else { return false }
         return entityID == other.entityID && checked == other.checked
     }
-    override var hash: Int { entityID.hashValue ^ checked.hashValue }
+    override var hash: Int { (entityID?.hashValue ?? 0) ^ checked.hashValue }
 
-    /// The status circle fills the title's line, as the web's chip visual does.
-    static func diameter(_ font: PlatformFont) -> CGFloat { (font.pointSize * 1.1).rounded() }
-    /// The web chip's spacing: between circle and title, and inside its edge.
-    static let gap: CGFloat = 4
-    static let padding: CGFloat = 4
-
-    /// Without the host's status, the item's own checkbox state.
-    static func fallback(checked: Bool) -> RelayMarkLinkedTaskStatus {
-        checked ? .init(systemImage: "checkmark.circle.fill", tint: .green) : .init(systemImage: "circle", tint: .secondary)
-    }
+    /// The glyph's diameter beside text of `font`: 20 pt beside 15 pt body text.
+    static func diameter(_ font: PlatformFont) -> CGFloat { (font.pointSize * RelayMarkTaskGlyph.sizePerPoint).rounded() }
+    /// Between a plain item's glyph and its title, as the web's 0.5rem.
+    static let textGap: CGFloat = 8
+    /// A chip's spacing, as the web chip's: between glyph and title, and inside its edge,
+    /// so the chip's edge meets a plain item's glyph column.
+    static let chipGap: CGFloat = 4
+    static let chipPadding: CGFloat = 4
 }
 
-/// A linked item's chip in container coordinates, for the paragraph starting at
-/// `paragraph`: its status circle, its title's line frames and its surface, a
-/// pill around one line or a rounded box around a wrapped title. Nil when the
-/// paragraph carries no chip or its title is not laid out.
+/// Where a checklist item's glyph of `font` sits before its title, `gap` from it,
+/// in container coordinates: beside its first character, or inside the indent
+/// of an empty item.
 @MainActor
-private func taskChipLayout(at paragraph: Int, geometry: RelayTextGeometry)
-    -> (chip: RelayTaskChip, circle: CGRect, title: [CGRect], surface: CGRect, radius: CGFloat, font: PlatformFont)? {
+private func taskGlyphFrame(at offset: Int, empty: Bool, headIndent: CGFloat, font: PlatformFont, gap: CGFloat,
+                            geometry: RelayTextGeometry) -> CGRect? {
+    let size = RelayTaskItemRun.diameter(font)
+    let rightToLeft = geometry.isRightToLeft(at: offset)
+    let line: CGRect, start: CGFloat
+    if empty {
+        guard let frame = geometry.lineFrame(at: offset), frame.height > 0 else { return nil }
+        line = frame
+        start = rightToLeft ? frame.maxX - geometry.padding - headIndent : frame.minX + geometry.padding + headIndent
+    } else {
+        guard let character = geometry.characterFrame(at: offset) else { return nil }
+        line = character
+        start = rightToLeft ? character.maxX : character.minX
+    }
+    let x = rightToLeft ? start + gap : start - gap - size
+    return CGRect(x: x, y: line.midY - size / 2, width: size, height: size)
+}
+
+/// A checklist item's drawing for the paragraph starting at `paragraph`, in
+/// container coordinates: its glyph, its title's line frames and, when it is
+/// linked to a Task, the chip's surface (a pill around one line, a rounded box
+/// around a wrapped title). Nil when the paragraph is no item's title or is not laid out.
+@MainActor
+private func taskItemLayout(at paragraph: Int, geometry: RelayTextGeometry)
+    -> (item: RelayTaskItemRun, glyph: CGRect, title: [CGRect], chip: (surface: CGRect, radius: CGFloat)?, font: PlatformFont)? {
     let storage = geometry.storage, text = storage.string as NSString
     guard paragraph >= 0, paragraph < storage.length else { return nil }
     var range = NSRange()
     let bounds = text.paragraphRange(for: NSRange(location: paragraph, length: 0))
-    guard let chip = storage.attribute(.relayTaskChip, at: paragraph, longestEffectiveRange: &range, in: bounds) as? RelayTaskChip
+    guard let item = storage.attribute(.relayTaskItem, at: paragraph, longestEffectiveRange: &range, in: bounds) as? RelayTaskItemRun
     else { return nil }
     while range.length > 0, text.character(at: NSMaxRange(range) - 1) == 10 { range.length -= 1 }
     let title = geometry.segmentFrames(range)
-    guard let first = title.first else { return nil }
     let font = storage.attribute(.font, at: paragraph, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15)
-    let size = RelayTaskChip.diameter(font)
-    let x = geometry.isRightToLeft(at: paragraph) ? first.maxX + RelayTaskChip.gap : first.minX - RelayTaskChip.gap - size
-    let circle = CGRect(x: x, y: first.midY - size / 2, width: size, height: size)
-    let surface = title.reduce(circle) { $0.union($1) }.insetBy(dx: -RelayTaskChip.padding, dy: -1.5)
-    return (chip, circle, title, surface, (first.height + 3) / 2, font)
+    let linked = item.entityID != nil
+    guard let glyph = taskGlyphFrame(at: paragraph, empty: false, headIndent: 0, font: font,
+                                     gap: linked ? RelayTaskItemRun.chipGap : RelayTaskItemRun.textGap, geometry: geometry),
+          let first = title.first else { return nil }
+    let chip = linked ? (title.reduce(glyph) { $0.union($1) }.insetBy(dx: -RelayTaskItemRun.chipPadding, dy: -1.5),
+                         (max(first.height, glyph.height) + 3) / 2) : nil
+    return (item, glyph, title, chip, font)
 }
 
-/// Each linked item's Task chip under its text: the surface, the host's status
-/// circle and, for a done Task, the title's line-through.
+/// Each checklist item under its text: a linked item's chip surface, the item's
+/// glyph and, once ticked, its title's line-through.
 @MainActor
-private func drawTaskChips(geometry: RelayTextGeometry, origin: CGPoint, laidOut: NSTextRange?,
-                           status: (String, Bool) -> RelayMarkLinkedTaskStatus?) {
+private func drawTaskItems(geometry: RelayTextGeometry, origin: CGPoint, laidOut: NSTextRange?,
+                           glyph: (RelayTaskItemRun) -> RelayMarkTaskGlyph) {
     let storage = geometry.storage, text = storage.string as NSString
     let visible = laidOut.map(geometry.range) ?? NSRange(location: 0, length: storage.length)
-    storage.enumerateAttribute(.relayTaskChip, in: NSIntersectionRange(visible, NSRange(location: 0, length: storage.length)),
+    storage.enumerateAttribute(.relayTaskItem, in: NSIntersectionRange(visible, NSRange(location: 0, length: storage.length)),
                                options: .longestEffectiveRangeNotRequired) { value, range, _ in
-        guard value is RelayTaskChip, range.location == 0 || text.character(at: range.location - 1) == 10,
-              let chip = taskChipLayout(at: range.location, geometry: geometry) else { return }
-        // The web chip's surfaced fill and hairline stroke.
-        let fill = PlatformColor.labelColorCompat.withAlphaComponent(0.045)
-        let stroke = PlatformColor.labelColorCompat.withAlphaComponent(0.1)
-        let rect = chip.surface.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: 0.5, dy: 0.5)
-        #if os(macOS)
-        let path = NSBezierPath(roundedRect: rect, xRadius: chip.radius, yRadius: chip.radius)
-        #else
-        let path = UIBezierPath(roundedRect: rect, cornerRadius: chip.radius)
-        #endif
-        fill.setFill(); path.fill()
-        path.lineWidth = 1; stroke.setStroke(); path.stroke()
-        if chip.chip.checked {
+        guard value is RelayTaskItemRun, range.location == 0 || text.character(at: range.location - 1) == 10,
+              let layout = taskItemLayout(at: range.location, geometry: geometry) else { return }
+        if let chip = layout.chip {
+            // The web chip's surfaced fill and hairline stroke.
+            let rect = chip.surface.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: 0.5, dy: 0.5)
+            #if os(macOS)
+            let path = NSBezierPath(roundedRect: rect, xRadius: chip.radius, yRadius: chip.radius)
+            #else
+            let path = UIBezierPath(roundedRect: rect, cornerRadius: chip.radius)
+            #endif
+            PlatformColor.labelColorCompat.withAlphaComponent(0.045).setFill(); path.fill()
+            path.lineWidth = 1; PlatformColor.labelColorCompat.withAlphaComponent(0.1).setStroke(); path.stroke()
+        }
+        if layout.item.checked {
             PlatformColor.secondaryLabelColorCompat.setFill()
-            for line in chip.title {
-                let y = origin.y + line.minY + chip.font.ascender - chip.font.xHeight / 2
+            for line in layout.title {
+                let y = origin.y + line.minY + layout.font.ascender - layout.font.xHeight / 2
                 let strike = CGRect(x: origin.x + line.minX, y: y - 0.5, width: line.width, height: 1)
                 #if os(macOS)
                 NSBezierPath(rect: strike).fill()
@@ -2846,27 +2885,24 @@ private func drawTaskChips(geometry: RelayTextGeometry, origin: CGPoint, laidOut
                 #endif
             }
         }
-        drawTaskStatus(status(chip.chip.entityID, chip.chip.checked) ?? RelayTaskChip.fallback(checked: chip.chip.checked),
-                       in: chip.circle.offsetBy(dx: origin.x, dy: origin.y))
+        drawTaskGlyph(glyph(layout.item), in: layout.glyph.offsetBy(dx: origin.x, dy: origin.y))
     }
 }
 
-/// The host's status symbol, tinted and fitted to `rect`.
+/// The paper's glyph for a checklist item: a plain item's checkbox, or the host's
+/// glyph for a linked item's Task, falling back to the item's checkbox state.
 @MainActor
-private func drawTaskStatus(_ status: RelayMarkLinkedTaskStatus, in rect: CGRect) {
-    let color = PlatformColor(status.tint)
+private func taskGlyph(_ item: RelayTaskItemRun, session: (any RelayPaperTextEditing)?) -> RelayMarkTaskGlyph {
+    item.entityID.flatMap { session?.linkedTaskStatus(entityID: $0, checked: item.checked) }
+        ?? .checklist(checked: item.checked)
+}
+
+@MainActor
+private func drawTaskGlyph(_ glyph: RelayMarkTaskGlyph, in rect: CGRect) {
     #if os(macOS)
-    guard let image = NSImage(systemSymbolName: status.systemImage, accessibilityDescription: nil)?.withSymbolConfiguration(
-        NSImage.SymbolConfiguration(pointSize: rect.height, weight: .regular).applying(.init(paletteColors: [color]))) else { return }
-    image.draw(in: fitted(image.size, in: rect), from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+    guard let context = NSGraphicsContext.current?.cgContext else { return }
     #else
-    guard let image = UIImage(systemName: status.systemImage, withConfiguration: UIImage.SymbolConfiguration(pointSize: rect.height, weight: .regular))?
-        .withTintColor(color, renderingMode: .alwaysOriginal) else { return }
-    image.draw(in: fitted(image.size, in: rect))
+    guard let context = UIGraphicsGetCurrentContext() else { return }
     #endif
-    func fitted(_ size: CGSize, in rect: CGRect) -> CGRect {
-        let scale = min(rect.width / max(size.width, 1), rect.height / max(size.height, 1))
-        let fit = CGSize(width: size.width * scale, height: size.height * scale)
-        return CGRect(x: rect.midX - fit.width / 2, y: rect.midY - fit.height / 2, width: fit.width, height: fit.height)
-    }
+    glyph.draw(in: context, rect: rect, tint: PlatformColor(glyph.tint).cgColor)
 }
