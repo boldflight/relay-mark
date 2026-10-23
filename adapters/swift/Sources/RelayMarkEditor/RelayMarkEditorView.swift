@@ -716,6 +716,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         let scroll = NSScrollView()
         scroll.hasVerticalScroller = true
         scroll.drawsBackground = false
+        scroll.automaticallyAdjustsContentInsets = false
         scroll.documentView = context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel)
         return scroll
     }
