@@ -1542,6 +1542,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         let container = CollaborationTextContainer()
         container.install(context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel))
         container.textView.map(applyBottomInset)
+        container.textView?.attach(header: services.header)
         return container
     }
     public func updateUIView(_ container: CollaborationTextContainer, context: Context) {
@@ -1550,13 +1551,15 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         if context.coordinator.text.session !== session {
             let previous = container.textView
             let wasFocused = previous?.isFirstResponder == true
-            if let previous { context.coordinator.text.retire(previous) }
+            if let previous { previous.attach(header: nil); context.coordinator.text.retire(previous) }
             context.coordinator.text.session = session
             let replacement = context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel)
             container.install(replacement)
             if wasFocused { replacement.becomeFirstResponder() }
         } else if let view = container.textView { context.coordinator.text.update(view) }
         container.textView.map(applyBottomInset)
+        // Only the instance is compared: the host feeds the header's content itself.
+        container.textView?.attach(header: services.header)
     }
     /// The host's room below the last line, in place of the safe-area adjustment.
     private func applyBottomInset(_ view: CollaborationTextView) {
@@ -1568,7 +1571,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         view.verticalScrollIndicatorInsets.bottom = inset
     }
     public static func dismantleUIView(_ container: CollaborationTextContainer, coordinator: Coordinator) {
-        if let view = container.textView { coordinator.text.retire(view) }
+        if let view = container.textView { view.attach(header: nil); coordinator.text.retire(view) }
     }
     @MainActor final class TextCoordinator: NSObject, UITextViewDelegate, UITextPasteDelegate, UITextFormattingViewController.Delegate {
         /// The host's services; tests may set the closures below directly.
@@ -1672,7 +1675,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             // size settles after the first draw they redraw for the new layout, never a
             // stretched copy of the old one.
             view.contentMode = .redraw
-            view.textContainerInset = UIEdgeInsets(top: 20, left: RelayPaperMargins.leading, bottom: 8, right: RelayPaperMargins.trailing)
+            view.textContainerInset = UIEdgeInsets(top: view.baseTopInset, left: RelayPaperMargins.leading, bottom: 8, right: RelayPaperMargins.trailing)
             view.allowsEditingTextAttributes = true
             view.textFormattingConfiguration = CollaborationTextView.formattingPanel
             view.adjustsFontForContentSizeCategory = true
@@ -1993,6 +1996,11 @@ public struct RelayMarkEditorView: UIViewRepresentable {
 @MainActor
 public final class CollaborationTextContainer: UIView {
     private(set) var textView: CollaborationTextView?
+    /// VoiceOver reads a hosted header before the paper's text.
+    override public var accessibilityElements: [Any]? {
+        get { textView.map { view in [view.headerView, view].compactMap { $0 } } }
+        set {}
+    }
     func install(_ view: CollaborationTextView) {
         textView?.removeFromSuperview()
         textView = view
@@ -2107,6 +2115,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     override func layoutSubviews() {
         super.layoutSubviews()
         assert(textLayoutManager != nil, "The paper switched to TextKit 1 compatibility mode")
+        layOutHeader()
         for span in paper.tables.spans where span.table.isGridLoaded && span.table.grid.superview != nil {
             span.table.grid.updateVisible(in: convert(bounds, to: span.table.grid))
         }
@@ -2166,7 +2175,92 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     var onMovedToWindow: (() -> Void)?
     override func didMoveToWindow() {
         super.didMoveToWindow()
+        adoptHeaderHost()
         onMovedToWindow?()
+    }
+
+    // MARK: A host's header above the text, in this view's own scroll
+
+    /// The space above the text without a header.
+    var baseTopInset: CGFloat = 20 { didSet { updateTopInset() } }
+    private(set) weak var header: RelayMarkEditorHeader?
+    private var headerContainer: HeaderContainer?
+    /// The header's laid-out view, for accessibility order and tests.
+    var headerView: UIView? { headerContainer == nil ? nil : header?.host?.view }
+    var headerHeight: CGFloat { headerContainer == nil ? 0 : header?.height ?? 0 }
+
+    /// Lays the header out at the top of the scroll content, across the visible width.
+    /// The text starts below it and moves with the header's own height changes.
+    func attach(header next: RelayMarkEditorHeader?) {
+        guard next !== header || (next != nil && headerContainer == nil) else { return }
+        // Only a header still shown here is released: a text view replacing this one
+        // may have taken it over already.
+        if let header, let host = header.host, headerContainer != nil, host.view.superview === headerContainer {
+            host.view.removeFromSuperview()
+            if host.parent != nil { host.willMove(toParent: nil); host.removeFromParent() }
+            header.onHeightChange = nil
+        }
+        headerContainer?.removeFromSuperview(); headerContainer = nil
+        header = next
+        defer { updateTopInset() }
+        guard let next else { return }
+        let host = next.hostingController()
+        // A header shown by another text view moves here with its state.
+        if host.parent != nil { host.willMove(toParent: nil); host.removeFromParent() }
+        host.view.removeFromSuperview()
+        // Frames, not constraints: typing and scrolling change the content size and
+        // offset, and neither may lay the header out again.
+        let container = HeaderContainer()
+        host.view.translatesAutoresizingMaskIntoConstraints = true
+        container.addSubview(host.view)
+        // Using the header ends typing, as a tap outside the text does: the keyboard
+        // changing under a menu or sheet would otherwise scroll back to the caret.
+        let tap = UITapGestureRecognizer(target: self, action: #selector(endTypingFromHeader))
+        tap.cancelsTouchesInView = false
+        tap.delegate = container
+        container.addGestureRecognizer(tap)
+        addSubview(container)
+        headerContainer = container
+        next.onHeightChange = { [weak self] in self?.updateTopInset(); self?.setNeedsLayout() }
+        layOutHeader()
+        adoptHeaderHost()
+    }
+
+    private func layOutHeader() {
+        guard let headerContainer, let view = header?.host?.view else { return }
+        let frame = CGRect(x: 0, y: 0, width: bounds.width, height: headerHeight)
+        guard headerContainer.frame != frame || view.frame != headerContainer.bounds else { return }
+        headerContainer.frame = frame
+        view.frame = headerContainer.bounds
+    }
+
+    /// The header presents its own sheets and menus from the nearest view controller.
+    private func adoptHeaderHost() {
+        guard headerContainer != nil, let host = header?.host, host.parent == nil, window != nil,
+              let parent = sequence(first: next, next: { $0?.next }).lazy.compactMap({ $0 as? UIViewController }).first else { return }
+        parent.addChild(host)
+        host.didMove(toParent: parent)
+    }
+
+    private func updateTopInset() {
+        let top = baseTopInset + headerHeight
+        if textContainerInset.top != top { textContainerInset.top = top }
+    }
+
+    /// The header takes its own taps and presses; the text's selection gestures
+    /// begin only over the text. Scrolling starts anywhere.
+    override func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+        if let container = headerContainer, recognizer !== panGestureRecognizer,
+           container.frame.contains(recognizer.location(in: self)) { return false }
+        return super.gestureRecognizerShouldBegin(recognizer)
+    }
+
+    @objc private func endTypingFromHeader() { if isFirstResponder { _ = resignFirstResponder() } }
+
+    /// Holds the header; its tap shares the header's touches.
+    final class HeaderContainer: UIView, UIGestureRecognizerDelegate {
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
     }
     @objc func handleTaskTap(_ gesture: UITapGestureRecognizer) {
         guard gesture.state == .ended, !retired, markedTextRange == nil else { return }

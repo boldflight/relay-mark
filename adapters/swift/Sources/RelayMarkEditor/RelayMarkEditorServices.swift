@@ -77,6 +77,10 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     /// rest clear of them. Nil leaves the bottom to the system's safe-area
     /// adjustment; a value replaces it.
     public var bottomContentInset: CGFloat?
+    /// SwiftUI content laid out above the paper's text inside the editor's own
+    /// scroll (UIKit): it scrolls away with the text, and the caret's keyboard
+    /// handling stays the text view's. Nil shows the text alone.
+    public var header: RelayMarkEditorHeader?
 
     public init(images: (any RelayMarkImageService)? = nil, paste: (any RelayMarkPasteService)? = nil,
                 links: (any RelayMarkLinkService)? = nil, paperControls: (any RelayMarkPaperControlService)? = nil,
@@ -94,4 +98,51 @@ public struct RelayMarkImageFile: Sendable, Equatable {
         return Color(red: Double((hex >> 16) & 255) / 255, green: Double((hex >> 8) & 255) / 255,
                      blue: Double(hex & 255) / 255)
     }
+}
+
+/// Content a host shows above the paper's text, inside the editor's scroll
+/// (UIKit; ignored on AppKit). The host sets `content` when its header
+/// changes; the editor's own updates, typing included, never touch it. One
+/// header keeps its view, and the state inside it, when the paper's text view
+/// is replaced (a read-only stand-in giving way to the editor).
+@MainActor public final class RelayMarkEditorHeader {
+    public init() {}
+    public var content: AnyView? {
+        didSet {
+            contentUpdates += 1
+            #if !os(macOS)
+            host?.rootView = measured
+            #endif
+        }
+    }
+    /// How many times the host replaced the content; tests bound per-keystroke work with it.
+    public private(set) var contentUpdates = 0
+    #if !os(macOS)
+    /// The content's height at the text view's width, as SwiftUI last laid it out.
+    private(set) var height: CGFloat = 0
+    var onHeightChange: (() -> Void)?
+    private(set) var host: UIHostingController<AnyView>?
+    /// The content at its own height, which it reports as it changes.
+    private var measured: AnyView {
+        AnyView((content ?? AnyView(EmptyView()))
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { [weak self] in self?.heightChanged($0) }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top))
+    }
+    private func heightChanged(_ next: CGFloat) {
+        guard next != height else { return }
+        height = next
+        onHeightChange?()
+    }
+    /// The header's one hosting controller, made when a text view first shows it.
+    func hostingController() -> UIHostingController<AnyView> {
+        if let host { return host }
+        let made = UIHostingController(rootView: measured)
+        made.view.backgroundColor = .clear
+        made.sizingOptions = []
+        made.safeAreaRegions = []
+        host = made
+        return made
+    }
+    #endif
 }

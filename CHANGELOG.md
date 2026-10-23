@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- A host can lay SwiftUI content out above the paper's text inside the UIKit
+  editor's own scroll with `RelayMarkEditorServices.header`
+  (`RelayMarkEditorHeader`): it scrolls away with the text, the text starts
+  below its height as that changes, VoiceOver reads it first, and a tap in it
+  ends typing. TextKit 2 viewport layout is unchanged; typing never touches
+  the header. AppKit ignores it.
 - VoiceOver hears what the checklist item at the caret is: the paper view's
   custom content reads "Checklist item" with the value "Draft task" or "Task",
   at high importance, on AppKit and UIKit alike, since the checkbox is drawn
