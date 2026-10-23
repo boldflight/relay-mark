@@ -247,6 +247,23 @@ struct RelayMarkEditorTaskDraftTests {
 
     // AppKit lays a headless view out without its paragraphs' indents, so only UIKit shows this.
 #if !os(macOS)
+    // Bug caught: on a Task paper's first open the paper's height settles after its first
+    // draw, and UIKit scaled the stale drawing to the new size, so chips and glyphs rode up
+    // over the lines above (M11 integration QA). A resize must redraw them for the new layout.
+    @Test("Resizing the paper redraws its glyphs and chips instead of scaling the old drawing")
+    func resizeRedrawsTaskDrawing() throws {
+        let paper = try Paper([["type": "taskList", "content": [
+            ["type": "taskItem", "attrs": ["checked": false, "entityId": "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Buy flowers"]]]]]]]])
+        defer { paper.retire() }
+        paper.coordinator.update(paper.view)
+        paper.view.layoutIfNeeded()
+        paper.view.layer.displayIfNeeded()
+        #expect(!paper.view.layer.needsDisplay())
+        paper.view.frame.size.height += 120
+        #expect(paper.view.layer.needsDisplay(), "the old drawing would be stretched to the new size")
+    }
+
     // Bug caught: the trailing empty draft's glyph drawn one indent too far right, over the
     // text of the item above it (M10 iPhone), or up into that item's chip (M11 Mac). It must
     // sit in the same column as the item's own, on the line below it.

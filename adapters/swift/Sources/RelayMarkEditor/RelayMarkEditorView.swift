@@ -1654,6 +1654,10 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 endComposition(view)
             }
             view.backgroundColor = .clear
+            // Checklist glyphs, chips and markers are drawn in the view itself; when its
+            // size settles after the first draw they redraw for the new layout, never a
+            // stretched copy of the old one.
+            view.contentMode = .redraw
             view.textContainerInset = UIEdgeInsets(top: 20, left: RelayPaperMargins.leading, bottom: 8, right: RelayPaperMargins.trailing)
             view.allowsEditingTextAttributes = true
             view.textFormattingConfiguration = CollaborationTextView.formattingPanel
