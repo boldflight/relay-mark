@@ -5,6 +5,7 @@ defmodule RelayMark.PackagedSpecTest do
   @packaged_root Path.expand("../priv/relaymark", __DIR__)
   @schema_files ~w(
     contract.json
+    editor/input-rules-v1.json
     editor-schema.json
     xml-attribute-encoding.json
     schemas/relaymark-diagnostic.schema.json
