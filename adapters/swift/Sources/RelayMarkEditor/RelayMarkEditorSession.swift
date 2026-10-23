@@ -15,6 +15,9 @@ public final class RelayMarkEditorSession {
     /// Counted after typing pauses, so a footer never reads the whole paper per keystroke.
     public internal(set) var wordCount = 0
     @ObservationIgnored var wordCountTask: Task<Void, Never>?
+    /// Advances when a command changes task checkboxes without changing `text`, so a view
+    /// observing the session shows the new state.
+    public internal(set) var taskStateRevision = 0
     /// Advances whenever `text` is replaced; a text view compares it instead of the text.
     @ObservationIgnored public private(set) var textRevision = 0
     /// Set when a peer's text-only update re-projected just its leaves.
@@ -256,6 +259,7 @@ public final class RelayMarkEditorSession {
         try beforeMutation(operation)
         let change = try ownedChange({ try document.setRichTaskItemsChecked(items: targets, checked: !item.checked, expectedSnapshot: snapshot) },
             separateHistoryItem: true, operationID: operation, update: { $0.update })
+        taskStateRevision &+= 1
         pending = RelayMarkLocalTransaction(id: try preparedOperationID(), update: change.update, inputIntent: .derived)
         retryPersistence()
         return operation

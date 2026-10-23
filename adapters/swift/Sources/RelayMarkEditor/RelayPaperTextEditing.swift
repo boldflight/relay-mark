@@ -55,6 +55,8 @@ protocol RelayPaperTextEditing: AnyObject {
     var nativeTableCells: [RelayMarkCollaborativeProse.TableCell] { get }
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] { get }
     var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] { get }
+    /// Advances when task checkboxes change without the text changing.
+    var taskStateRevision: Int { get }
     /// The unlinked task items a person started as draft Tasks (M10).
     var armedTaskDrafts: [String] { get }
     var nativeInlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] { get }
@@ -120,6 +122,7 @@ extension RelayPaperTextEditing {
     var nativeTableCells: [RelayMarkCollaborativeProse.TableCell] { [] }
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] { [] }
     var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] { [] }
+    var taskStateRevision: Int { 0 }
     var nativeInlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] { [] }
     var nativeBlockAtoms: [RelayMarkCollaborativeProse.BlockAtom] { [] }
     var nativeAuthoredWidgets: [RelayMarkCollaborativeProse.AuthoredWidget] { [] }

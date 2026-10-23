@@ -498,10 +498,15 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             if let composition { session.cancelComposition(composition) }
             composition = nil; view.cancelCompositionCompletion(); view.unmarkPaperText()
         }
+        _ = session.taskStateRevision
         let revision = (text: session.textRevision, media: mediaRevision, editable: session.isEditable)
         if let rendered = view.paper.renderedRevision, rendered == revision {
-            syncSelection(view)
-            return
+            // A tick changes a task's state, not the paper's text; the markers are part of what is rendered.
+            if view.paper.taskItems.map(\.checked) == session.nativeTaskItems.map(\.checked) {
+                syncSelection(view)
+                return
+            }
+            view.paper.renderedRevision = nil
         }
         if let rendered = view.paper.renderedRevision, let splice = session.textSplice,
            rendered == (splice.from, revision.media, revision.editable), splice.to == revision.text, view.performPaperEdit({ applied(splice, to: view) }) {

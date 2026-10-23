@@ -172,6 +172,27 @@ struct RelayMarkEditorTaskDraftTests {
         #expect(content().isEmpty)
     }
 
+    // Bug caught: a linked Task ticked by its host (the checkbox goes to the Task's own update,
+    // and the paper changes afterwards) stayed drawn unticked until the paper was reopened.
+    @Test("A checkbox the host ticks is drawn ticked at once")
+    func hostTickedLinkedTaskIsDrawnTicked() throws {
+        let paper = try Paper([["type": "taskList", "content": [
+            ["type": "taskItem", "attrs": ["checked": false, "entityId": "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Call Ana"]]]]]]]])
+        defer { paper.retire() }
+        func drawnMarker() -> String? {
+            paper.coordinator.update(paper.view)
+            return paper.view.paperStorage.attribute(NSAttributedString.Key("RelayListMarker"), at: 0, effectiveRange: nil) as? String
+        }
+        #expect(drawnMarker() == "☐")
+        let item = try #require(paper.editor.nativeTaskItems.first)
+        // The host's command, after its domain action: the same call applyLinkedTaskToggle makes.
+        _ = try paper.editor.toggleTaskItems(item)
+        #expect(paper.editor.nativeTaskItems.map(\.checked) == [true])
+        #expect(drawnMarker() == "☑")
+        #expect(paper.view.paper.taskItems.map(\.checked) == [true])
+    }
+
     /// The Yjs anchor task creation sends: y-prosemirror's positions, with the
     /// same association, for a plain title and one ending in a reference. With
     /// RELAYMARK_TASK_ANCHOR_FIXTURE set it writes the document and anchors for
