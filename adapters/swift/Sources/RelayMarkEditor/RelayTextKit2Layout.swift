@@ -49,6 +49,18 @@ enum RelayPaperMargins {
     static let gutter: CGFloat = 24
     static let trailing: CGFloat = 5
     static let leading: CGFloat = trailing + gutter
+    /// TextKit's default line fragment padding, which the paper keeps on both sides.
+    static let linePadding: CGFloat = 5
+}
+
+public extension RelayMarkEditorView {
+    /// How far the paper's text sits inside the view on each side: the margins plus
+    /// line padding, the leading one holding the heading chevrons' gutter. A host
+    /// aligns the text with its own column, as the web aligns paper text with the
+    /// title, by letting the view extend past that column by these amounts.
+    static var textInsets: (leading: CGFloat, trailing: CGFloat) {
+        (RelayPaperMargins.leading + RelayPaperMargins.linePadding, RelayPaperMargins.trailing + RelayPaperMargins.linePadding)
+    }
 }
 
 /// The paper's TextKit 2 layout: system paragraphs and callout fragments.

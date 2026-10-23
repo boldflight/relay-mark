@@ -13,6 +13,8 @@ final class RelayPaperViewState {
     var renderedRevision: (text: Int, media: Int, editable: Bool)?
     /// The session task-state revision whose checkbox markers are drawn.
     var renderedTaskStateRevision = 0
+    /// The session linked-task revision whose chips are drawn.
+    var renderedLinkedTaskRevision = 0
     var tables = RelayTableSpans()
     var tableAttachments: [Int: RelayTableAttachment] = [:]
     /// Paper offsets, as the session gives them.
@@ -503,6 +505,11 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         // Observed, so a host tick (which changes a task's state, not the paper's text) re-renders;
         // compared as one number, never by reading every task item per update.
         let taskState = session.taskStateRevision
+        // A Task's status draws in its chip only: a redraw, never a re-render of the text.
+        if view.paper.renderedLinkedTaskRevision != session.linkedTaskRevision {
+            view.paper.renderedLinkedTaskRevision = session.linkedTaskRevision
+            view.paperNeedsDisplay()
+        }
         let revision = (text: session.textRevision, media: mediaRevision, editable: session.isEditable)
         if let rendered = view.paper.renderedRevision, rendered == revision {
             if view.paper.renderedTaskStateRevision == taskState {

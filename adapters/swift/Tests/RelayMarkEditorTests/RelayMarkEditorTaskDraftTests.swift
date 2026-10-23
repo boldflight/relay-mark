@@ -193,6 +193,56 @@ struct RelayMarkEditorTaskDraftTests {
         #expect(paper.view.paper.taskItems.map(\.checked) == [true])
     }
 
+    // Bug caught: a checklist item made into a Task still drawn as a plain checkbox and text
+    // (M11 C1), or its chip running into the next item or line.
+    @Test("A linked item's whole title carries its Task chip, and nothing around it does")
+    func linkedItemTitleCarriesTaskChip() throws {
+        let entity = "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"
+        let paper = try Paper([["type": "taskList", "content": [
+            ["type": "taskItem", "attrs": ["checked": false, "entityId": entity],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Call "],
+                                                           ["type": "text", "text": "Ana", "marks": [["type": "bold"]]]]]]],
+            ["type": "taskItem", "attrs": ["checked": false],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Buy milk"]]]]]]],
+            ["type": "paragraph", "content": [["type": "text", "text": "After"]]]])
+        defer { paper.retire() }
+        paper.coordinator.update(paper.view)
+        let storage = paper.view.paperStorage, text = storage.string as NSString
+        func chip(_ word: String) -> [String?] {
+            let range = text.range(of: word)
+            return (range.location..<NSMaxRange(range)).map {
+                (storage.attribute(NSAttributedString.Key("RelayTaskChip"), at: $0, effectiveRange: nil) as? RelayTaskChip)?.entityID
+            }
+        }
+        #expect(chip("Call Ana") == Array(repeating: entity, count: 8))
+        #expect(chip("Buy milk").allSatisfy { $0 == nil })
+        #expect(chip("After").allSatisfy { $0 == nil })
+    }
+
+    // Bug caught: a Task's status changed elsewhere never reaching its chip in an open paper,
+    // or every local sync publish redrawing papers that show no chip.
+    @Test("The host's Task status is read once per change, and a change costs nothing without chips")
+    func linkedTaskStatusIsReadOncePerChange() throws {
+        let paper = try Paper([["type": "taskList", "content": [
+            ["type": "taskItem", "attrs": ["checked": false, "entityId": "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Call Ana"]]]]]]]])
+        defer { paper.retire() }
+        var reads = 0, symbol = "circle"
+        paper.editor.linkedTaskStatus = { _, _ in reads += 1; return .init(systemImage: symbol, tint: .red) }
+        let quiet = paper.editor.linkedTaskRevision
+        paper.editor.linkedTasksChanged()
+        #expect(paper.editor.linkedTaskRevision == quiet)
+        let id = "5b0f3c1e-6a7d-4e8f-9a0b-1c2d3e4f5a6b"
+        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.systemImage == "circle")
+        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.systemImage == "circle")
+        #expect(reads == 1)
+        symbol = "circle.lefthalf.filled"
+        paper.editor.linkedTasksChanged()
+        #expect(paper.editor.linkedTaskRevision != quiet)
+        #expect(paper.editor.linkedTaskStatus(entityID: id, checked: false)?.systemImage == "circle.lefthalf.filled")
+        #expect(reads == 2)
+    }
+
     // AppKit lays a headless view out without its paragraphs' indents, so only UIKit shows this.
 #if !os(macOS)
     // Bug caught: the trailing empty draft's checkbox drawn one indent too far right, over the

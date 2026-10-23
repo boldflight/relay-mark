@@ -204,6 +204,17 @@ public final class RelayMarkEditorSession {
     /// A task item bound to an entity, whose checkbox the host changes through
     /// that entity's own update; nil, or false from it, leaves it unchanged.
     @ObservationIgnored public var onLinkedTaskItem: ((RelayMarkCollaborativeProse.TaskItem) -> Bool)?
+    /// The host's status for a linked item's Task, given the Task's entity and the
+    /// item's checkbox, drawn in its task chip; nil when the host has none, and the
+    /// chip shows the checkbox state.
+    @ObservationIgnored public var linkedTaskStatus: ((_ entityID: String, _ checked: Bool) -> RelayMarkLinkedTaskStatus?)? {
+        didSet { linkedTasksChanged() }
+    }
+    /// Advances when linked Tasks' statuses may have changed; the view redraws its chips.
+    public internal(set) var linkedTaskRevision = 0
+    /// Each Task's status as the host last answered, until it reports a change.
+    @ObservationIgnored var linkedTaskStatuses: [LinkedTaskKey: RelayMarkLinkedTaskStatus?] = [:]
+    struct LinkedTaskKey: Hashable { let entityID: String; let checked: Bool }
     /// Whether new checklist items start as draft Tasks. A host turns it on for
     /// a paper whose checklist items it can make into Tasks.
     @ObservationIgnored public var createsTaskDrafts = false
@@ -847,6 +858,7 @@ public final class RelayMarkEditorSession {
         selectedRange = nil
         onSelectionChange = nil
         onLinkedTaskItem = nil
+        linkedTaskStatus = nil
         onHistory = nil
         pending = nil
         activeComposition = nil

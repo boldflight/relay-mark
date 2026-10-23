@@ -57,6 +57,10 @@ protocol RelayPaperTextEditing: AnyObject {
     var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] { get }
     /// Advances when task checkboxes change without the text changing.
     var taskStateRevision: Int { get }
+    /// Advances when linked Tasks' statuses may have changed; chips redraw.
+    var linkedTaskRevision: Int { get }
+    /// The status a linked item's Task chip shows, when the host has one.
+    func linkedTaskStatus(entityID: String, checked: Bool) -> RelayMarkLinkedTaskStatus?
     /// The unlinked task items a person started as draft Tasks (M10).
     var armedTaskDrafts: [String] { get }
     var nativeInlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] { get }
@@ -123,6 +127,8 @@ extension RelayPaperTextEditing {
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] { [] }
     var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] { [] }
     var taskStateRevision: Int { 0 }
+    var linkedTaskRevision: Int { 0 }
+    func linkedTaskStatus(entityID: String, checked: Bool) -> RelayMarkLinkedTaskStatus? { nil }
     var nativeInlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] { [] }
     var nativeBlockAtoms: [RelayMarkCollaborativeProse.BlockAtom] { [] }
     var nativeAuthoredWidgets: [RelayMarkCollaborativeProse.AuthoredWidget] { [] }
