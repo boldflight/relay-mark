@@ -11,6 +11,8 @@ import UIKit
 final class RelayPaperViewState {
     /// The session text revision, media revision and editability last shown.
     var renderedRevision: (text: Int, media: Int, editable: Bool)?
+    /// The session task-state revision whose checkbox markers are drawn.
+    var renderedTaskStateRevision = 0
     var tables = RelayTableSpans()
     var tableAttachments: [Int: RelayTableAttachment] = [:]
     /// Paper offsets, as the session gives them.
@@ -498,11 +500,12 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             if let composition { session.cancelComposition(composition) }
             composition = nil; view.cancelCompositionCompletion(); view.unmarkPaperText()
         }
-        _ = session.taskStateRevision
+        // Observed, so a host tick (which changes a task's state, not the paper's text) re-renders;
+        // compared as one number, never by reading every task item per update.
+        let taskState = session.taskStateRevision
         let revision = (text: session.textRevision, media: mediaRevision, editable: session.isEditable)
         if let rendered = view.paper.renderedRevision, rendered == revision {
-            // A tick changes a task's state, not the paper's text; the markers are part of what is rendered.
-            if view.paper.taskItems.map(\.checked) == session.nativeTaskItems.map(\.checked) {
+            if view.paper.renderedTaskStateRevision == taskState {
                 syncSelection(view)
                 return
             }
@@ -515,6 +518,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             return
         }
         view.paper.renderedRevision = revision
+        view.paper.renderedTaskStateRevision = taskState
         view.paper.emptyBlocks = session.nativeEmptyBlocks
         view.paper.taskItems = session.nativeTaskItems
         let rendered = NativeProseCodec.viewText(session.text, emptyBlocks: view.paper.emptyBlocks,
