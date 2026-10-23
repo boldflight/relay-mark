@@ -7,8 +7,8 @@ import PackageDescription
 // (relaymark-ffi and yniffi under one C module, RelayMarkFFI), built and
 // published by scripts/build-swift-engine.zsh as a release asset.
 // RELAYMARK_LOCAL_ENGINE=1 uses the script's local build instead.
-let engineURL = "https://github.com/boldflight/relay-mark/releases/download/engine-27dac0e7e507/RelayMarkFFI.xcframework.zip"
-let engineChecksum = "0fb0710b7aeff65ed43cf411c285148ae6a51fb1080e5a07c9fe9805e6a23dfb"
+let engineURL = "https://github.com/boldflight/relay-mark/releases/download/engine-adb21847b753/RelayMarkFFI.xcframework.zip"
+let engineChecksum = "c4338b67e54d284bca8b9f375df664509e0a3398b9f68035ca1661e4fb7e5c77"
 let engine: Target = ProcessInfo.processInfo.environment["RELAYMARK_LOCAL_ENGINE"] == nil
     ? .binaryTarget(name: "RelayMarkFFI", url: engineURL, checksum: engineChecksum)
     : .binaryTarget(name: "RelayMarkFFI", path: "target/swift-engine/RelayMarkFFI.xcframework")
