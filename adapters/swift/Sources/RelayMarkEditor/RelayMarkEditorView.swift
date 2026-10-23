@@ -2404,6 +2404,8 @@ struct RelayTextGeometry {
 
     /// The line holding `offset` across the container width, starting at the
     /// container's leading edge; at the end, the empty line after a final newline.
+    /// A fragment's own origin already includes its paragraph's indent (a list item's),
+    /// which callers add themselves, so the frame starts at the container edge, not the fragment.
     func lineFrame(at offset: Int) -> CGRect? {
         guard offset >= 0, offset <= length else { return nil }
         if offset == length {
@@ -2411,7 +2413,7 @@ struct RelayTextGeometry {
             if let fragment = manager.textLayoutFragment(for: end), self.offset(fragment.rangeInElement.location) == length {
                 manager.ensureLayout(for: fragment.rangeInElement)
                 let frame = fragment.layoutFragmentFrame
-                return CGRect(x: frame.minX - padding, y: frame.minY, width: frame.width + padding, height: frame.height)
+                return CGRect(x: 0, y: frame.minY, width: frame.maxX, height: frame.height)
             }
             guard length > 0, (storage.string as NSString).character(at: length - 1) == 10,
                   let last = lineFrame(at: length - 1) else { return nil }
@@ -2424,7 +2426,7 @@ struct RelayTextGeometry {
         let lines = fragment.textLineFragments
         guard let line = lines.first(where: { NSLocationInRange(inner, $0.characterRange) }) ?? lines.last else { return nil }
         let bounds = line.typographicBounds
-        return CGRect(x: frame.minX - padding, y: frame.minY + bounds.minY, width: frame.width + padding, height: bounds.height)
+        return CGRect(x: 0, y: frame.minY + bounds.minY, width: frame.maxX, height: bounds.height)
     }
 
     /// Whether TextKit resolved the paragraph at `offset` to run right to left.

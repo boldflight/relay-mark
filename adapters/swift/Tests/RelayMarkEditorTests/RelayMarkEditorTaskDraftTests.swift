@@ -193,6 +193,30 @@ struct RelayMarkEditorTaskDraftTests {
         #expect(paper.view.paper.taskItems.map(\.checked) == [true])
     }
 
+    // AppKit lays a headless view out without its paragraphs' indents, so only UIKit shows this.
+#if !os(macOS)
+    // Bug caught: the trailing empty draft's checkbox drawn one indent too far right, over the
+    // text of the item above it (M10 iPhone). It must sit in the same column as the item's own.
+    @Test("An empty trailing checklist item's checkbox is drawn in its sibling's column")
+    func emptyDraftCheckboxAlignsWithItsSibling() throws {
+        let paper = try Paper([["type": "taskList", "content": [
+            ["type": "taskItem", "attrs": ["checked": true],
+             "content": [["type": "paragraph", "content": [["type": "text", "text": "Buy candles"]]]]],
+            ["type": "taskItem", "attrs": ["checked": false], "content": [["type": "paragraph"]]]]]])
+        defer { paper.retire() }
+        paper.coordinator.update(paper.view)
+        paper.view.layoutIfNeeded()
+        let geometry = try #require(RelayTextGeometry(paper.view.textLayoutManager))
+        let item = try #require(paper.view.paper.taskItems.first)
+        let block = try #require(paper.view.paper.emptyBlocks.first)
+        let indent = (NativeProseCodec.emptyAttributes(block.intent)[.paragraphStyle] as? NSParagraphStyle)?.headIndent ?? 0
+        let sibling = try #require(geometry.markerFrame(at: item.firstParagraphRange.location, width: 13, empty: false, headIndent: 0))
+        let empty = try #require(geometry.markerFrame(at: block.offset, width: 13, empty: true, headIndent: indent))
+        #expect(abs(sibling.minX - empty.minX) < 1, "sibling \(sibling.minX), empty \(empty.minX)")
+        #expect(empty.minY > sibling.minY, "the empty item is on the line below")
+    }
+#endif
+
     /// The Yjs anchor task creation sends: y-prosemirror's positions, with the
     /// same association, for a plain title and one ending in a reference. With
     /// RELAYMARK_TASK_ANCHOR_FIXTURE set it writes the document and anchors for
