@@ -174,6 +174,7 @@ enum NativeProseCodec {
                 let width = (label as NSString).size(withAttributes: [.font: font]).width
                 paragraph.headIndent = taskMarkers[paragraphStart] == nil
                     ? CGFloat(marker.depth - 1) * 24 + max(24, width + 10) : taskIndent(font, depth: marker.depth)
+                if taskMarkers[paragraphStart] != nil { paragraph.paragraphSpacing = taskSpacing }
                 paragraph.firstLineHeadIndent = paragraph.headIndent
             }
             attrs[.paragraphStyle] = paragraph
@@ -421,7 +422,11 @@ enum NativeProseCodec {
         CGFloat(depth - 1) * 24 + RelayTaskItemRun.diameter(font) + RelayTaskItemRun.textGap
     }
 
-    /// An empty paragraph's style; an empty checklist item keeps its siblings' indent.
+    /// Checklist items stand a little further apart than paragraphs, so a glyph taller
+    /// than the line and a chip's surface clear the next item.
+    static let taskSpacing: CGFloat = 8
+
+    /// An empty paragraph's style; an empty checklist item keeps its siblings' indent and spacing.
     static func emptyParagraphStyle(_ intent: PresentationIntent, task: Bool) -> NSParagraphStyle? {
         let attributes = emptyAttributes(intent)
         guard let style = attributes[.paragraphStyle] as? NSParagraphStyle else { return nil }
@@ -429,6 +434,7 @@ enum NativeProseCodec {
               let indented = style.mutableCopy() as? NSMutableParagraphStyle else { return style }
         indented.headIndent = taskIndent(font, depth: marker.depth)
         indented.firstLineHeadIndent = indented.headIndent
+        indented.paragraphSpacing = taskSpacing
         return indented
     }
 
@@ -2461,7 +2467,9 @@ struct RelayTextGeometry {
             }
             guard length > 0, (storage.string as NSString).character(at: length - 1) == 10,
                   let last = lineFrame(at: length - 1) else { return nil }
-            return last.offsetBy(dx: 0, dy: last.height)
+            // The empty last line follows the paragraph before it and that paragraph's spacing.
+            let spacing = (storage.attribute(.paragraphStyle, at: length - 1, effectiveRange: nil) as? NSParagraphStyle)?.paragraphSpacing ?? 0
+            return last.offsetBy(dx: 0, dy: last.height + spacing)
         }
         guard let target = location(offset), let fragment = manager.textLayoutFragment(for: target) else { return nil }
         manager.ensureLayout(for: fragment.rangeInElement)
@@ -2809,7 +2817,7 @@ final class RelayTaskItemRun: NSObject {
 /// in container coordinates: beside its first character, or inside the indent
 /// of an empty item.
 @MainActor
-private func taskGlyphFrame(at offset: Int, empty: Bool, headIndent: CGFloat, font: PlatformFont, gap: CGFloat,
+func taskGlyphFrame(at offset: Int, empty: Bool, headIndent: CGFloat, font: PlatformFont, gap: CGFloat,
                             geometry: RelayTextGeometry) -> CGRect? {
     let size = RelayTaskItemRun.diameter(font)
     let rightToLeft = geometry.isRightToLeft(at: offset)
@@ -2832,7 +2840,7 @@ private func taskGlyphFrame(at offset: Int, empty: Bool, headIndent: CGFloat, fo
 /// linked to a Task, the chip's surface (a pill around one line, a rounded box
 /// around a wrapped title). Nil when the paragraph is no item's title or is not laid out.
 @MainActor
-private func taskItemLayout(at paragraph: Int, geometry: RelayTextGeometry)
+func taskItemLayout(at paragraph: Int, geometry: RelayTextGeometry)
     -> (item: RelayTaskItemRun, glyph: CGRect, title: [CGRect], chip: (surface: CGRect, radius: CGFloat)?, font: PlatformFont)? {
     let storage = geometry.storage, text = storage.string as NSString
     guard paragraph >= 0, paragraph < storage.length else { return nil }

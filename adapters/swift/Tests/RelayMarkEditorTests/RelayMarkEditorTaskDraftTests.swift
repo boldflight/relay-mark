@@ -247,9 +247,10 @@ struct RelayMarkEditorTaskDraftTests {
 
     // AppKit lays a headless view out without its paragraphs' indents, so only UIKit shows this.
 #if !os(macOS)
-    // Bug caught: the trailing empty draft's checkbox drawn one indent too far right, over the
-    // text of the item above it (M10 iPhone). It must sit in the same column as the item's own.
-    @Test("An empty trailing checklist item's checkbox is drawn in its sibling's column")
+    // Bug caught: the trailing empty draft's glyph drawn one indent too far right, over the
+    // text of the item above it (M10 iPhone), or up into that item's chip (M11 Mac). It must
+    // sit in the same column as the item's own, on the line below it.
+    @Test("An empty trailing checklist item's glyph is drawn in its sibling's column, below it")
     func emptyDraftCheckboxAlignsWithItsSibling() throws {
         let paper = try Paper([["type": "taskList", "content": [
             ["type": "taskItem", "attrs": ["checked": true],
@@ -261,11 +262,13 @@ struct RelayMarkEditorTaskDraftTests {
         let geometry = try #require(RelayTextGeometry(paper.view.textLayoutManager))
         let item = try #require(paper.view.paper.taskItems.first)
         let block = try #require(paper.view.paper.emptyBlocks.first)
-        let indent = (NativeProseCodec.emptyAttributes(block.intent)[.paragraphStyle] as? NSParagraphStyle)?.headIndent ?? 0
-        let sibling = try #require(geometry.markerFrame(at: item.firstParagraphRange.location, width: 13, empty: false, headIndent: 0))
-        let empty = try #require(geometry.markerFrame(at: block.offset, width: 13, empty: true, headIndent: indent))
+        let font = try #require(NativeProseCodec.emptyAttributes(block.intent)[.font] as? UIFont)
+        let depth = try #require(NativeProseCodec.listMarker(block.intent)).depth
+        let sibling = try #require(taskItemLayout(at: item.firstParagraphRange.location, geometry: geometry)?.glyph)
+        let empty = try #require(taskGlyphFrame(at: block.offset, empty: true, headIndent: NativeProseCodec.taskIndent(font, depth: depth),
+                                                font: font, gap: RelayTaskItemRun.textGap, geometry: geometry))
         #expect(abs(sibling.minX - empty.minX) < 1, "sibling \(sibling.minX), empty \(empty.minX)")
-        #expect(empty.minY > sibling.minY, "the empty item is on the line below")
+        #expect(empty.minY >= sibling.maxY, "the empty item's glyph clears the item above: \(empty.minY) < \(sibling.maxY)")
     }
 #endif
 
