@@ -207,6 +207,12 @@ fn wrap(tr: &mut Transaction, found: &Found, (from, to): (usize, usize)) -> Resu
     let attributes = rule_attrs(found);
     if found.rule.name == "taskItem" {
         let rp = tr.doc.resolve(from)?;
+        // Already a checklist item: the shortcut has nothing to make, and left
+        // as text it would become the item's title (and a Task's name).
+        if rp.depth > 0 && rp.node(rp.depth - 1).type_name() == "taskItem" {
+            tr.delete(from, to)?;
+            return Ok(true);
+        }
         if let Some(depth) = (1..=rp.depth).rev().find(|&d| rp.node(d).type_name() == "bulletList") {
             return task_in_bullet(tr, &rp, depth, ty, &attributes, (from, to));
         }

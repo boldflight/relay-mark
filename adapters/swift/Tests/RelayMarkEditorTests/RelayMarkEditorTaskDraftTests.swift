@@ -95,6 +95,17 @@ struct RelayMarkEditorTaskDraftTests {
         #expect(paper.armedTitles == ["Buy"])
     }
 
+    // Bug caught: typing the checklist shortcut in an item Return just created
+    // kept "[ ] " in the title, and so in the Task's name (Douglas, Oct 24).
+    @Test("Typing [ ] inside a checklist item never keeps the brackets in its title")
+    func bracketsInsideAnItem() throws {
+        let paper = try Paper([["type": "paragraph"]]); defer { paper.retire() }
+        paper.place(0)
+        paper.type("[ ] Call Ana\n[ ] Buy")
+        #expect(paper.finished.map(\.title) == ["Call Ana"])
+        #expect(paper.armedTitles == ["Buy"])
+    }
+
     // Bug caught: converting a pasted list with the Checklist command creating a Task per line.
     @Test("The Checklist command arms a new empty item but never a converted line")
     func commandArmsOnlyEmptyItems() throws {
