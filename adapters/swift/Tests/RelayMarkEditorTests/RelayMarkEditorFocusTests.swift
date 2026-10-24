@@ -12,6 +12,8 @@ import UIKit
 /// Return in the host's title moves the caret into the paper, as on the web.
 @MainActor
 struct RelayMarkEditorFocusTests {
+    @available(iOS, deprecated: 26.0, message: "UIKit grants first responder only inside a window; xctest has no UIWindowScene")
+    @available(visionOS, deprecated: 26.0, message: "UIKit grants first responder only inside a window; xctest has no UIWindowScene")
     @Test func theHostMovesFocusIntoThePaper() throws {
         let document = RelayMarkNativeDocument()
         _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument("First line\n\nSecond line", namespace: "focus"))
@@ -34,7 +36,7 @@ struct RelayMarkEditorFocusTests {
         #expect(window.firstResponder === view)
         #expect(view.selectedRange() == NSRange(location: view.string.utf16.count, length: 0))
         #else
-        let window = relayTestWindow(width: 390)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
         window.makeKeyAndVisible()
         let title = UITextView()
         window.addSubview(title)
