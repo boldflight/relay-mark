@@ -20,7 +20,7 @@ npm test                      # reference runtime
 npm run conformance           # portable conformance suite
 npm run check:contract        # contract identity across bindings
 cargo test                    # Rust engine: fixtures and reference oracle
-swift test                    # Swift package
+swift test -Xswiftc -warnings-as-errors   # Swift package; warnings fail (kept out of Package.swift so consumers are unaffected)
 (cd adapters/elixir && mix deps.get && mix test)
 npm run check                 # contract, runtime, conformance and both adapters
 ```

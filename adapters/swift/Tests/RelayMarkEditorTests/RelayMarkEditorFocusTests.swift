@@ -34,7 +34,7 @@ struct RelayMarkEditorFocusTests {
         #expect(window.firstResponder === view)
         #expect(view.selectedRange() == NSRange(location: view.string.utf16.count, length: 0))
         #else
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+        let window = relayTestWindow(width: 390)
         window.makeKeyAndVisible()
         let title = UITextView()
         window.addSubview(title)

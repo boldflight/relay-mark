@@ -189,8 +189,8 @@ is the only Swift package manifest and remains the focused adapter-development
 entry point. It requires Xcode 27.1 (Swift 6.4) and supports macOS, iOS and
 visionOS 27.0 or newer, the floor the native editor's TextKit 2 needs. Local
 and release builds use the same Xcode; there is no older-Xcode compatibility
-gate. GitHub Actions runs no Swift job: `swift test` run locally, with
-Xcode 27.1, is the Swift check, and Xcode Cloud builds the apps that use it.
+gate. GitHub Actions runs no Swift job: `swift test -Xswiftc -warnings-as-errors`
+run locally, with Xcode 27.1, is the Swift check (no warnings ship), and Xcode Cloud builds the apps that use it.
 
 The canonical engine reaches Swift as `RelayMarkFFI.xcframework`, which is
 never committed. `scripts/build-swift-engine.zsh --publish` builds it from

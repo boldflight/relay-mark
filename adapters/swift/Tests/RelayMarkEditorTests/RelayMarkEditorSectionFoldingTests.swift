@@ -173,6 +173,14 @@ struct RelayMarkEditorSectionFoldingTests {
         #endif
     }
 
+    private func containerWidth(_ view: CollaborationTextView) throws -> CGFloat {
+        #if os(macOS)
+        try #require(view.textContainer).size.width
+        #else
+        view.textContainer.size.width
+        #endif
+    }
+
     private func disclosure(_ heading: String, in view: CollaborationTextView) throws -> (RelayHeadingDisclosure, RelayTextGeometry) {
         _ = try laidOutStarts(view)
         let geometry = try #require(RelayTextGeometry(view.textLayoutManager))
@@ -192,7 +200,7 @@ struct RelayMarkEditorSectionFoldingTests {
         #expect(abs(disclosure.chevron.maxX - text.minX) < 0.5)
         #expect(disclosure.chevron.minX + containerOriginX(view) >= 0, "the gutter is outside the view")
         // The text keeps its trailing margin: the wider leading one narrows it.
-        let width = try #require(view.textContainer).size.width
+        let width = try containerWidth(view)
         #expect(abs(containerOriginX(view) + width + RelayPaperMargins.trailing - view.bounds.width) < 0.5)
     }
 

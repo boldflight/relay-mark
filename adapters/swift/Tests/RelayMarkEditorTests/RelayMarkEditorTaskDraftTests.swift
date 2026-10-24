@@ -18,7 +18,7 @@ struct RelayMarkEditorTaskDraftTests {
         let coordinator: RelayMarkEditorView.TextCoordinator
         let view: CollaborationTextView
         #if !os(macOS)
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+        let window = relayTestWindow(width: 390)
         #endif
         var finished: [RelayTaskDraft] = []
 

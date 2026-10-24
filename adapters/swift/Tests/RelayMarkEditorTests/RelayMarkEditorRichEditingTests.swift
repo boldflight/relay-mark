@@ -98,7 +98,7 @@ struct RelayMarkEditorRichSessionTests {
         #expect(try document.encodeUpdate() == before && saved.isEmpty && editor.failure == nil)
         editor.edit(AttributedString("let value = 1\n// native あ"))
         #expect(editor.failure == nil && saved.count == 1)
-        let restored = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(transactions[0]))
+        _ = try JSONDecoder().decode(RelayMarkLocalTransaction.self, from: JSONEncoder().encode(transactions[0]))
         try peer.applyUpdate(try #require(saved.last))
         let remote = try RelayMarkNativeRichTextMutation.replace(document: peer, path: [0,0], start: 0, end: 0,
             text: "// peer\n", attributes: [:])
@@ -1072,7 +1072,7 @@ struct RelayMarkEditorRichSessionTests {
         editor.setNativeSelection(NSRange(location: alpha.location + 2, length: 0))
         editor.performSelectedTableCommand(.deleteRow)
         #expect(editor.failure == nil)
-        let command = try #require(captured.first)
+        _ = try #require(captured.first)
         #expect(!String(editor.text.characters).contains("Alpha"))
         let selection = try #require(editor.nativeSelection)
         let prose = try document.richProseProjection()

@@ -63,7 +63,7 @@ final class RelayTableAccessibilityCell: UIAccessibilityElement, UIAccessibility
     }
 }
 
-extension RelayTableGridView: @preconcurrency UIAccessibilityContainerDataTable {
+extension RelayTableGridView: UIAccessibilityContainerDataTable {
     func accessibilityDataTableCellElement(forRow row: Int, column: Int) -> (any UIAccessibilityContainerDataTableCell)? {
         guard let index = table.cells.firstIndex(where: {
             NSLocationInRange(row, NSRange(location: $0.row, length: $0.rowSpan)) &&

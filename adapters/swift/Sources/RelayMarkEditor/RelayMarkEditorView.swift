@@ -819,15 +819,13 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                 guard let self, let view, view.editingSession === session else { return }
                 composition = try? session.beginComposition()
             }
-            if let native = session as? RelayMarkEditorSession {
-                view.onDeclaredMarkedInput = { [weak self, weak view, weak native] literal, replacement, selection, supplied, final in
-                    guard let self, let view, let native, !view.retired, view.editingSession === session,
-                          let token = self.composition as? RelayMarkEditorSession.Composition else { return false }
-                    let tables = view.paper.tables
-                    return native.declareMarkedInput(literal, replacement: tables.paper(replacement), selection: selection,
-                        platform: .appKit, suppliedReplacement: supplied.map { $0.location == NSNotFound ? $0 : tables.paper($0) },
-                        phase: final ? .final : .marked, from: token)
-                }
+            view.onDeclaredMarkedInput = { [weak self, weak view] literal, replacement, selection, supplied, final in
+                guard let self, let view, !view.retired, view.editingSession === session,
+                      let token = self.composition else { return false }
+                let tables = view.paper.tables
+                return session.declareMarkedInput(literal, replacement: tables.paper(replacement), selection: selection,
+                    platform: .appKit, suppliedReplacement: supplied.map { $0.location == NSNotFound ? $0 : tables.paper($0) },
+                    phase: final ? .final : .marked, from: token)
             }
             view.onCompositionEnd = { [weak self, weak view] in
                 guard let self, let view, view.editingSession === session else { return }
@@ -856,16 +854,14 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                 guard let self, let view else { return }
                 takeFocusIfRequested(view)
             }
-            if let taskSession = session as? RelayMarkEditorSession {
-                view.onTaskCheckbox = { [weak self, weak view] offset in
-                    guard let self, let view, view.editingSession === session else { return false }
-                    // A tap mid-composition commits the composed title first, so the
-                    // draft finishes with the words typed (Douglas, M10).
-                    if view.hasMarkedInput { do { try finishComposition(view) } catch { return false } }
-                    guard taskSession.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
-                    self.update(view)
-                    return true
-                }
+            view.onTaskCheckbox = { [weak self, weak view] offset in
+                guard let self, let view, view.editingSession === session else { return false }
+                // A tap mid-composition commits the composed title first, so the
+                // draft finishes with the words typed (Douglas, M10).
+                if view.hasMarkedInput { do { try finishComposition(view) } catch { return false } }
+                guard session.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
+                self.update(view)
+                return true
             }
             view.collaborationUndo.undoAction = { [weak self, weak view] in
                 guard let self, let view, view.editingSession === session else { return }
@@ -1656,15 +1652,13 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 guard let self, let view, view.editingSession === session else { return }
                 composition = try? session.beginComposition()
             }
-            if let native = session as? RelayMarkEditorSession {
-                view.onDeclaredMarkedInput = { [weak self, weak view, weak native] literal, replacement, selection, supplied, final in
-                    guard let self, let view, let native, !view.retired, view.editingSession === session,
-                          let token = self.composition as? RelayMarkEditorSession.Composition else { return false }
-                    let tables = view.paper.tables
-                    return native.declareMarkedInput(literal, replacement: tables.paper(replacement), selection: selection,
-                        platform: .uiKit, suppliedReplacement: supplied.map { $0.location == NSNotFound ? $0 : tables.paper($0) },
-                        phase: final ? .final : .marked, from: token)
-                }
+            view.onDeclaredMarkedInput = { [weak self, weak view] literal, replacement, selection, supplied, final in
+                guard let self, let view, !view.retired, view.editingSession === session,
+                      let token = self.composition else { return false }
+                let tables = view.paper.tables
+                return session.declareMarkedInput(literal, replacement: tables.paper(replacement), selection: selection,
+                    platform: .uiKit, suppliedReplacement: supplied.map { $0.location == NSNotFound ? $0 : tables.paper($0) },
+                    phase: final ? .final : .marked, from: token)
             }
             view.onCompositionEnd = { [weak self, weak view] in
                 guard let self, let view, view.editingSession === session else { return }
@@ -1692,23 +1686,21 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 guard let self, let view else { return }
                 takeFocusIfRequested(view)
             }
-            if let taskSession = session as? RelayMarkEditorSession {
-                view.onTaskCheckbox = { [weak self, weak view] offset in
-                    guard let self, let view, view.editingSession === session else { return false }
-                    // A tap mid-composition commits the composed title first, so the
-                    // draft finishes with the words typed (Douglas, M10).
-                    if view.hasMarkedInput { do { try finishComposition(view) } catch { return false } }
-                    guard taskSession.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
-                    self.update(view)
-                    return true
-                }
-                let tap = UITapGestureRecognizer(target: view, action: #selector(CollaborationTextView.handleTaskTap(_:)))
-                tap.cancelsTouchesInView = false
-                tap.name = RelayMarkEditorView.taskTapName
-                // Recognized alongside UITextView's own taps, which place the caret.
-                tap.delegate = view.taskTapDelegate
-                view.addGestureRecognizer(tap)
+            view.onTaskCheckbox = { [weak self, weak view] offset in
+                guard let self, let view, view.editingSession === session else { return false }
+                // A tap mid-composition commits the composed title first, so the
+                // draft finishes with the words typed (Douglas, M10).
+                if view.hasMarkedInput { do { try finishComposition(view) } catch { return false } }
+                guard session.toggleTaskItem(atUTF16: view.paper.tables.paper(offset)) else { return false }
+                self.update(view)
+                return true
             }
+            let tap = UITapGestureRecognizer(target: view, action: #selector(CollaborationTextView.handleTaskTap(_:)))
+            tap.cancelsTouchesInView = false
+            tap.name = RelayMarkEditorView.taskTapName
+            // Recognized alongside UITextView's own taps, which place the caret.
+            tap.delegate = view.taskTapDelegate
+            view.addGestureRecognizer(tap)
             view.collaborationUndo.undoAction = { [weak self, weak view] in
                 guard let self, let view, view.editingSession === session else { return }
                 session.undo(); self.update(view)

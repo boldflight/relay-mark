@@ -22,7 +22,7 @@ class YSubscriptionTests: XCTestCase {
         // Create an object (it can be of any type), and hold both
         // a strong and a weak reference to it
         var object = NSObject()
-        weak var weakObject = object
+        weak let weakObject = object
 
         var subscription: YSubscription? = text.observe { _ in
             // Capture the object in the closure (note that we need to use

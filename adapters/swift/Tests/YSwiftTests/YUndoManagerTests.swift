@@ -172,7 +172,7 @@ extension YUndoManagerTests {
         let added = manager.observeAdded { _, metadata in metadata ?? TestMetadata(label) }
         let popped = manager.observePopped { _, metadata in metadata }
         doc.transactSync(origin: owner) { txn in text.removeRange(start: 0, length: 1, in: txn) }
-        weak var retired = manager.undoMetadata()[0]
+        weak let retired = manager.undoMetadata()[0]
         manager.wrap(); label = "survivor"
         doc.transactSync(origin: owner) { txn in text.removeRange(start: 0, length: 2, in: txn) }
         XCTAssertTrue(try manager.undo()); XCTAssertTrue(try manager.redo())

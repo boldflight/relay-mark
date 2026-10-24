@@ -26,7 +26,7 @@ struct RelayMarkEditorUIKitReadingTests {
         let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
         coordinator.services = services
         let view = coordinator.makeTextView(accessibilityLabel: "Paper")
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: width, height: 600))
+        let window = relayTestWindow(width: width)
         window.addSubview(view)
         view.frame = window.bounds
         window.isHidden = false
@@ -91,7 +91,11 @@ struct RelayMarkEditorUIKitReadingTests {
         let paper = try mount(markdown: "Before\n\nAfter")
         defer { paper.retire() }
         let html = "<table><tr><td>a</td><td>b</td></tr></table>"
-        let provider = NSItemProvider(item: Data(html.utf8) as NSData, typeIdentifier: UTType.html.identifier)
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.html.identifier, visibility: .all) { completion in
+            completion(Data(html.utf8), nil)
+            return nil
+        }
         paper.view.selectedRanges = [NSRange(location: 6, length: 0)]
         paper.view.paste(itemProviders: [provider])
         paper.view.layoutIfNeeded()

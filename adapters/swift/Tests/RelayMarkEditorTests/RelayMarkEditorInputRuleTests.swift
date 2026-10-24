@@ -42,7 +42,7 @@ struct RelayMarkEditorInputRuleTests {
         view.setSelectedRange(NSRange(location: caret, length: 0))
         view.insertText(text, replacementRange: NSRange(location: NSNotFound, length: 0))
         #else
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 600))
+        let window = relayTestWindow(width: 390)
         window.addSubview(view)
         view.frame = window.bounds
         window.isHidden = false
