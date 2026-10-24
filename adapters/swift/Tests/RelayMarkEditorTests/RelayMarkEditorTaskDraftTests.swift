@@ -17,9 +17,6 @@ struct RelayMarkEditorTaskDraftTests {
         let editor: RelayMarkEditorSession
         let coordinator: RelayMarkEditorView.TextCoordinator
         let view: CollaborationTextView
-        #if !os(macOS)
-        let window = relayTestWindow(width: 390)
-        #endif
         var finished: [RelayTaskDraft] = []
 
         init(_ blocks: [[String: Any]]) throws {
@@ -42,7 +39,7 @@ struct RelayMarkEditorTaskDraftTests {
             coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
             view = coordinator.makeTextView(accessibilityLabel: "Paper")
             #if !os(macOS)
-            window.addSubview(view); view.frame = window.bounds; window.isHidden = false
+            view.frame = CGRect(x: 0, y: 0, width: 390, height: 600)
             #endif
             editor.createsTaskDrafts = true
             editor.onTaskDraftsFinished = { [unowned self] in finished += $0 }

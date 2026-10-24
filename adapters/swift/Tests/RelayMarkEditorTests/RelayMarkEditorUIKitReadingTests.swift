@@ -16,8 +16,7 @@ struct RelayMarkEditorUIKitReadingTests {
         let editor: RelayMarkEditorSession
         let coordinator: RelayMarkEditorView.TextCoordinator
         let view: CollaborationTextView
-        let window: UIWindow
-        func retire() { coordinator.retire(view); window.isHidden = true }
+        func retire() { coordinator.retire(view) }
     }
 
     private func mount(_ document: RelayMarkNativeDocument, services: RelayMarkEditorServices = .init(),
@@ -26,12 +25,9 @@ struct RelayMarkEditorUIKitReadingTests {
         let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
         coordinator.services = services
         let view = coordinator.makeTextView(accessibilityLabel: "Paper")
-        let window = relayTestWindow(width: width)
-        window.addSubview(view)
-        view.frame = window.bounds
-        window.isHidden = false
+        view.frame = CGRect(x: 0, y: 0, width: width, height: 600)
         view.layoutIfNeeded()
-        return Mounted(editor: editor, coordinator: coordinator, view: view, window: window)
+        return Mounted(editor: editor, coordinator: coordinator, view: view)
     }
 
     private func mount(markdown: String, services: RelayMarkEditorServices = .init()) throws -> Mounted {

@@ -102,10 +102,7 @@ struct RelayMarkEditorTextKit2UIKitTests {
         let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
         let view = coordinator.makeTextView(accessibilityLabel: "Paper")
         defer { coordinator.retire(view) }
-        let window = relayTestWindow(width: 390)
-        window.addSubview(view)
-        view.frame = window.bounds
-        window.isHidden = false
+        view.frame = CGRect(x: 0, y: 0, width: 390, height: 600)
         view.layoutIfNeeded()
         view.layer.displayIfNeeded()
         #expect(!view.layer.needsDisplay())
