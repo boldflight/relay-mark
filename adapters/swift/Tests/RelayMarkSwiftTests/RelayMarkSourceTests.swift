@@ -16,6 +16,53 @@ struct RelayMarkSourceTests {
     #expect((object["blocks"] as! [[String:Any]]).count == 2)
     #expect(try RelayMarkSourceCodec.renderDocument(imported).contains("<strong>Résumé 世界</strong>"))
   }
+  /// A form paper whose collaboration document keeps each question's settings as one aggregate
+  /// `settings` attribute (the server's current encoding) still projects to its authored document.
+  @Test func aggregateSettingsFormSnapshotProjectsToTheAuthoredDocument() throws {
+    func header(_ pairs: [(String, String)]) -> String {
+      pairs.sorted { $0.0 < $1.0 }.map { "\($0.0)=\"\($0.1.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "\"", with: "&quot;"))\"" }.joined(separator: " ")
+    }
+    func question(_ id: String, _ type: String, _ label: String, _ settings: String) -> String {
+      "<!-- relay:question \(header([("id", id), ("type", type), ("required", "true"), ("settings", settings), ("options", "[]")])) -->\n\(label)\n<!-- /relay:question -->"
+    }
+    let source = "Upload one or more files.\n\n" + question("name", "short_text", "Your name", "{}") + "\n\n" + question("evidence", "file_upload", "Evidence files", "{\"max_files\":3}")
+    let authored = try RelayMarkSourceCodec.parseDocument(source, namespace: "aggregate-form")
+    let physical = try RelayMarkSourceCodec.documentToSnapshot(authored)
+    // The aggregate encoding: one `settings` object per question node, no per-key physical fields.
+    func aggregate(_ node: Any) -> Any {
+      guard var element = node as? [String: Any], element["kind"] as? String == "element" else { return node }
+      if var attributes = element["attributes"] as? [String: Any], element["name"] as? String == "questionBlock" || element["name"] as? String == "questionOption" {
+        var settings: [String: Any] = [:]
+        for key in Array(attributes.keys) where key.hasPrefix("settings:") {
+          let encoded = String(key.dropFirst("settings:".count)).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+          let padded = encoded + String(repeating: "=", count: (4 - encoded.count % 4) % 4)
+          if let data = Data(base64Encoded: padded), let name = String(data: data, encoding: .utf8) { settings[name] = attributes[key] }
+          attributes.removeValue(forKey: key)
+        }
+        attributes["settings"] = settings
+        element["attributes"] = attributes
+      }
+      if let children = element["children"] as? [Any] { element["children"] = children.map(aggregate) }
+      return element
+    }
+    var tree = try #require(JSONSerialization.jsonObject(with: physical) as? [String: Any])
+    tree["children"] = (try #require(tree["children"] as? [Any])).map(aggregate)
+    let aggregateSnapshot = try JSONSerialization.data(withJSONObject: tree)
+    let projected = try RelayMarkSourceCodec.snapshotToDocument(aggregateSnapshot)
+    #expect(try JSONSerialization.jsonObject(with: projected) as? NSDictionary == JSONSerialization.jsonObject(with: authored) as? NSDictionary)
+  }
+  /// A question node whose settings are one aggregate object reads as its authored attributes; a node that
+  /// mixes the aggregate with per-key physical fields is still refused, never merged.
+  @Test func aggregateQuestionSettingsReadAsAuthoredAttributes() throws {
+    let aggregate: [String: Any] = ["relaymarkId": "b2", "id": "evidence", "required": true, "settings": ["max_files": 3]]
+    let decoded = try RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: "questionBlock", attributes: aggregate)
+    #expect(NSDictionary(dictionary: decoded) == NSDictionary(dictionary: aggregate))
+    let option = try RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: "questionOption", attributes: ["relaymarkId": "o1", "settings": [String: Any]()])
+    #expect(option["settings"] as? [String: Any] != nil)
+    #expect(throws: (any Error).self) {
+      _ = try RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: "questionBlock", attributes: ["relaymarkId": "b2", "settings": ["a": 1], "settings:eA": true])
+    }
+  }
   @Test func retainedEmptyCalloutSourceUsesCanonicalBodyAcrossRuntimes() throws {
     let root = URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
     let data = try Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-empty-callout-source.json"))

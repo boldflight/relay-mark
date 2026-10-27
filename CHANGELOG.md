@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- The Swift codec reads the form settings encoding the server stores today, one
+  aggregate `settings` object per question node, so a form paper's editor mounts
+  instead of failing with the engine's "Aggregate or missing physical settings"
+  refusal: `snapshotToDocument` projects an aggregate-settings snapshot through
+  the engine's aggregate import, and `decodeDocumentAttributes` reads such a node
+  as its authored attributes. Writing still uses the physical encoding, and a
+  node that mixes both stays refused. Engine refusals keep their job and reason
+  as `RelayMarkSourceCodec.Failure.engineRefused(job:reason:)` instead of
+  collapsing into `invalidAuthoredDocument`; hosts log the reflected error and
+  show their own copy.
 - A host can lay SwiftUI content out above the paper's text inside the UIKit
   editor's own scroll with `RelayMarkEditorServices.header`
   (`RelayMarkEditorHeader`): it scrolls away with the text, the text starts

@@ -20,7 +20,17 @@ public enum RelayMarkContentEditCodec {
     }
     public static func decodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
         if !settingsPolicy.nodes.contains(nodeName) { return try unrelated(attributes) }
+        if isAggregate(attributes) { return attributes }
         return try documentAttributes(operation: "decodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
+    }
+
+    /// The server's current form encoding keeps a node's settings as one `settings` object, which
+    /// already is the authored shape: no presence marker and no per-key physical fields. It reads
+    /// as it is; writing still goes through the physical encoding, so a native edit of a question
+    /// node's own attributes is refused by the engine rather than mixed into an aggregate document.
+    static func isAggregate(_ attributes: [String: Any]) -> Bool {
+        attributes[settingsPolicy.attribute] is [String: Any]
+            && !attributes.keys.contains(where: { $0.hasPrefix(settingsPolicy.prefix) })
     }
 
     /// spec/relaymark/xml-attribute-encoding.json: only these nodes carry

@@ -5,7 +5,12 @@ import RelayMarkEngine
 /// server and the web use. It owns no Yjs document, undo manager, transport or
 /// host domain action.
 public enum RelayMarkSourceCodec {
-    public enum Failure: Error, Equatable { case unavailable, invalidInput, invalidAuthoredDocument }
+    public enum Failure: Error, Equatable {
+        case unavailable, invalidInput, invalidAuthoredDocument
+        /// The engine refused a job, in its own words: the job name and the reason it gave. A host logs the
+        /// reflected error and shows its own copy; the engine's wording is never user-facing.
+        case engineRefused(job: String, reason: String)
+    }
     public static func parseDocument(_ source: String, namespace: String) throws -> Data {
         try RelayMarkEngineCall.run("parse", text: source, options: ["namespace": namespace])
     }
@@ -36,7 +41,17 @@ public enum RelayMarkSourceCodec {
         try RelayMarkEngineCall.run("to_snapshot", document)
     }
     public static func snapshotToDocument(_ snapshot: Data) throws -> Data {
-        try RelayMarkEngineCall.run("from_snapshot", snapshot)
+        do { return try RelayMarkEngineCall.run("from_snapshot", snapshot) }
+        catch {
+            // A collaboration document whose form settings are one aggregate attribute (the server's
+            // current encoding) is not the physical per-key encoding from_snapshot reads. The engine
+            // projects it without touching the live document; any other refusal stays the first one.
+            guard let preview = try? RelayMarkEngineCall.run("aggregate_settings", snapshot),
+                  let decoded = try? JSONSerialization.jsonObject(with: preview) as? [String: Any],
+                  let document = decoded["document"],
+                  let bytes = try? JSONSerialization.data(withJSONObject: document, options: [.fragmentsAllowed]) else { throw error }
+            return bytes
+        }
     }
     public static func buildEntityReferenceSource(entityType: String, entityID: String, label: String) throws -> String {
         try RelayMarkEngineCall.text("entity_reference_source", Data(), options: ["type": entityType, "id": entityID, "label": label])
@@ -56,7 +71,12 @@ enum RelayMarkEngineCall {
     static func run(_ job: String, _ input: Data, options: [String: Any] = [:]) throws -> Data {
         let encoded = options.isEmpty ? Data() : try json(options)
         do { return try relaymarkRun(job: job, input: input, options: encoded) }
-        catch { throw RelayMarkSourceCodec.Failure.invalidAuthoredDocument }
+        catch {
+            // The engine's refusal names the job and its reason; the generated error type is
+            // internal to the engine module, so its description is the reason we can keep.
+            let reason = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            throw RelayMarkSourceCodec.Failure.engineRefused(job: job, reason: reason)
+        }
     }
     static func run(_ job: String, text: String, options: [String: Any] = [:]) throws -> Data {
         try run(job, Data(text.utf8), options: options)
