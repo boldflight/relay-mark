@@ -23,6 +23,16 @@ element. There is no per-key cutover and no server migration.
 - The cost is accepted: two people editing different settings of one question
   are last-writer-wins on that question's settings.
 
+## Conflict avoidance is a client layer, not per-key storage
+
+Douglas, 2026-11-02, on keeping `settings_rebase`: "this is a valid enhancement of stock yjs behavior and better ux, so thats not the same as insanity per key checking."
+
+- Forbidden: per-key settings STORAGE or WIRE, such as `settings:<key>` attributes, presence markers, per-key normalization, or any codec that splits `settings`.
+- Approved: the client-only `settings_rebase` layer (relaymark-core job, JS mirror, Swift engine call; shared fixture `spec/relaymark/editor/settings-rebase-v1.json`). Storage and wire stay one whole `settings` attribute, byte-identical to stock @tiptap/y-tiptap. A client that sees its unconfirmed settings edit overwritten re-applies only its own changed keys onto the incoming value, in one follow-up write.
+- Never remove the rebase layer as "per-key". Never add per-key storage as "conflict avoidance".
+
+The per-key encoder described below is being deleted outright on branch `aggregate-writer`, with no client read path. Stored data is counted first, and folded by a reviewed server migration if any per-key fields remain.
+
 ## What this means for the code here
 
 - Swift keeps reading the aggregate the server stores (`ad20f9f`).
