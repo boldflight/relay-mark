@@ -83,7 +83,6 @@ enum NativeProseCodec {
                            tableCells: [RelayMarkCollaborativeProse.TableCell] = [],
                            callouts: [RelayMarkCollaborativeProse.Callout] = [],
                            questions: [RelayMarkCollaborativeProse.Question] = [],
-                           form: RelayFormPresentation? = nil,
                            taskItems: [RelayMarkCollaborativeProse.TaskItem] = [],
                            inlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] = [],
                            blockAtoms: [RelayMarkCollaborativeProse.BlockAtom] = [],
@@ -224,17 +223,11 @@ enum NativeProseCodec {
             result.addAttribute(.relayBlock, value: RelayBlockStyle(identity: callout.id.hashValue,
                 appearance: .callout(tone: callout.tone, strong: callout.emphasis == "strong")), range: calloutRange)
         }
-        // Question cards share the callouts' block drawing. With answers laid over, the options the
-        // respondent chose are marked and the rest recede; only attributes change, never the text.
+        // Question cards share the callouts' block drawing.
         for question in questions {
-            guard let card = question.presentation(in: result.string as NSString, local: local, form: form) else { continue }
-            result.addAttribute(.relayBlock, value: card.style, range: local(question.range))
-            for option in card.options {
-                result.addAttribute(.relayOptionState, value: NSNumber(value: option.selected), range: option.range)
-                if !option.selected {
-                    result.addAttribute(.foregroundColor, value: PlatformColor.secondaryLabelColorCompat, range: option.range)
-                }
-            }
+            let range = local(question.range)
+            guard range.location >= 0, range.length > 0, NSMaxRange(range) <= result.length else { continue }
+            result.addAttribute(.relayBlock, value: RelayBlockStyle(identity: question.relaymarkID.hashValue, appearance: .card), range: range)
         }
         for atom in inlineAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
             NSMaxRange(local(atom.range)) <= result.length &&
@@ -301,7 +294,6 @@ enum NativeProseCodec {
                          tableCells: [RelayMarkCollaborativeProse.TableCell] = [],
                          callouts: [RelayMarkCollaborativeProse.Callout] = [],
                          questions: [RelayMarkCollaborativeProse.Question] = [],
-                         form: RelayFormPresentation? = nil,
                          taskItems: [RelayMarkCollaborativeProse.TaskItem] = [],
                          inlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] = [],
                          blockAtoms: [RelayMarkCollaborativeProse.BlockAtom] = [],
@@ -312,7 +304,7 @@ enum NativeProseCodec {
                          mediaImages: RelayMarkImageStore? = nil, startingAt base: Int = 0,
                          tables: (Int, Int, [RelayTableCellModel]) -> RelayTableAttachment) -> (text: NSAttributedString, spans: [RelayTableSpan]) {
         let full = attributed(value, emptyBlocks: emptyBlocks, tableCells: tableCells, callouts: callouts,
-            questions: questions, form: form, taskItems: taskItems,
+            questions: questions, taskItems: taskItems,
             inlineAtoms: inlineAtoms, blockAtoms: blockAtoms, authoredWidgets: authoredWidgets,
             entityReferenceAtoms: entityReferenceAtoms, mediaAtoms: mediaAtoms, suggestionAtoms: suggestionAtoms,
             mediaImages: mediaImages, startingAt: base)
@@ -394,7 +386,7 @@ enum NativeProseCodec {
     }
 
     /// Presentation that belongs to a whole block, carried over by leaf edits.
-    static let blockKeys: [NSAttributedString.Key] = [.paragraphStyle, .relayBlock, .relayOptionState]
+    static let blockKeys: [NSAttributedString.Key] = [.paragraphStyle, .relayBlock]
 
     private static func taskParagraph(containing range: NSRange, _ taskItems: [RelayMarkCollaborativeProse.TaskItem]) -> Int? {
         taskItems.first { $0.firstParagraphRange.location <= range.location &&
@@ -1051,8 +1043,6 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     func showSelection(_ range: NSRange) { setSelectedRange(range); scrollRangeToVisible(range) }
     func unmarkPaperText() { unmarkText() }
     func paperNeedsDisplay() { needsDisplay = true }
-    var paperContentOrigin: CGPoint { textContainerOrigin }
-    func addPaperSubview(_ subview: RelayHostedView) { addSubview(subview) }
     func replaceAllText(_ text: NSAttributedString) {
         performPaperEdit { textStorage?.setAttributedString(text) }
     }
@@ -1426,7 +1416,6 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     }
     func retireInput() {
         retired = true
-        paper.answerSlots.retire()
         onTaskCheckbox = nil
         onSessionEdit = nil
         cancelCompositionCompletion()
@@ -2100,8 +2089,6 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     func showSelection(_ range: NSRange) { selectedRange = range; scrollRangeToVisible(range) }
     func unmarkPaperText() { unmarkText() }
     func paperNeedsDisplay() { setNeedsDisplay() }
-    var paperContentOrigin: CGPoint { CGPoint(x: textContainerInset.left, y: textContainerInset.top) }
-    func addPaperSubview(_ subview: RelayHostedView) { addSubview(subview) }
     func replaceAllText(_ text: NSAttributedString) {
         pasteCommand = nil
         attributedText = text
@@ -2400,7 +2387,6 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     }
     func retireInput() {
         retired = true
-        paper.answerSlots.retire()
         pasteCommand = nil
         onTaskCheckbox = nil
         onSessionEdit = nil

@@ -16,8 +16,6 @@ final class RelayPaperViewState {
     /// The session linked-task revision whose chips are drawn.
     var renderedLinkedTaskRevision = 0
     var tables = RelayTableSpans()
-    /// A form paper's answers: how its cards were drawn and the host's views under them.
-    let answerSlots = RelayAnswerSlotHost()
     var tableAttachments: [Int: RelayTableAttachment] = [:]
     /// Paper offsets, as the session gives them.
     var emptyBlocks: [RelayEmptyProseBlock] = []
@@ -104,9 +102,6 @@ protocol RelayPaperTextView: AnyObject {
     func unmarkPaperText()
     func applyEmptyTypingStyle()
     func paperNeedsDisplay()
-    /// Where the text container starts inside the view, for placing views over the text.
-    var paperContentOrigin: CGPoint { get }
-    func addPaperSubview(_ subview: RelayHostedView)
     /// The whole text is about to be replaced: pending paste state no longer applies.
     func replaceAllText(_ text: NSAttributedString)
     /// Moves keyboard focus into a cell when the paper view has it.
@@ -200,7 +195,6 @@ extension RelayPaperTextView {
     /// What VoiceOver says about the checklist item at the caret, whose checkbox
     /// is drawn rather than read: a draft Task or a linked Task; VoiceOver reads it with the line.
     func paperAccessibilityContent() -> [(label: String, value: String)] {
-        if !retired, let answer = paper.answerSlots.summary(at: paperSelection.location, text: paperString as NSString) { return [answer] }
         guard !retired, let session = editingSession, let item = paper.viewTaskItems.first(where: {
             NSLocationInRange(viewSelection.location, $0.firstParagraphRange) || NSMaxRange($0.firstParagraphRange) == viewSelection.location }) else { return [] }
         // A plain checklist item says nothing extra; only the two states that matter are heard.
@@ -270,7 +264,6 @@ extension RelayPaperTextView {
     /// TextKit allows reading the controller's state only here.
     func viewportDidLayout(_ controller: NSTextViewportLayoutController) {
         paper.laidOut = controller.viewportRange
-        paper.answerSlots.layout(in: self)
         paperNeedsDisplay()
     }
 
@@ -511,8 +504,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         }
         // Observed, so a host tick (which changes a task's state, not the paper's text) re-renders;
         // compared as one number, never by reading every task item per update.
-        // Answers laid over a form paper count the same way: they restyle without changing the text.
-        let taskState = session.taskStateRevision &+ session.formAnswersRevision
+        let taskState = session.taskStateRevision
         // A Task's status draws in its chip only: a redraw, never a re-render of the text.
         if view.paper.renderedLinkedTaskRevision != session.linkedTaskRevision {
             view.paper.renderedLinkedTaskRevision = session.linkedTaskRevision
@@ -536,10 +528,8 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         view.paper.renderedTaskStateRevision = taskState
         view.paper.emptyBlocks = session.nativeEmptyBlocks
         view.paper.taskItems = session.nativeTaskItems
-        let questions = session.nativeQuestions
-        let form = view.paper.answerSlots.prepare(questions: questions, answers: session.formAnswers, provider: session.answerSlotProvider)
         let rendered = NativeProseCodec.viewText(session.text, emptyBlocks: view.paper.emptyBlocks,
-            tableCells: session.nativeTableCells, callouts: session.nativeCallouts, questions: questions, form: form, taskItems: view.paper.taskItems,
+            tableCells: session.nativeTableCells, callouts: session.nativeCallouts, questions: session.nativeQuestions, taskItems: view.paper.taskItems,
             inlineAtoms: session.nativeInlineAtoms, blockAtoms: session.nativeBlockAtoms,
             authoredWidgets: session.nativeAuthoredWidgets, entityReferenceAtoms: session.nativeEntityReferenceAtoms,
             mediaAtoms: session.nativeMediaAtoms, suggestionAtoms: session.nativeSuggestionAtoms,
@@ -548,7 +538,6 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         let shown = Set(rendered.spans.map(\.table.identity))
         view.paper.tableAttachments = view.paper.tableAttachments.filter { shown.contains($0.key) }
         if view.paperStorage != rendered.text { view.replaceAllText(rendered.text) }
-        view.paper.answerSlots.layout(in: view)
         syncSelection(view)
     }
 
@@ -637,8 +626,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             guard let shown = view.paper.tables.view(old), NSMaxRange(shown) <= storage.length,
                   let bounds = Range(new, in: session.text) else { return false }
             let piece = NativeProseCodec.viewText(AttributedString(session.text[bounds]), emptyBlocks: nodes.emptyBlocks,
-                tableCells: nodes.tableCells, callouts: nodes.callouts, questions: nodes.questions,
-                form: view.paper.answerSlots.presentation, taskItems: nodes.taskItems,
+                tableCells: nodes.tableCells, callouts: nodes.callouts, questions: nodes.questions, taskItems: nodes.taskItems,
                 inlineAtoms: nodes.inlineAtoms, blockAtoms: nodes.blockAtoms, authoredWidgets: nodes.authoredWidgets,
                 entityReferenceAtoms: nodes.entityReferenceAtoms, mediaAtoms: nodes.mediaAtoms,
                 suggestionAtoms: nodes.suggestionAtoms, mediaImages: mediaImages, startingAt: new.location) { [unowned view] in
@@ -681,7 +669,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
     private func replaceRows(of table: RelayTableAttachment, old: NSRange, new: NSRange, nodes: RelayNativeRegion) -> Bool {
         guard let bounds = Range(new, in: session.text) else { return false }
         let piece = NativeProseCodec.attributed(AttributedString(session.text[bounds]), tableCells: nodes.tableCells,
-            callouts: nodes.callouts, questions: nodes.questions, form: attachedView?.paper.answerSlots.presentation,
+            callouts: nodes.callouts, questions: nodes.questions,
             inlineAtoms: nodes.inlineAtoms, blockAtoms: nodes.blockAtoms,
             authoredWidgets: nodes.authoredWidgets, entityReferenceAtoms: nodes.entityReferenceAtoms,
             mediaAtoms: nodes.mediaAtoms, suggestionAtoms: nodes.suggestionAtoms, mediaImages: mediaImages,

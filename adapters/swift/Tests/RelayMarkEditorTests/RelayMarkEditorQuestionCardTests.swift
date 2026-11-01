@@ -11,8 +11,8 @@ import AppKit
 import UIKit
 #endif
 
-/// A form paper's questions are bordered cards; a host's answers restyle them without touching
-/// the document. These tests drive the shared codec and the macOS paper view.
+/// A form paper's questions are bordered cards drawn over the unchanged document text. These
+/// tests drive the shared codec and the macOS paper view.
 @MainActor
 struct RelayMarkEditorQuestionCardTests {
     static let source = """
@@ -38,74 +38,23 @@ struct RelayMarkEditorQuestionCardTests {
         return try RelayMarkEditorSession(document: document, canEdit: { editable }, persist: { _ in })
     }
 
-    private func render(_ session: RelayMarkEditorSession, form: RelayFormPresentation? = nil) -> NSAttributedString {
-        NativeProseCodec.attributed(session.text, callouts: session.nativeCallouts, questions: session.nativeQuestions, form: form)
+    private func render(_ session: RelayMarkEditorSession) -> NSAttributedString {
+        NativeProseCodec.attributed(session.text, callouts: session.nativeCallouts, questions: session.nativeQuestions)
     }
 
-    private func answers(_ entries: [String: RelayMarkFormAnswers.Entry]) -> RelayFormPresentation {
-        RelayFormPresentation(answers: RelayMarkFormAnswers(entries: entries), hostHeights: [:])
-    }
-
-    private func optionStates(_ text: NSAttributedString) -> [String: Bool] {
-        var found: [String: Bool] = [:]
-        text.enumerateAttribute(.relayOptionState, in: NSRange(location: 0, length: text.length)) { value, range, _ in
-            if let value = value as? NSNumber { found[(text.string as NSString).substring(with: range)] = value.boolValue }
+    @Test func eachQuestionIsOneCardAcrossItsLabelAndOptionsAndTheTextIsUntouched() throws {
+        let session = try session()
+        let text = render(session)
+        func style(at word: String) -> RelayBlockStyle? {
+            text.attribute(.relayBlock, at: (text.string as NSString).range(of: word).location, effectiveRange: nil) as? RelayBlockStyle
         }
-        return found
-    }
-
-    @Test func overlayLeavesTheCanonicalTextAndRoundtripUnchanged() throws {
-        let session = try session()
-        let plain = render(session)
-        let shown = render(session, form: answers(["q-one": .init(values: ["London"]), "q-two": .init(values: ["Ada"], truncated: true)]))
-        #expect(shown.string == plain.string)
-        #expect(String(NativeProseCodec.value(shown).characters) == String(session.text.characters))
-        #expect(NativeProseCodec.value(shown) == NativeProseCodec.value(plain))
-        #expect(optionStates(plain).isEmpty)
-    }
-
-    @Test func aChosenOptionMatchesByTextOrIdAndTheOthersRecede() throws {
-        let session = try session()
-        let question = try #require(session.nativeQuestions.first)
-        // By text, and by an option's id, as the web does.
-        let byText = optionStates(render(session, form: answers(["q-one": .init(values: ["London"])])))
-        #expect(byText == ["Paris": false, "London": true, "Rome": false])
-        let rome = question.options[2].id
-        let byID = optionStates(render(session, form: answers(["q-one": .init(values: [rome])])))
-        #expect(byID == ["Paris": false, "London": false, "Rome": true])
-        // An unknown value selects nothing; it is shown as text under the question instead.
-        let unknown = render(session, form: answers(["q-one": .init(values: ["Madrid"])]))
-        #expect(optionStates(unknown) == ["Paris": false, "London": false, "Rome": false])
-        let slot = try #require((unknown.attribute(.relayBlock, at: (unknown.string as NSString).range(of: "Rome").location, effectiveRange: nil) as? RelayBlockStyle)?.answer)
-        #expect(slot.rows == [.text("Madrid")])
-    }
-
-    @Test func noAnswerShowsOnlyWhenThereAreNoValuesOrFiles() throws {
-        let session = try session()
-        let text = render(session, form: answers(["q-one": .init(values: ["Paris"]), "q-two": .init()]))
-        func slot(at word: String) -> RelayAnswerSlot? {
-            (text.attribute(.relayBlock, at: (text.string as NSString).range(of: word).location, effectiveRange: nil) as? RelayBlockStyle)?.answer
-        }
-        // A chosen option needs no line; an unanswered question says so.
-        #expect(slot(at: "Rome") == nil)
-        #expect(slot(at: "Name?")?.rows == [.subdued("No answer")])
-        let withFile = render(session, form: RelayFormPresentation(
-            answers: RelayMarkFormAnswers(entries: ["q-two": .init(attachments: [.init(index: 0, kind: .file, filename: "a.png", isImage: true)])]),
-            hostHeights: ["q-two": 80]))
-        let file = (withFile.attribute(.relayBlock, at: (withFile.string as NSString).range(of: "Name?").location, effectiveRange: nil) as? RelayBlockStyle)?.answer
-        #expect(file == RelayAnswerSlot(questionID: "q-two", rows: [], hostHeight: 80))
-    }
-
-    @Test func aReadOnlyFormSessionTakesAnswersWithoutBecomingEditable() throws {
-        let session = try session()
-        #expect(!session.isEditable)
-        let before = String(session.text.characters)
-        session.setFormAnswers(RelayMarkFormAnswers(entries: ["q-one": .init(values: ["Paris"])]))
-        #expect(!session.isEditable)
-        #expect(String(session.text.characters) == before)
-        #expect(session.formAnswersRevision == 1)
-        session.setFormAnswers(RelayMarkFormAnswers(entries: ["q-one": .init(values: ["Paris"])]))
-        #expect(session.formAnswersRevision == 1)
+        let capital = try #require(style(at: "Capital?"))
+        #expect(capital.appearance == .card)
+        #expect([style(at: "Paris"), style(at: "London"), style(at: "Rome")].allSatisfy { $0?.identity == capital.identity })
+        #expect(style(at: "Name?")?.identity != capital.identity)
+        #expect(style(at: "Safe guidance")?.appearance == .callout(tone: "info", strong: false))
+        #expect(text.string == String(session.text.characters))
+        #expect(NativeProseCodec.value(text) == session.text)
     }
 
     #if os(macOS)
@@ -151,24 +100,6 @@ struct RelayMarkEditorQuestionCardTests {
         #expect(card[1].topMargin == 0 && card[1].bottomMargin == 0)
         #expect(card[3].bottomMargin == style.padding + style.outerGap)
         #expect(callout.topMargin == callout.block.padding && callout.bottomMargin == callout.block.padding)
-    }
-
-    @Test func theViewMarksTheChosenOptionAndKeepsTheDocumentUntouched() throws {
-        let session = try session()
-        let snapshot = try session.document.snapshot()
-        let (coordinator, view, window) = try mount(session)
-        defer { coordinator.retire(view); window.contentView = nil; window.close() }
-        session.setFormAnswers(RelayMarkFormAnswers(entries: ["q-one": .init(values: ["Paris"]), "q-two": .init()]))
-        coordinator.update(view)
-        let text = view.paperStorage
-        #expect(optionStates(text) == ["Paris": true, "London": false, "Rome": false])
-        #expect(try session.document.snapshot() == snapshot)
-        #expect(!view.isPaperEditable)
-        // VoiceOver hears what the drawn marker and answer say.
-        view.setSelectedRange(NSRange(location: (text.string as NSString).range(of: "Paris").location, length: 0))
-        let heard = view.paperAccessibilityContent().first
-        #expect(heard?.label == "Capital?")
-        #expect(heard?.value == "Selected: Paris")
     }
     #endif
 }
