@@ -312,6 +312,7 @@ pub fn import_owned_document_snapshot(original: Value, namespace: &str) -> Resul
     Ok(json!({"snapshot": snapshot, "document": document, "identity_mapping": identity, "normalizations": changes, "requires_reconstruction": false}))
 }
 
+// Per-key settings conversion: not a live storage path: question settings are stored as one aggregate `settings` attribute by decision (docs/engineering/settings-encoding-decision.md).
 /// Detached preview of an archive whose form settings are one aggregate
 /// attribute. The caller keeps the original bytes and qualifies any cut.
 pub fn import_aggregate_settings_snapshot(snapshot: &Value) -> Result<Value> {

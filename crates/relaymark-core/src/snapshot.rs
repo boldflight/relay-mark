@@ -221,6 +221,7 @@ pub fn snapshot_to_document(snapshot: &Value) -> Result<Value> {
     Ok(document)
 }
 
+// Per-key settings codec: not a live storage path: question settings are stored as one aggregate `settings` attribute by decision (docs/engineering/settings-encoding-decision.md).
 // ---- Physical XML attributes: form settings are encoded one field per attribute ----
 
 struct AttributeEncoding {

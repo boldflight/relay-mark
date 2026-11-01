@@ -24,6 +24,7 @@ public enum RelayMarkContentEditCodec {
         return try documentAttributes(operation: "decodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
     }
 
+    // The aggregate `settings` attribute is the canonical stored encoding, by decision (docs/engineering/settings-encoding-decision.md).
     /// The server's current form encoding keeps a node's settings as one `settings` object, which
     /// already is the authored shape: no presence marker and no per-key physical fields. It reads
     /// as it is; writing still goes through the physical encoding, so a native edit of a question

@@ -40,6 +40,7 @@ public enum RelayMarkSourceCodec {
     public static func documentToSnapshot(_ document: Data) throws -> Data {
         try RelayMarkEngineCall.run("to_snapshot", document)
     }
+    // The aggregate `settings` attribute is the canonical stored encoding, by decision (docs/engineering/settings-encoding-decision.md).
     public static func snapshotToDocument(_ snapshot: Data) throws -> Data {
         do { return try RelayMarkEngineCall.run("from_snapshot", snapshot) }
         catch {

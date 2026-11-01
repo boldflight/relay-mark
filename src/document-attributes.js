@@ -5,6 +5,7 @@ import btoa from 'core-js-pure/actual/btoa.js';
 import atob from 'core-js-pure/actual/atob.js';
 import {xmlAttributeEncodingPolicy as policy} from './document-attribute-policy.js';
 const prefix=policy.field_prefix,nodes=new Set(policy.nodes),attribute=policy.logical_attribute,presence=policy.presence;
+// Per-key settings codec: not a live storage path: question settings are stored as one aggregate `settings` attribute by decision (docs/engineering/settings-encoding-decision.md).
 export function settingsAttributeKey(key){
  if(typeof key!=='string')throw TypeError('Invalid authored settings key');
  let encoded;try{encoded=encodeURIComponent(key);}catch{throw TypeError('Invalid authored settings Unicode key');}
@@ -20,6 +21,7 @@ function originalKey(field){
 }
 function object(value){if(!value||typeof value!=='object'||Array.isArray(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value)))throw TypeError('Invalid settings attributes');}
 function unrelated(attributes){if(Object.keys(attributes).some(key=>key.startsWith(prefix))||Object.hasOwn(attributes,attribute))throw TypeError('Settings fields on unrelated node');return attributes;}
+// Per-key settings codec: not a live storage path: question settings are stored as one aggregate `settings` attribute by decision (docs/engineering/settings-encoding-decision.md).
 export const canonicalAttributeCodec=Object.freeze({
  encode(name,attributes){
   object(attributes);if(!nodes.has(name))return Object.fromEntries(Object.entries(unrelated(attributes)).filter(([,value])=>value!==null));

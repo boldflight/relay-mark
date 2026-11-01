@@ -33,6 +33,7 @@ export function snapshotToDocumentWithProseMirror(snapshot){
  * Missing-hash archives may already have canonical fieldwise settings; their
  * detached preview retains geometry and has no physical normalization.
  * The caller retains originals and independently qualifies any physical cut. */
+// Per-key settings conversion: not a live storage path: question settings are stored as one aggregate `settings` attribute by decision (docs/engineering/settings-encoding-decision.md).
 export function importAggregateSettingsSnapshot(snapshot){
  const only=(value,keys)=>{if(!value||typeof value!=='object'||Array.isArray(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value))||Object.keys(value).some(key=>!keys.includes(key)))throw TypeError('Invalid finite snapshot shape');};
  only(snapshot,['kind','children','metadata']);

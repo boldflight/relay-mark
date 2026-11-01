@@ -526,3 +526,11 @@ individual clocks or edits the retained document. The vector uses the maintained
 Yjs decoder, with the same million-entry observation budget and an 8 MiB byte
 bound. Supplying only a vector without complete server deletion coverage cannot
 establish that deletions were accepted.
+
+## Question settings storage
+
+`xml-attribute-encoding.json` (`field_prefix: "settings:"`) describes a per-key
+settings codec that is not a live storage path. Question settings are stored as
+one aggregate `settings` attribute by decision; see
+`docs/engineering/settings-encoding-decision.md`. The file is JSON and feeds the
+contract `schema_hash`, so the note lives here.
