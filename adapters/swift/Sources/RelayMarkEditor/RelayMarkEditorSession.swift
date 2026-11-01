@@ -18,6 +18,10 @@ public final class RelayMarkEditorSession {
     /// Advances when a command changes task checkboxes without changing `text`, so a view
     /// observing the session shows the new state.
     public internal(set) var taskStateRevision = 0
+    /// The answers a host lays over a form paper, and a counter a view compares to know they changed.
+    public private(set) var formAnswers: RelayMarkFormAnswers?
+    public private(set) var formAnswersRevision = 0
+    @ObservationIgnored var answerSlotProvider: RelayMarkAnswerSlotProvider?
     /// Advances whenever `text` is replaced; a text view compares it instead of the text.
     @ObservationIgnored public private(set) var textRevision = 0
     /// Set when a peer's text-only update re-projected just its leaves.
@@ -53,6 +57,18 @@ public final class RelayMarkEditorSession {
     }
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] {
         return (try? currentProjection().callouts) ?? []
+    }
+    var nativeQuestions: [RelayMarkCollaborativeProse.Question] {
+        return (try? currentProjection().questions) ?? []
+    }
+    /// A respondent's answers laid over a read-only form paper, with the host's views for their
+    /// files. Only the presentation changes; the document and its text never do. A host that
+    /// shows different slot content for the same answers advances `hostRevision`.
+    public func setFormAnswers(_ answers: RelayMarkFormAnswers?, slot: RelayMarkAnswerSlotProvider? = nil) {
+        answerSlotProvider = slot
+        guard answers != formAnswers else { return }
+        formAnswers = answers
+        formAnswersRevision &+= 1
     }
     public var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] {
         guard let projection = try? currentProjection() else { return [] }
@@ -677,7 +693,7 @@ public final class RelayMarkEditorSession {
     /// Presentation metadata of a restricted projection, in paper offsets.
     func region(of projection: RelayMarkCollaborativeProse) -> RelayNativeRegion {
         RelayNativeRegion(emptyBlocks: emptyBlocks(of: projection), tableCells: projection.tableCells,
-            callouts: projection.callouts, taskItems: projection.taskItems, inlineAtoms: projection.inlineAtoms,
+            callouts: projection.callouts, questions: projection.questions, taskItems: projection.taskItems, inlineAtoms: projection.inlineAtoms,
             blockAtoms: projection.blockAtoms, authoredWidgets: projection.authoredWidgets,
             entityReferenceAtoms: projection.entityReferenceAtoms, mediaAtoms: projection.mediaAtoms,
             suggestionAtoms: projection.suggestionAtoms)

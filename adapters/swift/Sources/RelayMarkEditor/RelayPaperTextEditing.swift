@@ -31,6 +31,7 @@ struct RelayNativeRegion {
     var emptyBlocks: [RelayEmptyProseBlock] = []
     var tableCells: [RelayMarkCollaborativeProse.TableCell] = []
     var callouts: [RelayMarkCollaborativeProse.Callout] = []
+    var questions: [RelayMarkCollaborativeProse.Question] = []
     var taskItems: [RelayMarkCollaborativeProse.TaskItem] = []
     var inlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] = []
     var blockAtoms: [RelayMarkCollaborativeProse.BlockAtom] = []
@@ -54,6 +55,11 @@ protocol RelayPaperTextEditing: AnyObject {
     var nativeEmptyBlocks: [RelayEmptyProseBlock] { get }
     var nativeTableCells: [RelayMarkCollaborativeProse.TableCell] { get }
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] { get }
+    var nativeQuestions: [RelayMarkCollaborativeProse.Question] { get }
+    /// Answers laid over a read-only form paper, the host's slot views for their files, and a counter for changes.
+    var formAnswers: RelayMarkFormAnswers? { get }
+    var formAnswersRevision: Int { get }
+    var answerSlotProvider: RelayMarkAnswerSlotProvider? { get }
     var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] { get }
     /// Advances when task checkboxes change without the text changing.
     var taskStateRevision: Int { get }
@@ -125,6 +131,10 @@ extension RelayPaperTextEditing {
     var nativeEmptyBlocks: [RelayEmptyProseBlock] { [] }
     var nativeTableCells: [RelayMarkCollaborativeProse.TableCell] { [] }
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] { [] }
+    var nativeQuestions: [RelayMarkCollaborativeProse.Question] { [] }
+    var formAnswers: RelayMarkFormAnswers? { nil }
+    var formAnswersRevision: Int { 0 }
+    var answerSlotProvider: RelayMarkAnswerSlotProvider? { nil }
     var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] { [] }
     var taskStateRevision: Int { 0 }
     var linkedTaskRevision: Int { 0 }

@@ -1,6 +1,23 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%lld attachments" : {
+      "comment" : "VoiceOver: how many files a respondent attached to an answer.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%lld attachments"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添付ファイル%lld件"
+          }
+        }
+      }
+    },
     "Agent suggestion, %@, %@. %@" : {
       "comment" : "VoiceOver description of an agent suggestion: review state, kind, then its text.",
       "localizations" : {
@@ -326,6 +343,23 @@
         }
       }
     },
+    "No answer" : {
+      "comment" : "Shown under a form question the respondent did not answer.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "No answer"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "回答なし"
+          }
+        }
+      }
+    },
     "Numbered List" : {
       "comment" : "Editor command that makes the block a numbered list.",
       "localizations" : {
@@ -377,6 +411,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "参照：%@"
+          }
+        }
+      }
+    },
+    "Selected" : {
+      "comment" : "Marker on the option a respondent chose, in a form response.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択済み"
+          }
+        }
+      }
+    },
+    "Selected: %@" : {
+      "comment" : "VoiceOver: the options a respondent chose; the placeholder is the list of options.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Selected: %@"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選択: %@"
           }
         }
       }
@@ -713,6 +781,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "ペーストした画像が多すぎます。何も挿入していません。"
+          }
+        }
+      }
+    },
+    "Truncated" : {
+      "comment" : "Marker on a form answer the server cut short.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Truncated"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一部のみ表示"
           }
         }
       }
