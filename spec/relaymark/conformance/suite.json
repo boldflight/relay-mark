@@ -34,7 +34,8 @@
     "renderer.capability_negotiation",
     "composition.semantic_layers.v1",
     "editor.task_drafts.v1",
-    "editor.settings_rebase.v1"
+    "editor.settings_rebase.v1",
+    "editor.descriptor_admission.v1"
   ],
   "fixtures": [
     {
@@ -52,6 +53,10 @@
     {
       "id": "settings-rebase",
       "cases": "../editor/settings-rebase-v1.json"
+    },
+    {
+      "id": "descriptor-admission",
+      "cases": "../editor/descriptor-admission-v1.json"
     },
     {
       "id": "task-paper",

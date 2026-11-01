@@ -206,6 +206,19 @@ pub fn contract() -> Value {
     contract
 }
 
+/// Admits a stored or received document descriptor only when it is exactly this
+/// engine's [`contract`]: contract version, schema, source contract and physical
+/// schema hash. Anything else (a document written before the hash, or by an
+/// engine with another physical encoding) is refused with one message, so a
+/// client recovers through its existing path instead of reading it.
+pub fn admit_descriptor(descriptor: &Value) -> Result<Value> {
+    if descriptor == &contract() {
+        Ok(descriptor.clone())
+    } else {
+        Err(Error::new("Unsupported document descriptor"))
+    }
+}
+
 /// The canonical editor schema (`spec/relaymark/editor-schema.json`).
 pub fn editor_schema() -> &'static Value {
     &schema::editor_schema().source

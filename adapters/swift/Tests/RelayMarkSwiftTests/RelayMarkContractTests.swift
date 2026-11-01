@@ -86,3 +86,20 @@ struct RelayMarkSettingsAttributeFixtureTests {
         }
     }
 }
+
+/// The shared descriptor-admission cases every runtime runs.
+struct RelayMarkDescriptorAdmissionTests {
+    @Test func sharedCases() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../spec/relaymark/editor/descriptor-admission-v1.json")
+        let fixture = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        let cases = try #require(fixture["cases"] as? [[String: Any]])
+        #expect(!cases.isEmpty)
+        for item in cases {
+            let input = try JSONSerialization.data(withJSONObject: item["input"] ?? NSNull(), options: [.fragmentsAllowed])
+            let refused = item["expected_error"] != nil
+            do { try RelayMarkContract.admit(descriptor: input); #expect(!refused, "\(item["name"] ?? "")") }
+            catch { #expect(refused, "\(item["name"] ?? "")") }
+        }
+    }
+}

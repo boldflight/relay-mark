@@ -8,6 +8,7 @@ import { validateTransportedAgentAnswerPair } from "./transport.js";
 import { validateDocument } from "./validator.js";
 import { composeLayerContributions } from "./composition.js";
 import { encodeDocumentAttributes, decodeDocumentAttributes } from "./content-edit.js";
+import { admitDescriptor } from "./descriptor.js";
 import { taskDrafts, taskDraftArm, taskDraftBoundary } from "./task-drafts.js";
 import { settingsRebase } from "./settings-rebase.js";
 
@@ -18,7 +19,8 @@ const editorJobs = {
   task_draft_boundary: taskDraftBoundary,
   settings_rebase: settingsRebase,
   encode_attributes: (input, options) => encodeDocumentAttributes(options.name, input),
-  decode_attributes: (input, options) => decodeDocumentAttributes(options.name, input)
+  decode_attributes: (input, options) => decodeDocumentAttributes(options.name, input),
+  admit_descriptor: admitDescriptor
 };
 
 export function runConformanceSuite(path) {

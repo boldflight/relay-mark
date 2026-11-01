@@ -526,3 +526,10 @@ individual clocks or edits the retained document. The vector uses the maintained
 Yjs decoder, with the same million-entry observation budget and an 8 MiB byte
 bound. Supplying only a vector without complete server deletion coverage cannot
 establish that deletions were accepted.
+
+## Question settings storage
+
+`xml-attribute-encoding.json` names the nodes whose `settings` attribute is one
+aggregate JSON object, byte-identical to stock y-tiptap. There is no per-key
+encoding; see `docs/engineering/settings-encoding-decision.md`. The file is JSON
+and feeds the contract `schema_hash`, so the note lives here.

@@ -23,6 +23,7 @@ and licensing.
 - Strict semantic-version tags release the reference runtime and root Swift
   package. `elixir-<version>` tags identify the Hex source for
   `relay_mark_elixir`; a tag never publishes to Hex.
+- Form question settings are one aggregate `settings` attribute; never reintroduce per-key `settings:<key>` storage (it killed performance; Douglas, 2026-11-02). See [docs/engineering/settings-encoding-decision.md](docs/engineering/settings-encoding-decision.md).
 - For collaborative editing, start with
   [docs/OFFLINE_MULTIPLAYER.md](docs/OFFLINE_MULTIPLAYER.md). Prefer maintained
   community components (Yjs, ProseMirror, TipTap) over custom infrastructure.
