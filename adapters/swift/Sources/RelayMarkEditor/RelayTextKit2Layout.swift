@@ -76,7 +76,7 @@ struct RelayAnswerSlot: Equatable {
     func rowHeights(width: CGFloat) -> [CGFloat] {
         rows.map { row in
             let box = Self.attributed(row).boundingRect(with: CGSize(width: max(1, width), height: .greatestFiniteMagnitude),
-                options: [.usesLineFragmentOrigin, .usesFontLeading])
+                options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
             return ceil(box.height) + (row.isChip ? 4 : 0)
         }
     }
@@ -307,7 +307,7 @@ final class RelayBlockFragment: NSTextLayoutFragment {
                     text.draw(at: CGPoint(x: rect.minX + 6, y: rect.minY + 2))
                 } else {
                     text.draw(with: CGRect(x: slot.minX, y: y, width: slot.width, height: height),
-                              options: [.usesLineFragmentOrigin, .usesFontLeading])
+                              options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
                 }
                 y += height + RelayAnswerSlot.rowSpacing
             }
