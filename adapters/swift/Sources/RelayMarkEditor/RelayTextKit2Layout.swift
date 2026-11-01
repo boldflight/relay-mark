@@ -1,46 +1,91 @@
 import Foundation
 #if os(macOS)
 import AppKit
-private typealias LayoutColor = NSColor
+typealias LayoutColor = NSColor
 #else
 import UIKit
-private typealias LayoutColor = UIColor
+typealias LayoutColor = UIColor
 #endif
 
-/// Callouts are a paragraph attribute drawn by a Relay layout fragment: NSTextBlock
-/// forces TextKit 1 on iOS and TextKit 2 ignores it on macOS. Tables are attachments.
-extension NSAttributedString.Key {
-    static let relayCallout = NSAttributedString.Key("RelayCallout")
+extension LayoutColor {
+    static var labelColorCompat: LayoutColor {
+        #if os(macOS)
+        .labelColor
+        #else
+        .label
+        #endif
+    }
+    static var secondaryLabelColorCompat: LayoutColor {
+        #if os(macOS)
+        .secondaryLabelColor
+        #else
+        .secondaryLabel
+        #endif
+    }
+    static var separatorColorCompat: LayoutColor {
+        #if os(macOS)
+        .separatorColor
+        #else
+        .separator
+        #endif
+    }
 }
 
-/// One callout's presentation, shared by each of its paragraphs.
-final class RelayCalloutStyle: NSObject {
-    let identity: Int
-    let tone: String
-    let strong: Bool
+/// Callouts and form question cards are one paragraph attribute drawn by a Relay layout
+/// fragment: NSTextBlock forces TextKit 1 on iOS and TextKit 2 ignores it on macOS.
+/// Tables are attachments.
+extension NSAttributedString.Key {
+    static let relayBlock = NSAttributedString.Key("RelayBlock")
+}
 
-    init(identity: Int, tone: String, strong: Bool) {
-        self.identity = identity; self.tone = tone; self.strong = strong
+/// One block's presentation, shared by each of its paragraphs: a callout's tinted band or a
+/// question's bordered card.
+final class RelayBlockStyle: NSObject {
+    enum Appearance: Equatable {
+        case callout(tone: String, strong: Bool)
+        case card
+    }
+    let identity: Int
+    let appearance: Appearance
+
+    init(identity: Int, appearance: Appearance) {
+        self.identity = identity; self.appearance = appearance
     }
 
     fileprivate var color: LayoutColor {
-        switch tone {
-        case "success": .systemGreen
-        case "warning": .systemOrange
-        case "error": .systemRed
-        case "accent", "secondary": .systemPurple
-        default: .systemBlue
+        switch appearance {
+        case .callout(let tone, _):
+            switch tone {
+            case "success": .systemGreen
+            case "warning": .systemOrange
+            case "error": .systemRed
+            case "accent", "secondary": .systemPurple
+            default: .systemBlue
+            }
+        case .card: .separatorColorCompat
         }
     }
-    static let inset: CGFloat = 8
-    var borderWidth: CGFloat { strong ? 2 : 1 }
+    fileprivate var fill: LayoutColor? {
+        if case .callout(_, let strong) = appearance { return color.withAlphaComponent(strong ? 0.14 : 0.07) }
+        return nil
+    }
+    /// Space between the text and the border.
+    var padding: CGFloat {
+        switch appearance { case .callout: 8 + borderWidth; case .card: 12 + borderWidth }
+    }
+    /// Space left outside the border above the first and below the last paragraph.
+    var outerGap: CGFloat { if case .card = appearance { 8 } else { 0 } }
+    var cornerRadius: CGFloat { if case .card = appearance { 6 } else { 0 } }
+    var borderWidth: CGFloat {
+        switch appearance { case .callout(_, let strong): strong ? 2 : 1; case .card: 1 }
+    }
 
     override func isEqual(_ object: Any?) -> Bool {
-        guard let other = object as? RelayCalloutStyle else { return false }
-        return identity == other.identity && tone == other.tone && strong == other.strong
+        guard let other = object as? RelayBlockStyle else { return false }
+        return identity == other.identity && appearance == other.appearance
     }
-    override var hash: Int { identity ^ tone.hashValue ^ strong.hashValue }
-    override var description: String { "RelayCallout(\(identity), \(tone), strong: \(strong))" }
+    override var hash: Int { identity ^ "\(appearance)".hashValue }
+    override var description: String { "RelayBlock(\(identity), \(appearance))" }
 }
 
 /// The paper's margins, the same on every platform. The leading margin holds the
@@ -63,7 +108,7 @@ public extension RelayMarkEditorView {
     }
 }
 
-/// The paper's TextKit 2 layout: system paragraphs and callout fragments.
+/// The paper's TextKit 2 layout: system paragraphs and block fragments.
 final class RelayTextLayoutManager: NSTextLayoutManager, NSTextLayoutManagerDelegate {
     override init() {
         super.init()
@@ -77,27 +122,28 @@ final class RelayTextLayoutManager: NSTextLayoutManager, NSTextLayoutManagerDele
                            in textElement: NSTextElement) -> NSTextLayoutFragment {
         let range = textElement.elementRange ?? NSTextRange(location: location)
         if let paragraph = textElement as? NSTextParagraph, paragraph.attributedString.length > 0,
-           let callout = paragraph.attributedString.attribute(.relayCallout, at: 0, effectiveRange: nil) as? RelayCalloutStyle {
-            return RelayCalloutFragment(textElement: textElement, range: range, callout: callout)
+           let block = paragraph.attributedString.attribute(.relayBlock, at: 0, effectiveRange: nil) as? RelayBlockStyle {
+            return RelayBlockFragment(textElement: textElement, range: range, block: block)
         }
         return NSTextLayoutFragment(textElement: textElement, range: range)
     }
 }
 
-/// A callout paragraph: inset text over its tinted, bordered block.
-final class RelayCalloutFragment: NSTextLayoutFragment {
-    let callout: RelayCalloutStyle
+/// A paragraph of a callout or question card: inset text over the block's fill and border,
+/// one continuous shape across the block's paragraphs.
+final class RelayBlockFragment: NSTextLayoutFragment {
+    let block: RelayBlockStyle
 
-    init(textElement: NSTextElement, range: NSTextRange, callout: RelayCalloutStyle) {
-        self.callout = callout
+    init(textElement: NSTextElement, range: NSTextRange, block: RelayBlockStyle) {
+        self.block = block
         super.init(textElement: textElement, range: range)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    private func sameCallout(at offset: Int) -> Bool {
+    private func sameBlock(at offset: Int) -> Bool {
         guard let storage = (textLayoutManager as? RelayTextLayoutManager)?.textStorage,
               offset >= 0, offset < storage.length else { return false }
-        return (storage.attribute(.relayCallout, at: offset, effectiveRange: nil) as? RelayCalloutStyle)?.identity == callout.identity
+        return (storage.attribute(.relayBlock, at: offset, effectiveRange: nil) as? RelayBlockStyle)?.identity == block.identity
     }
     private var bounds: NSRange? {
         guard let content = textLayoutManager?.textContentManager else { return nil }
@@ -105,36 +151,40 @@ final class RelayCalloutFragment: NSTextLayoutFragment {
         let end = content.offset(from: content.documentRange.location, to: rangeInElement.endLocation)
         return NSRange(location: start, length: end - start)
     }
-    var isFirst: Bool { bounds.map { !sameCallout(at: $0.location - 1) } ?? true }
-    var isLast: Bool { bounds.map { !sameCallout(at: NSMaxRange($0)) } ?? true }
+    var isFirst: Bool { bounds.map { !sameBlock(at: $0.location - 1) } ?? true }
+    var isLast: Bool { bounds.map { !sameBlock(at: NSMaxRange($0)) } ?? true }
 
-    private var inset: CGFloat { RelayCalloutStyle.inset + callout.borderWidth }
-    override var leadingPadding: CGFloat { inset }
-    override var trailingPadding: CGFloat { inset }
-    override var topMargin: CGFloat { isFirst ? inset : 0 }
-    override var bottomMargin: CGFloat { isLast ? inset : 0 }
+    private var padding: CGFloat { block.padding }
+    override var leadingPadding: CGFloat { padding }
+    override var trailingPadding: CGFloat { padding }
+    override var topMargin: CGFloat { isFirst ? padding + block.outerGap : 0 }
+    override var bottomMargin: CGFloat { isLast ? padding + block.outerGap : 0 }
 
-    /// The block in fragment coordinates: the container's width, the fragment's height.
+    /// The block's slice in fragment coordinates: the container's width, the fragment's height
+    /// less the gap left outside the border at the block's ends.
     private var blockRect: CGRect {
         let frame = layoutFragmentFrame
-        let padding = textLayoutManager?.textContainer?.lineFragmentPadding ?? 0
-        let width = (textLayoutManager?.textContainer?.size.width ?? frame.maxX) - 2 * padding
-        return CGRect(x: padding - frame.minX, y: 0, width: width, height: frame.height)
+        let inset = textLayoutManager?.textContainer?.lineFragmentPadding ?? 0
+        let width = (textLayoutManager?.textContainer?.size.width ?? frame.maxX) - 2 * inset
+        let top = isFirst ? block.outerGap : 0, bottom = isLast ? block.outerGap : 0
+        return CGRect(x: inset - frame.minX, y: top, width: width, height: frame.height - top - bottom)
     }
     override var renderingSurfaceBounds: CGRect { super.renderingSurfaceBounds.union(blockRect) }
 
     override func draw(at point: CGPoint, in context: CGContext) {
-        let rect = blockRect.offsetBy(dx: point.x, dy: point.y)
-        let color = callout.color
+        let box = blockRect.offsetBy(dx: point.x, dy: point.y)
+        let border = block.borderWidth
         context.saveGState()
-        context.setFillColor(color.withAlphaComponent(callout.strong ? 0.14 : 0.07).cgColor)
-        context.fill(rect)
-        context.setFillColor(color.cgColor)
-        let border = callout.borderWidth
-        context.fill(CGRect(x: rect.minX, y: rect.minY, width: border, height: rect.height))
-        context.fill(CGRect(x: rect.maxX - border, y: rect.minY, width: border, height: rect.height))
-        if isFirst { context.fill(CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: border)) }
-        if isLast { context.fill(CGRect(x: rect.minX, y: rect.maxY - border, width: rect.width, height: border)) }
+        // The whole block's shape, clipped to this slice, so its paragraphs join without seams.
+        context.clip(to: box)
+        let whole = CGRect(x: box.minX, y: isFirst ? box.minY : box.minY - 4096, width: box.width,
+                           height: box.height + (isFirst ? 0 : 4096) + (isLast ? 0 : 4096))
+        let path = CGPath(roundedRect: whole.insetBy(dx: border / 2, dy: border / 2),
+                          cornerWidth: block.cornerRadius, cornerHeight: block.cornerRadius, transform: nil)
+        if let fill = block.fill {
+            context.addPath(path); context.setFillColor(fill.cgColor); context.fillPath()
+        }
+        context.addPath(path); context.setStrokeColor(block.color.cgColor); context.setLineWidth(border); context.strokePath()
         context.restoreGState()
         super.draw(at: point, in: context)
     }

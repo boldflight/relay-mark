@@ -54,6 +54,9 @@ public final class RelayMarkEditorSession {
     var nativeCallouts: [RelayMarkCollaborativeProse.Callout] {
         return (try? currentProjection().callouts) ?? []
     }
+    var nativeQuestions: [RelayMarkCollaborativeProse.Question] {
+        return (try? currentProjection().questions) ?? []
+    }
     public var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] {
         guard let projection = try? currentProjection() else { return [] }
         return projection.taskItems
@@ -686,7 +689,7 @@ public final class RelayMarkEditorSession {
     /// Presentation metadata of a restricted projection, in paper offsets.
     func region(of projection: RelayMarkCollaborativeProse) -> RelayNativeRegion {
         RelayNativeRegion(emptyBlocks: emptyBlocks(of: projection), tableCells: projection.tableCells,
-            callouts: projection.callouts, taskItems: projection.taskItems, inlineAtoms: projection.inlineAtoms,
+            callouts: projection.callouts, questions: projection.questions, taskItems: projection.taskItems, inlineAtoms: projection.inlineAtoms,
             blockAtoms: projection.blockAtoms, authoredWidgets: projection.authoredWidgets,
             entityReferenceAtoms: projection.entityReferenceAtoms, mediaAtoms: projection.mediaAtoms,
             suggestionAtoms: projection.suggestionAtoms)

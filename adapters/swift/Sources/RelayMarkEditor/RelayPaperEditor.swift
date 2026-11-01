@@ -529,7 +529,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         view.paper.emptyBlocks = session.nativeEmptyBlocks
         view.paper.taskItems = session.nativeTaskItems
         let rendered = NativeProseCodec.viewText(session.text, emptyBlocks: view.paper.emptyBlocks,
-            tableCells: session.nativeTableCells, callouts: session.nativeCallouts, taskItems: view.paper.taskItems,
+            tableCells: session.nativeTableCells, callouts: session.nativeCallouts, questions: session.nativeQuestions, taskItems: view.paper.taskItems,
             inlineAtoms: session.nativeInlineAtoms, blockAtoms: session.nativeBlockAtoms,
             authoredWidgets: session.nativeAuthoredWidgets, entityReferenceAtoms: session.nativeEntityReferenceAtoms,
             mediaAtoms: session.nativeMediaAtoms, suggestionAtoms: session.nativeSuggestionAtoms,
@@ -626,7 +626,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             guard let shown = view.paper.tables.view(old), NSMaxRange(shown) <= storage.length,
                   let bounds = Range(new, in: session.text) else { return false }
             let piece = NativeProseCodec.viewText(AttributedString(session.text[bounds]), emptyBlocks: nodes.emptyBlocks,
-                tableCells: nodes.tableCells, callouts: nodes.callouts, taskItems: nodes.taskItems,
+                tableCells: nodes.tableCells, callouts: nodes.callouts, questions: nodes.questions, taskItems: nodes.taskItems,
                 inlineAtoms: nodes.inlineAtoms, blockAtoms: nodes.blockAtoms, authoredWidgets: nodes.authoredWidgets,
                 entityReferenceAtoms: nodes.entityReferenceAtoms, mediaAtoms: nodes.mediaAtoms,
                 suggestionAtoms: nodes.suggestionAtoms, mediaImages: mediaImages, startingAt: new.location) { [unowned view] in
@@ -669,7 +669,8 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
     private func replaceRows(of table: RelayTableAttachment, old: NSRange, new: NSRange, nodes: RelayNativeRegion) -> Bool {
         guard let bounds = Range(new, in: session.text) else { return false }
         let piece = NativeProseCodec.attributed(AttributedString(session.text[bounds]), tableCells: nodes.tableCells,
-            callouts: nodes.callouts, inlineAtoms: nodes.inlineAtoms, blockAtoms: nodes.blockAtoms,
+            callouts: nodes.callouts, questions: nodes.questions,
+            inlineAtoms: nodes.inlineAtoms, blockAtoms: nodes.blockAtoms,
             authoredWidgets: nodes.authoredWidgets, entityReferenceAtoms: nodes.entityReferenceAtoms,
             mediaAtoms: nodes.mediaAtoms, suggestionAtoms: nodes.suggestionAtoms, mediaImages: mediaImages,
             startingAt: new.location)

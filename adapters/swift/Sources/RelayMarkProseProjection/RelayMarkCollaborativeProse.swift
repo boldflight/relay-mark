@@ -42,6 +42,16 @@ public struct RelayMarkCollaborativeProse {
     }
     public var callouts: [Callout] { gather(\.callouts) { _ = $2; var item = $0; item.range.location += $1; item.titleRange?.location += $1; return item } }
 
+    /// A form question as the paper shows it: one card holding its label and
+    /// choice paragraphs. The Yrs XML stays authoritative; this is only the card's range.
+    public struct Question: Equatable, Sendable {
+        public let relaymarkID: String
+        public internal(set) var range: NSRange
+    }
+    public var questions: [Question] {
+        gather(\.questions) { _ = $2; var item = $0; item.range.location += $1; return item }
+    }
+
     /// A heading block: its level, its authored `headingId` if any, and its
     /// text range and XML path. Folding and section links read these.
     public struct Heading: Equatable, Sendable {
@@ -217,6 +227,7 @@ public struct RelayMarkCollaborativeProse {
         var intents: [PresentationIntent] = []
         var cells: [TableCell] = []
         var callouts: [Callout] = []
+        var questions: [Question] = []
         var inlineAtoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
         var entityReferenceAtoms: [EntityReferenceAtom] = []
@@ -621,6 +632,7 @@ public struct RelayMarkCollaborativeProse {
         var intents: [PresentationIntent] = []
         var cells: [TableCell] = []
         var calloutRanges: [Callout] = []
+        var questionRanges: [Question] = []
         var atoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
         var entityReferenceAtoms: [EntityReferenceAtom] = []
@@ -771,6 +783,9 @@ public struct RelayMarkCollaborativeProse {
                     let first=ranges[firstRange],last=ranges[ranges.count-1]
                     widget(kind:name=="questionBlock" ? .question : .directive,id:id,name:name,attributes:attributes,
                         range:NSRange(location:first.location,length:NSMaxRange(last)-first.location),path:blockPath)
+                    if name == "questionBlock" {
+                        questionRanges.append(Question(relaymarkID: id, range: NSRange(location:first.location,length:NSMaxRange(last)-first.location)))
+                    }
                     offsets.append(first.location);continue
                 }
                 if name == "taskItem" {
@@ -1059,7 +1074,7 @@ public struct RelayMarkCollaborativeProse {
         chunk.length = length()
         chunk.supported = supported
         chunk.ranges = ranges; chunk.paths = paths; chunk.intents = intents
-        chunk.cells = cells; chunk.callouts = calloutRanges; chunk.inlineAtoms = atoms
+        chunk.cells = cells; chunk.callouts = calloutRanges; chunk.questions = questionRanges; chunk.inlineAtoms = atoms
         chunk.blockAtoms = blockAtoms; chunk.entityReferenceAtoms = entityReferenceAtoms
         chunk.taskItems = taskItems.sorted { $0.firstParagraphRange.location < $1.firstParagraphRange.location }
         chunk.mediaAtoms = mediaAtoms; chunk.suggestionAtoms = suggestionAtoms; chunk.headings = headings
@@ -1356,6 +1371,9 @@ extension RelayMarkCollaborativeProse {
         for item in chunk.callouts.indices {
             move(&chunk.callouts[item].range)
             if chunk.callouts[item].titleRange != nil { move(&chunk.callouts[item].titleRange!) }
+        }
+        for item in chunk.questions.indices {
+            move(&chunk.questions[item].range)
         }
         for item in chunk.inlineAtoms.indices { move(&chunk.inlineAtoms[item].range) }
         for item in chunk.blockAtoms.indices { move(&chunk.blockAtoms[item].range) }

@@ -82,6 +82,7 @@ enum NativeProseCodec {
     static func attributed(_ value: AttributedString, emptyBlocks: [RelayEmptyProseBlock] = [],
                            tableCells: [RelayMarkCollaborativeProse.TableCell] = [],
                            callouts: [RelayMarkCollaborativeProse.Callout] = [],
+                           questions: [RelayMarkCollaborativeProse.Question] = [],
                            taskItems: [RelayMarkCollaborativeProse.TaskItem] = [],
                            inlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] = [],
                            blockAtoms: [RelayMarkCollaborativeProse.BlockAtom] = [],
@@ -219,8 +220,14 @@ enum NativeProseCodec {
             let calloutRange = local(callout.range)
             guard calloutRange.location >= 0, calloutRange.length > 0,
                   NSMaxRange(calloutRange) <= result.length else { continue }
-            result.addAttribute(.relayCallout, value: RelayCalloutStyle(identity: callout.id.hashValue,
-                tone: callout.tone, strong: callout.emphasis == "strong"), range: calloutRange)
+            result.addAttribute(.relayBlock, value: RelayBlockStyle(identity: callout.id.hashValue,
+                appearance: .callout(tone: callout.tone, strong: callout.emphasis == "strong")), range: calloutRange)
+        }
+        // Question cards share the callouts' block drawing.
+        for question in questions {
+            let range = local(question.range)
+            guard range.location >= 0, range.length > 0, NSMaxRange(range) <= result.length else { continue }
+            result.addAttribute(.relayBlock, value: RelayBlockStyle(identity: question.relaymarkID.hashValue, appearance: .card), range: range)
         }
         for atom in inlineAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
             NSMaxRange(local(atom.range)) <= result.length &&
@@ -286,6 +293,7 @@ enum NativeProseCodec {
     static func viewText(_ value: AttributedString, emptyBlocks: [RelayEmptyProseBlock] = [],
                          tableCells: [RelayMarkCollaborativeProse.TableCell] = [],
                          callouts: [RelayMarkCollaborativeProse.Callout] = [],
+                         questions: [RelayMarkCollaborativeProse.Question] = [],
                          taskItems: [RelayMarkCollaborativeProse.TaskItem] = [],
                          inlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] = [],
                          blockAtoms: [RelayMarkCollaborativeProse.BlockAtom] = [],
@@ -295,7 +303,8 @@ enum NativeProseCodec {
                          suggestionAtoms: [RelayMarkCollaborativeProse.SuggestionAtom] = [],
                          mediaImages: RelayMarkImageStore? = nil, startingAt base: Int = 0,
                          tables: (Int, Int, [RelayTableCellModel]) -> RelayTableAttachment) -> (text: NSAttributedString, spans: [RelayTableSpan]) {
-        let full = attributed(value, emptyBlocks: emptyBlocks, tableCells: tableCells, callouts: callouts, taskItems: taskItems,
+        let full = attributed(value, emptyBlocks: emptyBlocks, tableCells: tableCells, callouts: callouts,
+            questions: questions, taskItems: taskItems,
             inlineAtoms: inlineAtoms, blockAtoms: blockAtoms, authoredWidgets: authoredWidgets,
             entityReferenceAtoms: entityReferenceAtoms, mediaAtoms: mediaAtoms, suggestionAtoms: suggestionAtoms,
             mediaImages: mediaImages, startingAt: base)
@@ -377,7 +386,7 @@ enum NativeProseCodec {
     }
 
     /// Presentation that belongs to a whole block, carried over by leaf edits.
-    static let blockKeys: [NSAttributedString.Key] = [.paragraphStyle, .relayCallout]
+    static let blockKeys: [NSAttributedString.Key] = [.paragraphStyle, .relayBlock]
 
     private static func taskParagraph(containing range: NSRange, _ taskItems: [RelayMarkCollaborativeProse.TaskItem]) -> Int? {
         taskItems.first { $0.firstParagraphRange.location <= range.location &&
@@ -667,20 +676,6 @@ private final class ThematicBreakAttachment: NSTextAttachment {
 }
 
 private extension PlatformColor {
-    static var labelColorCompat: PlatformColor {
-        #if os(macOS)
-        .labelColor
-        #else
-        .label
-        #endif
-    }
-    static var secondaryLabelColorCompat: PlatformColor {
-        #if os(macOS)
-        .secondaryLabelColor
-        #else
-        .secondaryLabel
-        #endif
-    }
     /// A published collaborator color, as the host resolves it.
     static func collaborator(_ value: String, resolve: (String) -> Color) -> PlatformColor {
         PlatformColor(resolve(value))
