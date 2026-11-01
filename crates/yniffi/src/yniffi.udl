@@ -20,6 +20,8 @@ interface YrsDoc {
   constructor();
   [Name=with_options]
   constructor(string guid, boolean retain_deleted_items);
+  [Name=with_client_id]
+  constructor(string guid, u64 client_id);
   string guid();
   [Throws=YrsUndoError]
   YrsDoc fork_retained_history(u32 max_blocks);

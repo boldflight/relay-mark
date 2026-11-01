@@ -12,8 +12,6 @@ struct PendingSettingsEdit {
     var base: [String: Any]?
     /// The value this device last wrote.
     var local: [String: Any]?
-    /// Undo-stack depth right after the edit when the edit is the top undo item and nothing else, else nil.
-    var ownUndoItem: Int?
 }
 
 extension RelayMarkNativeDocument {
@@ -28,18 +26,14 @@ extension RelayMarkNativeDocument {
     /// Runs one settings write and remembers it as pending when it succeeds.
     func trackingSettingsEdits(_ edits: [(id: String, base: [String: Any]?, local: [String: Any]?)],
                                _ body: () throws -> RelayMarkNativeRichEditing.Change) throws -> RelayMarkNativeRichEditing.Change {
-        let before = undoManager.undoMetadata().count
         let change = try body()
         guard !edits.isEmpty else { return change }
-        let after = undoManager.undoMetadata().count
-        let own = undoGroupDepth == 0 && editorCommandDepth == 0 && after == before + 1 && edits.count == 1 ? after : nil
         for edit in edits {
             if let index = pendingSettings.firstIndex(where: { $0.id == edit.id }) {
                 // A later edit of the same node keeps the original base: its keys are all still unacknowledged.
                 pendingSettings[index].local = edit.local
-                pendingSettings[index].ownUndoItem = own
             } else {
-                pendingSettings.append(PendingSettingsEdit(id: edit.id, base: edit.base, local: edit.local, ownUndoItem: own))
+                pendingSettings.append(PendingSettingsEdit(id: edit.id, base: edit.base, local: edit.local))
             }
         }
         if pendingSettings.count > Self.pendingSettingsLimit {
@@ -80,18 +74,12 @@ extension RelayMarkNativeDocument {
         return updates.count == 1 ? updates[0] : try? mergeUpdates(updates)
     }
 
-    /// Writes the rebased value as one local transaction without adding an undo step: when the user's
-    /// own edit is still the top undo item the rebase write replaces it, so one undo still reverts the
-    /// whole settings change to the incoming value; otherwise the write is not undoable on its own.
+    /// Writes the rebased value as one local transaction under an origin the undo manager does not
+    /// track, so it adds no undo step; undo still reverts only the user's own edit.
     private func writeRebased(_ merged: [String: Any], entry: inout PendingSettingsEdit, tree: [String: Any]) throws -> Data {
         let incoming = Self.node(withID: entry.id, in: tree).flatMap { Self.settings(of: $0) }
-        let before = undoManager.undoMetadata().count
-        let change = try RelayMarkNativeRichEditing.updateWidget(document: self, tree: tree, id: entry.id, attributes: ["settings": merged])
-        let after = undoManager.undoMetadata().count
-        if after > before {
-            let retire = entry.ownUndoItem == before ? before - 1 : before
-            _ = try? undoManager.retireHistoryItems(undoIndices: [retire], redoIndices: [])
-            entry.ownUndoItem = entry.ownUndoItem == before ? before : nil
+        let change = try writingUntracked {
+            try RelayMarkNativeRichEditing.updateWidget(document: self, tree: tree, id: entry.id, attributes: ["settings": merged])
         }
         entry.base = incoming
         entry.local = merged

@@ -1280,6 +1280,16 @@ public convenience init() {
     }
 
     
+public static func withClientId(guid: String, clientId: UInt64) -> YrsDoc  {
+    return try!  FfiConverterTypeYrsDoc_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_yniffi_fn_constructor_yrsdoc_with_client_id(
+        FfiConverterString.lower(guid),
+        FfiConverterUInt64.lower(clientId),uniffiCallStatus
+    )
+})
+}
+    
 public static func withOptions(guid: String, retainDeletedItems: Bool) -> YrsDoc  {
     return try!  FfiConverterTypeYrsDoc_lift(try! rustCall() {
         uniffiCallStatus in
@@ -6012,6 +6022,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yniffi_checksum_constructor_yrsdoc_new() != 52237) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_yniffi_checksum_constructor_yrsdoc_with_client_id() != 16389) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_yniffi_checksum_constructor_yrsdoc_with_options() != 42489) {

@@ -31,7 +31,7 @@ struct RelayMarkNativeSettingsRebaseTests {
         let base = RelayMarkNativeDocument()
         _ = try base.edit(JSONSerialization.data(withJSONObject: ["kind": "insertNodes", "path": [Int](), "index": 0, "nodes": nodes]))
         let update = try base.encodeUpdate()
-        let a = RelayMarkNativeDocument(), b = RelayMarkNativeDocument()
+        let a = RelayMarkNativeDocument(guid: "settings-rebase", clientID: 1), b = RelayMarkNativeDocument(guid: "settings-rebase", clientID: 2)
         try a.applyUpdate(update); try b.applyUpdate(update)
         return (a, b, id)
     }
@@ -89,20 +89,18 @@ struct RelayMarkNativeSettingsRebaseTests {
         #expect(try settings(a) == ["max_files": 1])
     }
 
-    @Test @MainActor func undoAfterARebaseUndoesOnlyTheUsersOwnEdit() throws {
+    @Test @MainActor func undoAfterARebaseAddsNoUndoStepOfItsOwn() throws {
         let (a, b, id) = try seededPair(["max_files": 1, "accept": "image"])
         let aUpdate = try set(a, id: id, from: ["max_files": 1, "accept": "image"], to: ["max_files": 3, "accept": "image"])
         let bUpdate = try set(b, id: id, from: ["max_files": 1, "accept": "image"], to: ["max_files": 1, "accept": "pdf"])
         let followUps = try exchange(a, aUpdate, b, bUpdate)
-        // Exactly one side lost the race and rebased; undo on that side.
-        let (loser, other) = followUps.aFollowUp != nil ? (a, b) : (b, a)
-        let undo = try #require(try loser.undo())
-        try other.applyUpdate(undo)
-        #expect(try loser.undo() == nil, "the rebase added no undo step of its own")
-        #expect(try settings(loser) == settings(other))
-        // The loser's own keys are gone; the peer's remain.
-        let loserIsA = followUps.aFollowUp != nil
-        let kept: NSDictionary = loserIsA ? ["max_files": 1, "accept": "pdf"] : ["max_files": 3, "accept": "image"]
-        #expect(try settings(loser) == kept)
+        // Fixed client ids make the winner of the concurrent write known: B (id 2) wins, so A rebases.
+        #expect(followUps.aFollowUp != nil && followUps.bFollowUp == nil)
+        let both: NSDictionary = ["max_files": 3, "accept": "pdf"]
+        #expect(try settings(a) == both)
+        // The follow-up is written under an origin the undo manager does not track, so it is not an undo
+        // step. As in stock Yjs, A's own write was superseded by the merge, leaving nothing to undo.
+        #expect(try a.undo() == nil)
+        #expect(try settings(a) == both)
     }
 }

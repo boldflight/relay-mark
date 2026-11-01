@@ -36,6 +36,15 @@ impl YrsDoc {
         Self(RefCell::from(Doc::with_options(options)))
     }
 
+    /// A document with a fixed Yjs client id, so concurrent-write winners are known in advance.
+    pub(crate) fn with_client_id(guid: String, client_id: u64) -> Self {
+        let mut options = Options::default();
+        options.offset_kind = OffsetKind::Utf16;
+        options.guid = guid.into();
+        options.client_id = yrs::block::ClientID::new(client_id);
+        Self(RefCell::from(Doc::with_options(options)))
+    }
+
     pub(crate) fn guid(&self) -> String { self.0.borrow().guid().to_string() }
 
     /// Live-owner-only fork: no serialized redone links or weaker archive admission.

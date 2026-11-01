@@ -35,13 +35,32 @@ public final class RelayMarkNativeDocument {
     private let document: YDocument
     private let root: YXmlNode
     private let metadata: YMap<RelayMarkValue>
-    private let localOrigin: Origin
+    private let trackedOrigin: Origin
+    /// Writes with this origin are local but not tracked by the undo manager (the Yjs trackedOrigins mechanism).
+    private let untrackedOrigin = Origin("untracked-" + UUID().uuidString)
+    private var untrackedWrites = 0
+    private var localOrigin: Origin { untrackedWrites > 0 ? untrackedOrigin : trackedOrigin }
+
+    /// Runs local writes that undo must not record, e.g. a settings rebase follow-up.
+    func writingUntracked<T>(_ body: () throws -> T) rethrows -> T {
+        untrackedWrites += 1
+        defer { untrackedWrites -= 1 }
+        return try body()
+    }
     /// Tracks only this document's local origin, so undo never reverts a peer's edit.
     let undoManager: YUndoManager<NSObject>
     public let presence: RelayMarkNativePresence
 
-    public init(guid: String = UUID().uuidString) {
-        let document = YDocument(guid: guid, retainDeletedItems: true)
+    public convenience init(guid: String = UUID().uuidString) {
+        self.init(document: YDocument(guid: guid, retainDeletedItems: false))
+    }
+
+    /// A document with a fixed Yjs client id, so a test knows which concurrent write wins.
+    public convenience init(guid: String, clientID: UInt64) {
+        self.init(document: YDocument(guid: guid, clientID: clientID))
+    }
+
+    private init(document: YDocument) {
         let root = document.getOrCreateXmlFragment(named: "default")
         let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
         let origin = Origin(UUID().uuidString)
@@ -51,7 +70,7 @@ public final class RelayMarkNativeDocument {
         self.document = document
         self.root = root
         self.metadata = metadata
-        localOrigin = origin
+        trackedOrigin = origin
         self.undoManager = undoManager
         presence = RelayMarkNativePresence(awareness: document.makeAwareness())
     }
