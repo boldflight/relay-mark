@@ -3,5 +3,5 @@ export const canonicalContract = Object.freeze({
   "contract_version": 1,
   "schema": "relaymark-prosemirror",
   "source_contract": "relaymark_ast",
-  "schema_hash": "819cb1e162ea429b5b1fc9e2bc2aeddf2be98ce6f7f161b1b013b9415c0d1f71"
+  "schema_hash": "c9a271a8ea25e29ff939109b10b77d808a351adee3fa99b54531ae279246c4df"
 });

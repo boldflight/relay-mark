@@ -2,8 +2,6 @@
 //! lossless JSON tree of the collaborative `Y.XmlFragment` that native and web
 //! replicas exchange with source and rendering.
 
-use base64::Engine as _;
-use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use serde_json::{Value, json};
 
 use crate::adapter::{to_prosemirror, to_relaymark, validate_json_value};
@@ -221,14 +219,17 @@ pub fn snapshot_to_document(snapshot: &Value) -> Result<Value> {
     Ok(document)
 }
 
-// ---- Physical XML attributes: form settings are encoded one field per attribute ----
+// ---- Physical XML attributes: form settings are ONE aggregate `settings` attribute.
+// Per-key `settings:<key>` fields and the `settings: true` presence marker are
+// never written and never read: they are refused. ----
 
 struct AttributeEncoding {
     nodes: Vec<String>,
     logical: String,
-    presence: Value,
-    prefix: String,
 }
+
+/// Any key with this prefix is a refused per-key field.
+const PER_KEY_PREFIX: &str = "settings:";
 
 fn encoding() -> &'static AttributeEncoding {
     static ENCODING: std::sync::OnceLock<AttributeEncoding> = std::sync::OnceLock::new();
@@ -237,42 +238,21 @@ fn encoding() -> &'static AttributeEncoding {
         AttributeEncoding {
             nodes: policy["nodes"].as_array().into_iter().flatten().filter_map(|n| n.as_str().map(str::to_owned)).collect(),
             logical: policy["logical_attribute"].as_str().unwrap_or("settings").to_owned(),
-            presence: policy["presence"].clone(),
-            prefix: policy["field_prefix"].as_str().unwrap_or("settings:").to_owned(),
         }
     })
 }
 
-const BASE64URL: GeneralPurpose = GeneralPurpose::new(
-    &base64::alphabet::URL_SAFE,
-    GeneralPurposeConfig::new().with_encode_padding(false).with_decode_padding_mode(DecodePaddingMode::RequireNone).with_decode_allow_trailing_bits(true),
-);
-
-pub fn settings_attribute_key(key: &str) -> String {
-    format!("{}{}", encoding().prefix, BASE64URL.encode(key.as_bytes()))
-}
-
-fn original_settings_key(field: &str) -> Result<String> {
-    let encoded = &field[encoding().prefix.len()..];
-    if !encoded.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') || encoded.len() % 4 == 1 {
-        bail!("Invalid physical settings key");
-    }
-    let Some(key) = BASE64URL.decode(encoded).ok().and_then(|bytes| String::from_utf8(bytes).ok()) else { bail!("Invalid physical settings Unicode key") };
-    if settings_attribute_key(&key) != field {
-        bail!("Noncanonical physical settings key");
-    }
-    Ok(key)
-}
-
 fn unrelated(attributes: &Map) -> Result<()> {
     let policy = encoding();
-    if attributes.keys().any(|key| key.starts_with(&policy.prefix)) || attributes.contains_key(&policy.logical) {
+    if attributes.keys().any(|key| key.starts_with(PER_KEY_PREFIX)) || attributes.contains_key(&policy.logical) {
         bail!("Settings fields on unrelated node");
     }
     Ok(())
 }
 
-/// Authored attributes to physical XML attributes (nulls omitted).
+/// Authored attributes to physical XML attributes (nulls omitted). A question
+/// node's `settings` is the authored object itself (`{}` when absent): one
+/// attribute, no presence marker, never a `settings:<key>` field.
 pub fn encode_attributes(name: &str, attributes: &Map) -> Result<Map> {
     let policy = encoding();
     if !policy.nodes.iter().any(|n| n == name) {
@@ -281,20 +261,21 @@ pub fn encode_attributes(name: &str, attributes: &Map) -> Result<Map> {
     }
     let empty = json!({});
     let settings = attributes.get(&policy.logical).unwrap_or(&empty);
-    let Some(settings_map) = settings.as_object() else { bail!("Invalid settings attributes") };
+    if !settings.is_object() {
+        bail!("Invalid settings attributes");
+    }
     validate_json_value(settings, 0)?;
-    if attributes.keys().any(|key| key.starts_with(&policy.prefix)) {
+    if attributes.keys().any(|key| key.starts_with(PER_KEY_PREFIX)) {
         bail!("Physical field supplied as authored attribute");
     }
     let mut encoded: Map = attributes.iter().filter(|(k, v)| **k != policy.logical && !v.is_null()).map(|(k, v)| (k.clone(), v.clone())).collect();
-    encoded.insert(policy.logical.clone(), policy.presence.clone());
-    for (key, value) in settings_map {
-        encoded.insert(settings_attribute_key(key), value.clone());
-    }
+    encoded.insert(policy.logical.clone(), settings.clone());
     Ok(encoded)
 }
 
-/// Physical XML attributes to authored attributes.
+/// Physical XML attributes to authored attributes. Only the aggregate
+/// `settings` object is read; a per-key field or the `true` presence marker is
+/// refused, never folded.
 pub fn decode_attributes(name: &str, attributes: &Value) -> Result<Map> {
     let policy = encoding();
     let Some(map) = attributes.as_object() else { bail!("Invalid settings attributes") };
@@ -302,29 +283,10 @@ pub fn decode_attributes(name: &str, attributes: &Value) -> Result<Map> {
         unrelated(map)?;
         return Ok(map.clone());
     }
-    if map.get(&policy.logical) != Some(&policy.presence) {
-        bail!("Aggregate or missing physical settings");
+    if map.keys().any(|key| key.starts_with(PER_KEY_PREFIX)) {
+        bail!("Per-key physical settings");
     }
-    let mut plain = Map::new();
-    let mut settings = Map::new();
-    for (key, value) in map {
-        if key.starts_with(&policy.prefix) {
-            settings.insert(original_settings_key(key)?, value.clone());
-        } else if *key != policy.logical {
-            plain.insert(key.clone(), value.clone());
-        }
-    }
-    let settings = Value::Object(settings);
-    validate_json_value(&settings, 0)?;
-    plain.insert(policy.logical.clone(), settings);
-    Ok(plain)
-}
-
-pub fn is_settings_node(name: &str) -> bool {
-    encoding().nodes.iter().any(|n| n == name)
-}
-
-pub fn settings_policy() -> (&'static str, &'static Value, &'static str) {
-    let policy = encoding();
-    (policy.logical.as_str(), &policy.presence, policy.prefix.as_str())
+    let Some(settings) = map.get(&policy.logical).filter(|v| v.is_object()) else { bail!("Aggregate settings required") };
+    validate_json_value(settings, 0)?;
+    Ok(map.clone())
 }

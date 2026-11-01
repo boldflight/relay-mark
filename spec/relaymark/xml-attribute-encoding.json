@@ -4,9 +4,6 @@
     "questionOption"
   ],
   "logical_attribute": "settings",
-  "presence": true,
-  "field_prefix": "settings:",
-  "key_encoding": "utf8-base64url-unpadded",
-  "value_semantics": "top-level-atomic-json",
+  "value_semantics": "aggregate-json-object",
   "attribute_codec_required": true
 }

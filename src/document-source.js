@@ -6,7 +6,7 @@ import {proseMirrorToRelayMark,relayMarkToProseMirror,identifiedDocumentNodeName
 import {mapInline,textMarkNames} from './document-inline.js';
 import {cloneCanonicalJSON as cloneJSON} from './canonical-json.js';
 import {documentToSnapshot,snapshotToDocument,normalizeDocument} from './document-snapshot.js';
-export {documentToSnapshot,snapshotToDocument,normalizeDocument,importAggregateSettingsSnapshot} from './document-snapshot.js';
+export {documentToSnapshot,snapshotToDocument,normalizeDocument} from './document-snapshot.js';
 export {validateTextAttributes} from './document-inline.js';
 import {parseAtomSource,buildEntityReferenceSource} from './document-atoms.js';
 export {buildEntityReferenceSource} from './document-atoms.js';

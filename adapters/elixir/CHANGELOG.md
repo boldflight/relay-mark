@@ -1,5 +1,13 @@
 # RelayMark Elixir adapter release notes
 
+## Unreleased
+
+- Form question and option settings are one aggregate `settings` attribute: the
+  engine writes the settings object itself (`{}` when absent) and reads only
+  that. The per-key `settings:<key>` fields and the `settings: true` presence
+  marker are refused, never folded, so `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1`
+  is removed. The contract `schema_hash` changes with the attribute policy.
+
 ## 0.7.4
 
 - Tag atoms accept normalized Relay tag names from any script (`#仕事`,
