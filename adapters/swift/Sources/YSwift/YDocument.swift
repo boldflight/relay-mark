@@ -19,6 +19,11 @@ public final class YDocument {
         document = YrsDoc.withOptions(guid: guid, retainDeletedItems: retainDeletedItems)
     }
 
+    /// Creates a document with a fixed Yjs client id. Tests use it to make the winner of concurrent writes known.
+    public init(guid: String, clientID: UInt64) {
+        document = YrsDoc.withClientId(guid: guid, clientId: clientID)
+    }
+
     private init(document: YrsDoc) { self.document = document }
 
     /// Independent local preflight owner. Never transmit its prospective edits.

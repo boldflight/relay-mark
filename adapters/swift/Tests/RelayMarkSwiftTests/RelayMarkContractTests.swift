@@ -29,7 +29,6 @@ struct RelayMarkAttributeCodecConformanceTests {
         let policy = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: spec)) as? [String: Any])
         #expect(Set(policy["nodes"] as? [String] ?? []) == RelayMarkContentEditCodec.settingsPolicy.nodes)
         #expect(policy["logical_attribute"] as? String == RelayMarkContentEditCodec.settingsPolicy.attribute)
-        #expect(policy["field_prefix"] as? String == RelayMarkContentEditCodec.settingsPolicy.prefix)
     }
 
     @Test(arguments: [
@@ -46,6 +45,44 @@ struct RelayMarkAttributeCodecConformanceTests {
             let actual = try? native("heading", attributes)
             #expect((expected == nil) == (actual == nil), "\(operation)")
             if let expected, let actual { #expect(NSDictionary(dictionary: expected) == NSDictionary(dictionary: actual), "\(operation)") }
+        }
+    }
+}
+
+/// The web editor's stock @tiptap/y-tiptap writes a question's settings as one object attribute
+/// (spec/relaymark/editor/y-tiptap-settings-v1.json, generated from it). Swift must write the same
+/// attributes, and shares the aggregate cases that refuse per-key input.
+struct RelayMarkSettingsAttributeFixtureTests {
+    private func cases(_ name: String) throws -> [[String: Any]] {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("../../../../spec/relaymark/editor/\(name)")
+        let fixture = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
+        return try #require(fixture["cases"] as? [[String: Any]])
+    }
+
+    @Test func encodeMatchesWhatStockYTiptapWrites() throws {
+        let all = try cases("y-tiptap-settings-v1.json")
+        #expect(all.count == 6)
+        for item in all {
+            let node = try #require((item["options"] as? [String: Any])?["name"] as? String)
+            let encoded = try RelayMarkContentEditCodec.encodeDocumentAttributes(nodeName: node, attributes: try #require(item["input"] as? [String: Any]))
+            #expect(NSDictionary(dictionary: encoded) == NSDictionary(dictionary: try #require(item["expected"] as? [String: Any])), "\(item["name"] ?? "")")
+            #expect(!encoded.keys.contains { $0.hasPrefix("settings:") })
+        }
+    }
+
+    @Test func sharedSettingsCasesHold() throws {
+        for item in try cases("settings-attributes-v1.json") {
+            let node = try #require((item["options"] as? [String: Any])?["name"] as? String)
+            let input = try #require(item["input"] as? [String: Any])
+            let encode = item["job"] as? String == "encode_attributes"
+            let run = { try encode ? RelayMarkContentEditCodec.encodeDocumentAttributes(nodeName: node, attributes: input)
+                                   : RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: node, attributes: input) }
+            if item["expected_error"] != nil {
+                #expect(throws: (any Error).self, "\(item["name"] ?? "")") { _ = try run() }
+            } else {
+                #expect(NSDictionary(dictionary: try run()) == NSDictionary(dictionary: try #require(item["expected"] as? [String: Any])), "\(item["name"] ?? "")")
+            }
         }
     }
 }

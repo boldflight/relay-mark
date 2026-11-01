@@ -35,13 +35,32 @@ public final class RelayMarkNativeDocument {
     private let document: YDocument
     private let root: YXmlNode
     private let metadata: YMap<RelayMarkValue>
-    private let localOrigin: Origin
+    private let trackedOrigin: Origin
+    /// Writes with this origin are local but not tracked by the undo manager (the Yjs trackedOrigins mechanism).
+    private let untrackedOrigin = Origin("untracked-" + UUID().uuidString)
+    private var untrackedWrites = 0
+    private var localOrigin: Origin { untrackedWrites > 0 ? untrackedOrigin : trackedOrigin }
+
+    /// Runs local writes that undo must not record, e.g. a settings rebase follow-up.
+    func writingUntracked<T>(_ body: () throws -> T) rethrows -> T {
+        untrackedWrites += 1
+        defer { untrackedWrites -= 1 }
+        return try body()
+    }
     /// Tracks only this document's local origin, so undo never reverts a peer's edit.
-    private let undoManager: YUndoManager<NSObject>
+    let undoManager: YUndoManager<NSObject>
     public let presence: RelayMarkNativePresence
 
-    public init(guid: String = UUID().uuidString) {
-        let document = YDocument(guid: guid, retainDeletedItems: false)
+    public convenience init(guid: String = UUID().uuidString) {
+        self.init(document: YDocument(guid: guid, retainDeletedItems: false))
+    }
+
+    /// A document with a fixed Yjs client id, so a test knows which concurrent write wins.
+    public convenience init(guid: String, clientID: UInt64) {
+        self.init(document: YDocument(guid: guid, clientID: clientID))
+    }
+
+    private init(document: YDocument) {
         let root = document.getOrCreateXmlFragment(named: "default")
         let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
         let origin = Origin(UUID().uuidString)
@@ -51,15 +70,18 @@ public final class RelayMarkNativeDocument {
         self.document = document
         self.root = root
         self.metadata = metadata
-        localOrigin = origin
+        trackedOrigin = origin
         self.undoManager = undoManager
         presence = RelayMarkNativePresence(awareness: document.makeAwareness())
     }
 
     public var documentGUID: String { document.guid }
 
-    private var undoGroupDepth = 0
-    private var editorCommandDepth = 0
+    private(set) var undoGroupDepth = 0
+    private(set) var editorCommandDepth = 0
+
+    /// Unacknowledged local edits to a question's or option's aggregate `settings`; see RelayMarkNativeSettingsRebase.swift.
+    var pendingSettings: [PendingSettingsEdit] = []
 
     /// Closes the current undo item unless an enclosing group or editor command is open.
     private func wrapUndo() {
@@ -97,13 +119,20 @@ public final class RelayMarkNativeDocument {
     /// Advances on every local or applied change. Hosts key derived views to it.
     public private(set) var revision = 0
 
-    public func applyUpdate(_ update: Data) throws {
+    /// Applies a peer's (or the server's) update. When it replaces the `settings` of a question or
+    /// option this device has an unacknowledged edit on, the keys both people changed are kept: the
+    /// returned update is that one follow-up local change, which the host persists and sends like any
+    /// other local edit (nil when nothing was rebased). See `acknowledgeLocalEdits()`.
+    @discardableResult
+    public func applyUpdate(_ update: Data) throws -> Data? {
         revision &+= 1
         let rootCount = Int(root.length())
         try document.transactSync { transaction in
             try transaction.transactionApplyUpdate(update: Array(update))
         }
         lastUpdate = (revision, rootCount, RelayMarkUpdateFootprint(update))
+        guard !pendingSettings.isEmpty else { return nil }
+        return rebasePendingSettings()
     }
 
     /// The last applied update's items, with the paper's top-level count before it.
@@ -809,6 +838,8 @@ public final class RelayMarkNativeDocument {
     private func performHistory(redo: Bool) throws -> Data? {
         guard undoGroupDepth == 0, editorCommandDepth == 0 else { throw Failure.unsupportedProseEdit }
         let rootCount = Int(root.length())
+        // Undoing or redoing changes what a pending settings edit means; nothing is left to rebase.
+        pendingSettings.removeAll()
         undoManager.wrap()
         revision &+= 1
         guard let update = try redo ? undoManager.redoUpdate() : undoManager.undoUpdate() else { return nil }

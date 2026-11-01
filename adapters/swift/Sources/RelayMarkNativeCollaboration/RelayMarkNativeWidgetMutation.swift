@@ -174,14 +174,18 @@ import RelayMarkSwift
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         var changes: [(id: String, attributes: [String: Any])] = []
+        var settingsEdits: [(id: String, base: [String: Any]?, local: [String: Any]?)] = []
         for update in updates {
             let guarded = try guardedAttributes(tree: tree, path: update.path, expectedID: update.id,
                 expected: update.expected, changes: update.changes, expectedMediaSource: nil)
             let changed = guarded.patch.filter { !NSDictionary(dictionary: ["value": guarded.attributes[$0.key] ?? NSNull()]).isEqual(to: ["value": $0.value]) }
             if !changed.isEmpty { changes.append((update.id, changed)) }
+            if let edit = settingsEdit(id: update.id, guarded: guarded) { settingsEdits.append(edit) }
         }
         guard !changes.isEmpty else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        return try RelayMarkNativeRichEditing.updateWidgets(document: document, tree: tree, changes: changes)
+        return try document.trackingSettingsEdits(settingsEdits) {
+            try RelayMarkNativeRichEditing.updateWidgets(document: document, tree: tree, changes: changes)
+        }
     }
 
     /// Compare the touched attribute keys, preserving independent peer fields and child text.
@@ -194,8 +198,17 @@ import RelayMarkSwift
         }
         let guarded = try guardedAttributes(tree: tree, path: path, expectedID: expectedID,
             expected: expected, changes: changes, expectedMediaSource: expectedMediaSource)
-        return try RelayMarkNativeRichEditing.updateWidget(document: document, tree: tree,
-            id: expectedID, attributes: guarded.patch)
+        return try document.trackingSettingsEdits(settingsEdit(id: expectedID, guarded: guarded).map { [$0] } ?? []) {
+            try RelayMarkNativeRichEditing.updateWidget(document: document, tree: tree,
+                id: expectedID, attributes: guarded.patch)
+        }
+    }
+
+    /// The remembered shape of a settings write: the value the edit started from and the value written.
+    private static func settingsEdit(id: String, guarded: (patch: [String: Any], attributes: [String: Any]))
+        -> (id: String, base: [String: Any]?, local: [String: Any]?)? {
+        guard guarded.patch.keys.contains("settings") else { return nil }
+        return (id, guarded.attributes["settings"] as? [String: Any], guarded.patch["settings"] as? [String: Any])
     }
 
     private static func guardedAttributes(tree: [String: Any], path: [Int], expectedID: String,

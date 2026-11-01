@@ -471,7 +471,16 @@ public final class RelayMarkEditorSession {
         // arrive, or while the paper holds a structure this editor cannot
         // edit, it keeps showing its last text and stops accepting input.
         let revisionBefore = document.revision, textBefore = textRevision
-        try document.applyUpdate(update)
+        // A settings rebase answers a remote change with one follow-up local update; it takes the
+        // ordinary local path (journal, canonical replica, siblings, send) like any other edit.
+        // A failed save leaves it as the pending transaction for the normal Retry.
+        let followUp = try document.applyUpdate(update)
+        defer {
+            if let followUp, !invalidated {
+                pending = RelayMarkLocalTransaction(id: UUID(), update: followUp, inputIntent: .derived)
+                retryPersistence()
+            }
+        }
         guard document.integrationStatus().isComplete else {
             // Updates that wait on a missing predecessor are located together once it arrives.
             awaitingPredecessor = (awaitingPredecessor?.revision ?? revisionBefore, (awaitingPredecessor?.updates ?? []) + [update])

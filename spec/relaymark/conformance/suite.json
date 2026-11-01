@@ -33,12 +33,25 @@
     "directive.relay.layout",
     "renderer.capability_negotiation",
     "composition.semantic_layers.v1",
-    "editor.task_drafts.v1"
+    "editor.task_drafts.v1",
+    "editor.settings_rebase.v1"
   ],
   "fixtures": [
     {
+      "id": "y-tiptap-settings",
+      "cases": "../editor/y-tiptap-settings-v1.json"
+    },
+    {
+      "id": "settings-attributes",
+      "cases": "../editor/settings-attributes-v1.json"
+    },
+    {
       "id": "task-drafts",
       "cases": "../editor/task-drafts-v1.json"
+    },
+    {
+      "id": "settings-rebase",
+      "cases": "../editor/settings-rebase-v1.json"
     },
     {
       "id": "task-paper",

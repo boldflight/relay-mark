@@ -48,6 +48,7 @@ mod registry;
 mod schema;
 mod snapshot;
 mod source;
+mod settings_rebase;
 mod task_drafts;
 mod transport;
 mod validate;
@@ -334,6 +335,12 @@ pub mod edit {
         crate::task_drafts::boundary(document, options)
     }
 
+    /// `{settings}` to write after a concurrent change to one question's aggregate
+    /// `settings`, from `[base, local, incoming]`; `null` when nothing is left to write.
+    pub fn settings_rebase(input: &Value) -> Result<Value> {
+        crate::settings_rebase::rebase(input)
+    }
+
     /// `prepareContentEditWrite(before, steps, after)`.
     pub fn prepare_write(before: &Value, steps: &Value, after: &Value) -> Result<Value> {
         crate::content_edit::prepare_content_edit_write(before, steps, after)
@@ -360,11 +367,6 @@ pub mod import {
     /// for the host's existing CRDT transaction.
     pub fn snapshot(original: &Value, namespace: &str) -> Result<Value> {
         crate::migrate::import_document_snapshot(original, namespace)
-    }
-
-    /// Detached preview of an aggregate-settings archive.
-    pub fn aggregate_settings_snapshot(snapshot: &Value) -> Result<Value> {
-        crate::migrate::import_aggregate_settings_snapshot(snapshot)
     }
 
     /// Retained rendered HTML (`None`: retained as absent): the snapshot

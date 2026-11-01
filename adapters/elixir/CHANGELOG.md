@@ -1,5 +1,13 @@
 # RelayMark Elixir adapter release notes
 
+## 0.7.5
+
+- Question and option settings are one aggregate `settings` attribute, written
+  and read whole like stock y-tiptap does; per-key `settings:<key>` fields and
+  the `settings: true` marker are refused, and
+  `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1` is gone. The
+  contract `schema_hash` changes.
+
 ## 0.7.4
 
 - Tag atoms accept normalized Relay tag names from any script (`#仕事`,

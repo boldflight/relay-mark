@@ -1,0 +1,253 @@
+{
+  "fixture_version": 1,
+  "description": "Form question and option settings are ONE aggregate `settings` attribute, as stock y-tiptap and the server store it. encode_attributes (options.name is the node) emits that object itself (an empty object when absent), never a presence marker and never a `settings:<key>` field; decode_attributes reads only the aggregate and refuses per-key input. Per-key storage must never return.",
+  "cases": [
+    {
+      "name": "encode: a question block's settings are the one aggregate attribute, nested values, empty and unicode keys intact, null attributes omitted",
+      "job": "encode_attributes",
+      "options": {
+        "name": "questionBlock"
+      },
+      "input": {
+        "relaymarkId": "b1",
+        "id": "evidence",
+        "required": true,
+        "points": null,
+        "settings": {
+          "max_files": 3,
+          "nested": {
+            "list": [
+              1,
+              {
+                "a": null
+              }
+            ],
+            "flag": false
+          },
+          "": "empty key",
+          "naïve 🌍": "unicode",
+          "settings:eA": true
+        }
+      },
+      "expected": {
+        "relaymarkId": "b1",
+        "id": "evidence",
+        "required": true,
+        "settings": {
+          "max_files": 3,
+          "nested": {
+            "list": [
+              1,
+              {
+                "a": null
+              }
+            ],
+            "flag": false
+          },
+          "": "empty key",
+          "naïve 🌍": "unicode",
+          "settings:eA": true
+        }
+      }
+    },
+    {
+      "name": "encode: absent settings are an empty aggregate object, not a marker",
+      "job": "encode_attributes",
+      "options": {
+        "name": "questionBlock"
+      },
+      "input": {
+        "relaymarkId": "b1"
+      },
+      "expected": {
+        "relaymarkId": "b1",
+        "settings": {}
+      }
+    },
+    {
+      "name": "encode: an option's empty settings are an empty aggregate object",
+      "job": "encode_attributes",
+      "options": {
+        "name": "questionOption"
+      },
+      "input": {
+        "relaymarkId": "o1",
+        "correct": false,
+        "settings": {}
+      },
+      "expected": {
+        "relaymarkId": "o1",
+        "correct": false,
+        "settings": {}
+      }
+    },
+    {
+      "name": "encode: an option's settings are the one aggregate attribute",
+      "job": "encode_attributes",
+      "options": {
+        "name": "questionOption"
+      },
+      "input": {
+        "relaymarkId": "o1",
+        "settings": {
+          "weight": 2,
+          "": null
+        }
+      },
+      "expected": {
+        "relaymarkId": "o1",
+        "settings": {
+          "weight": 2,
+          "": null
+        }
+      }
+    },
+    {
+      "name": "encode: a per-key field supplied as an authored attribute is refused",
+      "job": "encode_attributes",
+      "options": {
+        "name": "questionBlock"
+      },
+      "input": {
+        "relaymarkId": "b1",
+        "settings": {},
+        "settings:eA": 1
+      },
+      "expected_error": "Physical field supplied as authored attribute"
+    },
+    {
+      "name": "encode: settings that are not an object are refused",
+      "job": "encode_attributes",
+      "options": {
+        "name": "questionOption"
+      },
+      "input": {
+        "settings": [
+          1
+        ]
+      },
+      "expected_error": "Invalid settings attributes"
+    },
+    {
+      "name": "encode: settings on a node without settings are refused",
+      "job": "encode_attributes",
+      "options": {
+        "name": "heading"
+      },
+      "input": {
+        "settings": {}
+      },
+      "expected_error": "Settings fields on unrelated node"
+    },
+    {
+      "name": "decode: the aggregate object reads as the authored attributes",
+      "job": "decode_attributes",
+      "options": {
+        "name": "questionBlock"
+      },
+      "input": {
+        "relaymarkId": "b1",
+        "id": "evidence",
+        "settings": {
+          "max_files": 3,
+          "nested": {
+            "list": [
+              1,
+              {
+                "a": null
+              }
+            ],
+            "flag": false
+          },
+          "": "empty key",
+          "naïve 🌍": "unicode",
+          "settings:eA": true
+        }
+      },
+      "expected": {
+        "relaymarkId": "b1",
+        "id": "evidence",
+        "settings": {
+          "max_files": 3,
+          "nested": {
+            "list": [
+              1,
+              {
+                "a": null
+              }
+            ],
+            "flag": false
+          },
+          "": "empty key",
+          "naïve 🌍": "unicode",
+          "settings:eA": true
+        }
+      }
+    },
+    {
+      "name": "decode: an option's empty aggregate reads as it is",
+      "job": "decode_attributes",
+      "options": {
+        "name": "questionOption"
+      },
+      "input": {
+        "relaymarkId": "o1",
+        "settings": {}
+      },
+      "expected": {
+        "relaymarkId": "o1",
+        "settings": {}
+      }
+    },
+    {
+      "name": "decode: the presence marker with per-key fields is refused, never folded",
+      "job": "decode_attributes",
+      "options": {
+        "name": "questionBlock"
+      },
+      "input": {
+        "relaymarkId": "b1",
+        "settings": true,
+        "settings:bWF4X2ZpbGVz": 3
+      },
+      "expected_error": "Per-key physical settings"
+    },
+    {
+      "name": "decode: an aggregate mixed with a per-key field is refused",
+      "job": "decode_attributes",
+      "options": {
+        "name": "questionBlock"
+      },
+      "input": {
+        "relaymarkId": "b1",
+        "settings": {
+          "a": 1
+        },
+        "settings:eA": true
+      },
+      "expected_error": "Per-key physical settings"
+    },
+    {
+      "name": "decode: the bare presence marker is refused",
+      "job": "decode_attributes",
+      "options": {
+        "name": "questionOption"
+      },
+      "input": {
+        "settings": true
+      },
+      "expected_error": "Aggregate settings required"
+    },
+    {
+      "name": "decode: missing settings are refused",
+      "job": "decode_attributes",
+      "options": {
+        "name": "questionOption"
+      },
+      "input": {
+        "relaymarkId": "o1"
+      },
+      "expected_error": "Aggregate settings required"
+    }
+  ]
+}

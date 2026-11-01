@@ -88,7 +88,6 @@ fn dispatch(job: &str, input: &[u8], options: &[u8]) -> Answer {
         "from_snapshot" => engine(rm::snapshot_to_document(&json(input)?), value_out),
         "import_document" => engine(rm::import::document(&document(input)?, required(&options, "namespace")?), value_out),
         "import_snapshot" => engine(rm::import::snapshot(&json(input)?, required(&options, "namespace")?), value_out),
-        "aggregate_settings" => engine(rm::import::aggregate_settings_snapshot(&json(input)?), value_out),
         "form_publication" => {
             let namespace = required(&options, "namespace")?;
             engine(rm::import::form_publication(&json(input)?, namespace, option(&options, "source")), value_out)
@@ -158,6 +157,7 @@ fn dispatch(job: &str, input: &[u8], options: &[u8]) -> Answer {
         "task_drafts" => engine(rm::edit::task_drafts(&json(input)?, &options), value_out),
         "task_draft_arm" => engine(rm::edit::task_draft_arm(&json(input)?, &options), value_out),
         "task_draft_boundary" => engine(rm::edit::task_draft_boundary(&json(input)?, &options), value_out),
+        "settings_rebase" => engine(rm::edit::settings_rebase(&json(input)?), value_out),
         "clipboard_anchors" => engine(rm::edit::plan_clipboard_anchors(&json(input)?), value_out),
         "clipboard_headings" => engine(rm::edit::plan_clipboard_headings(&json(input)?), value_out),
         "contract" => Ok(value_out(rm::contract())),
