@@ -7,6 +7,13 @@
   the `settings: true` marker are refused, and
   `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1` is gone. The
   contract `schema_hash` changes.
+- `RelayMark.Contract.admit/1` reads a document descriptor only when it is
+  exactly this runtime's own contract, including its physical `schema_hash`
+  (job `admit_descriptor`).
+- The packaged engine adds the client-only `settings_rebase` job (a concurrent
+  change to one question's settings keeps both sides' keys; storage stays the
+  one aggregate attribute) and `admit_descriptor`. Question cards are
+  Swift-only and change nothing here.
 
 ## 0.7.4
 

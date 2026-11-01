@@ -20,16 +20,19 @@
   `RelayMarkContract.admit(descriptor:)` read a document descriptor only when it
   is exactly the runtime's own contract, including its physical `schema_hash`.
   Shared cases: `spec/relaymark/editor/descriptor-admission-v1.json`.
-- The Swift codec reads the form settings encoding the server stores today, one
-  aggregate `settings` object per question node, so a form paper's editor mounts
-  instead of failing with the engine's "Aggregate or missing physical settings"
-  refusal: `snapshotToDocument` projects an aggregate-settings snapshot through
-  the engine's aggregate import, and `decodeDocumentAttributes` reads such a node
-  as its authored attributes. Writing still uses the physical encoding, and a
-  node that mixes both stays refused. Engine refusals keep their job and reason
-  as `RelayMarkSourceCodec.Failure.engineRefused(job:reason:)` instead of
-  collapsing into `invalidAuthoredDocument`; hosts log the reflected error and
-  show their own copy.
+- `settings_rebase` (relaymark-core job, JavaScript mirror, Swift editor model):
+  a client-only layer for concurrent changes to one question's settings. When a
+  client's unconfirmed settings edit is overwritten, it re-applies only its own
+  changed keys onto the incoming value in one follow-up write, sent as a local
+  edit with an untracked origin so undo needs no retention. Storage and wire
+  stay one whole `settings` attribute, byte-identical to stock y-tiptap
+  (`spec/relaymark/editor/y-tiptap-settings-v1.json`). Native documents retain
+  deleted items so the rebase can retire its undo step, and the YrsDoc in
+  `crates/yniffi` accepts a fixed client id for deterministic tests.
+- Swift only: callouts and form question cards share one TextKit 2 block
+  decoration. The form answers overlay (answers API, slot host, Selected chip,
+  and the question projection's option and label ranges) is removed; question
+  cards keep only the card.
 - A host can lay SwiftUI content out above the paper's text inside the UIKit
   editor's own scroll with `RelayMarkEditorServices.header`
   (`RelayMarkEditorHeader`): it scrolls away with the text, the text starts
