@@ -12,7 +12,8 @@ public enum RelayMarkContentEditCodec {
         try RelayMarkEngineCall.run("import_html", text: html, options: ["namespace": namespace])
     }
 
-    /// Logical PM attributes and physical XML fields share the browser codec.
+    /// Logical PM attributes and physical XML attributes share the browser codec:
+    /// a question's settings are written as the one aggregate `settings` object.
     /// This is stateless grammar conversion, with no source or edit authority.
     public static func encodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
         if !settingsPolicy.nodes.contains(nodeName) { return try unrelated(attributes).filter { !($0.value is NSNull) } }
@@ -20,21 +21,11 @@ public enum RelayMarkContentEditCodec {
     }
     public static func decodeDocumentAttributes(nodeName: String, attributes: [String: Any]) throws -> [String: Any] {
         if !settingsPolicy.nodes.contains(nodeName) { return try unrelated(attributes) }
-        if isAggregate(attributes) { return attributes }
         return try documentAttributes(operation: "decodeDocumentAttributes", nodeName: nodeName, attributes: attributes)
     }
 
-    /// The server's current form encoding keeps a node's settings as one `settings` object, which
-    /// already is the authored shape: no presence marker and no per-key physical fields. It reads
-    /// as it is; writing still goes through the physical encoding, so a native edit of a question
-    /// node's own attributes is refused by the engine rather than mixed into an aggregate document.
-    static func isAggregate(_ attributes: [String: Any]) -> Bool {
-        attributes[settingsPolicy.attribute] is [String: Any]
-            && !attributes.keys.contains(where: { $0.hasPrefix(settingsPolicy.prefix) })
-    }
-
     /// spec/relaymark/xml-attribute-encoding.json: only these nodes carry
-    /// encoded settings fields. Every other node's attributes pass through as
+    /// the one aggregate `settings` object; per-key `settings:<key>` fields do not exist. Every other node's attributes pass through as
     /// the shared codec passes them, so a block's attributes need no runtime call.
     static let settingsPolicy = (nodes: Set(["questionBlock", "questionOption"]), attribute: "settings", prefix: "settings:")
 

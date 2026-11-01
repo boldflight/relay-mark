@@ -1,12 +1,12 @@
 # RelayMark Elixir adapter release notes
 
-## Unreleased
+## 0.7.5
 
-- Form question and option settings are one aggregate `settings` attribute: the
-  engine writes the settings object itself (`{}` when absent) and reads only
-  that. The per-key `settings:<key>` fields and the `settings: true` presence
-  marker are refused, never folded, so `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1`
-  is removed. The contract `schema_hash` changes with the attribute policy.
+- Question and option settings are one aggregate `settings` attribute, written
+  and read whole like stock y-tiptap does; per-key `settings:<key>` fields and
+  the `settings: true` marker are refused, and
+  `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1` is gone. The
+  contract `schema_hash` changes.
 
 ## 0.7.4
 

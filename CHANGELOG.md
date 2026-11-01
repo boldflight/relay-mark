@@ -1,17 +1,20 @@
 # RelayMark Git and Swift release notes
 
-## Unreleased
+## Unreleased (0.7.5)
 
-- The Swift codec reads the form settings encoding the server stores today, one
-  aggregate `settings` object per question node, so a form paper's editor mounts
-  instead of failing with the engine's "Aggregate or missing physical settings"
-  refusal: `snapshotToDocument` projects an aggregate-settings snapshot through
-  the engine's aggregate import, and `decodeDocumentAttributes` reads such a node
-  as its authored attributes. Writing still uses the physical encoding, and a
-  node that mixes both stays refused. Engine refusals keep their job and reason
-  as `RelayMarkSourceCodec.Failure.engineRefused(job:reason:)` instead of
-  collapsing into `invalidAuthoredDocument`; hosts log the reflected error and
-  show their own copy.
+- Form question and option settings are ONE aggregate `settings` attribute
+  end to end, as stock y-tiptap and the server store it, and per-key storage is
+  deleted for good. The engine's `encode_attributes` emits the settings object
+  itself (`{}` when absent), never a `settings: true` marker or `settings:<key>`
+  fields; `decode_attributes` reads only the aggregate and refuses per-key
+  fields and the marker. `PMYXmlBridge` therefore writes one `settings`
+  attribute for a native edit of a question. The `aggregate_settings` job,
+  `importAggregateSettingsSnapshot` and the per-key key codec are removed, the
+  attribute policy loses `presence`, `field_prefix` and `key_encoding`, and
+  the contract `schema_hash` changes with it. Engine refusals keep their job
+  and reason as `RelayMarkSourceCodec.Failure.engineRefused(job:reason:)`
+  instead of collapsing into `invalidAuthoredDocument`; hosts log the reflected
+  error and show their own copy.
 - A host can lay SwiftUI content out above the paper's text inside the UIKit
   editor's own scroll with `RelayMarkEditorServices.header`
   (`RelayMarkEditorHeader`): it scrolls away with the text, the text starts
