@@ -7,6 +7,7 @@ import { projectManifest } from "./projections.js";
 import { validateTransportedAgentAnswerPair } from "./transport.js";
 import { validateDocument } from "./validator.js";
 import { composeLayerContributions } from "./composition.js";
+import { encodeDocumentAttributes, decodeDocumentAttributes } from "./content-edit.js";
 import { taskDrafts, taskDraftArm, taskDraftBoundary } from "./task-drafts.js";
 import { settingsRebase } from "./settings-rebase.js";
 
@@ -15,7 +16,9 @@ const editorJobs = {
   task_drafts: taskDrafts,
   task_draft_arm: taskDraftArm,
   task_draft_boundary: taskDraftBoundary,
-  settings_rebase: settingsRebase
+  settings_rebase: settingsRebase,
+  encode_attributes: (input, options) => encodeDocumentAttributes(options.name, input),
+  decode_attributes: (input, options) => decodeDocumentAttributes(options.name, input)
 };
 
 export function runConformanceSuite(path) {

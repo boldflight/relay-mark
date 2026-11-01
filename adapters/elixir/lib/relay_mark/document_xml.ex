@@ -23,10 +23,6 @@ defmodule RelayMark.DocumentXML do
 
   def to_document(_), do: RelayMark.keyed_error({:error, "invalid_snapshot"}, @code)
 
-  @doc "Finite original snapshot conversion; canonical geometry is retained without a physical cut. No live admission or undo-history authority."
-  def import_aggregate_settings_snapshot(snapshot),
-    do: Engine.json("aggregate_settings", snapshot) |> RelayMark.keyed_error(@code)
-
   @doc "Finite historical XML import with the identity changes for the existing CRDT owner."
   def import_snapshot(snapshot, options \\ []) do
     case Keyword.get(options, :namespace) do

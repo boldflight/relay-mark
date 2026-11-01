@@ -128,7 +128,6 @@ fn replay(name: &str, raw: &[Value]) -> Option<Outcome> {
         "document-snapshot.documentToSnapshot" => result(rm::document_to_snapshot(&arg(0)?), Outcome::Value),
         "document-snapshot.snapshotToDocument" => result(rm::snapshot_to_document(&arg(0)?), Outcome::Value),
         "document-snapshot.normalizeDocument" => result(rm::normalize_document(&arg(0)?), Outcome::Value),
-        "document-snapshot.importAggregateSettingsSnapshot" => result(rm::import::aggregate_settings_snapshot(&arg(0)?), Outcome::Value),
         "document-adapter.relayMarkToProseMirror" => result(rm::document_to_prosemirror(&arg(0)?), Outcome::Value),
         "document-adapter.proseMirrorToRelayMark" => result(rm::prosemirror_to_document(&arg(0)?), Outcome::Value),
         "document-inline.validateTextAttributes" => result(rm::validate_text_attributes(&arg(0)?), |()| Outcome::Value(Value::Bool(true))),

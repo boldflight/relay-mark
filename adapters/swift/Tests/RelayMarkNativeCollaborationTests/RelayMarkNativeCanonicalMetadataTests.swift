@@ -76,6 +76,41 @@ struct RelayMarkNativeCanonicalMetadataTests {
   #expect(try RelayMarkNativeDocumentProjection.project(document:first).blocks[0].props["required"]?.boolValue==true)
  }
 
+ /// Form settings are ONE aggregate `settings` attribute in the Y document: a native create and a native
+ /// edit write exactly that attribute and never a `settings:<key>` field, and a peer reads the same.
+ @Test @MainActor func nativeQuestionEditsLeaveOneAggregateSettingsAttribute() throws {
+  func settingsAttributes(_ document: RelayMarkNativeDocument) throws -> [[String: Any]] {
+   func walk(_ node: [String: Any]) -> [[String: Any]] {
+    let own = ["questionBlock", "questionOption"].contains(node["name"] as? String) ? [node["attributes"] as? [String: Any] ?? [:]] : []
+    return own + (node["children"] as? [[String: Any]] ?? []).flatMap(walk)
+   }
+   let tree = try #require(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any])
+   return (tree["children"] as? [[String: Any]] ?? []).flatMap(walk)
+  }
+  func expectAggregate(_ document: RelayMarkNativeDocument, _ settings: [NSDictionary]) throws {
+   let attributes = try settingsAttributes(document)
+   #expect(attributes.count == settings.count)
+   for (attributes, expected) in zip(attributes, settings) {
+    #expect(attributes["settings"] as? NSDictionary == expected)
+    #expect(!attributes.keys.contains { $0.hasPrefix("settings:") })
+   }
+  }
+  let source = "<!-- relay:question id=\"q-one\" type=\"multiple_choice\" -->\n**Capital?**\n- ( ) Paris\n- ( ) London\n<!-- /relay:question -->"
+  let ast = try RelayMarkSourceCodec.parseDocument(source,namespace:"native-form-aggregate")
+  let first=RelayMarkNativeDocument(),second=RelayMarkNativeDocument()
+  try second.applyUpdate(first.initializeDocument(authoredAST:ast))
+  try expectAggregate(first, [[:], [:], [:]]); try expectAggregate(second, [[:], [:], [:]])
+  let q=try RelayMarkNativeDocumentProjection.project(document:first).blocks[0]
+  let edit=try RelayMarkNativeWidgetMutation.updateAttributes(document:first,path:[0],expectedID:q.id,
+      expected:Data(#"{"settings":{}}"#.utf8),changes:Data(#"{"settings":{"max_files":3,"":"é"}}"#.utf8))
+  try second.applyUpdate(edit.update)
+  let changed: [NSDictionary] = [["max_files": 3, "": "é"], [:], [:]]
+  try expectAggregate(first, changed); try expectAggregate(second, changed)
+  #expect(try first.authoredDocument()==second.authoredDocument())
+  let typing = try RelayMarkNativeRichEditing.replace(document:first,range:NSRange(location:0,length:0),runs:[("New ",[:])],inheritMarks:true,expectedSnapshot:first.snapshot())
+  try second.applyUpdate(typing.update)
+  try expectAggregate(second, changed)
+ }
  @Test @MainActor func genericRichContainersDataDeclarationsAndImageDimensionsRemainEditable() throws {
   let root=URL(fileURLWithPath:#filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
   var ast=try JSONSerialization.jsonObject(with:Data(contentsOf:root.appendingPathComponent("spec/relaymark/collaboration/fixtures/canonical-directives.json"))) as! [String:Any]

@@ -41,17 +41,7 @@ public enum RelayMarkSourceCodec {
         try RelayMarkEngineCall.run("to_snapshot", document)
     }
     public static func snapshotToDocument(_ snapshot: Data) throws -> Data {
-        do { return try RelayMarkEngineCall.run("from_snapshot", snapshot) }
-        catch {
-            // A collaboration document whose form settings are one aggregate attribute (the server's
-            // current encoding) is not the physical per-key encoding from_snapshot reads. The engine
-            // projects it without touching the live document; any other refusal stays the first one.
-            guard let preview = try? RelayMarkEngineCall.run("aggregate_settings", snapshot),
-                  let decoded = try? JSONSerialization.jsonObject(with: preview) as? [String: Any],
-                  let document = decoded["document"],
-                  let bytes = try? JSONSerialization.data(withJSONObject: document, options: [.fragmentsAllowed]) else { throw error }
-            return bytes
-        }
+        try RelayMarkEngineCall.run("from_snapshot", snapshot)
     }
     public static func buildEntityReferenceSource(entityType: String, entityID: String, label: String) throws -> String {
         try RelayMarkEngineCall.text("entity_reference_source", Data(), options: ["type": entityType, "id": entityID, "label": label])

@@ -38,6 +38,14 @@
   ],
   "fixtures": [
     {
+      "id": "y-tiptap-settings",
+      "cases": "../editor/y-tiptap-settings-v1.json"
+    },
+    {
+      "id": "settings-attributes",
+      "cases": "../editor/settings-attributes-v1.json"
+    },
+    {
       "id": "task-drafts",
       "cases": "../editor/task-drafts-v1.json"
     },

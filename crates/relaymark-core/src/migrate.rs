@@ -12,7 +12,7 @@ use crate::json::{self, Map};
 use crate::jsre::js_regex;
 use crate::node_kind::is_block_node;
 use crate::registry::directive_node_for_type;
-use crate::snapshot::{decode_attributes, encode_attributes, is_settings_node, normalize_document, settings_policy, snapshot_to_document};
+use crate::snapshot::{normalize_document, snapshot_to_document};
 use crate::source::{block_id, normalize_newlines, parse_document};
 
 fn is_canonical_id(id: &str) -> bool {
@@ -310,89 +310,6 @@ pub fn import_owned_document_snapshot(original: Value, namespace: &str) -> Resul
     }
     let document = snapshot_to_document(&snapshot)?;
     Ok(json!({"snapshot": snapshot, "document": document, "identity_mapping": identity, "normalizations": changes, "requires_reconstruction": false}))
-}
-
-/// Detached preview of an archive whose form settings are one aggregate
-/// attribute. The caller keeps the original bytes and qualifies any cut.
-pub fn import_aggregate_settings_snapshot(snapshot: &Value) -> Result<Value> {
-    let only = |value: &Value, keys: &[&str]| -> Result<()> {
-        match value.as_object() {
-            Some(map) if map.keys().all(|k| keys.contains(&k.as_str())) => Ok(()),
-            _ => bail!("Invalid finite snapshot shape"),
-        }
-    };
-    only(snapshot, &["kind", "children", "metadata"])?;
-    if snapshot["kind"] != "fragment" {
-        bail!("Invalid finite fragment");
-    }
-    let (logical, presence, prefix) = settings_policy();
-    let mut normalizations: Vec<Value> = Vec::new();
-    let mut encoding: Option<&str> = None;
-    fn nodes(
-        children: &Value,
-        path: &[usize],
-        depth: usize,
-        state: &mut (&mut Vec<Value>, &mut Option<&'static str>, &str, &Value, &str),
-        only: &dyn Fn(&Value, &[&str]) -> Result<()>,
-    ) -> Result<Vec<Value>> {
-        let Some(children) = children.as_array().filter(|_| depth <= 64) else { bail!("Invalid finite children") };
-        let mut result = Vec::with_capacity(children.len());
-        for (index, node) in children.iter().enumerate() {
-            let mut current = path.to_vec();
-            current.push(index);
-            if node.get("kind").and_then(Value::as_str) == Some("text") {
-                result.push(node.clone());
-                continue;
-            }
-            only(node, &["kind", "name", "attributes", "children"])?;
-            let Some(name) = node["name"].as_str().filter(|_| node["kind"] == "element") else { bail!("Invalid finite element") };
-            let Some(original) = node["attributes"].as_object() else { bail!("Invalid finite attributes") };
-            let (normalizations, encoding, logical, presence, prefix) = state;
-            let attributes = if is_settings_node(name) {
-                let current_encoding = original.get(*logical) == Some(*presence);
-                let kind = if current_encoding { "canonical" } else { "aggregate" };
-                if encoding.is_some_and(|known| known != kind) {
-                    bail!("Mixed settings encoding");
-                }
-                **encoding = Some(kind);
-                if current_encoding {
-                    decode_attributes(name, &node["attributes"])?;
-                    original.clone()
-                } else {
-                    let aggregate = original.get(*logical).filter(|v| v.is_object());
-                    let Some(aggregate) = aggregate else { bail!("Aggregate settings required") };
-                    if original.keys().any(|k| k.starts_with(*prefix)) {
-                        bail!("Mixed settings encoding");
-                    }
-                    let encoded = encode_attributes(name, original)?;
-                    normalizations.push(json!({"path": current, "operation": "set_attribute", "name": logical, "before": aggregate, "value": presence}));
-                    let mut fields: Vec<&String> = encoded.keys().filter(|k| k.starts_with(*prefix)).collect();
-                    fields.sort();
-                    for field in fields {
-                        normalizations.push(json!({"path": current, "operation": "add_attribute", "name": field, "value": encoded[field]}));
-                    }
-                    encoded
-                }
-            } else {
-                original.clone()
-            };
-            let mut copy = node.as_object().cloned().unwrap_or_default();
-            copy.insert("attributes".into(), Value::Object(attributes));
-            copy.insert("children".into(), Value::Array(nodes(&node["children"], &current, depth + 1, state, only)?));
-            result.push(Value::Object(copy));
-        }
-        Ok(result)
-    }
-    let mut state = (&mut normalizations, &mut encoding, logical, presence, prefix);
-    let children = nodes(&snapshot["children"], &[], 0, &mut state, &only)?;
-    let mut normalized = Map::from_iter([("kind".into(), json!("fragment")), ("children".into(), Value::Array(children))]);
-    if let Some(metadata) = snapshot.get("metadata") {
-        normalized.insert("metadata".into(), metadata.clone());
-    }
-    let normalized = Value::Object(normalized);
-    let document = snapshot_to_document(&normalized)?;
-    let cut = !normalizations.is_empty();
-    Ok(json!({"snapshot": normalized, "document": document, "normalizations": normalizations, "requires_physical_history_cut": cut}))
 }
 
 // ---- Saved form publications ----

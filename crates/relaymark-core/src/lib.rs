@@ -369,11 +369,6 @@ pub mod import {
         crate::migrate::import_document_snapshot(original, namespace)
     }
 
-    /// Detached preview of an aggregate-settings archive.
-    pub fn aggregate_settings_snapshot(snapshot: &Value) -> Result<Value> {
-        crate::migrate::import_aggregate_settings_snapshot(snapshot)
-    }
-
     /// Retained rendered HTML (`None`: retained as absent): the snapshot
     /// import's result plus the normalizations the HTML import made. Only HTML
     /// whose every element, attribute, mark and character the canonical rules

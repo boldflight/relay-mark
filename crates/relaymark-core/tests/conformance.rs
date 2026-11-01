@@ -109,7 +109,7 @@ fn conformance_suite() {
         }
     }
     assert!(failures.is_empty(), "{} of {} suite fixtures failed:\n{}", failures.len(), fixtures.len(), failures.join("\n"));
-    assert_eq!(fixtures.len(), 19, "suite size changed; update the report");
+    assert_eq!(fixtures.len(), 21, "suite size changed; update the report");
 }
 
 /// A `cases` fixture: editor rules run by job name, as Swift and the Elixir
