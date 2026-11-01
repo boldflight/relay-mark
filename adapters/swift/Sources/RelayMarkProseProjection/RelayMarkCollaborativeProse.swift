@@ -42,6 +42,30 @@ public struct RelayMarkCollaborativeProse {
     }
     public var callouts: [Callout] { gather(\.callouts) { _ = $2; var item = $0; item.range.location += $1; item.titleRange?.location += $1; return item } }
 
+    /// A form question as the paper shows it: one card holding its label and
+    /// choice paragraphs. `id` is the question's own id, the key a host's
+    /// answers use; the Yrs XML stays authoritative and these are only ranges.
+    public struct Question: Equatable, Sendable {
+        public struct Option: Equatable, Sendable {
+            /// The option's own id; its authored identity when it has none.
+            public let id: String
+            public let relaymarkID: String
+            public internal(set) var range: NSRange
+        }
+        public let id: String
+        public let relaymarkID: String
+        public let type: String
+        /// The label through the last option, separators between them included.
+        public internal(set) var range: NSRange
+        public internal(set) var labelRange: NSRange
+        public internal(set) var options: [Option]
+    }
+    public var questions: [Question] {
+        gather(\.questions) { _ = $2; var item = $0; item.range.location += $1; item.labelRange.location += $1
+            for option in item.options.indices { item.options[option].range.location += $1 }
+            return item }
+    }
+
     /// A heading block: its level, its authored `headingId` if any, and its
     /// text range and XML path. Folding and section links read these.
     public struct Heading: Equatable, Sendable {
@@ -217,6 +241,7 @@ public struct RelayMarkCollaborativeProse {
         var intents: [PresentationIntent] = []
         var cells: [TableCell] = []
         var callouts: [Callout] = []
+        var questions: [Question] = []
         var inlineAtoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
         var entityReferenceAtoms: [EntityReferenceAtom] = []
@@ -608,6 +633,24 @@ public struct RelayMarkCollaborativeProse {
         return chunks[starts.firstUnit(ofNode: node)].container?.attributes
     }
 
+    /// A question card's ranges: its label paragraph and one paragraph per option,
+    /// which the projection emits in child order. Nil unless each child has its range.
+    private static func question(attributes: [String: Any], children: [[String: Any]],
+                                 ranges: ArraySlice<NSRange>, span: NSRange) -> Question? {
+        guard let relaymarkID = attributes["relaymarkId"] as? String, let id = attributes["id"] as? String,
+              children.count == ranges.count, children.first?["name"] as? String == "questionLabel" else { return nil }
+        var options: [Question.Option] = []
+        for (child, range) in zip(children.dropFirst(), ranges.dropFirst()) {
+            guard child["name"] as? String == "questionOption",
+                  let physical = child["attributes"] as? [String: Any],
+                  let decoded = try? RelayMarkContentEditCodec.decodeDocumentAttributes(nodeName: "questionOption", attributes: physical),
+                  let identity = decoded["relaymarkId"] as? String else { return nil }
+            options.append(Question.Option(id: decoded["id"] as? String ?? identity, relaymarkID: identity, range: range))
+        }
+        return Question(id: id, relaymarkID: relaymarkID, type: attributes["type"] as? String ?? "",
+                        range: span, labelRange: ranges[ranges.startIndex], options: options)
+    }
+
     /// `parent`, `ordinal` and `indexBase` place an item projected alone in its
     /// list, and with `row` a row in its table.
     private static func project(_ node: [String: Any], dialect: Dialect, identityStart: Int,
@@ -621,6 +664,7 @@ public struct RelayMarkCollaborativeProse {
         var intents: [PresentationIntent] = []
         var cells: [TableCell] = []
         var calloutRanges: [Callout] = []
+        var questionRanges: [Question] = []
         var atoms: [InlineAtom] = []
         var blockAtoms: [BlockAtom] = []
         var entityReferenceAtoms: [EntityReferenceAtom] = []
@@ -771,6 +815,10 @@ public struct RelayMarkCollaborativeProse {
                     let first=ranges[firstRange],last=ranges[ranges.count-1]
                     widget(kind:name=="questionBlock" ? .question : .directive,id:id,name:name,attributes:attributes,
                         range:NSRange(location:first.location,length:NSMaxRange(last)-first.location),path:blockPath)
+                    if name == "questionBlock", let question = Self.question(attributes: attributes, children: children,
+                        ranges: ranges[firstRange...], span: NSRange(location:first.location,length:NSMaxRange(last)-first.location)) {
+                        questionRanges.append(question)
+                    }
                     offsets.append(first.location);continue
                 }
                 if name == "taskItem" {
@@ -1059,7 +1107,7 @@ public struct RelayMarkCollaborativeProse {
         chunk.length = length()
         chunk.supported = supported
         chunk.ranges = ranges; chunk.paths = paths; chunk.intents = intents
-        chunk.cells = cells; chunk.callouts = calloutRanges; chunk.inlineAtoms = atoms
+        chunk.cells = cells; chunk.callouts = calloutRanges; chunk.questions = questionRanges; chunk.inlineAtoms = atoms
         chunk.blockAtoms = blockAtoms; chunk.entityReferenceAtoms = entityReferenceAtoms
         chunk.taskItems = taskItems.sorted { $0.firstParagraphRange.location < $1.firstParagraphRange.location }
         chunk.mediaAtoms = mediaAtoms; chunk.suggestionAtoms = suggestionAtoms; chunk.headings = headings
@@ -1356,6 +1404,10 @@ extension RelayMarkCollaborativeProse {
         for item in chunk.callouts.indices {
             move(&chunk.callouts[item].range)
             if chunk.callouts[item].titleRange != nil { move(&chunk.callouts[item].titleRange!) }
+        }
+        for item in chunk.questions.indices {
+            move(&chunk.questions[item].range); move(&chunk.questions[item].labelRange)
+            for option in chunk.questions[item].options.indices { move(&chunk.questions[item].options[option].range) }
         }
         for item in chunk.inlineAtoms.indices { move(&chunk.inlineAtoms[item].range) }
         for item in chunk.blockAtoms.indices { move(&chunk.blockAtoms[item].range) }
