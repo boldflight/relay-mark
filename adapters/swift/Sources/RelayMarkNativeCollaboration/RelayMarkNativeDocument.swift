@@ -41,7 +41,7 @@ public final class RelayMarkNativeDocument {
     public let presence: RelayMarkNativePresence
 
     public init(guid: String = UUID().uuidString) {
-        let document = YDocument(guid: guid, retainDeletedItems: false)
+        let document = YDocument(guid: guid, retainDeletedItems: true)
         let root = document.getOrCreateXmlFragment(named: "default")
         let metadata: YMap<RelayMarkValue> = document.getOrCreateMap(named:"relaymark")
         let origin = Origin(UUID().uuidString)
