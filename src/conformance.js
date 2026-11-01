@@ -8,12 +8,14 @@ import { validateTransportedAgentAnswerPair } from "./transport.js";
 import { validateDocument } from "./validator.js";
 import { composeLayerContributions } from "./composition.js";
 import { taskDrafts, taskDraftArm, taskDraftBoundary } from "./task-drafts.js";
+import { settingsRebase } from "./settings-rebase.js";
 
 /** Editor rules by relaymark-core job name, as `cases` fixtures call them. */
 const editorJobs = {
   task_drafts: taskDrafts,
   task_draft_arm: taskDraftArm,
-  task_draft_boundary: taskDraftBoundary
+  task_draft_boundary: taskDraftBoundary,
+  settings_rebase: settingsRebase
 };
 
 export function runConformanceSuite(path) {

@@ -48,6 +48,7 @@ mod registry;
 mod schema;
 mod snapshot;
 mod source;
+mod settings_rebase;
 mod task_drafts;
 mod transport;
 mod validate;
@@ -332,6 +333,12 @@ pub mod edit {
     /// The armed drafts an editing boundary finishes, as block ids.
     pub fn task_draft_boundary(document: &Value, options: &Value) -> Result<Value> {
         crate::task_drafts::boundary(document, options)
+    }
+
+    /// `{settings}` to write after a concurrent change to one question's aggregate
+    /// `settings`, from `[base, local, incoming]`; `null` when nothing is left to write.
+    pub fn settings_rebase(input: &Value) -> Result<Value> {
+        crate::settings_rebase::rebase(input)
     }
 
     /// `prepareContentEditWrite(before, steps, after)`.

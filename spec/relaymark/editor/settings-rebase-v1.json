@@ -1,0 +1,358 @@
+{
+  "fixture_version": 1,
+  "description": "How every RelayMark editor avoids losing a form question's settings change without per-key storage. Question and option settings are ONE aggregate `settings` attribute (October 18 standard-collaboration decision; per-key `settings:<key>` storage killed performance and must never return, Douglas 2026-11-02). Yjs keeps the last writer's whole attribute, so a client that holds an unacknowledged settings edit and sees that question's `settings` replaced calls `settings_rebase` with [base, local, incoming]: `base` is the value its edit started from, `local` the value it wrote, `incoming` the value the document holds now. A key it changed survives when the incoming side left that key as it was in `base`; a key both sides changed keeps the incoming value; a removal is a change. `null` settings on the base or local side are empty; an incoming `null` (the question is gone) rebases nothing. Values compare as canonical JSON (object key order is not a change). `expected.settings` is the value to write in one follow-up local transaction, or null when the incoming value already holds every surviving local change. After writing it, the client's new base is `incoming` and its pending change is the written value until acknowledged.",
+  "cases": [
+    {
+      "name": "different keys both survive",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "max_files": 1,
+          "accept": "image"
+        },
+        {
+          "max_files": 3,
+          "accept": "image"
+        },
+        {
+          "max_files": 1,
+          "accept": "pdf"
+        }
+      ],
+      "expected": {
+        "settings": {
+          "max_files": 3,
+          "accept": "pdf"
+        }
+      }
+    },
+    {
+      "name": "a key added here survives a remote change to another",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "placeholder": "Name"
+        },
+        {
+          "placeholder": "Name",
+          "max_length": 80
+        },
+        {
+          "placeholder": "Full name"
+        }
+      ],
+      "expected": {
+        "settings": {
+          "placeholder": "Full name",
+          "max_length": 80
+        }
+      }
+    },
+    {
+      "name": "a key removed here stays removed",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "placeholder": "Name",
+          "max_length": 80
+        },
+        {
+          "placeholder": "Name"
+        },
+        {
+          "placeholder": "Full name",
+          "max_length": 80
+        }
+      ],
+      "expected": {
+        "settings": {
+          "placeholder": "Full name"
+        }
+      }
+    },
+    {
+      "name": "the same key changed on both sides keeps the incoming value",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "max_files": 1
+        },
+        {
+          "max_files": 3
+        },
+        {
+          "max_files": 5
+        }
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "the same key changed to the same value needs nothing",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "max_files": 1
+        },
+        {
+          "max_files": 3
+        },
+        {
+          "max_files": 3
+        }
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "incoming already holds the local change",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "a": 1,
+          "b": 2
+        },
+        {
+          "a": 9,
+          "b": 2
+        },
+        {
+          "a": 9,
+          "b": 7
+        }
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "no local change needs nothing",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "a": 1
+        },
+        {
+          "a": 1
+        },
+        {
+          "a": 2
+        }
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "removed on both sides needs nothing",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "a": 1,
+          "b": 2
+        },
+        {
+          "b": 2
+        },
+        {
+          "b": 3
+        }
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "removed remotely, changed here keeps the removal",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "a": 1
+        },
+        {
+          "a": 2
+        },
+        {}
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "nested values compare as JSON",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "scale": {
+            "min": 1,
+            "max": 5
+          },
+          "label": "x"
+        },
+        {
+          "scale": {
+            "max": 5,
+            "min": 0
+          },
+          "label": "x"
+        },
+        {
+          "scale": {
+            "min": 1,
+            "max": 5
+          },
+          "label": "y"
+        }
+      ],
+      "expected": {
+        "settings": {
+          "scale": {
+            "max": 5,
+            "min": 0
+          },
+          "label": "y"
+        }
+      }
+    },
+    {
+      "name": "a key order difference alone is not a change",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "scale": {
+            "min": 1,
+            "max": 5
+          }
+        },
+        {
+          "scale": {
+            "max": 5,
+            "min": 1
+          }
+        },
+        {
+          "scale": {
+            "min": 1,
+            "max": 5
+          },
+          "extra": true
+        }
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "null settings are empty on the base and local side",
+      "job": "settings_rebase",
+      "input": [
+        null,
+        {
+          "max_files": 2
+        },
+        {
+          "accept": "pdf"
+        }
+      ],
+      "expected": {
+        "settings": {
+          "accept": "pdf",
+          "max_files": 2
+        }
+      }
+    },
+    {
+      "name": "a question that is gone is not rebased",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "a": 1
+        },
+        {
+          "a": 2
+        },
+        null
+      ],
+      "expected": {
+        "settings": null
+      }
+    },
+    {
+      "name": "unicode and empty keys are ordinary keys",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "": 1,
+          "日付": "a"
+        },
+        {
+          "": 2,
+          "日付": "a"
+        },
+        {
+          "": 1,
+          "日付": "b"
+        }
+      ],
+      "expected": {
+        "settings": {
+          "": 2,
+          "日付": "b"
+        }
+      }
+    },
+    {
+      "name": "a null value is a value, not a removal",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "date": "2026-11-02"
+        },
+        {
+          "date": null
+        },
+        {
+          "date": "2026-11-02",
+          "capacity": 4
+        }
+      ],
+      "expected": {
+        "settings": {
+          "date": null,
+          "capacity": 4
+        }
+      }
+    },
+    {
+      "name": "settings that are not an object are refused",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "a": 1
+        },
+        [
+          1
+        ],
+        {
+          "a": 1
+        }
+      ],
+      "expected_error": "Settings must be an object or null"
+    },
+    {
+      "name": "input that is not three values is refused",
+      "job": "settings_rebase",
+      "input": [
+        {
+          "a": 1
+        },
+        {
+          "a": 2
+        }
+      ],
+      "expected_error": "Settings rebase takes [base, local, incoming]"
+    }
+  ]
+}
