@@ -124,6 +124,7 @@ fn dispatch(job: &str, input: &[u8], options: &[u8]) -> Answer {
             value_out,
         ),
         "import_clipboard_html" => engine(rm::import::clipboard_html(text(input)?, required(&options, "namespace")?), value_out),
+        "admit_descriptor" => engine(rm::admit_descriptor(&json(input)?), value_out),
         "encode_attributes" => engine(rm::encode_attributes(required(&options, "name")?, &json(input)?), value_out),
         "decode_attributes" => engine(rm::decode_attributes(required(&options, "name")?, &json(input)?), value_out),
         "paper_destinations" => engine(rm::paper_destinations(&document(input)?), |v| value_out(Value::Array(v))),

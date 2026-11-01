@@ -7,13 +7,15 @@ import { projectManifest } from "./projections.js";
 import { validateTransportedAgentAnswerPair } from "./transport.js";
 import { validateDocument } from "./validator.js";
 import { composeLayerContributions } from "./composition.js";
+import { admitDescriptor } from "./descriptor.js";
 import { taskDrafts, taskDraftArm, taskDraftBoundary } from "./task-drafts.js";
 
 /** Editor rules by relaymark-core job name, as `cases` fixtures call them. */
 const editorJobs = {
   task_drafts: taskDrafts,
   task_draft_arm: taskDraftArm,
-  task_draft_boundary: taskDraftBoundary
+  task_draft_boundary: taskDraftBoundary,
+  admit_descriptor: admitDescriptor
 };
 
 export function runConformanceSuite(path) {

@@ -33,12 +33,17 @@
     "directive.relay.layout",
     "renderer.capability_negotiation",
     "composition.semantic_layers.v1",
-    "editor.task_drafts.v1"
+    "editor.task_drafts.v1",
+    "editor.descriptor_admission.v1"
   ],
   "fixtures": [
     {
       "id": "task-drafts",
       "cases": "../editor/task-drafts-v1.json"
+    },
+    {
+      "id": "descriptor-admission",
+      "cases": "../editor/descriptor-admission-v1.json"
     },
     {
       "id": "task-paper",

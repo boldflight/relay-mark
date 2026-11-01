@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- `admitDescriptor` (JavaScript), `relaymark_core::admit_descriptor` (job
+  `admit_descriptor`), `RelayMark.Contract.admit/1` and
+  `RelayMarkContract.admit(descriptor:)` read a document descriptor only when it
+  is exactly the runtime's own contract, including its physical `schema_hash`.
+  Shared cases: `spec/relaymark/editor/descriptor-admission-v1.json`.
 - The Swift codec reads the form settings encoding the server stores today, one
   aggregate `settings` object per question node, so a form paper's editor mounts
   instead of failing with the engine's "Aggregate or missing physical settings"

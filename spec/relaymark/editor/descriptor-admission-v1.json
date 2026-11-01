@@ -1,0 +1,85 @@
+{
+ "fixture_version": 1,
+ "description": "Which stored or received document descriptors a runtime reads. Exactly the current canonical contract (version, schema, source contract and the physical schema hash over the editor schema and the XML attribute encoding) is admitted; every other descriptor, including the hashless one that aggregate-settings documents carry, is refused with one message so the host recovers through its existing path. When the contract changes, this fixture's admitted descriptor changes with it.",
+ "cases": [
+  {
+   "name": "The descriptor this engine writes is admitted",
+   "job": "admit_descriptor",
+   "input": {
+    "contract_version": 1,
+    "schema": "relaymark-prosemirror",
+    "source_contract": "relaymark_ast",
+    "schema_hash": "819cb1e162ea429b5b1fc9e2bc2aeddf2be98ce6f7f161b1b013b9415c0d1f71"
+   },
+   "expected": {
+    "contract_version": 1,
+    "schema": "relaymark-prosemirror",
+    "source_contract": "relaymark_ast",
+    "schema_hash": "819cb1e162ea429b5b1fc9e2bc2aeddf2be98ce6f7f161b1b013b9415c0d1f71"
+   }
+  },
+  {
+   "name": "A descriptor from before the physical schema hash (aggregate-era documents) is refused",
+   "job": "admit_descriptor",
+   "input": {
+    "contract_version": 1,
+    "schema": "relaymark-prosemirror",
+    "source_contract": "relaymark_ast"
+   },
+   "expected_error": "Unsupported document descriptor"
+  },
+  {
+   "name": "Another physical schema hash is refused",
+   "job": "admit_descriptor",
+   "input": {
+    "contract_version": 1,
+    "schema": "relaymark-prosemirror",
+    "source_contract": "relaymark_ast",
+    "schema_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+   },
+   "expected_error": "Unsupported document descriptor"
+  },
+  {
+   "name": "Another schema name is refused",
+   "job": "admit_descriptor",
+   "input": {
+    "contract_version": 1,
+    "schema": "relaymark-other",
+    "source_contract": "relaymark_ast",
+    "schema_hash": "819cb1e162ea429b5b1fc9e2bc2aeddf2be98ce6f7f161b1b013b9415c0d1f71"
+   },
+   "expected_error": "Unsupported document descriptor"
+  },
+  {
+   "name": "Another contract version is refused",
+   "job": "admit_descriptor",
+   "input": {
+    "contract_version": 2,
+    "schema": "relaymark-prosemirror",
+    "source_contract": "relaymark_ast",
+    "schema_hash": "819cb1e162ea429b5b1fc9e2bc2aeddf2be98ce6f7f161b1b013b9415c0d1f71"
+   },
+   "expected_error": "Unsupported document descriptor"
+  },
+  {
+   "name": "An unknown extra field is refused",
+   "job": "admit_descriptor",
+   "input": {
+    "contract_version": 1,
+    "schema": "relaymark-prosemirror",
+    "source_contract": "relaymark_ast",
+    "schema_hash": "819cb1e162ea429b5b1fc9e2bc2aeddf2be98ce6f7f161b1b013b9415c0d1f71",
+    "capabilities": [
+     "x"
+    ]
+   },
+   "expected_error": "Unsupported document descriptor"
+  },
+  {
+   "name": "A non-object descriptor is refused",
+   "job": "admit_descriptor",
+   "input": null,
+   "expected_error": "Unsupported document descriptor"
+  }
+ ]
+}
