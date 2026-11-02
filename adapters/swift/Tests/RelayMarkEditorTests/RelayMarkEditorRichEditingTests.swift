@@ -137,6 +137,25 @@ struct RelayMarkEditorRichSessionTests {
         #expect(try document.authoredDocument() == original && peer.authoredDocument() == original)
     }
 
+    @Test("The checklist command on an empty paper makes one task list in one saved edit and undoes with it")
+    func insertTaskListOnAnEmptyPaper() throws {
+        let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        var saved: [Data] = []
+        let editor = try RelayMarkEditorSession(document: document, persist: { saved.append($0.update) })
+        editor.setNativeSelection(NSRange(location: 0, length: 0))
+        editor.insertTaskListAfterSelectedParagraph()
+        #expect(editor.failure == nil && saved.count == 1)
+        try peer.applyUpdate(try #require(saved.last))
+        for replica in [document, peer] {
+            let projection = try RelayMarkNativeDocumentProjection.project(document: replica)
+            #expect(projection.blocks.map(\.type) == ["task_list"])
+            #expect(try String(decoding: replica.snapshot(), as: UTF8.self).contains(RelayMarkNativeDocument.virtualParagraphID) == false)
+        }
+        #expect(editor.nativeTaskItems.count == 1)
+        editor.undo()
+        #expect(editor.failure == nil && document.topLevelCount == 0)
+    }
+
     @Test("Native task creation keeps adjacent prose and image while peer replay and undo converge")
     func insertTaskListAfterParagraph() throws {
         let seed = try update("rich-image-v3-draft")

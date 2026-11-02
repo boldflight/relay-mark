@@ -129,6 +129,11 @@ final class RelayMarkNativeEmptyFragmentTests: XCTestCase {
                                                     expectedSnapshot: document.snapshot()).change.update }),
             ("heading", ["heading"], { document in
                 try document.setRichBlockStyle(at: 0, style: .heading(1), expectedSnapshot: document.snapshot()).update }),
+            // The host's /checklist: an empty paper has no anchor, so the call names the blank line with none.
+            ("/checklist", ["taskList"], { document in
+                let made = try document.insertEmptyRichTaskList(after: Data(), expectedSnapshot: document.snapshot())
+                XCTAssertNotEqual(made.paragraphID, RelayMarkNativeDocument.virtualParagraphID)
+                return made.change.update }),
             ("bullet list", ["bulletList"], { document in
                 try document.setRichBlockStyle(at: 0, style: .bulletList, expectedSnapshot: document.snapshot()).update }),
             ("checklist", ["taskList"], { document in

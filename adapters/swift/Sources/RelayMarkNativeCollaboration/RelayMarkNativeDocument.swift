@@ -1430,6 +1430,21 @@ public final class RelayMarkNativeDocument {
         -> (change: RelayMarkNativeRichEditing.Change, listID: String, itemID: String, paragraphID: String) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
               try richProseProjection().isEditable else { throw Failure.unsupportedProseEdit }
+        // On an empty paper the blank first line is the projected placeholder, which no anchor can
+        // name (an anchor never writes). The checklist replaces that line: one task list holding one
+        // empty item, written with its paragraph in one transaction, as `setRichBlockStyle` does.
+        if root.length() == 0 {
+            let change = try setRichBlockStyle(at: 0, style: .taskList, expectedSnapshot: expectedSnapshot)
+            guard let list = (try snapshotChildren()).first, list["name"] as? String == "taskList",
+                  let item = (list["children"] as? [[String: Any]])?.first,
+                  let paragraph = (item["children"] as? [[String: Any]])?.first,
+                  let listID = (list["attributes"] as? [String: Any])?["relaymarkId"] as? String,
+                  let itemID = (item["attributes"] as? [String: Any])?["relaymarkId"] as? String,
+                  let paragraphID = (paragraph["attributes"] as? [String: Any])?["relaymarkId"] as? String else {
+                throw Failure.unsupportedProseEdit
+            }
+            return (change, listID, itemID, paragraphID)
+        }
         let (_, path, _) = try richTopLevelParagraphTarget(paragraphAnchor)
         guard Int(root.length()) < Self.maximumBlocks else { throw Failure.unsupportedProseEdit }
         let listID = RelayMarkNativeRichXML.freshID(), itemID = RelayMarkNativeRichXML.freshID(),
@@ -1444,6 +1459,10 @@ public final class RelayMarkNativeDocument {
         let change = try RelayMarkNativeRichEditing.replaceRootChildren(document: self, tree: tree,
             index: path[0] + 1, count: 0, replacements: [list])
         return (change, listID, itemID, paragraphID)
+    }
+
+    private func snapshotChildren() throws -> [[String: Any]] {
+        (try JSONSerialization.jsonObject(with: snapshot()) as? [String: Any])?["children"] as? [[String: Any]] ?? []
     }
 
     private func richTopLevelParagraphTarget(_ anchor: Data) throws

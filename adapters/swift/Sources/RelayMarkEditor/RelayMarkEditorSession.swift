@@ -295,6 +295,8 @@ public final class RelayMarkEditorSession {
         fileprivate let range: NSRange
         fileprivate let anchor: Data
         fileprivate let paragraphPath: [Int]
+        /// The paper was empty: the checklist replaces its blank first line instead of following it.
+        fileprivate let replacesBlankLine: Bool
     }
 
     enum TaskListInsertionFailure: LocalizedError {
@@ -321,9 +323,11 @@ public final class RelayMarkEditorSession {
               children[path[0]]["name"] as? String == "paragraph" else {
             throw TaskListInsertionFailure.changed
         }
+        // An empty paper's blank line is not a Yjs node, so it has no anchor (an anchor never writes).
+        let blank = document.topLevelCount == 0
         return TaskListInsertion(owner: compositionOwner, checkpoint: try document.encodeUpdate(),
-            snapshot: snapshot, range: range, anchor: try document.anchor(path: path, index: 0),
-            paragraphPath: path)
+            snapshot: snapshot, range: range, anchor: blank ? Data() : try document.anchor(path: path, index: 0),
+            paragraphPath: path, replacesBlankLine: blank)
     }
 
     func insertTaskList(using edit: TaskListInsertion) throws {
@@ -335,7 +339,7 @@ public final class RelayMarkEditorSession {
         try scratch.applyUpdate(edit.checkpoint)
         _ = try scratch.insertEmptyRichTaskList(after: edit.anchor, expectedSnapshot: edit.snapshot)
         let expected = try scratch.richProseProjection()
-        let path = [edit.paragraphPath[0] + 1, 0, 0]
+        let path = [edit.paragraphPath[0] + (edit.replacesBlankLine ? 0 : 1), 0, 0]
         guard expected.isEditable, let target = expected.blockPaths.firstIndex(of: path),
               expected.blockRanges[target].length == 0 else { throw TaskListInsertionFailure.changed }
         let revisionBefore = document.revision, textBefore = textRevision
