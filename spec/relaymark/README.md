@@ -548,6 +548,5 @@ To re-vendor, copy the file from the relay-elixir commit that changed it
 spec/relaymark/collection-set-v1.json`), then update the pinned SHA-256 and case
 count in `crates/relaymark-core/tests/collection_set.rs` and
 `adapters/swift/Tests/RelayMarkSwiftTests/RelayMarkCollectionSetTests.swift`.
-The two tests fail until both move with the file. New inputs (for example
-grouping) arrive with a new fixture version; extend the engine job to the new
-cases, not ahead of them.
+The two tests fail until both move with the file. New inputs arrive with a new
+fixture version; extend the engine job to the new cases, not ahead of them.

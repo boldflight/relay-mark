@@ -1,7 +1,7 @@
 {
  "spec": "collection-set",
  "version": 1,
- "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`.",
+ "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`. A case's own `records`, when present, replace the shared ones. `groups` (when present) is the Groups v1 metadata for the page's records: descriptors as [key, label] in rank order (rank = priority, then the label's UTF-8 bytes, then the key's), and each entity's group key. Name collation is ICU root with default (non-numeric) options; expected collation orders were produced by the ICU root collator in Bun (JavaScriptCore) and Node (V8), which agree, and cases are limited to characters whose root order is stable across recent CLDR versions (common Latin with accents, basic kana, common jōyō kanji, ASCII digits, full-width ASCII, one common emoji).",
  "records": [
   {
    "projection": "entity.card",
@@ -476,7 +476,9 @@
    "key": "entity_type:task",
    "payload": {
     "kind": "entity_type",
-    "slug": "task"
+    "slug": "task",
+    "name": "Task",
+    "entity_type_id": "et-task"
    }
   },
   {
@@ -484,7 +486,9 @@
    "key": "entity_type:note",
    "payload": {
     "kind": "entity_type",
-    "slug": "note"
+    "slug": "note",
+    "name": "Note",
+    "entity_type_id": "et-note"
    }
   },
   {
@@ -492,7 +496,9 @@
    "key": "entity_type:person",
    "payload": {
     "kind": "entity_type",
-    "slug": "person"
+    "slug": "person",
+    "name": "Person",
+    "entity_type_id": "et-person"
    }
   },
   {
@@ -500,7 +506,9 @@
    "key": "entity_type:collection",
    "payload": {
     "kind": "entity_type",
-    "slug": "collection"
+    "slug": "collection",
+    "name": "Collection",
+    "entity_type_id": "et-collection"
    }
   }
  ],
@@ -1010,6 +1018,1078 @@
     "total": 2,
     "page": 1,
     "page_count": 1
+   }
+  },
+  {
+   "name": "inbox name collation: accents (secondary: acute before grave)",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "n0",
+     "payload": {
+      "entity_id": "n0",
+      "name": "resume",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "resume"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n1",
+     "payload": {
+      "entity_id": "n1",
+      "name": "résumé",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "résumé"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n2",
+     "payload": {
+      "entity_id": "n2",
+      "name": "Resume",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "Resume"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n3",
+     "payload": {
+      "entity_id": "n3",
+      "name": "rèsume",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "rèsume"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "ids": [
+     "n0",
+     "n2",
+     "n1",
+     "n3"
+    ],
+    "total": 4,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox name collation: case (lowercase first at the tertiary level)",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "n0",
+     "payload": {
+      "entity_id": "n0",
+      "name": "b",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "b"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n1",
+     "payload": {
+      "entity_id": "n1",
+      "name": "a",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "a"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n2",
+     "payload": {
+      "entity_id": "n2",
+      "name": "A",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "A"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n3",
+     "payload": {
+      "entity_id": "n3",
+      "name": "B",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "B"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "ids": [
+     "n1",
+     "n2",
+     "n0",
+     "n3"
+    ],
+    "total": 4,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox name collation: digits are not numeric (item 10 before item 2)",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "n0",
+     "payload": {
+      "entity_id": "n0",
+      "name": "item 2",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "item 2"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n1",
+     "payload": {
+      "entity_id": "n1",
+      "name": "item 10",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "item 10"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n2",
+     "payload": {
+      "entity_id": "n2",
+      "name": "item 1",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "item 1"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "ids": [
+     "n2",
+     "n1",
+     "n0"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox name collation: hiragana before katakana, kana before kanji",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "n0",
+     "payload": {
+      "entity_id": "n0",
+      "name": "か",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "か"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n1",
+     "payload": {
+      "entity_id": "n1",
+      "name": "ア",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "ア"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n2",
+     "payload": {
+      "entity_id": "n2",
+      "name": "あ",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "あ"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n3",
+     "payload": {
+      "entity_id": "n3",
+      "name": "亜",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "亜"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n4",
+     "payload": {
+      "entity_id": "n4",
+      "name": "カ",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "カ"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "ids": [
+     "n2",
+     "n1",
+     "n0",
+     "n4",
+     "n3"
+    ],
+    "total": 5,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox name collation: half-width before full-width, lowercase first",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "n0",
+     "payload": {
+      "entity_id": "n0",
+      "name": "Ａ",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "Ａ"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n1",
+     "payload": {
+      "entity_id": "n1",
+      "name": "A",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "A"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n2",
+     "payload": {
+      "entity_id": "n2",
+      "name": "a",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "a"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n3",
+     "payload": {
+      "entity_id": "n3",
+      "name": "ａ",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "ａ"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "ids": [
+     "n2",
+     "n3",
+     "n1",
+     "n0"
+    ],
+    "total": 4,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox name collation: an emoji sorts before digits and letters",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "n0",
+     "payload": {
+      "entity_id": "n0",
+      "name": "a",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "a"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n1",
+     "payload": {
+      "entity_id": "n1",
+      "name": "😀",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "😀"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n2",
+     "payload": {
+      "entity_id": "n2",
+      "name": "1",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "1"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "ids": [
+     "n1",
+     "n2",
+     "n0"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox name collation: mixed Latin and Japanese",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "n0",
+     "payload": {
+      "entity_id": "n0",
+      "name": "日本a",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "日本a"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n1",
+     "payload": {
+      "entity_id": "n1",
+      "name": "a日本",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "a日本"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n2",
+     "payload": {
+      "entity_id": "n2",
+      "name": "あa",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "あa"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "n3",
+     "payload": {
+      "entity_id": "n3",
+      "name": "Aa",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "Aa"
+      },
+      "inbox": {
+       "key": [
+        1
+       ],
+       "arrival_at": "2026-10-01T00:00:00Z"
+      }
+     }
+    }
+   ],
+   "expect": {
+    "ids": [
+     "n3",
+     "n1",
+     "n2",
+     "n0"
+    ],
+    "total": 4,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "a page size below 1 clamps to 1",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 0,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 3
+   }
+  },
+  {
+   "name": "type groups: the shell type name labels each group, ranked by label",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "completed": "show"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2",
+     "t1",
+     "t4"
+    ],
+    "total": 4,
+    "page": 1,
+    "page_count": 1
+   },
+   "groups": {
+    "grouping": "type",
+    "descriptors": [
+     [
+      "type:et-note",
+      "Note"
+     ],
+     [
+      "type:et-task",
+      "Task"
+     ]
+    ],
+    "entity_group_keys": {
+     "t3": "type:et-note",
+     "t2": "type:et-task",
+     "t1": "type:et-task",
+     "t4": "type:et-task"
+    }
+   }
+  },
+  {
+   "name": "status groups: every status the page's types accept, in status order",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "completed": "show"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2",
+     "t1",
+     "t4"
+    ],
+    "total": 4,
+    "page": 1,
+    "page_count": 1
+   },
+   "groups": {
+    "grouping": "status",
+    "descriptors": [
+     [
+      "status:",
+      "No Status"
+     ],
+     [
+      "status:backlog",
+      "Backlog"
+     ],
+     [
+      "status:todo",
+      "Todo"
+     ],
+     [
+      "status:in_progress",
+      "In Progress"
+     ],
+     [
+      "status:done",
+      "Done"
+     ],
+     [
+      "status:cancelled",
+      "Cancelled"
+     ]
+    ],
+    "entity_group_keys": {
+     "t3": "status:",
+     "t2": "status:todo",
+     "t1": "status:todo",
+     "t4": "status:done"
+    }
+   }
+  },
+  {
+   "name": "status groups for types without statuses: one No Status group",
+   "list": "collection",
+   "entity_id": "K",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "p",
+     "l2",
+     "l1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   },
+   "groups": {
+    "grouping": "status",
+    "descriptors": [
+     [
+      "status:",
+      "No Status"
+     ]
+    ],
+    "entity_group_keys": {
+     "p": "status:",
+     "l2": "status:",
+     "l1": "status:"
+    }
+   }
+  },
+  {
+   "name": "type groups across three types",
+   "list": "collection",
+   "entity_id": "K",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "p",
+     "l2",
+     "l1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   },
+   "groups": {
+    "grouping": "type",
+    "descriptors": [
+     [
+      "type:et-note",
+      "Note"
+     ],
+     [
+      "type:et-person",
+      "Person"
+     ]
+    ],
+    "entity_group_keys": {
+     "p": "type:et-person",
+     "l2": "type:et-note",
+     "l1": "type:et-note"
+    }
    }
   }
  ]

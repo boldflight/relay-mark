@@ -18,6 +18,11 @@ public enum RelayMarkCollectionSet {
         case complete, partial
     }
 
+    /// Groups v1 metadata for the page's records.
+    public enum Grouping: String, Sendable {
+        case type, status
+    }
+
     public struct Query {
         public var list: List
         /// The collection to list; required for `.collection`.
@@ -29,8 +34,11 @@ public enum RelayMarkCollectionSet {
         public var params: [String: Any]
         public var page: Int
         public var pageSize: Int
+        /// When set, the page carries `groups` for this grouping.
+        public var grouping: Grouping?
 
-        public init(list: List, entityID: String? = nil, account: String? = nil, params: [String: Any] = [:], page: Int = 1, pageSize: Int = 24) {
+        public init(list: List, entityID: String? = nil, account: String? = nil, params: [String: Any] = [:], page: Int = 1, pageSize: Int = 24, grouping: Grouping? = nil) {
+            self.grouping = grouping
             self.list = list
             self.entityID = entityID
             self.account = account
@@ -38,6 +46,17 @@ public enum RelayMarkCollectionSet {
             self.page = page
             self.pageSize = pageSize
         }
+    }
+
+    /// The page's groups: descriptors in rank order and each entity's group key.
+    public struct Groups: Equatable, Sendable {
+        public struct Descriptor: Equatable, Sendable {
+            public var key: String
+            public var label: String
+        }
+        public var grouping: Grouping
+        public var descriptors: [Descriptor]
+        public var entityGroupKeys: [String: String]
     }
 
     public struct Page: Equatable, Sendable {
@@ -51,6 +70,8 @@ public enum RelayMarkCollectionSet {
         /// The page shown, clamped into range.
         public var page: Int
         public var pageCount: Int?
+        /// Present when the query named a grouping.
+        public var groups: Groups?
     }
 
     public static func evaluate(records: [[String: Any]], shellEntityTypes: ShellCoverage, query: Query) throws -> Page {
@@ -58,6 +79,7 @@ public enum RelayMarkCollectionSet {
             "records": records, "shell_entity_types": shellEntityTypes.rawValue, "list": query.list.rawValue,
             "account": query.account ?? NSNull(), "params": query.params, "page": query.page, "page_size": query.pageSize,
         ]
+        if let grouping = query.grouping { input["grouping"] = grouping.rawValue }
         if let entityID = query.entityID { input["entity_id"] = entityID }
         let answer = try RelayMarkEngineCall.run("collection_set", try RelayMarkEngineCall.json(input), options: [:])
         guard let result = try JSONSerialization.jsonObject(with: answer) as? [String: Any],
@@ -65,6 +87,14 @@ public enum RelayMarkCollectionSet {
               let ids = result["ids"] as? [String], let page = result["page"] as? Int else {
             throw RelayMarkSourceCodec.Failure.invalidInput
         }
-        return Page(status: status, ids: ids, total: result["total"] as? Int, page: page, pageCount: result["page_count"] as? Int)
+        var groups: Groups?
+        if let raw = result["groups"] as? [String: Any] {
+            guard let grouping = (raw["grouping"] as? String).flatMap(Grouping.init(rawValue:)), let descriptors = raw["descriptors"] as? [[String]],
+                  let keys = raw["entity_group_keys"] as? [String: String], descriptors.allSatisfy({ $0.count == 2 }) else {
+                throw RelayMarkSourceCodec.Failure.invalidInput
+            }
+            groups = Groups(grouping: grouping, descriptors: descriptors.map { .init(key: $0[0], label: $0[1]) }, entityGroupKeys: keys)
+        }
+        return Page(status: status, ids: ids, total: result["total"] as? Int, page: page, pageCount: result["page_count"] as? Int, groups: groups)
     }
 }

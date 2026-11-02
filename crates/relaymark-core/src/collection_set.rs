@@ -24,7 +24,7 @@ use serde_json::{Map, Value, json};
 use unicode_normalization::UnicodeNormalization;
 
 use crate::error::{Result, bail};
-use crate::json::js_trim;
+use crate::json::{is_js_space, js_trim};
 
 const ENTITY_CARD: &str = "entity.card";
 const COLLECTION_MEMBER: &str = "collection.member";
@@ -339,6 +339,7 @@ pub fn evaluate(input: &Value) -> Result<Value> {
     let mut cards = Map::new();
     let mut memberships: Vec<(&str, &Value)> = Vec::new();
     let mut enabled: Vec<String> = Vec::new();
+    let mut types: Vec<&Value> = Vec::new();
     for record in records {
         let (Some(projection), Some(key), Some(payload)) = (str_field(record, "projection"), str_field(record, "key"), record.get("payload")) else {
             bail!("Invalid collection set record");
@@ -348,7 +349,10 @@ pub fn evaluate(input: &Value) -> Result<Value> {
                 cards.insert(key.to_owned(), payload.clone());
             }
             COLLECTION_MEMBER => memberships.push((key, payload)),
-            WORKSPACE_SHELL if str_field(payload, "kind") == Some("entity_type") => enabled.extend(str_field(payload, "slug").map(str::to_owned)),
+            WORKSPACE_SHELL if str_field(payload, "kind") == Some("entity_type") => {
+                enabled.extend(str_field(payload, "slug").map(str::to_owned));
+                types.push(payload);
+            }
             _ => {}
         }
     }
@@ -390,11 +394,160 @@ pub fn evaluate(input: &Value) -> Result<Value> {
         ordered
     };
 
-    let page_size = input.get("page_size").and_then(Value::as_i64).unwrap_or(24).max(1) as usize;
+    // A page size below 1 (or not a number) clamps to 1.
+    let page_size = input.get("page_size").and_then(Value::as_f64).map_or(24.0, f64::floor).max(1.0) as usize;
     let page_count = kept.len().div_ceil(page_size).max(1);
     let page = (input.get("page").and_then(Value::as_i64).unwrap_or(1).max(1) as usize).min(page_count);
-    let ids: Vec<&str> = kept.iter().skip((page - 1) * page_size).take(page_size).filter_map(|c| str_field(c, "entity_id")).collect();
-    Ok(json!({"status": "complete", "ids": ids, "total": kept.len(), "page": page, "page_count": page_count}))
+    let shown: Vec<&Value> = kept.iter().skip((page - 1) * page_size).take(page_size).copied().collect();
+    let ids: Vec<&str> = shown.iter().filter_map(|c| str_field(c, "entity_id")).collect();
+    let mut answer = json!({"status": "complete", "ids": ids, "total": kept.len(), "page": page, "page_count": page_count});
+    match str_field(input, "grouping") {
+        None => {}
+        Some(grouping @ ("type" | "status")) => answer["groups"] = group_metadata(grouping, &shown, &types),
+        Some(other) => bail!("Unknown grouping {other}"),
+    }
+    Ok(answer)
+}
+
+// ── Groups v1 (`localGroupMetadata`) ────────────────────────────────────
+//
+// Type groups are labelled by the workspace's type name; status groups follow
+// `STATUS_ORDER` and include every status target of the page's types, so a
+// board column may be empty. Descriptors are `[key, label]` in rank order
+// (priority, then the label's UTF-8 bytes, then the key's), and each entity
+// maps to its group key. Labels are English: the web humanizes slugs and
+// statuses the same way, and a localized label would come from the shell type
+// name, which the host supplies.
+
+/// Which entity types accept each status target, in the order targets are added.
+const STATUS_ACCEPTS: [(&str, &[&str]); 11] = [
+    ("backlog", &["task"]),
+    ("todo", &["task"]),
+    ("in_progress", &["task"]),
+    ("done", &["task"]),
+    ("active", &["project"]),
+    ("paused", &["project"]),
+    ("completed", &["project"]),
+    ("archived", &["project"]),
+    ("confirmed", &["event"]),
+    ("tentative", &["event"]),
+    ("cancelled", &["task", "event"]),
+];
+
+/// Status label to rank priority; any other label ranks 1000.
+const STATUS_ORDER: [(&str, u32); 32] = [
+    ("No Status", 0),
+    ("Open", 5),
+    ("Active", 10),
+    ("Backlog", 15),
+    ("Todo", 20),
+    ("To Do", 20),
+    ("Planned", 25),
+    ("Scheduled", 25),
+    ("Tentative", 25),
+    ("Confirmed", 25),
+    ("In Progress", 30),
+    ("Processing", 30),
+    ("Matching", 30),
+    ("Paused", 40),
+    ("Waiting", 40),
+    ("Blocked", 45),
+    ("Needs Review", 50),
+    ("Review", 50),
+    ("In Review", 50),
+    ("Done", 60),
+    ("Completed", 60),
+    ("Resolved", 60),
+    ("Approved", 60),
+    ("Sent", 60),
+    ("Delivered", 60),
+    ("Cancelled", 70),
+    ("Canceled", 70),
+    ("Rejected", 70),
+    ("Declined", 70),
+    ("Dismissed", 70),
+    ("Failed", 70),
+    ("Archived", 80),
+];
+
+/// `humanize`: underscores to spaces, each whitespace-separated word capitalized.
+/// An empty word (leading or trailing whitespace) reads "undefined", as in the web.
+fn humanize(value: &str) -> String {
+    let text = value.replace('_', " ");
+    let mut words: Vec<&str> = vec![];
+    let mut word_start = 0;
+    let mut chars = text.char_indices().peekable();
+    while let Some((index, c)) = chars.next() {
+        if is_js_space(c) {
+            words.push(&text[word_start..index]);
+            word_start = index + c.len_utf8();
+            while let Some(&(next, d)) = chars.peek().filter(|(_, d)| is_js_space(*d)) {
+                word_start = next + d.len_utf8();
+                chars.next();
+            }
+        }
+    }
+    words.push(&text[word_start..]);
+    words
+        .iter()
+        .map(|word| match word.chars().next() {
+            None => "undefined".to_owned(),
+            Some(first) => first.to_uppercase().chain(word[first.len_utf8()..].to_lowercase().chars()).collect(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+struct Group {
+    key: String,
+    label: String,
+    rank: Vec<u32>,
+}
+
+fn rank(priority: u32, label: &str, key: &str) -> Vec<u32> {
+    std::iter::once(priority).chain(label.bytes().map(u32::from)).chain(std::iter::once(0)).chain(key.bytes().map(u32::from)).collect()
+}
+
+fn status_of(card: &Value) -> &str {
+    ["task", "project", "event"].iter().find_map(|kind| card.get(kind).and_then(|v| str_field(v, "status")).filter(|s| !s.is_empty())).unwrap_or("")
+}
+
+fn group_metadata(grouping: &str, cards: &[&Value], types: &[&Value]) -> Value {
+    let type_group = |slug: &str| {
+        let shell = types.iter().find(|t| str_field(t, "slug") == Some(slug));
+        let label = shell.and_then(|t| str_field(t, "name")).map_or_else(|| humanize(&slug.replace('-', " ")), str::to_owned);
+        let key = format!("type:{}", shell.and_then(|t| str_field(t, "entity_type_id")).unwrap_or(slug));
+        Group { rank: rank(0, &label, &key), key, label }
+    };
+    let status_group = |value: &str| {
+        let label = if value.is_empty() { "No Status".to_owned() } else { humanize(value) };
+        let priority = STATUS_ORDER.iter().find(|(name, _)| *name == label).map_or(1000, |(_, priority)| *priority);
+        let key = format!("status:{value}");
+        Group { rank: rank(priority, &label, &key), key, label }
+    };
+    let slugs: Vec<&str> = cards.iter().map(|c| str_field(c, "entity_type").unwrap_or("")).collect();
+    let describe = |card: &Value| if grouping == "type" { type_group(str_field(card, "entity_type").unwrap_or("")) } else { status_group(status_of(card)) };
+    // A later record's descriptor replaces an earlier one with the same key.
+    fn add(groups: &mut Vec<Group>, group: Group) {
+        match groups.iter_mut().find(|g| g.key == group.key) {
+            Some(held) => *held = group,
+            None => groups.push(group),
+        }
+    }
+    let mut groups: Vec<Group> = Vec::new();
+    for card in cards {
+        add(&mut groups, describe(card));
+    }
+    if grouping == "status" {
+        for (value, accepts) in STATUS_ACCEPTS {
+            if accepts.iter().any(|accepted| slugs.contains(accepted)) && !groups.iter().any(|g| g.key == format!("status:{value}")) {
+                add(&mut groups, status_group(value));
+            }
+        }
+    }
+    groups.sort_by(|a, b| a.rank.cmp(&b.rank));
+    let keys: Map<String, Value> = cards.iter().filter_map(|c| Some((str_field(c, "entity_id")?.to_owned(), Value::String(describe(c).key)))).collect();
+    json!({"grouping": grouping, "descriptors": groups.iter().map(|g| json!([g.key, g.label])).collect::<Vec<_>>(), "entity_group_keys": keys})
 }
 
 #[cfg(test)]

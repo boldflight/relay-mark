@@ -10,8 +10,8 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 /// The authority's SHA-256. Re-vendoring changes this and the case count together.
-const PINNED_SHA256: &str = "e9833051a50a4bd32b496147e804e54bdf130b549262b3cbb7df87ccb295a4fd";
-const PINNED_CASES: usize = 24;
+const PINNED_SHA256: &str = "c6acd58492a589707e7a63d4033982c5974ca5d634ce333a44c81ea1cc1a408e";
+const PINNED_CASES: usize = 36;
 
 fn bytes() -> Vec<u8> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../spec/relaymark/collection-set-v1.json");
@@ -28,7 +28,11 @@ fn the_vendored_fixture_is_the_pinned_authority_copy() {
 
 fn evaluate(fixture: &Value, case: &Value) -> Value {
     let mut input = case.clone();
-    input["records"] = fixture["records"].clone();
+    // A case's own records replace the shared ones.
+    input["records"] = case.get("records").unwrap_or(&fixture["records"]).clone();
+    if let Some(grouping) = case["groups"].get("grouping") {
+        input["grouping"] = grouping.clone();
+    }
     rm::edit::collection_set(&input).unwrap_or_else(|e| panic!("{}: {}", case["name"], e.message()))
 }
 
@@ -41,6 +45,13 @@ fn every_case_lists_what_the_contract_says() {
         let actual = json!({"ids": got["ids"], "total": got["total"], "page": got["page"], "page_count": got["page_count"]});
         if actual != case["expect"] {
             failures.push(format!("{}: {actual} != {}", case["name"], case["expect"]));
+        }
+        if let Some(groups) = case.get("groups") {
+            let actual = json!({"descriptors": got["groups"]["descriptors"], "entity_group_keys": got["groups"]["entity_group_keys"]});
+            let expected = json!({"descriptors": groups["descriptors"], "entity_group_keys": groups["entity_group_keys"]});
+            if actual != expected {
+                failures.push(format!("{} (groups): {actual} != {expected}", case["name"]));
+            }
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

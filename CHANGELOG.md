@@ -3,7 +3,8 @@
 ## Unreleased
 
 - `collection_set` (relaymark-core job, Swift `RelayMarkCollectionSet`): the
-  smart-list evaluator for Composer sets, checked against the 24 shared cases in
+  smart-list evaluator for Composer sets, checked against the 36 shared cases (ordering, filters, ICU root collation,
+  paging and type/status Groups v1) in
   `spec/relaymark/collection-set-v1.json` (vendored from relay-elixir
   `test/fixtures/collection_set_v1.json`, SHA-256 pinned). No JavaScript
   runtime here; the web keeps its own module.
