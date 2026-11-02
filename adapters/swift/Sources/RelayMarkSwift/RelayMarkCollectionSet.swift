@@ -75,14 +75,28 @@ public enum RelayMarkCollectionSet {
         public var groups: Groups?
     }
 
+    /// The same evaluator for records held as dictionaries: they are encoded once and handed to
+    /// `evaluate(recordsJSON:)`.
     public static func evaluate(records: [[String: Any]], shellEntityTypes: ShellCoverage, query: Query) throws -> Page {
+        guard JSONSerialization.isValidJSONObject(records) else { throw RelayMarkSourceCodec.Failure.invalidInput }
+        return try evaluate(recordsJSON: JSONSerialization.data(withJSONObject: records), shellEntityTypes: shellEntityTypes, query: query)
+    }
+
+    /// The evaluator. `recordsJSON` is a UTF-8 JSON array of `{projection, key, payload}` records,
+    /// for example cached per card as bytes and joined: its bytes go into the job's input as they
+    /// are, never decoded and encoded again here. The engine validates them; malformed input throws.
+    public static func evaluate(recordsJSON: Data, shellEntityTypes: ShellCoverage, query: Query) throws -> Page {
         var input: [String: Any] = [
-            "records": records, "shell_entity_types": shellEntityTypes.rawValue, "list": query.list.rawValue,
+            "shell_entity_types": shellEntityTypes.rawValue, "list": query.list.rawValue,
             "account": query.account ?? NSNull(), "params": query.params, "page": query.page, "page_size": query.pageSize,
         ]
         if let grouping = query.grouping { input["grouping"] = grouping.rawValue }
         if let entityID = query.entityID { input["entity_id"] = entityID }
-        let answer = try RelayMarkEngineCall.run("collection_set", try RelayMarkEngineCall.json(input), options: [:])
+        // Splice the records into the envelope: `{` + `"records":<bytes>,` + the rest of the object.
+        var envelope = try RelayMarkEngineCall.json(input)
+        guard envelope.first == UInt8(ascii: "{"), envelope.count > 2 else { throw RelayMarkSourceCodec.Failure.invalidInput }
+        envelope.replaceSubrange(1..<1, with: Data(#""records":"#.utf8) + recordsJSON + Data(",".utf8))
+        let answer = try RelayMarkEngineCall.run("collection_set", envelope, options: [:])
         guard let result = try JSONSerialization.jsonObject(with: answer) as? [String: Any],
               let status = (result["status"] as? String).flatMap(Page.Status.init(rawValue:)),
               let ids = result["ids"] as? [String], let page = result["page"] as? Int else {

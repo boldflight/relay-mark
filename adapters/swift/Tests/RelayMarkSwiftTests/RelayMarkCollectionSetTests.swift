@@ -30,6 +30,9 @@ struct RelayMarkCollectionSetTests {
             let query = RelayMarkCollectionSet.Query(list: list, entityID: item["entity_id"] as? String, account: item["account"] as? String,
                 params: item["params"] as? [String: Any] ?? [:], page: item["page"] as? Int ?? 1, pageSize: item["page_size"] as? Int ?? 24, grouping: grouping)
             let page = try RelayMarkCollectionSet.evaluate(records: records, shellEntityTypes: shell, query: query)
+            // The pre-encoded entry point answers identically.
+            let encoded = try JSONSerialization.data(withJSONObject: records)
+            #expect(try RelayMarkCollectionSet.evaluate(recordsJSON: encoded, shellEntityTypes: shell, query: query) == page, "\(name)")
             let expected = try #require(item["expect"] as? [String: Any], "\(name)")
             #expect(page.ids == expected["ids"] as? [String], "\(name)")
             #expect(page.total == expected["total"] as? Int, "\(name)")
@@ -49,5 +52,41 @@ struct RelayMarkCollectionSetTests {
     @Test func aCollectionThatIsNotHeldIsPartial() throws {
         let page = try RelayMarkCollectionSet.evaluate(records: [], shellEntityTypes: .complete, query: .init(list: .collection, entityID: "gone"))
         #expect(page == .init(status: .partial, ids: [], total: nil, page: 1, pageCount: nil, groups: nil))
+    }
+
+    @Test func malformedRecordsJSONThrowsAndNeverCrashes() {
+        let query = RelayMarkCollectionSet.Query(list: .inbox)
+        for bytes in ["", "[", "[{\"projection\":", "{\"not\":\"an array\"}", "[1,2]", "[] trailing", "\u{0}"] {
+            #expect(throws: (any Error).self, "\(bytes)") {
+                _ = try RelayMarkCollectionSet.evaluate(recordsJSON: Data(bytes.utf8), shellEntityTypes: .complete, query: query)
+            }
+        }
+    }
+
+    // Measures what the pre-encoded entry point saves on a native-sized input (a few thousand cards).
+    @Test func aLargeInputEvaluatesThroughBothEntryPoints() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixture = try #require(try JSONSerialization.jsonObject(
+            with: Data(contentsOf: root.appendingPathComponent("spec/relaymark/collection-set-v1.json"))) as? [String: Any])
+        let shared = try #require(fixture["records"] as? [[String: Any]])
+        var records: [[String: Any]] = []
+        for copy in 0..<500 {
+            for var record in shared where record["projection"] as? String == "entity.card" {
+                var payload = try #require(record["payload"] as? [String: Any])
+                let id = "\(payload["entity_id"] ?? "x")-\(copy)"
+                payload["entity_id"] = id; record["key"] = id; record["payload"] = payload
+                records.append(record)
+            }
+        }
+        let query = RelayMarkCollectionSet.Query(list: .inbox, pageSize: 50)
+        let clock = ContinuousClock()
+        var viaDictionaries: RelayMarkCollectionSet.Page?
+        let slow = try clock.measure { viaDictionaries = try RelayMarkCollectionSet.evaluate(records: records, shellEntityTypes: .complete, query: query) }
+        let encoded = try JSONSerialization.data(withJSONObject: records)
+        var viaBytes: RelayMarkCollectionSet.Page?
+        let fast = try clock.measure { viaBytes = try RelayMarkCollectionSet.evaluate(recordsJSON: encoded, shellEntityTypes: .complete, query: query) }
+        print("collection-set \(records.count) records, \(encoded.count) bytes: dictionaries \(slow), pre-encoded \(fast)")
+        #expect(viaDictionaries == viaBytes && (viaBytes?.total ?? 0) > 1_000)
     }
 }
