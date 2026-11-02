@@ -5,14 +5,15 @@
 //! `assets/js/sync/collection_set.js` is the reference implementation.
 //!
 //! It evaluates only the cards it is given plus the shell type catalog. It
-//! never invents members, never queries, and never authorizes: query-listed
-//! collections and body-text search stay server-projected.
+//! never invents members, never queries, and never authorizes: body-text search
+//! and collections the server projects (`server_projected`) stay server-side.
 //!
 //! Input: `{records, shell_entity_types, list, entity_id, account, params,
 //! page, page_size}`, where `records` are the held `entity.card`,
 //! `collection.member` and `workspace.shell` projection records. Output:
 //! `{status, ids, total, page, page_count}`; `status` is `partial` (no ids, no
-//! counts) only when a collection list names a collection that is not held.
+//! counts) only when a collection list names a collection that is not held or is
+//! listed in the input's `server_projected`.
 
 use std::cmp::Ordering;
 use std::sync::LazyLock;
@@ -380,9 +381,12 @@ pub fn evaluate(input: &Value) -> Result<Value> {
     let kept: Vec<&Value> = if list == "collection" {
         let Some(collection_id) = str_field(input, "entity_id") else { bail!("Missing collection id") };
         let collection = cards.get(collection_id);
-        // Only a workspace member's collection that lists memberships, not a query's results.
-        if !collection.is_some_and(|c| c.get("workspace_member") == Some(&Value::Bool(true)) && c.get("collection_listed_by_query") != Some(&Value::Bool(true)))
-        {
+        // Partial only when the server serves the collection's pages (the population manifest's
+        // `server_projected` list) or its card is not held. Every other collection is evaluated
+        // here, shared, other-workspace and query-listed ones included.
+        let server_projected =
+            input.get("server_projected").and_then(Value::as_array).is_some_and(|ids| ids.iter().any(|id| id.as_str() == Some(collection_id)));
+        if collection.is_none() || server_projected {
             return Ok(
                 json!({"status": "partial", "ids": [], "total": null, "page": input.get("page").and_then(Value::as_i64).unwrap_or(1), "page_count": null}),
             );

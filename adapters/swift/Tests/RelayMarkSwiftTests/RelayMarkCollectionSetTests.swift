@@ -7,7 +7,7 @@ import Testing
 /// vendored as spec/relaymark/collection-set-v1.json) through the Swift engine
 /// binding, so Apple lists the same members in the same order as the web.
 struct RelayMarkCollectionSetTests {
-    static let pinnedSHA256 = "b8638caa341dea3228b061ba40976555aab17e0840f7d9104f633ca70d5c889c"
+    static let pinnedSHA256 = "4b9cbc0022124a3b6c25d03f35f629ebac668e63d563680cc5641a9c1f78ff6f"
 
     @Test func everySharedCaseListsAsTheContractSays() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -18,7 +18,7 @@ struct RelayMarkCollectionSetTests {
         let fixture = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let sharedRecords = try #require(fixture["records"] as? [[String: Any]])
         let cases = try #require(fixture["cases"] as? [[String: Any]])
-        #expect(cases.count == 38)
+        #expect(cases.count == 42)
         for item in cases {
             let name = item["name"] as? String ?? "?"
             let list = try #require(RelayMarkCollectionSet.List(rawValue: item["list"] as? String ?? ""), "\(name)")
@@ -29,16 +29,17 @@ struct RelayMarkCollectionSetTests {
             let grouping = (expectedGroups?["grouping"] as? String).flatMap(RelayMarkCollectionSet.Grouping.init(rawValue:))
             let query = RelayMarkCollectionSet.Query(list: list, entityID: item["entity_id"] as? String, account: item["account"] as? String,
                 params: item["params"] as? [String: Any] ?? [:], page: item["page"] as? Int ?? 1, pageSize: item["page_size"] as? Int ?? 24, grouping: grouping)
-            let page = try RelayMarkCollectionSet.evaluate(records: records, shellEntityTypes: shell, query: query)
+            let projected = Set(item["server_projected"] as? [String] ?? [])
+            let page = try RelayMarkCollectionSet.evaluate(records: records, shellEntityTypes: shell, serverProjected: projected, query: query)
             // The pre-encoded entry point answers identically.
             let encoded = try JSONSerialization.data(withJSONObject: records)
-            #expect(try RelayMarkCollectionSet.evaluate(recordsJSON: encoded, shellEntityTypes: shell, query: query) == page, "\(name)")
+            #expect(try RelayMarkCollectionSet.evaluate(recordsJSON: encoded, shellEntityTypes: shell, serverProjected: projected, query: query) == page, "\(name)")
             let expected = try #require(item["expect"] as? [String: Any], "\(name)")
             #expect(page.ids == expected["ids"] as? [String], "\(name)")
             #expect(page.total == expected["total"] as? Int, "\(name)")
             #expect(page.page == expected["page"] as? Int, "\(name)")
             #expect(page.pageCount == expected["page_count"] as? Int, "\(name)")
-            #expect(page.status == .complete, "\(name)")
+            #expect(page.status == (expected["total"] is NSNull ? .partial : .complete), "\(name)")
             if let expectedGroups {
                 let descriptors = (expectedGroups["descriptors"] as? [[String]] ?? []).map { RelayMarkCollectionSet.Groups.Descriptor(key: $0[0], label: $0.count > 1 ? $0[1] : nil) }
                 #expect(page.groups?.descriptors == descriptors, "\(name)")

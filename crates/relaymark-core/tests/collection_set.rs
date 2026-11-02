@@ -10,8 +10,8 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 /// The authority's SHA-256. Re-vendoring changes this and the case count together.
-const PINNED_SHA256: &str = "b8638caa341dea3228b061ba40976555aab17e0840f7d9104f633ca70d5c889c";
-const PINNED_CASES: usize = 38;
+const PINNED_SHA256: &str = "4b9cbc0022124a3b6c25d03f35f629ebac668e63d563680cc5641a9c1f78ff6f";
+const PINNED_CASES: usize = 42;
 
 fn bytes() -> Vec<u8> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../spec/relaymark/collection-set-v1.json");

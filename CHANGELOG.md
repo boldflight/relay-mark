@@ -9,11 +9,14 @@
   the first edit in the same update and undo item; the `/checklist` command and
   every first action work on an empty paper (`RelayMarkNativeDocument.editingTree`).
 - `collection_set` (relaymark-core job, Swift `RelayMarkCollectionSet`): the
-  smart-list evaluator for Composer sets, checked against the 38 shared cases in
+  smart-list evaluator for Composer sets, checked against the 42 shared cases in
   `spec/relaymark/collection-set-v1.json` (vendored from relay-elixir
   `test/fixtures/collection_set_v1.json`, SHA-256 pinned): ordering, filters,
   ICU root collation, manual `order_key` order, paging and type/status Groups
-  v1. No JavaScript runtime here; the web keeps its own module.
+  v1. A collection is `partial` only when named in the new `serverProjected`
+  input (the population manifest's `server_projected`) or not held; shared,
+  other-workspace and query-listed collections are evaluated locally. No
+  JavaScript runtime here; the web keeps its own module.
 
 ## Elixir adapter 0.7.7
 

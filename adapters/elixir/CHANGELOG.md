@@ -14,7 +14,10 @@
   for Composer sets (filters, sorts, source orders, manual `order_key` order,
   paging and type/status Groups v1 metadata), checked against
   `spec/relaymark/collection-set-v1.json`. Names order by the ICU root collator
-  (`icu_collator`, a new dependency of the native crate).
+  (`icu_collator`, a new dependency of the native crate). The job takes an
+  optional `server_projected` list of collection ids: those and collections
+  whose card is not held answer `partial`; every other collection, shared and
+  query-listed ones included, is evaluated locally.
 
 ## 0.7.7
 

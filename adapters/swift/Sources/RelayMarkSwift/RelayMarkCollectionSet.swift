@@ -61,7 +61,7 @@ public enum RelayMarkCollectionSet {
     }
 
     public struct Page: Equatable, Sendable {
-        /// `partial` only when a collection list names a collection that is not held:
+        /// `partial` only when a collection list names a collection that is not held or is server-projected:
         /// then there are no ids and no counts.
         public enum Status: String, Sendable { case complete, partial }
         public var status: Status
@@ -77,21 +77,26 @@ public enum RelayMarkCollectionSet {
 
     /// The same evaluator for records held as dictionaries: they are encoded once and handed to
     /// `evaluate(recordsJSON:)`.
-    public static func evaluate(records: [[String: Any]], shellEntityTypes: ShellCoverage, query: Query) throws -> Page {
+    public static func evaluate(records: [[String: Any]], shellEntityTypes: ShellCoverage, serverProjected: Set<String> = [], query: Query) throws -> Page {
         guard JSONSerialization.isValidJSONObject(records) else { throw RelayMarkSourceCodec.Failure.invalidInput }
-        return try evaluate(recordsJSON: JSONSerialization.data(withJSONObject: records), shellEntityTypes: shellEntityTypes, query: query)
+        return try evaluate(recordsJSON: JSONSerialization.data(withJSONObject: records), shellEntityTypes: shellEntityTypes, serverProjected: serverProjected, query: query)
     }
 
     /// The evaluator. `recordsJSON` is a UTF-8 JSON array of `{projection, key, payload}` records,
     /// for example cached per card as bytes and joined: its bytes go into the job's input as they
     /// are, never decoded and encoded again here. The engine validates them; malformed input throws.
-    public static func evaluate(recordsJSON: Data, shellEntityTypes: ShellCoverage, query: Query) throws -> Page {
+    ///
+    /// `serverProjected` is the population manifest's `collection.member` `server_projected` list:
+    /// a collection named there is answered `partial` (its pages come from the server), as is one whose
+    /// card is not held. Every other collection is evaluated from the records.
+    public static func evaluate(recordsJSON: Data, shellEntityTypes: ShellCoverage, serverProjected: Set<String> = [], query: Query) throws -> Page {
         var input: [String: Any] = [
             "shell_entity_types": shellEntityTypes.rawValue, "list": query.list.rawValue,
             "account": query.account ?? NSNull(), "params": query.params, "page": query.page, "page_size": query.pageSize,
         ]
         if let grouping = query.grouping { input["grouping"] = grouping.rawValue }
         if let entityID = query.entityID { input["entity_id"] = entityID }
+        if !serverProjected.isEmpty { input["server_projected"] = serverProjected.sorted() }
         // Splice the records into the envelope: `{` + `"records":<bytes>,` + the rest of the object.
         var envelope = try RelayMarkEngineCall.json(input)
         guard envelope.first == UInt8(ascii: "{"), envelope.count > 2 else { throw RelayMarkSourceCodec.Failure.invalidInput }

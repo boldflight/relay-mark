@@ -1,7 +1,7 @@
 {
  "spec": "collection-set",
  "version": 1,
- "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`. A case's own `records`, when present, replace the shared ones. `groups` (when present) is the Groups v1 metadata for the page's records: descriptors as [key, label] in rank order (rank = priority, then the label's UTF-8 bytes, then the key's), and each entity's group key. Name collation is ICU root with default (non-numeric) options; expected collation orders were produced by the ICU root collator in Bun (JavaScriptCore) and Node (V8), which agree, and cases are limited to characters whose root order is stable across recent CLDR versions (common Latin with accents, basic kana, common jōyō kanji, ASCII digits, full-width ASCII, one common emoji). Status group descriptors carry keys only ([key]): their labels are the reader's words, resolved at render from priv/display_copy.json (values.<status>, ui.groups.noStatus), en and ja; type groups carry the type's own name. A collection's source order is its manual order: members with an order_key first, keys compared code unit by code unit (the server's COLLATE \"C\"; never the ICU collator), then members without a key by added_at, ties by entity_id; courses and albums order by position first as before.",
+ "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`. A case's own `records`, when present, replace the shared ones. `groups` (when present) is the Groups v1 metadata for the page's records: descriptors as [key, label] in rank order (rank = priority, then the label's UTF-8 bytes, then the key's), and each entity's group key. Name collation is ICU root with default (non-numeric) options; expected collation orders were produced by the ICU root collator in Bun (JavaScriptCore) and Node (V8), which agree, and cases are limited to characters whose root order is stable across recent CLDR versions (common Latin with accents, basic kana, common jōyō kanji, ASCII digits, full-width ASCII, one common emoji). Status group descriptors carry keys only ([key]): their labels are the reader's words, resolved at render from priv/display_copy.json (values.<status>, ui.groups.noStatus), en and ja; type groups carry the type's own name. A collection's source order is its manual order: members with an order_key first, keys compared code unit by code unit (the server's COLLATE \"C\"; never the ICU collator), then members without a key by added_at, ties by entity_id; courses and albums order by position first as before. order_key is fractional-indexing base-62 ASCII ([0-9A-Za-z], 2 to 128 characters), so code-unit and byte order agree; the server's write boundary (Relay.Collections.OrderKey.valid?/1) refuses any other key, so no case carries one. A collection is partial only when its id is in the population manifest's collection.member server_projected list (the top-level case input `server_projected`, next to `shell_entity_types`; absent means an empty list) or its card is not held; otherwise it is evaluated locally, shared and other-workspace collections included. Query-listed members (source \"query\") order by position, then entity_id.",
  "records": [
   {
    "projection": "entity.card",
@@ -509,6 +509,141 @@
     "slug": "collection",
     "name": "Collection",
     "entity_type_id": "et-collection"
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "Q",
+   "payload": {
+    "entity_id": "Q",
+    "name": "Listed by type",
+    "entity_type": "collection",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": "collection",
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Listed by type"
+    },
+    "collection_listed_by_query": true
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "Q:t1",
+   "payload": {
+    "collection_id": "Q",
+    "entity_id": "t1",
+    "source": "query",
+    "position": 2,
+    "added_at": null
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "Q:t2",
+   "payload": {
+    "collection_id": "Q",
+    "entity_id": "t2",
+    "source": "query",
+    "position": 1,
+    "added_at": null
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "Q:t3",
+   "payload": {
+    "collection_id": "Q",
+    "entity_id": "t3",
+    "source": "query",
+    "position": 1,
+    "added_at": null
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "S",
+   "payload": {
+    "entity_id": "S",
+    "name": "Shared from another workspace",
+    "entity_type": "collection",
+    "workspace_member": false,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": "collection",
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Shared from another workspace"
+    },
+    "organization_id": "00000000-0000-4000-8000-0000000000b0"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "S:t2",
+   "payload": {
+    "collection_id": "S",
+    "entity_id": "t2",
+    "added_at": "2026-10-06T00:00:00Z"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "S:t1",
+   "payload": {
+    "collection_id": "S",
+    "entity_id": "t1",
+    "added_at": "2026-10-05T00:00:00Z"
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "P",
+   "payload": {
+    "entity_id": "P",
+    "name": "Projected by the server",
+    "entity_type": "collection",
+    "workspace_member": false,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": "collection",
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Projected by the server"
+    },
+    "organization_id": "00000000-0000-4000-8000-0000000000b0"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "P:t1",
+   "payload": {
+    "collection_id": "P",
+    "entity_id": "t1",
+    "added_at": "2026-10-05T00:00:00Z"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "U:t1",
+   "payload": {
+    "collection_id": "U",
+    "entity_id": "t1",
+    "added_at": "2026-10-05T00:00:00Z"
    }
   }
  ],
@@ -2481,6 +2616,80 @@
     "total": 5,
     "page": 1,
     "page_count": 1
+   }
+  },
+  {
+   "name": "query-listed collection: its members in position order, ties by entity id",
+   "list": "collection",
+   "entity_id": "Q",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t2",
+     "t3",
+     "t1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "another workspace's shared collection is evaluated locally",
+   "list": "collection",
+   "entity_id": "S",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1",
+     "t2"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "a server_projected collection is partial: its pages come from the server",
+   "list": "collection",
+   "entity_id": "P",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [],
+    "total": null,
+    "page": 1,
+    "page_count": null
+   },
+   "server_projected": [
+    "P"
+   ]
+  },
+  {
+   "name": "a collection whose card is not held is partial",
+   "list": "collection",
+   "entity_id": "U",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [],
+    "total": null,
+    "page": 1,
+    "page_count": null
    }
   }
  ]

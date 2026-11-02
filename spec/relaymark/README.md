@@ -543,6 +543,13 @@ server and web own the cases, and relaymark-core (`collection_set` job, Swift
 fixture; it has no JavaScript runtime here because the web keeps its own
 `assets/js/sync/collection_set.js`.
 
+A collection list is `partial` only when its id is in the case's top-level
+`server_projected` list (the population manifest's `collection.member` list;
+absent means empty) or its card is not held. Every other collection, shared,
+other-workspace and query-listed ones included, is evaluated locally: members
+(edge and `source: "query"` alike) in source order, so by `position`, then
+`order_key` bytewise, then `added_at`, then entity id.
+
 To re-vendor, copy the file from the relay-elixir commit that changed it
 (`git -C <relay-elixir> show <sha>:test/fixtures/collection_set_v1.json >
 spec/relaymark/collection-set-v1.json`), then update the pinned SHA-256 and case
