@@ -7,7 +7,7 @@ import Testing
 /// vendored as spec/relaymark/collection-set-v1.json) through the Swift engine
 /// binding, so Apple lists the same members in the same order as the web.
 struct RelayMarkCollectionSetTests {
-    static let pinnedSHA256 = "36c9e3113d1e1ef488cb109c8ca62bf6291fa9b434f3e2cfa2a3199d023287d0"
+    static let pinnedSHA256 = "b8638caa341dea3228b061ba40976555aab17e0840f7d9104f633ca70d5c889c"
 
     @Test func everySharedCaseListsAsTheContractSays() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -18,7 +18,7 @@ struct RelayMarkCollectionSetTests {
         let fixture = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let sharedRecords = try #require(fixture["records"] as? [[String: Any]])
         let cases = try #require(fixture["cases"] as? [[String: Any]])
-        #expect(cases.count == 36)
+        #expect(cases.count == 38)
         for item in cases {
             let name = item["name"] as? String ?? "?"
             let list = try #require(RelayMarkCollectionSet.List(rawValue: item["list"] as? String ?? ""), "\(name)")

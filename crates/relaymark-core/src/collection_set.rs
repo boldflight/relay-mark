@@ -301,11 +301,22 @@ fn position(member: &Member) -> Option<i64> {
     member.membership.get("position").and_then(Value::as_f64).filter(|p| p.fract() == 0.0).map(|p| p as i64)
 }
 
-/// A collection's source order, which the server leaves to the database, is
-/// locally the order members were added.
+/// A collection's members in its manual order (`Relay.Collections` contained_items_query):
+/// members with an `order_key` first, the keys compared code unit by code unit as the
+/// server's COLLATE "C" does (fractional-index keys are ASCII; never the ICU collator), then
+/// the rest by when they were added, ties by entity id.
 fn by_added(a: &Member, b: &Member) -> Ordering {
+    fn key<'m>(m: &'m Member) -> Option<&'m str> {
+        m.membership.get("order_key").and_then(Value::as_str)
+    }
+    match (key(a), key(b)) {
+        (Some(x), Some(y)) if x != y => return cmp16(x, y),
+        (Some(_), None) => return Ordering::Less,
+        (None, Some(_)) => return Ordering::Greater,
+        _ => {}
+    }
     let added = |m: &Member| instant(m.membership.get("added_at"));
-    cmp_instant(added(a), added(b)).then_with(|| by_name(a.card, b.card))
+    cmp_instant(added(a), added(b)).then_with(|| by_id(a.card, b.card))
 }
 
 /// A course lists its lessons and an album its assets by position there. The

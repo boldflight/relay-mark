@@ -1,7 +1,7 @@
 {
  "spec": "collection-set",
  "version": 1,
- "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`. A case's own `records`, when present, replace the shared ones. `groups` (when present) is the Groups v1 metadata for the page's records: descriptors as [key, label] in rank order (rank = priority, then the label's UTF-8 bytes, then the key's), and each entity's group key. Name collation is ICU root with default (non-numeric) options; expected collation orders were produced by the ICU root collator in Bun (JavaScriptCore) and Node (V8), which agree, and cases are limited to characters whose root order is stable across recent CLDR versions (common Latin with accents, basic kana, common jōyō kanji, ASCII digits, full-width ASCII, one common emoji). Status group descriptors carry keys only ([key]): their labels are the reader's words, resolved at render from priv/display_copy.json (values.<status>, ui.groups.noStatus), en and ja; type groups carry the type's own name.",
+ "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`. A case's own `records`, when present, replace the shared ones. `groups` (when present) is the Groups v1 metadata for the page's records: descriptors as [key, label] in rank order (rank = priority, then the label's UTF-8 bytes, then the key's), and each entity's group key. Name collation is ICU root with default (non-numeric) options; expected collation orders were produced by the ICU root collator in Bun (JavaScriptCore) and Node (V8), which agree, and cases are limited to characters whose root order is stable across recent CLDR versions (common Latin with accents, basic kana, common jōyō kanji, ASCII digits, full-width ASCII, one common emoji). Status group descriptors carry keys only ([key]): their labels are the reader's words, resolved at render from priv/display_copy.json (values.<status>, ui.groups.noStatus), en and ja; type groups carry the type's own name. A collection's source order is its manual order: members with an order_key first, keys compared code unit by code unit (the server's COLLATE \"C\"; never the ICU collator), then members without a key by added_at, ties by entity_id; courses and albums order by position first as before.",
  "records": [
   {
    "projection": "entity.card",
@@ -2083,6 +2083,404 @@
      "l2": "type:et-note",
      "l1": "type:et-note"
     }
+   }
+  },
+  {
+   "list": "collection",
+   "entity_id": "M",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "M",
+     "payload": {
+      "entity_id": "M",
+      "name": "Manual",
+      "entity_type": "collection",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": "collection",
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "Manual"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m1",
+     "payload": {
+      "entity_id": "m1",
+      "name": "one",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "one"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m2",
+     "payload": {
+      "entity_id": "m2",
+      "name": "two",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "two"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m3",
+     "payload": {
+      "entity_id": "m3",
+      "name": "three",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "three"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m4",
+     "payload": {
+      "entity_id": "m4",
+      "name": "four",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "four"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m5",
+     "payload": {
+      "entity_id": "m5",
+      "name": "five",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "five"
+      }
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m1",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m1",
+      "added_at": "2026-10-05T00:00:00Z",
+      "order_key": "a0"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m2",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m2",
+      "added_at": "2026-10-06T00:00:00Z",
+      "order_key": "Zz"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m3",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m3",
+      "added_at": "2026-10-01T00:00:00Z"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m4",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m4",
+      "added_at": "2026-10-01T00:00:00Z"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m5",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m5",
+      "added_at": "2026-10-02T00:00:00Z",
+      "order_key": "a0V"
+     }
+    }
+   ],
+   "name": "manual order: order_key code unit by code unit (Zz before a0), keyed members before the rest, then added order, ties by entity id",
+   "params": {},
+   "expect": {
+    "ids": [
+     "m2",
+     "m1",
+     "m5",
+     "m3",
+     "m4"
+    ],
+    "total": 5,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "list": "collection",
+   "entity_id": "M",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "records": [
+    {
+     "projection": "entity.card",
+     "key": "M",
+     "payload": {
+      "entity_id": "M",
+      "name": "Manual",
+      "entity_type": "collection",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": "collection",
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "Manual"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m1",
+     "payload": {
+      "entity_id": "m1",
+      "name": "one",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "one"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m2",
+     "payload": {
+      "entity_id": "m2",
+      "name": "two",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "two"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m3",
+     "payload": {
+      "entity_id": "m3",
+      "name": "three",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "three"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m4",
+     "payload": {
+      "entity_id": "m4",
+      "name": "four",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "four"
+      }
+     }
+    },
+    {
+     "projection": "entity.card",
+     "key": "m5",
+     "payload": {
+      "entity_id": "m5",
+      "name": "five",
+      "entity_type": "note",
+      "workspace_member": true,
+      "inserted_at": "2026-10-01T00:00:00Z",
+      "created_by": "00000000-0000-4000-8000-00000000000a",
+      "collection_kind": null,
+      "task": null,
+      "card": {
+       "tags": [],
+       "trashed?": false
+      },
+      "row": {
+       "name": "five"
+      }
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m1",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m1",
+      "added_at": "2026-10-05T00:00:00Z",
+      "order_key": "a0"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m2",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m2",
+      "added_at": "2026-10-06T00:00:00Z",
+      "order_key": "Zz"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m3",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m3",
+      "added_at": "2026-10-01T00:00:00Z"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m4",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m4",
+      "added_at": "2026-10-01T00:00:00Z"
+     }
+    },
+    {
+     "projection": "collection.member",
+     "key": "M:m5",
+     "payload": {
+      "collection_id": "M",
+      "entity_id": "m5",
+      "added_at": "2026-10-02T00:00:00Z",
+      "order_key": "a0V"
+     }
+    }
+   ],
+   "name": "manual order reversed by dir asc",
+   "params": {
+    "dir": "asc"
+   },
+   "expect": {
+    "ids": [
+     "m4",
+     "m3",
+     "m5",
+     "m1",
+     "m2"
+    ],
+    "total": 5,
+    "page": 1,
+    "page_count": 1
    }
   }
  ]
