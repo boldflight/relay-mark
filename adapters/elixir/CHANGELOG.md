@@ -5,7 +5,7 @@
 - Question and option settings are one aggregate `settings` attribute, written
   and read whole like stock y-tiptap does; per-key `settings:<key>` fields and
   the `settings: true` marker are refused, and
-  `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1` is gone. The
+  the former `import_aggregate_settings_snapshot` function is gone. The
   contract `schema_hash` changes.
 - `RelayMark.Contract.admit/1` reads a document descriptor only when it is
   exactly this runtime's own contract, including its physical `schema_hash`
@@ -119,7 +119,7 @@
 ## 0.6.3
 
 - Restores the canonical fieldwise settings codec and finite
-  `RelayMark.DocumentXML.import_aggregate_settings_snapshot/1` entry point that
+  the former `import_aggregate_settings_snapshot` entry point that
   were omitted from the 0.6.2 Elixir adapter integration. The existing packaged
   policy remains authoritative across JavaScript, Swift and Elixir.
 - Current XML projections emit and require canonical physical settings. Detached
