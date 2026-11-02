@@ -533,3 +533,21 @@ establish that deletions were accepted.
 aggregate JSON object, byte-identical to stock y-tiptap. There is no per-key
 encoding; see `docs/engineering/settings-encoding-decision.md`. The file is JSON
 and feeds the contract `schema_hash`, so the note lives here.
+
+## Smart-list evaluator fixture
+
+`collection-set-v1.json` is a byte-for-byte copy of relay-elixir
+`test/fixtures/collection_set_v1.json`, which is the authority: the Relay
+server and web own the cases, and relaymark-core (`collection_set` job, Swift
+`RelayMarkCollectionSet`) must pass them. It is not a conformance-suite
+fixture; it has no JavaScript runtime here because the web keeps its own
+`assets/js/sync/collection_set.js`.
+
+To re-vendor, copy the file from the relay-elixir commit that changed it
+(`git -C <relay-elixir> show <sha>:test/fixtures/collection_set_v1.json >
+spec/relaymark/collection-set-v1.json`), then update the pinned SHA-256 and case
+count in `crates/relaymark-core/tests/collection_set.rs` and
+`adapters/swift/Tests/RelayMarkSwiftTests/RelayMarkCollectionSetTests.swift`.
+The two tests fail until both move with the file. New inputs (for example
+grouping) arrive with a new fixture version; extend the engine job to the new
+cases, not ahead of them.

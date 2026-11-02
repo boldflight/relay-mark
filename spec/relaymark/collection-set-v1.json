@@ -1,0 +1,1016 @@
+{
+ "spec": "collection-set",
+ "version": 1,
+ "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`.",
+ "records": [
+  {
+   "projection": "entity.card",
+   "key": "C",
+   "payload": {
+    "entity_id": "C",
+    "name": "Clients",
+    "entity_type": "collection",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": "collection",
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Clients"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "t1",
+   "payload": {
+    "entity_id": "t1",
+    "name": "alpha",
+    "entity_type": "task",
+    "workspace_member": true,
+    "inserted_at": "2026-10-02T00:00:00.000002Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": {
+     "status": "todo"
+    },
+    "card": {
+     "tags": [
+      {
+       "name": "Urgent"
+      }
+     ],
+     "trashed?": false
+    },
+    "row": {
+     "name": "alpha"
+    },
+    "inbox": {
+     "key": [
+      2
+     ],
+     "arrival_at": "2026-10-09T00:00:00Z"
+    },
+    "pin": {
+     "at": "2026-10-10T00:00:00Z",
+     "id": "p1"
+    },
+    "recent_opened_at": "2026-10-11T00:00:00Z",
+    "shared": true
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "t2",
+   "payload": {
+    "entity_id": "t2",
+    "name": "Alpha",
+    "entity_type": "task",
+    "workspace_member": true,
+    "inserted_at": "2026-10-02T00:00:00.000010Z",
+    "created_by": "00000000-0000-4000-8000-00000000000b",
+    "collection_kind": null,
+    "task": {
+     "status": "todo"
+    },
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Alpha"
+    },
+    "inbox": {
+     "key": [
+      1
+     ],
+     "arrival_at": "2026-10-08T00:00:00Z"
+    },
+    "pin": {
+     "at": "2026-10-10T00:00:00Z",
+     "id": "p2"
+    },
+    "recent_opened_at": "2026-10-12T00:00:00Z",
+    "shared": true
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "t3",
+   "payload": {
+    "entity_id": "t3",
+    "name": "beta",
+    "entity_type": "note",
+    "workspace_member": true,
+    "inserted_at": "2026-10-03T00:00:00Z",
+    "created_by": null,
+    "collection_kind": null,
+    "task": null,
+    "card": {
+     "tags": [
+      {
+       "name": "urgent"
+      },
+      {
+       "name": "Later"
+      }
+     ],
+     "trashed?": false
+    },
+    "row": {
+     "name": "beta"
+    },
+    "inbox": {
+     "key": [
+      1
+     ],
+     "arrival_at": "2026-10-07T00:00:00Z"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "t4",
+   "payload": {
+    "entity_id": "t4",
+    "name": "Done thing",
+    "entity_type": "task",
+    "workspace_member": true,
+    "inserted_at": "2026-10-04T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": {
+     "status": "done"
+    },
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Done thing"
+    },
+    "inbox": {
+     "key": [
+      3
+     ],
+     "arrival_at": "2026-10-06T00:00:00Z"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "t5",
+   "payload": {
+    "entity_id": "t5",
+    "name": "gamma",
+    "entity_type": "task",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": {
+     "status": "todo"
+    },
+    "card": {
+     "tags": [],
+     "trashed?": true
+    },
+    "row": {
+     "name": "gamma"
+    },
+    "deleted_at": "2026-10-06T00:00:00.5Z"
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "t6",
+   "payload": {
+    "entity_id": "t6",
+    "name": "delta",
+    "entity_type": "task",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": {
+     "status": "todo"
+    },
+    "card": {
+     "tags": [],
+     "trashed?": true
+    },
+    "row": {
+     "name": "delta"
+    },
+    "deleted_at": "2026-10-06T00:00:00.000001Z"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "C:t3",
+   "payload": {
+    "collection_id": "C",
+    "entity_id": "t3",
+    "added_at": "2026-10-05T00:00:00Z"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "C:t2",
+   "payload": {
+    "collection_id": "C",
+    "entity_id": "t2",
+    "added_at": "2026-10-06T00:00:00Z"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "C:t1",
+   "payload": {
+    "collection_id": "C",
+    "entity_id": "t1",
+    "added_at": "2026-10-07T00:00:00Z"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "C:t4",
+   "payload": {
+    "collection_id": "C",
+    "entity_id": "t4",
+    "added_at": "2026-10-08T00:00:00Z"
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "K",
+   "payload": {
+    "entity_id": "K",
+    "name": "Course",
+    "entity_type": "collection",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": "course",
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Course"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "l1",
+   "payload": {
+    "entity_id": "l1",
+    "name": "Lesson one",
+    "entity_type": "note",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Lesson one"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "l2",
+   "payload": {
+    "entity_id": "l2",
+    "name": "Lesson two",
+    "entity_type": "note",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Lesson two"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "p",
+   "payload": {
+    "entity_id": "p",
+    "name": "Pat",
+    "entity_type": "person",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Pat"
+    }
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "K:l1",
+   "payload": {
+    "collection_id": "K",
+    "entity_id": "l1",
+    "added_at": "2026-10-01T00:00:00Z",
+    "position": 2
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "K:l2",
+   "payload": {
+    "collection_id": "K",
+    "entity_id": "l2",
+    "added_at": "2026-10-02T00:00:00Z",
+    "position": 1
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "K:p",
+   "payload": {
+    "collection_id": "K",
+    "entity_id": "p",
+    "added_at": "2026-10-03T00:00:00Z"
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "AL",
+   "payload": {
+    "entity_id": "AL",
+    "name": "Album",
+    "entity_type": "collection",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": "album",
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "Album"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "x",
+   "payload": {
+    "entity_id": "x",
+    "name": "x asset",
+    "entity_type": "note",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "x asset"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "y",
+   "payload": {
+    "entity_id": "y",
+    "name": "y asset",
+    "entity_type": "note",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "y asset"
+    }
+   }
+  },
+  {
+   "projection": "entity.card",
+   "key": "z",
+   "payload": {
+    "entity_id": "z",
+    "name": "z asset",
+    "entity_type": "note",
+    "workspace_member": true,
+    "inserted_at": "2026-10-01T00:00:00Z",
+    "created_by": "00000000-0000-4000-8000-00000000000a",
+    "collection_kind": null,
+    "task": null,
+    "card": {
+     "tags": [],
+     "trashed?": false
+    },
+    "row": {
+     "name": "z asset"
+    }
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "AL:x",
+   "payload": {
+    "collection_id": "AL",
+    "entity_id": "x",
+    "added_at": "2026-10-01T00:00:00Z"
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "AL:y",
+   "payload": {
+    "collection_id": "AL",
+    "entity_id": "y",
+    "added_at": "2026-10-02T00:00:00Z",
+    "position": 2
+   }
+  },
+  {
+   "projection": "collection.member",
+   "key": "AL:z",
+   "payload": {
+    "collection_id": "AL",
+    "entity_id": "z",
+    "added_at": "2026-10-03T00:00:00Z",
+    "position": 1
+   }
+  },
+  {
+   "projection": "workspace.shell",
+   "key": "entity_type:task",
+   "payload": {
+    "kind": "entity_type",
+    "slug": "task"
+   }
+  },
+  {
+   "projection": "workspace.shell",
+   "key": "entity_type:note",
+   "payload": {
+    "kind": "entity_type",
+    "slug": "note"
+   }
+  },
+  {
+   "projection": "workspace.shell",
+   "key": "entity_type:person",
+   "payload": {
+    "kind": "entity_type",
+    "slug": "person"
+   }
+  },
+  {
+   "projection": "workspace.shell",
+   "key": "entity_type:collection",
+   "payload": {
+    "kind": "entity_type",
+    "slug": "collection"
+   }
+  }
+ ],
+ "cases": [
+  {
+   "name": "collection default: added order, finished tasks hidden",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2",
+     "t1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "collection dir asc reverses the source order",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "dir": "asc"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1",
+     "t2",
+     "t3"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "name asc: downcased name, ties by entity_id",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "sort": "name",
+    "dir": "asc"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1",
+     "t2",
+     "t3"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "name desc reverses the whole list",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "sort": "name",
+    "dir": "desc"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2",
+     "t1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "newest by insertion at microsecond precision",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "sort": "newest"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2",
+     "t1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "oldest by insertion at microsecond precision",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "sort": "oldest"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1",
+     "t2",
+     "t3"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "completed show includes finished tasks",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "sort": "oldest",
+    "completed": "show"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1",
+     "t2",
+     "t3",
+     "t4"
+    ],
+    "total": 4,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "content_source mine",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "content_source": "mine"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1"
+    ],
+    "total": 1,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "content_source others includes an unknown creator",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "content_source": "others"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "tag_names normalized, one tag",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "tag_names": [
+     "URGENT"
+    ]
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t1"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "tag_names all-of",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "tag_names": [
+     "urgent",
+     "later"
+    ]
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3"
+    ],
+    "total": 1,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "text is a case-insensitive name substring",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "text": "AL"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t2",
+     "t1"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "type_slugs with a complete shell catalog",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "type_slugs": [
+     "note"
+    ]
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3"
+    ],
+    "total": 1,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "type_slugs ignored while the shell catalog is partial",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "type_slugs": [
+     "note"
+    ]
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "partial",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2",
+     "t1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "type_slugs naming no enabled type filter nothing",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "type_slugs": [
+     "unknown"
+    ]
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3",
+     "t2",
+     "t1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "a page past the end clamps to the last page",
+   "list": "collection",
+   "entity_id": "C",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "sort": "name",
+    "dir": "asc"
+   },
+   "page": 9,
+   "page_size": 2,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t3"
+    ],
+    "total": 3,
+    "page": 2,
+    "page_count": 2
+   }
+  },
+  {
+   "name": "course: members without a position first, then lessons by position",
+   "list": "collection",
+   "entity_id": "K",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "p",
+     "l2",
+     "l1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "album: assets by position first, then the rest by added order",
+   "list": "collection",
+   "entity_id": "AL",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "z",
+     "y",
+     "x"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox: rank key, then name, then id",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t2",
+     "t3",
+     "t1"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "inbox newest by arrival",
+   "list": "inbox",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {
+    "sort": "newest"
+   },
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1",
+     "t2",
+     "t3"
+    ],
+    "total": 3,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "pinned: newest pin first, then pin id descending",
+   "list": "pinned",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t2",
+     "t1"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "recent: newest open first",
+   "list": "recent",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t2",
+     "t1"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "shared: entity id order",
+   "list": "shared",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t1",
+     "t2"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  },
+  {
+   "name": "trash: newest deletion first at microsecond precision",
+   "list": "trash",
+   "account": "00000000-0000-4000-8000-00000000000a",
+   "params": {},
+   "page": 1,
+   "page_size": 24,
+   "shell_entity_types": "complete",
+   "expect": {
+    "ids": [
+     "t5",
+     "t6"
+    ],
+    "total": 2,
+    "page": 1,
+    "page_count": 1
+   }
+  }
+ ]
+}

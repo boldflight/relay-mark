@@ -24,6 +24,7 @@
 
 mod adapter;
 mod clipboard_navigation;
+mod collection_set;
 mod compile;
 mod compose;
 mod content_edit;
@@ -352,6 +353,12 @@ pub mod edit {
     /// `settings`, from `[base, local, incoming]`; `null` when nothing is left to write.
     pub fn settings_rebase(input: &Value) -> Result<Value> {
         crate::settings_rebase::rebase(input)
+    }
+
+    /// The smart-list evaluator (spec/relaymark/collection-set-v1.json): the
+    /// page of held cards a Composer set shows, `{status, ids, total, page, page_count}`.
+    pub fn collection_set(input: &Value) -> Result<Value> {
+        crate::collection_set::evaluate(input)
     }
 
     /// `prepareContentEditWrite(before, steps, after)`.
