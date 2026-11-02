@@ -1,13 +1,19 @@
 # RelayMark Git and Swift release notes
 
-## Unreleased
+## Elixir adapter 0.7.8 and engine
 
+- Empty document: an empty fragment, the empty document and the empty body agree
+  in relaymark-core, the Elixir adapter, the JS reference and Swift
+  (`spec/relaymark/editor/empty-document-v1.json`). The native editor shows an
+  empty fragment as one empty paragraph, in the view only, and writes it with
+  the first edit in the same update and undo item; the `/checklist` command and
+  every first action work on an empty paper (`RelayMarkNativeDocument.editingTree`).
 - `collection_set` (relaymark-core job, Swift `RelayMarkCollectionSet`): the
-  smart-list evaluator for Composer sets, checked against the 38 shared cases (ordering, filters, ICU root collation,
-  paging and type/status Groups v1) in
+  smart-list evaluator for Composer sets, checked against the 38 shared cases in
   `spec/relaymark/collection-set-v1.json` (vendored from relay-elixir
-  `test/fixtures/collection_set_v1.json`, SHA-256 pinned). No JavaScript
-  runtime here; the web keeps its own module.
+  `test/fixtures/collection_set_v1.json`, SHA-256 pinned): ordering, filters,
+  ICU root collation, manual `order_key` order, paging and type/status Groups
+  v1. No JavaScript runtime here; the web keeps its own module.
 
 ## Elixir adapter 0.7.7
 

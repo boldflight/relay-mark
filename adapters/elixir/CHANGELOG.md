@@ -1,5 +1,21 @@
 # RelayMark Elixir adapter release notes
 
+## 0.7.8
+
+- The empty document is valid everywhere. An empty fragment, the empty document
+  (`{"type":"relaymark.document","blocks":[]}`) and the empty body agree, as
+  y-prosemirror stores an empty body: `RelayMark.DocumentXML.from_document/1`,
+  `to_document/1` and `normalize_document/1` round-trip zero blocks,
+  `RelayMark.project_document/1` returns body `""` and html `""`, and the
+  packaged JS adapter (`priv/collaboration/document-adapter.js`) accepts them.
+  The empty paragraph exists only in an editor's view; nothing writes it. Shared
+  cases: `spec/relaymark/editor/empty-document-v1.json`.
+- The packaged engine adds the `collection_set` job, the smart-list evaluator
+  for Composer sets (filters, sorts, source orders, manual `order_key` order,
+  paging and type/status Groups v1 metadata), checked against
+  `spec/relaymark/collection-set-v1.json`. Names order by the ICU root collator
+  (`icu_collator`, a new dependency of the native crate).
+
 ## 0.7.7
 
 - Ships the client-only settings rebase for browsers:
