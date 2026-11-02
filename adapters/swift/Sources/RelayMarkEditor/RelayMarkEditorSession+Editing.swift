@@ -671,7 +671,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
               let projection = try? proseProjection(document) else { throw LinkEditFailure.selectionChanged }
         let slices = projection.textRanges(in: selection)
         guard slices.count == 1, let slice = slices.first, slice.length == selection.length,
-              var node = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any] else {
+              var node = try document.editingTree() else {
             throw LinkEditFailure.selectionChanged
         }
         for index in slice.path {

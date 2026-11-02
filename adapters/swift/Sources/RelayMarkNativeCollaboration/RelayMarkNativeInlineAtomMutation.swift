@@ -31,7 +31,7 @@ public enum RelayMarkNativeInlineAtomMutation {
                               expectedLeafText: String, atom: Atom) throws -> RelayMarkNativeRichEditing.Change {
         let prose = try document.richProseProjection()
         guard prose.isEditable, childIndex >= 0,
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let root = try document.editingTree(),
               let path = path(to: blockID, in: root, prefix: []),
               let block = node(at: path, in: root),
               let children = block["children"] as? [[String: Any]],
@@ -59,7 +59,7 @@ public enum RelayMarkNativeInlineAtomMutation {
         let prose = try document.richProseProjection()
         guard prose.isEditable,
               let current = prose.inlineAtoms.first(where: { $0.range == range && $0.id == expectedID }),
-              let snapshot = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let snapshot = try document.editingTree(),
               let block = node(at: Array(current.path.dropLast()), in: snapshot),
               let blockID = (block["attributes"] as? [String: Any])?["relaymarkId"] as? String,
               let childIndex = current.path.last else {
@@ -73,7 +73,7 @@ public enum RelayMarkNativeInlineAtomMutation {
                                childIndex: Int, replacing: Bool, atom: Atom) throws -> RelayMarkNativeRichEditing.Change {
         let prose = try document.richProseProjection()
         guard prose.isEditable, childIndex >= 0,
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let root = try document.editingTree(),
               let path = path(to: blockID, in: root, prefix: []),
               let block = node(at: path, in: root),
               let children = block["children"] as? [[String: Any]],

@@ -98,7 +98,7 @@ public enum RelayMarkNativeMediaMutation {
 
     private static func snapshot(_ document: RelayMarkNativeDocument)
         throws -> (root: [String: Any], blocks: [[String: Any]]) {
-        guard let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+        guard let root = try document.editingTree(),
               let blocks = root["children"] as? [[String: Any]] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }

@@ -23,7 +23,7 @@ public enum RelayMarkNativeAgentSuggestionMutation {
               atom.id == expectedID, atom.review == expectedReview,
               atom.kind == expectedKind, atom.confidence == expectedConfidence,
               atom.evidence == expectedEvidence, atom.content == expectedContent,
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let root = try document.editingTree(),
               let blocks = root["children"] as? [[String: Any]], blocks.indices.contains(index),
               blocks[index]["name"] as? String == "agentSuggestion",
               let attributes = blocks[index]["attributes"] as? [String: Any],
@@ -51,7 +51,7 @@ public enum RelayMarkNativeAgentSuggestionMutation {
               atom.id == expectedID, atom.review == expectedReview,
               atom.kind == expectedKind, atom.confidence == expectedConfidence,
               atom.evidence == expectedEvidence, atom.content == expectedContent,
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let root = try document.editingTree(),
               let blocks = root["children"] as? [[String: Any]], blocks.indices.contains(index),
               blocks[index]["name"] as? String == "agentSuggestion",
               let attributes = blocks[index]["attributes"] as? [String: Any] else {
@@ -75,7 +75,7 @@ public enum RelayMarkNativeAgentSuggestionMutation {
         }
         blocks[0]["id"] = firstID; ast["blocks"] = blocks
         let snapshot = try RelayMarkSourceCodec.documentToSnapshot(JSONSerialization.data(withJSONObject: ast))
-        guard let value = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
+        guard let value = try RelayMarkNativeDocument.editingTree(snapshot),
               let children = value["children"] as? [[String: Any]] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }

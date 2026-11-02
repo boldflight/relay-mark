@@ -59,11 +59,6 @@ public enum RelayMarkNativeRichEditing {
     public static func replace(document: RelayMarkNativeDocument, range: NSRange,
                                runs: [(text: String, attributes: [String: Any])], inheritMarks: Bool = false,
                                paper: RelayMarkCollaborativeProse) throws -> Change {
-        // An empty fragment has no top-level node to window around: the edit reads the projected paragraph.
-        if document.topLevelCount == 0 {
-            return try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks,
-                               scope: scope(document: document, expectedSnapshot: document.snapshot()))
-        }
         return try windowed(document: document, paper: paper, range: range) { scope in
             try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks, scope: scope)
         }
@@ -162,10 +157,9 @@ public enum RelayMarkNativeRichEditing {
     public static func insert(document: RelayMarkNativeDocument, range: NSRange, content: [Inline],
                               expectedSnapshot: Data) throws -> Change {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              let raw = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any], !content.isEmpty else {
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot), !content.isEmpty else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        let tree = RelayMarkNativeDocument.projected(raw)
         let projection = try document.richProseProjection()
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
@@ -220,7 +214,7 @@ public enum RelayMarkNativeRichEditing {
     public static func insertBlock(document: RelayMarkNativeDocument, range: NSRange, block json: [String: Any],
                                    placement: BlockPlacement, expectedSnapshot: Data) throws -> Change {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let projection = try document.richProseProjection()
@@ -297,7 +291,7 @@ public enum RelayMarkNativeRichEditing {
         authoredAST: Data, openStart: Int, openEnd: Int, expectedSnapshot: Data) throws -> Change {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
               range.location >= 0, range.length >= 0, openStart >= 0, openEnd >= 0,
-              let before = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let before = try RelayMarkNativeDocument.editingTree(expectedSnapshot),
               let incomingSnapshot = try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.documentToSnapshot(authoredAST)) as? [String: Any],
               (incomingSnapshot["metadata"] == nil || (incomingSnapshot["metadata"] as? [String: Any])?.isEmpty == true) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
@@ -1013,10 +1007,10 @@ public enum RelayMarkNativeRichEditing {
 
     static func scope(document: RelayMarkNativeDocument, expectedSnapshot: Data) throws -> Scope {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        return Scope(tree: RelayMarkNativeDocument.projected(tree), projection: try document.richProseProjection(), nodes: nil, offset: 0)
+        return Scope(tree: tree, projection: try document.richProseProjection(), nodes: nil, offset: 0)
     }
 
     /// An item window: the touched items of top-level list `node` with one
@@ -1042,6 +1036,9 @@ public enum RelayMarkNativeRichEditing {
     /// itself, such as lifting an item out of it, runs again on the whole list.
     static func windowed<Value>(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse, range: NSRange,
                                 _ run: (Scope) throws -> Value) throws -> Value {
+        // An empty fragment has no top-level node to window around: the command reads the
+        // projected paragraph (the whole, one-node paper) and materializes it when it writes.
+        if document.topLevelCount == 0 { return try run(scope(document: document, expectedSnapshot: document.snapshot())) }
         guard let first = paper.itemIndex(atUTF16: range.location), let last = paper.itemIndex(atUTF16: NSMaxRange(range)) else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
@@ -1054,6 +1051,7 @@ public enum RelayMarkNativeRichEditing {
     /// The same for commands addressed by XML paths.
     static func windowed<Value>(document: RelayMarkNativeDocument, paper: RelayMarkCollaborativeProse, paths: [[Int]],
                                 _ run: (Scope) throws -> Value) throws -> Value {
+        if document.topLevelCount == 0 { return try run(scope(document: document, expectedSnapshot: document.snapshot())) }
         guard let firsts = paths.map(\.first) as? [Int], let low = firsts.min(), let high = firsts.max() else {
             throw RelayMarkNativeDocument.Failure.invalidTextPath
         }

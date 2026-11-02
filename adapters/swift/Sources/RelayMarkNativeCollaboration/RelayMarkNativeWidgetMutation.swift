@@ -15,7 +15,7 @@ import RelayMarkSwift
         else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         ast["blocks"] = [block]
         let snapshot = try RelayMarkSourceCodec.documentToSnapshot(JSONSerialization.data(withJSONObject: ast))
-        guard let tree = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
+        guard let tree = try RelayMarkNativeDocument.editingTree(snapshot)
         else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let bridge = try PMYXmlBridge.canonical(), incoming = try bridge.document(fromSnapshot: tree)
         guard incoming.childCount == 1 else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
@@ -27,7 +27,7 @@ import RelayMarkSwift
                               authoredBlock: Data,expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
         guard try document.snapshot()==expectedSnapshot,let block=try JSONSerialization.jsonObject(with:authoredBlock) as? [String:Any],
               let type=block["type"] as? String,type.hasPrefix("relay.") else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
-        guard let tree=try JSONSerialization.jsonObject(with:expectedSnapshot) as? [String:Any],
+        guard let tree=try RelayMarkNativeDocument.editingTree(expectedSnapshot),
               var ast=try JSONSerialization.jsonObject(with:document.authoredDocument()) as? [String:Any] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         // A nested option/label is not a legal document root. Resolve its actual
         // identified parent, then validate the complete prospective authored tree.
@@ -72,7 +72,7 @@ import RelayMarkSwift
     public static func remove(document:RelayMarkNativeDocument,path:[Int],expectedID:String,
                               expectedSnapshot:Data) throws -> RelayMarkNativeRichEditing.Change {
         guard !path.isEmpty,try document.snapshot()==expectedSnapshot,
-              let tree=try JSONSerialization.jsonObject(with:expectedSnapshot) as? [String:Any] else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
+              let tree=try RelayMarkNativeDocument.editingTree(expectedSnapshot) else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let node=try RelayMarkNativeRichXML.node(at:path,in:tree)
         guard let attributes=node["attributes"] as? [String:Any],attributes["relaymarkId"] as? String==expectedID else { throw RelayMarkNativeDocument.Failure.invalidTextPath }
         return try RelayMarkNativeRichEditing.removeWidget(document: document, tree: tree, id: expectedID)
@@ -84,7 +84,7 @@ import RelayMarkSwift
                             direction: Int, expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
         guard !path.isEmpty, direction == -1 || direction == 1,
               try document.snapshot() == expectedSnapshot,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot),
               let index = path.last else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let parentPath = Array(path.dropLast())
         let parent = try RelayMarkNativeRichXML.node(at: parentPath, in: tree)
@@ -110,7 +110,7 @@ import RelayMarkSwift
                   path.dropLast().elementsEqual(first.dropLast()) && path.last.map { $0 >= index && $0 - index == offset } == true
               }),
               let fields = try JSONSerialization.jsonObject(with: props) as? [String: Any],
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot),
               var ast = try JSONSerialization.jsonObject(with: document.authoredDocument()) as? [String: Any]
         else { throw RelayMarkNativeDocument.Failure.unsupportedProseEdit }
         let parentPath = Array(first.dropLast())
@@ -170,7 +170,7 @@ import RelayMarkSwift
     public static func updateAttributes(document: RelayMarkNativeDocument,
                                         updates: [AttributeUpdate]) throws -> RelayMarkNativeRichEditing.Change {
         guard !updates.isEmpty, Set(updates.map(\.id)).count == updates.count,
-              let tree = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any] else {
+              let tree = try document.editingTree() else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         var changes: [(id: String, attributes: [String: Any])] = []
@@ -193,7 +193,7 @@ import RelayMarkSwift
     public static func updateAttributes(document: RelayMarkNativeDocument,path: [Int],expectedID: String,
                                         expected: Data,changes: Data,
                                         expectedMediaSource: String? = nil) throws -> RelayMarkNativeRichEditing.Change {
-        guard let tree = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any] else {
+        guard let tree = try document.editingTree() else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
         let guarded = try guardedAttributes(tree: tree, path: path, expectedID: expectedID,

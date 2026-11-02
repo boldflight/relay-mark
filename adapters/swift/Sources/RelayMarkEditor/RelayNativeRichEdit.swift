@@ -193,7 +193,7 @@ enum RelayNativeRichEdit {
         guard offset >= 0, let projection = try? document.richProseProjection(),
               let row = projection.blockRanges.enumerated().first(where: { _, range in
                   offset >= range.location && offset <= NSMaxRange(range)
-              }), var node = (try? JSONSerialization.jsonObject(with: document.snapshot())) as? [String: Any] else { return false }
+              }), var node = (try? document.editingTree()) else { return false }
         for index in projection.blockPaths[row.offset] {
             guard let children = node["children"] as? [[String: Any]], children.indices.contains(index) else { return false }
             node = children[index]
@@ -381,7 +381,7 @@ enum RelayNativeRichEdit {
     // existing Yrs run rather than silently replacing its declaration.
     private static func existingLink(document: RelayMarkNativeDocument, location: Location,
                                      href: String) throws -> [String: Any]? {
-        guard var node = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any] else {
+        guard var node = try document.editingTree() else {
             return nil
         }
         for index in location.path {

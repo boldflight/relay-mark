@@ -91,8 +91,11 @@ identity `b00000000000040008000000000000000`, which is never persisted. The firs
 writes a paragraph with a fresh identity and the edit's content in one transaction. Two replicas
 that both make a first edit on an empty fragment and then merge hold two paragraphs, as in
 y-prosemirror. `from_snapshot` still refuses an empty `children` array: a host presents the
-placeholder paragraph before asking the engine to convert (relaymark-native `RelayMarkNativeDocument`
-does this once, for every native projection and rich edit).
+placeholder paragraph before asking the engine to convert. The native layer does this once
+(`RelayMarkNativeDocument.editingTree`) for every projection and edit, and writes the real
+paragraph once (`applyProseMirror` for ProseMirror-based edits, `materializePlaceholder` for path
+edits) in the same undo item as the edit. Edits addressed by a Yjs anchor or text path need a
+real node and fail plainly on an empty fragment.
 
 ## Positions, edits, and origins
 

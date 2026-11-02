@@ -16,7 +16,7 @@ public enum RelayMarkNativeRichTextMutation {
                                childIndex: Int, start: Int, end: Int, text: String) throws -> Data {
         _ = try RelayMarkNativeDocumentProjection.project(document: document)
         guard childIndex >= 0,
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let root = try document.editingTree(),
               let path = path(to: blockID, in: root, prefix: []),
               let children = node(at: path, in: root)?["children"] as? [[String: Any]],
               children.indices.contains(childIndex), children[childIndex]["kind"] as? String == "text" else {
@@ -62,7 +62,7 @@ public enum RelayMarkNativeRichTextMutation {
                                 start: Int, end: Int, text: String,
                                 insertionRuns: [(text: String, attributes: [String: Any])]?) throws -> Data {
         let snapshot = try document.snapshot()
-        let tree = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]
+        let tree = try RelayMarkNativeDocument.editingTree(snapshot)
         let current = tree.flatMap { node(at: path, in: $0) }
         let parent = tree.flatMap { node(at: Array(path.dropLast()), in: $0) }
         let code = current?["name"] as? String == "codeBlock" || parent?["name"] as? String == "codeBlock"
@@ -103,7 +103,7 @@ public enum RelayMarkNativeRichTextMutation {
     }
 
     private static func isEmptyTextBlock(snapshot: Data, path: [Int]) throws -> Bool {
-        guard let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
+        guard let root = try RelayMarkNativeDocument.editingTree(snapshot),
               let block = node(at: path, in: root),
               block["kind"] as? String == "element",
               (block["children"] as? [Any])?.isEmpty == true else { return false }
@@ -117,7 +117,7 @@ public enum RelayMarkNativeRichTextMutation {
     private static func staysWithinOneTextRun(snapshot: Data, path: [Int],
                                               start: Int, end: Int, text: String, explicitMarks: Bool) throws -> Bool {
         guard start >= 0, path.count >= 2,
-              let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any] else {
+              let root = try RelayMarkNativeDocument.editingTree(snapshot) else {
             return false
         }
         var node = root

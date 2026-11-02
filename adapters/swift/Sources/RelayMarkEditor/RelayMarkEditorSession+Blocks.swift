@@ -37,7 +37,7 @@ extension RelayMarkEditorSession {
         let projection = try currentProjection()
         guard let row = projection.blockRanges.firstIndex(where: {
             selection.location >= $0.location && NSMaxRange(selection) <= NSMaxRange($0)
-        }), var node = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any] else {
+        }), var node = try document.editingTree() else {
             throw ListStartFailure.selectionChanged
         }
         // The immediate containing list owns numbering. A nested bullet item
@@ -164,7 +164,7 @@ extension RelayMarkEditorSession {
         }
         let projection = try currentProjection()
         let snapshot = try document.snapshot()
-        guard let tree = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
+        guard let tree = try RelayMarkNativeDocument.editingTree(snapshot),
               let anchorCell = tableCell(at: selection.location, projection: projection, tree: tree) else {
             throw TableCommandFailure.changed
         }
@@ -271,7 +271,7 @@ extension RelayMarkEditorSession {
                   $0.titleRange == nil && selection.location >= $0.range.location &&
                       NSMaxRange(selection) <= NSMaxRange($0.range)
               }),
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let root = try document.editingTree(),
               let path = richNodePath(root, name: "callout", id: callout.id) else {
             throw CalloutTitleFailure.changed
         }
@@ -314,7 +314,7 @@ extension RelayMarkEditorSession {
               let callout = nativeCallouts.first(where: {
                   selection.location >= $0.range.location && NSMaxRange(selection) <= NSMaxRange($0.range)
               }),
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any] else {
+              let root = try document.editingTree() else {
             throw CalloutAppearanceFailure.changed
         }
         guard let path = richNodePath(root, name: "callout", id: callout.id) else { throw CalloutAppearanceFailure.changed }
@@ -358,7 +358,7 @@ extension RelayMarkEditorSession {
         guard let row = projection.blockRanges.enumerated().first(where: { index, range in
             projection.blockPaths[index].count == 1 && selection.location >= range.location &&
                 NSMaxRange(selection) <= NSMaxRange(range)
-        }), let tree = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+        }), let tree = try document.editingTree(),
               let blocks = tree["children"] as? [[String: Any]] else { return nil }
         let index = projection.blockPaths[row.offset][0]
         guard blocks.indices.contains(index), let name = blocks[index]["name"] as? String,
@@ -443,7 +443,7 @@ extension RelayMarkEditorSession {
         guard let index = projection.blockRanges.firstIndex(where: {
             selection.location >= $0.location && NSMaxRange(selection) <= NSMaxRange($0)
         }), projection.blockPaths[index].count == 1,
-            let tree = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+            let tree = try document.editingTree(),
             let children = tree["children"] as? [[String: Any]] else { return nil }
         let path = projection.blockPaths[index]
         guard children.indices.contains(path[0]), children[path[0]]["name"] as? String == "heading",

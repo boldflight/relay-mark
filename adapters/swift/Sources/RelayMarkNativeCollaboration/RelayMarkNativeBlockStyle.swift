@@ -12,7 +12,7 @@ public extension RelayMarkNativeDocument {
                                 expectedSnapshot: Data) throws -> RelayMarkNativeRichEditing.Change {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
               try richProseProjection().isEditable,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot),
               let blocks = tree["children"] as? [[String: Any]], blocks.indices.contains(index),
               ["paragraph", "heading"].contains(blocks[index]["name"] as? String ?? ""),
               let attributes = blocks[index]["attributes"] as? [String: Any],

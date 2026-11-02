@@ -82,7 +82,7 @@ public enum RelayMarkNativePaperControlMutation {
         throws -> (root: [String: Any], blocks: [[String: Any]], prose: RelayMarkCollaborativeProse) {
         let prose = try document.richProseProjection()
         guard prose.isEditable,
-              let root = try JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any],
+              let root = try document.editingTree(),
               let blocks = root["children"] as? [[String: Any]] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }

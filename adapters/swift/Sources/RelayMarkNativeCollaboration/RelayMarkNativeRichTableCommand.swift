@@ -46,7 +46,7 @@ public enum RelayMarkNativeRichTableCommand {
                                 expectedSnapshot: Data) throws -> Context {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
               try document.richProseProjection().isEditable,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else { throw Failure.invalidAnchor }
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot) else { throw Failure.invalidAnchor }
         func cellPath(_ reference: (Data, String)) throws -> [Int] {
             guard let position = try document.resolve(anchor: reference.0), position.index == 0, position.path.count >= 3 else { throw Failure.invalidAnchor }
             let cell = try RelayMarkNativeRichXML.node(at: position.path, in: tree)

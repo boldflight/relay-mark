@@ -72,7 +72,7 @@ private extension RelayMarkNativeDocument {
                                     expectedSnapshot: Data) throws -> (tree: [String: Any], name: String, selection: [String: Any]) {
         guard integrationStatus().isComplete, try snapshot() == expectedSnapshot,
               try richProseProjection().isEditable,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else { throw Failure.unsupportedProseEdit }
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot) else { throw Failure.unsupportedProseEdit }
         let bridge = try PMYXmlBridge.canonical(), source = try bridge.document(fromSnapshot: tree)
         let position = try RelayMarkNativeRichEditing.positionForPath(paragraphPath, in: source) + 1
         let name = change == .indent ? "sink_list_item" : "lift_list_item"

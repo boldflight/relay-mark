@@ -455,6 +455,18 @@ public final class RelayMarkNativeDocument {
 
     func projectedSnapshot() throws -> Data { try Self.projected(snapshot: snapshot()) }
 
+    /// The tree every edit reads and addresses: `snapshot()` as a dictionary, with the empty
+    /// fragment's placeholder paragraph in place. Read-only callers that need the lossless
+    /// tree keep using `snapshot()`; an edit built on this tree is written by
+    /// `applyProseMirror` or by `localTransaction`, which materialize the placeholder in the
+    /// edit's own transaction.
+    public func editingTree() throws -> [String: Any]? { try Self.editingTree(snapshot()) }
+
+    /// The same for a snapshot the caller already holds (an `expectedSnapshot`).
+    public static func editingTree(_ snapshot: Data) throws -> [String: Any]? {
+        (try JSONSerialization.jsonObject(with: snapshot) as? [String: Any]).map(projected)
+    }
+
     /// Basic canonical Markdown read/selection map after strict whole-document AST
     /// validation. Tables and other unsupported presentation shapes stay gated.
     /// One snapshot and one codec conversion serve both the document validation and the prose projection.
@@ -1226,7 +1238,7 @@ public final class RelayMarkNativeDocument {
             throw Failure.invalidAnchor
         }
         let titleID = RelayMarkNativeRichXML.freshID()
-        let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as! [String: Any]
+        let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot)!
         let title: [String: Any] = ["kind": "element", "name": "calloutTitle",
             "attributes": ["relaymarkId": titleID], "children": [["kind": "text", "delta": [["insert": "Title"]]]]]
         var candidate = tree
@@ -1270,7 +1282,7 @@ public final class RelayMarkNativeDocument {
 
     private func authoredAttributeChange(_ node: YXmlNode, attributes: [String: Any]) throws -> RelayMarkNativeRichEditing.Change {
         guard let id = try node.attributes()["relaymarkId"] as? String else { throw Failure.invalidAnchor }
-        let tree = try JSONSerialization.jsonObject(with: snapshot()) as! [String: Any]
+        let tree = try editingTree()!
         return try RelayMarkNativeRichEditing.updateWidget(document: self, tree: tree, id: id, attributes: attributes)
     }
 
@@ -1428,7 +1440,7 @@ public final class RelayMarkNativeDocument {
             "attributes": ["relaymarkId": itemID, "checked": false], "children": [paragraph]]
         let list: [String: Any] = ["kind": "element", "name": "taskList",
             "attributes": ["relaymarkId": listID], "children": [item]]
-        let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as! [String: Any]
+        let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot)!
         let change = try RelayMarkNativeRichEditing.replaceRootChildren(document: self, tree: tree,
             index: path[0] + 1, count: 0, replacements: [list])
         return (change, listID, itemID, paragraphID)
@@ -1548,7 +1560,7 @@ public final class RelayMarkNativeDocument {
         }
         let changes = items.filter { $0.expectedChecked != checked }.map { (id: $0.expectedID, attributes: ["checked": checked] as [String: Any]) }
         guard !changes.isEmpty,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
+              let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot) else {
             throw Failure.unsupportedProseEdit
         }
         return try RelayMarkNativeRichEditing.updateWidgets(document: self, tree: tree, changes: changes)
@@ -1755,6 +1767,12 @@ public final class RelayMarkNativeDocument {
                               attributeUpdates: [SnapshotAttributeUpdate] = [],
                               metadataUpdates: [String:RelayMarkValue] = [:],
                               origin: Origin? = nil) throws -> Data {
+        // An edit computed on the padded tree of an empty fragment that addresses the
+        // placeholder (below it, after it, or inside it) writes the real paragraph first.
+        let materializes = root.length() == 0 && (!attributeUpdates.isEmpty || !textRemovals.isEmpty
+            || replacements.contains { !$0.parentPath.isEmpty || $0.start > 0 || $0.count > 0 })
+        let stateBefore = materializes ? stateVector() : nil
+        if materializes { try materializePlaceholder() }
         let attributeTargets = try attributeUpdates.map { update -> (YXmlNode, [String: Any]) in
             var node = root
             for index in update.path {
@@ -1785,9 +1803,9 @@ public final class RelayMarkNativeDocument {
                   first <= parent.length(), removed <= parent.length() - first else { throw Failure.invalidTextPath }
             return (parent, first, removed, replacement.nodes)
         }
-        wrapUndo()
+        if !materializes { wrapUndo() }
         revision &+= 1
-        let update = try document.transactSync(origin: origin ?? localOrigin) { transaction in
+        var update = try document.transactSync(origin: origin ?? localOrigin) { transaction in
             func append(_ raw: [String: Any], to parent: YXmlNode, at index: UInt32) throws {
                 if raw["kind"] as? String == "text" {
                     let leaf = try parent.insertText(at: index, in: transaction)
@@ -1833,8 +1851,23 @@ public final class RelayMarkNativeDocument {
             }
             return Data(transaction.transactionEncodeUpdate())
         }
+        // The paragraph and the edit are one update and one undo item.
+        if let stateBefore { update = try encodeUpdate(since: stateBefore) }
         wrapUndo()
         return update
+    }
+
+    /// The one writer of the empty fragment's placeholder: a real empty paragraph with a fresh
+    /// id, at index 0. It does not close the undo item, so the edit that needs it joins it.
+    func materializePlaceholder() throws {
+        guard root.length() == 0 else { return }
+        wrapUndo()
+        revision &+= 1
+        _ = try document.transactSync(origin: localOrigin) { transaction in
+            let paragraph = try self.root.insertElement(named: "paragraph", at: 0, in: transaction)
+            try paragraph.setAttribute("relaymarkId", value: RelayMarkNativeRichXML.freshID(), in: transaction)
+            return Data(transaction.transactionEncodeUpdate())
+        }
     }
 
     private func snapshot(_ node: YXmlNode) throws -> [String: Any] {

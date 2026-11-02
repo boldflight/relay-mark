@@ -107,4 +107,93 @@ final class RelayMarkNativeEmptyFragmentTests: XCTestCase {
         XCTAssertEqual(try document.richProseProjection().blockPaths, [[0]])
         XCTAssertEqual(String(try document.richProseProjection().text.characters), "One")
     }
+
+    // Every first action on an empty paper, as a person can reach it: the paragraph and the
+    // edit land in one update that reproduces the whole change on a peer, one undo item takes
+    // it all back, and the projected placeholder id is never persisted. Keep: each of these
+    // read the tree, an index or an id from the lossless snapshot, which has no paragraph.
+    func testEveryFirstActionOnAnEmptyPaperMaterializesOneParagraphWithTheEdit() throws {
+        let reference = RelayMarkNativeInlineAtomMutation.Atom(kind: .relayReference, attributes: [
+            "entityType": "Person", "entityId": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "label": "Grace Hopper",
+            "source": "[[Person: bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb | Grace Hopper]]"])
+        let tag = RelayMarkNativeInlineAtomMutation.Atom(kind: .relayTag, attributes: [
+            "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "name": "followup",
+            "source": "[[Tag: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa | #followup]]"])
+        let slice = try JSONSerialization.data(withJSONObject: [
+            "slice": ["content": [["type": "paragraph", "content": [["type": "text", "text": "Pasted"]]]], "openStart": 1, "openEnd": 1],
+            "normalizations": [[String: Any]]()])
+        let caret = NSRange(location: 0, length: 0)
+        let cases: [(name: String, blocks: [String], edit: (RelayMarkNativeDocument) throws -> Data)] = [
+            ("Enter", ["paragraph", "paragraph"], { document in
+                try RelayMarkNativeRichReturn.apply(document: document, blockPath: [0], utf16Offset: 0,
+                                                    expectedSnapshot: document.snapshot()).change.update }),
+            ("heading", ["heading"], { document in
+                try document.setRichBlockStyle(at: 0, style: .heading(1), expectedSnapshot: document.snapshot()).update }),
+            ("bullet list", ["bulletList"], { document in
+                try document.setRichBlockStyle(at: 0, style: .bulletList, expectedSnapshot: document.snapshot()).update }),
+            ("checklist", ["taskList"], { document in
+                try document.setRichBlockStyle(at: 0, style: .taskList, expectedSnapshot: document.snapshot()).update }),
+            ("reference chip", ["paragraph"], { document in
+                try RelayMarkNativeRichEditing.insert(document: document, range: caret,
+                    content: [.node(reference.kind.rawValue, attributes: reference.attributes.mapValues { $0 as Any })],
+                    expectedSnapshot: document.snapshot()).update }),
+            ("tag", ["paragraph"], { document in
+                try RelayMarkNativeRichEditing.insert(document: document, range: caret,
+                    content: [.node(tag.kind.rawValue, attributes: tag.attributes.mapValues { $0 as Any })],
+                    expectedSnapshot: document.snapshot()).update }),
+            ("reference chip by block id", ["paragraph"], { document in
+                try RelayMarkNativeInlineAtomMutation.insert(document: document, blockID: RelayMarkNativeDocument.virtualParagraphID,
+                                                             childIndex: 0, atom: reference).update }),
+            ("rich paste", ["paragraph"], { document in
+                try RelayMarkNativeRichEditing.insertDocumentSlice(document: document, range: caret, clipboardSlice: slice,
+                                                                   expectedSnapshot: document.snapshot()).update }),
+            // The host shows the placeholder as the first block, so its neighbours are the placeholder.
+            ("image before the empty line", ["image", "paragraph"], { document in
+                try RelayMarkNativeMediaMutation.insert(document: document, atRootIndex: 0, expectedPreviousID: nil,
+                    expectedNextID: RelayMarkNativeDocument.virtualParagraphID,
+                    block: .init(id: "b11111111111141118111111111111111", kind: .image, source: "https://example.com/a.png")).update }),
+            ("image after the empty line", ["paragraph", "image"], { document in
+                try RelayMarkNativeMediaMutation.insert(document: document, atRootIndex: 1,
+                    expectedPreviousID: RelayMarkNativeDocument.virtualParagraphID, expectedNextID: nil,
+                    block: .init(id: "b11111111111141118111111111111111", kind: .image, source: "https://example.com/a.png")).update }),
+        ]
+        for item in cases {
+            let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+            let update: Data
+            do { update = try item.edit(document) } catch { XCTFail("\(item.name): \(error)"); continue }
+            try peer.applyUpdate(update)
+            for replica in [document, peer] {
+                let raw = try replica.snapshot()
+                XCTAssertFalse(String(decoding: raw, as: UTF8.self).contains(RelayMarkNativeDocument.virtualParagraphID), item.name)
+                XCTAssertEqual(try children(replica).compactMap { $0["name"] as? String }, item.blocks, item.name)
+                XCTAssertNoThrow(try replica.richProseProjection(), item.name)
+            }
+            XCTAssertEqual(try document.snapshot(), try peer.snapshot(), "\(item.name): the one update carries the whole edit")
+            // One undo item takes the paragraph and the edit back together.
+            _ = try document.undo()
+            XCTAssertEqual(document.topLevelCount, 0, "\(item.name): one undo item")
+        }
+    }
+
+    func testUndoOfTheFirstEditEmptiesThePaperAgainAndAPeerFollows() throws {
+        let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(firstRichEdit(document, "Hi"))
+        let undone = try XCTUnwrap(document.undo())
+        try peer.applyUpdate(undone)
+        XCTAssertEqual(document.topLevelCount, 0)
+        XCTAssertEqual(peer.topLevelCount, 0)
+        XCTAssertEqual(String(try document.richProseProjection().text.characters), "", "it projects as the empty paragraph again")
+    }
+
+    // An edit addressed to a node by Yjs anchor or by text path needs that node to exist: it fails
+    // plainly and writes nothing.
+    func testEditsThatNeedARealNodeFailPlainlyAndWriteNothing() throws {
+        let document = RelayMarkNativeDocument()
+        let state = try document.encodeUpdate()
+        XCTAssertThrowsError(try document.anchor(path: [0], index: 0))
+        XCTAssertThrowsError(try document.replaceListParagraphText(anchor: Data([0, 0]), start: 0, end: 0, text: "x"))
+        XCTAssertThrowsError(try document.typeText("x", replacing: 0, at: 0, path: [0, 0]))
+        XCTAssertEqual(try document.encodeUpdate(), state)
+        XCTAssertEqual(document.topLevelCount, 0)
+    }
 }

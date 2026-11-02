@@ -316,7 +316,7 @@ public final class RelayMarkEditorSession {
         guard candidates.count == 1 else { throw TaskListInsertionFailure.changed }
         let path = projection.blockPaths[candidates[0].offset]
         let snapshot = try document.snapshot()
-        guard let root = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
+        guard let root = try RelayMarkNativeDocument.editingTree(snapshot),
               let children = root["children"] as? [[String: Any]], children.indices.contains(path[0]),
               children[path[0]]["name"] as? String == "paragraph" else {
             throw TaskListInsertionFailure.changed
