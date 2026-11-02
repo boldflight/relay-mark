@@ -413,11 +413,12 @@ pub fn evaluate(input: &Value) -> Result<Value> {
 //
 // Type groups are labelled by the workspace's type name; status groups follow
 // `STATUS_ORDER` and include every status target of the page's types, so a
-// board column may be empty. Descriptors are `[key, label]` in rank order
+// board column may be empty. Descriptors are `[key, label]` for a type group and `[key]` for a status group, in rank order
 // (priority, then the label's UTF-8 bytes, then the key's), and each entity
-// maps to its group key. Labels are English: the web humanizes slugs and
-// statuses the same way, and a localized label would come from the shell type
-// name, which the host supplies.
+// maps to its group key. A type group is labelled by the shell type's name (the host
+// supplies it; a missing entry reads as the humanized slug). A status descriptor has no
+// label, only its key; the English status name below exists to rank unknown statuses the
+// way the server does, and is never shown.
 
 /// Which entity types accept each status target, in the order targets are added.
 const STATUS_ACCEPTS: [(&str, &[&str]); 11] = [
@@ -547,7 +548,10 @@ fn group_metadata(grouping: &str, cards: &[&Value], types: &[&Value]) -> Value {
     }
     groups.sort_by(|a, b| a.rank.cmp(&b.rank));
     let keys: Map<String, Value> = cards.iter().filter_map(|c| Some((str_field(c, "entity_id")?.to_owned(), Value::String(describe(c).key)))).collect();
-    json!({"grouping": grouping, "descriptors": groups.iter().map(|g| json!([g.key, g.label])).collect::<Vec<_>>(), "entity_group_keys": keys})
+    // A status descriptor is its key alone: clients resolve the words at render. A type
+    // descriptor carries the type's own name.
+    let descriptors: Vec<Value> = groups.iter().map(|g| if grouping == "type" { json!([g.key, g.label]) } else { json!([g.key]) }).collect();
+    json!({"grouping": grouping, "descriptors": descriptors, "entity_group_keys": keys})
 }
 
 #[cfg(test)]

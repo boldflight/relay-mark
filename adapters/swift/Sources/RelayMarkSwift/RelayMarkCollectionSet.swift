@@ -52,7 +52,8 @@ public enum RelayMarkCollectionSet {
     public struct Groups: Equatable, Sendable {
         public struct Descriptor: Equatable, Sendable {
             public var key: String
-            public var label: String
+            /// A type group's own name; nil for a status group, whose words the client resolves at render.
+            public var label: String?
         }
         public var grouping: Grouping
         public var descriptors: [Descriptor]
@@ -90,10 +91,10 @@ public enum RelayMarkCollectionSet {
         var groups: Groups?
         if let raw = result["groups"] as? [String: Any] {
             guard let grouping = (raw["grouping"] as? String).flatMap(Grouping.init(rawValue:)), let descriptors = raw["descriptors"] as? [[String]],
-                  let keys = raw["entity_group_keys"] as? [String: String], descriptors.allSatisfy({ $0.count == 2 }) else {
+                  let keys = raw["entity_group_keys"] as? [String: String], descriptors.allSatisfy({ (1...2).contains($0.count) }) else {
                 throw RelayMarkSourceCodec.Failure.invalidInput
             }
-            groups = Groups(grouping: grouping, descriptors: descriptors.map { .init(key: $0[0], label: $0[1]) }, entityGroupKeys: keys)
+            groups = Groups(grouping: grouping, descriptors: descriptors.map { .init(key: $0[0], label: $0.count > 1 ? $0[1] : nil) }, entityGroupKeys: keys)
         }
         return Page(status: status, ids: ids, total: result["total"] as? Int, page: page, pageCount: result["page_count"] as? Int, groups: groups)
     }

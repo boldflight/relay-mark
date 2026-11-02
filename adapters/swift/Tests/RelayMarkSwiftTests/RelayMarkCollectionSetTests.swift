@@ -7,7 +7,7 @@ import Testing
 /// vendored as spec/relaymark/collection-set-v1.json) through the Swift engine
 /// binding, so Apple lists the same members in the same order as the web.
 struct RelayMarkCollectionSetTests {
-    static let pinnedSHA256 = "c6acd58492a589707e7a63d4033982c5974ca5d634ce333a44c81ea1cc1a408e"
+    static let pinnedSHA256 = "36c9e3113d1e1ef488cb109c8ca62bf6291fa9b434f3e2cfa2a3199d023287d0"
 
     @Test func everySharedCaseListsAsTheContractSays() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -37,7 +37,7 @@ struct RelayMarkCollectionSetTests {
             #expect(page.pageCount == expected["page_count"] as? Int, "\(name)")
             #expect(page.status == .complete, "\(name)")
             if let expectedGroups {
-                let descriptors = (expectedGroups["descriptors"] as? [[String]] ?? []).map { RelayMarkCollectionSet.Groups.Descriptor(key: $0[0], label: $0[1]) }
+                let descriptors = (expectedGroups["descriptors"] as? [[String]] ?? []).map { RelayMarkCollectionSet.Groups.Descriptor(key: $0[0], label: $0.count > 1 ? $0[1] : nil) }
                 #expect(page.groups?.descriptors == descriptors, "\(name)")
                 #expect(page.groups?.entityGroupKeys == expectedGroups["entity_group_keys"] as? [String: String], "\(name)")
             } else {

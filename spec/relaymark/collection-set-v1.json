@@ -1,7 +1,7 @@
 {
  "spec": "collection-set",
  "version": 1,
- "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`. A case's own `records`, when present, replace the shared ones. `groups` (when present) is the Groups v1 metadata for the page's records: descriptors as [key, label] in rank order (rank = priority, then the label's UTF-8 bytes, then the key's), and each entity's group key. Name collation is ICU root with default (non-numeric) options; expected collation orders were produced by the ICU root collator in Bun (JavaScriptCore) and Node (V8), which agree, and cases are limited to characters whose root order is stable across recent CLDR versions (common Latin with accents, basic kana, common jōyō kanji, ASCII digits, full-width ASCII, one common emoji).",
+ "description": "The smart-list evaluator (sync-wave read contract section 3): which held entity.card records a Composer set shows and in what order. Each case installs `records` with complete entity.card and collection.member coverage (workspace.shell coverage as `shell_entity_types`) and evaluates `list` for `account` with `params`, `page` and `page_size`. A case's own `records`, when present, replace the shared ones. `groups` (when present) is the Groups v1 metadata for the page's records: descriptors as [key, label] in rank order (rank = priority, then the label's UTF-8 bytes, then the key's), and each entity's group key. Name collation is ICU root with default (non-numeric) options; expected collation orders were produced by the ICU root collator in Bun (JavaScriptCore) and Node (V8), which agree, and cases are limited to characters whose root order is stable across recent CLDR versions (common Latin with accents, basic kana, common jōyō kanji, ASCII digits, full-width ASCII, one common emoji). Status group descriptors carry keys only ([key]): their labels are the reader's words, resolved at render from priv/display_copy.json (values.<status>, ui.groups.noStatus), en and ja; type groups carry the type's own name.",
  "records": [
   {
    "projection": "entity.card",
@@ -1988,28 +1988,22 @@
     "grouping": "status",
     "descriptors": [
      [
-      "status:",
-      "No Status"
+      "status:"
      ],
      [
-      "status:backlog",
-      "Backlog"
+      "status:backlog"
      ],
      [
-      "status:todo",
-      "Todo"
+      "status:todo"
      ],
      [
-      "status:in_progress",
-      "In Progress"
+      "status:in_progress"
      ],
      [
-      "status:done",
-      "Done"
+      "status:done"
      ],
      [
-      "status:cancelled",
-      "Cancelled"
+      "status:cancelled"
      ]
     ],
     "entity_group_keys": {
@@ -2043,8 +2037,7 @@
     "grouping": "status",
     "descriptors": [
      [
-      "status:",
-      "No Status"
+      "status:"
      ]
     ],
     "entity_group_keys": {
