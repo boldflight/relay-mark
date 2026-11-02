@@ -23,6 +23,11 @@ and licensing.
 - Strict semantic-version tags release the reference runtime and root Swift
   package. `elixir-<version>` tags identify the Hex source for
   `relay_mark_elixir`; a tag never publishes to Hex.
+- Releases follow [the release runbook](docs/engineering/release.md). Before
+  anyone is asked to publish, `scripts/check-elixir-package.sh` must pass from
+  a clean state: docs build with zero warnings, and the built package compiles
+  as a dependency. Publish from a fresh worktree at the release commit, never
+  from a checkout with old build output.
 - Form question settings are one aggregate `settings` attribute; never reintroduce per-key `settings:<key>` storage (it killed performance; Douglas, 2026-11-02). See [docs/engineering/settings-encoding-decision.md](docs/engineering/settings-encoding-decision.md).
 - For collaborative editing, start with
   [docs/OFFLINE_MULTIPLAYER.md](docs/OFFLINE_MULTIPLAYER.md). Prefer maintained

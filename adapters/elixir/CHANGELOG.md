@@ -1,5 +1,14 @@
 # RelayMark Elixir adapter release notes
 
+## 0.7.6
+
+- 0.7.5 shipped an incomplete native source; do not use it. Its package lacked
+  the engine modules `input_rules`, `settings_rebase` and `task_drafts`, so the
+  NIF failed to compile. 0.7.6 contains the same engine as 0.7.5, complete.
+- The package's engine copy is rebuilt from scratch on every `mix hex.build` and
+  `mix hex.publish`, and the build fails if a declared engine module or included
+  file is missing.
+
 ## 0.7.5
 
 - Question and option settings are one aggregate `settings` attribute, written

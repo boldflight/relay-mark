@@ -1,13 +1,14 @@
 defmodule RelayMarkElixir.MixProject do
   use Mix.Project
 
-  @version "0.7.5"
+  @version "0.7.6"
   @source_url "https://github.com/boldflight/relay-mark"
 
   def project do
     [
       app: :relay_mark_elixir,
       version: @version,
+      aliases: aliases(),
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       description:
@@ -57,6 +58,9 @@ defmodule RelayMarkElixir.MixProject do
     ]
   end
 
+  # Release gate (docs/engineering/release.md): docs must build with
+  # `MIX_ENV=dev mix docs --warnings-as-errors` and the unpacked package must
+  # compile as a dependency (scripts/check-elixir-package.sh) before any publish.
   defp docs do
     [
       main: "readme",
@@ -69,5 +73,25 @@ defmodule RelayMarkElixir.MixProject do
       ],
       source_ref: "elixir-#{@version}"
     ]
+  end
+
+  # Building or publishing the package always ships a fresh, complete copy of the
+  # engine (native_mirror.exs), never whatever an earlier compile left behind.
+  defp aliases do
+    [
+      "hex.build": [&sync_native_mirror/1, "hex.build"],
+      "hex.publish": [&sync_native_mirror/1, "hex.publish"]
+    ]
+  end
+
+  defp sync_native_mirror(_args) do
+    repository = Path.expand("../..", __DIR__)
+
+    unless File.dir?(Path.join(repository, "crates/relaymark-core")) do
+      Mix.raise("hex.build and hex.publish run only inside the relay-mark repository")
+    end
+
+    {sync, _binding} = Code.eval_file(Path.join(__DIR__, "native_mirror.exs"))
+    sync.(repository, Path.join(__DIR__, "native/relaymark"))
   end
 end

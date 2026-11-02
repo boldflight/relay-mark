@@ -1,34 +1,23 @@
 defmodule RelayMark.Native do
   @moduledoc false
   # The RelayMark engine (crates/relaymark-core) as a NIF, compiled from source.
-  # Inside the relay-mark repository the engine and the spec files it compiles
-  # in are copied to native/relaymark first; a Hex package ships that copy.
+  # A Hex package ships the copy in native/relaymark.
 
   repository = Path.expand("../../../..", __DIR__)
   mirror = Path.expand("../../native/relaymark", __DIR__)
 
-  # The engine's sources and the spec files it compiles in, nothing else.
-  copied = [
-    "crates/relaymark-core/Cargo.toml",
-    "crates/relaymark-core/src",
-    "spec/relaymark/contract.json",
-    "spec/relaymark/editor-schema.json",
-    "spec/relaymark/xml-attribute-encoding.json",
-    "spec/relaymark/directives",
-    "spec/relaymark/schemas"
-  ]
-
+  # Inside the relay-mark repository the engine is copied fresh into native/relaymark
+  # by native_mirror.exs, the one owner of that copy (see it for why). Directories
+  # are external resources too, so adding or removing an engine file recompiles this.
   if File.dir?(Path.join(repository, "crates/relaymark-core")) do
-    File.rm_rf!(mirror)
-
-    for relative <- copied do
-      target = Path.join(mirror, relative)
-      File.mkdir_p!(Path.dirname(target))
-      File.cp_r!(Path.join(repository, relative), target)
-    end
+    {sync, _binding} = Code.eval_file(Path.expand("../../native_mirror.exs", __DIR__))
+    sync.(repository, mirror)
 
     for directory <- ["crates/relaymark-core/src", "spec/relaymark"],
-        path <- Path.wildcard(Path.join([repository, directory, "**", "*"])),
+        path <- [
+          Path.join(repository, directory)
+          | Path.wildcard(Path.join([repository, directory, "**", "*"]))
+        ],
         do: @external_resource(path)
   end
 

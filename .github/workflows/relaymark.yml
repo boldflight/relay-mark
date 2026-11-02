@@ -61,6 +61,7 @@ jobs:
 
       - name: Verify Elixir adapter against shared fixtures
         working-directory: adapters/elixir
-        run: |
-          mix test
-          mix hex.build
+        run: mix test
+
+      - name: Release gate (docs without warnings, built package compiles as a dependency)
+        run: scripts/check-elixir-package.sh

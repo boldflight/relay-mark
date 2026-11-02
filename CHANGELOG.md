@@ -1,5 +1,12 @@
 # RelayMark Git and Swift release notes
 
+## Elixir adapter 0.7.6
+
+- relay_mark_elixir 0.7.5 shipped an incomplete native source; do not use it.
+  0.7.6 ships the complete engine, and a release gate
+  (`scripts/check-elixir-package.sh`) now compiles the built package as a
+  dependency and builds the docs with zero warnings before any publish.
+
 ## Unreleased (0.7.5)
 
 - Form question and option settings are ONE aggregate `settings` attribute

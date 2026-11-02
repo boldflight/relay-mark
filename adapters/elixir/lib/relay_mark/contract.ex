@@ -11,9 +11,8 @@ defmodule RelayMark.Contract do
   @doc """
   Admits a stored or received document descriptor only when it is exactly this
   engine's contract (version, schema, source contract and physical schema
-  hash). Any other descriptor, such as the hashless one of a document that
-  still holds aggregate question settings, is refused so the host recovers
-  through its existing path instead of reading it.
+  hash). Any other descriptor, such as one from an older contract, is refused
+  so the host recovers through its existing path instead of reading it.
   """
   def admit(descriptor),
     do:
