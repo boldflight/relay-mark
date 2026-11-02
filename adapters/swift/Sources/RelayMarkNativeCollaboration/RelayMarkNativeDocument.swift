@@ -423,18 +423,44 @@ public final class RelayMarkNativeDocument {
         let envelope = try JSONDecoder().decode([String:RelayMarkValue].self,from:envelopeData)
         return try replaceSnapshotNodes([SnapshotNodeReplacement(parentPath:[],start:0,count:0,nodes:nodes)],metadataUpdates:envelope,origin:Origin("relaymark.initialization"))
     }
-    public func authoredDocument() throws -> Data { try RelayMarkSourceCodec.snapshotToDocument(snapshot()) }
+    public func authoredDocument() throws -> Data { try RelayMarkSourceCodec.snapshotToDocument(projectedSnapshot()) }
 
     public func proseProjection() throws -> RelayMarkCollaborativeProse {
-        try RelayMarkCollaborativeProse(snapshot: snapshot())
+        try RelayMarkCollaborativeProse(snapshot: projectedSnapshot())
     }
+
+    /// The one id of the paragraph an empty fragment projects as. It is never written to
+    /// Yjs: the first edit gives the paragraph it creates a fresh id (`RelayMarkNativeRichEditing`
+    /// reserves this one), so two replicas' first edits never share an identity.
+    public static let virtualParagraphID = "b00000000000040008000000000000000"
+
+    /// A fragment with no children projects as a document with one empty paragraph, as
+    /// y-prosemirror and y-tiptap show it. This is the single owner of that rule and it
+    /// is a view only: nothing is written to Yjs by opening, projecting or rendering it,
+    /// and `snapshot()` stays the lossless tree. Every projection and every edit that
+    /// reads the document as ProseMirror goes through it; a non-empty tree is returned as is.
+    static func projected(_ tree: [String: Any]) -> [String: Any] {
+        guard (tree["children"] as? [Any])?.isEmpty == true else { return tree }
+        var tree = tree
+        tree["children"] = [["kind": "element", "name": "paragraph",
+                             "attributes": ["relaymarkId": virtualParagraphID], "children": [] as [Any]] as [String: Any]]
+        return tree
+    }
+
+    static func projected(snapshot: Data) throws -> Data {
+        guard let tree = try JSONSerialization.jsonObject(with: snapshot) as? [String: Any],
+              (tree["children"] as? [Any])?.isEmpty == true else { return snapshot }
+        return try JSONSerialization.data(withJSONObject: projected(tree), options: [.sortedKeys])
+    }
+
+    func projectedSnapshot() throws -> Data { try Self.projected(snapshot: snapshot()) }
 
     /// Basic canonical Markdown read/selection map after strict whole-document AST
     /// validation. Tables and other unsupported presentation shapes stay gated.
     /// One snapshot and one codec conversion serve both the document validation and the prose projection.
     public func richProseProjection() throws -> RelayMarkCollaborativeProse {
         guard integrationStatus().isComplete else { throw RelayMarkNativeDocumentProjection.Failure.unsupported("incomplete update") }
-        let snapshot = try snapshot()
+        let snapshot = try projectedSnapshot()
         // Validation keeps nothing; its parsed copy of the paper is released here.
         try autoreleasepool { _ = try RelayMarkNativeDocumentProjection.project(snapshot: snapshot) }
         return try RelayMarkCollaborativeProse(snapshot: snapshot, dialect: .rich, codecValidated: true)
@@ -1667,6 +1693,14 @@ public final class RelayMarkNativeDocument {
     /// `items` writes only those items of a top-level list; both then hold that one list.
     func applyProseMirror(_ updated: PMNode, source: PMNode, bridge: PMYXmlBridge, window: Range<Int>? = nil,
                           items: (node: Int, window: Range<Int>)? = nil) throws -> Data {
+        // An empty fragment was edited as its projected empty paragraph; the write diffs against
+        // the fragment as it is, so the paragraph and the edit land in this one transaction.
+        var source = source
+        if root.length() == 0, window == nil, items == nil, source.childCount == 1,
+           source.child(0).attrs["relaymarkId"] as? String == Self.virtualParagraphID {
+            source = try bridge.document(fromSnapshot: ["kind": "fragment", "children": [] as [Any],
+                                                        "metadata": source.attrs["relaymark"] ?? [:]])
+        }
         let metadataReplacement=try JSONDecoder().decode([String:RelayMarkValue].self,from:JSONSerialization.data(withJSONObject:updated.attrs["relaymark"] ?? [:]))
         wrapUndo()
         revision &+= 1

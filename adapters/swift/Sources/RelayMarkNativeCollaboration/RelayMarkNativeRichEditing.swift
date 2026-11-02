@@ -59,7 +59,12 @@ public enum RelayMarkNativeRichEditing {
     public static func replace(document: RelayMarkNativeDocument, range: NSRange,
                                runs: [(text: String, attributes: [String: Any])], inheritMarks: Bool = false,
                                paper: RelayMarkCollaborativeProse) throws -> Change {
-        try windowed(document: document, paper: paper, range: range) { scope in
+        // An empty fragment has no top-level node to window around: the edit reads the projected paragraph.
+        if document.topLevelCount == 0 {
+            return try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks,
+                               scope: scope(document: document, expectedSnapshot: document.snapshot()))
+        }
+        return try windowed(document: document, paper: paper, range: range) { scope in
             try replace(document: document, range: range, runs: runs, inheritMarks: inheritMarks, scope: scope)
         }
     }
@@ -157,9 +162,10 @@ public enum RelayMarkNativeRichEditing {
     public static func insert(document: RelayMarkNativeDocument, range: NSRange, content: [Inline],
                               expectedSnapshot: Data) throws -> Change {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any], !content.isEmpty else {
+              let raw = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any], !content.isEmpty else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
+        let tree = RelayMarkNativeDocument.projected(raw)
         let projection = try document.richProseProjection()
         guard projection.isEditable, range.location >= 0, range.length >= 0 else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
@@ -868,7 +874,7 @@ public enum RelayMarkNativeRichEditing {
             var identities = Set<String>(), ignoredAnchors = Set<String>()
             try applyRepairs(identified(witnessed.doc, seen: &identities, anchors: &ignoredAnchors,
                 preferredIDs: preferredIDs, normalizeHeadings: false,
-                reserved: Reserved(identity: { outside?.identity($0) ?? false })))
+                reserved: Reserved(identity: { $0 == RelayMarkNativeDocument.virtualParagraphID || outside?.identity($0) ?? false })))
             var input: [String: Any] = ["before_document": source.json(), "steps": witnessed.steps.map { $0.json() }]
             if let clipboardItems { input["clipboard_items"] = clipboardItems }
             else if let clipboardSlice { input["clipboard_slice"] = clipboardSlice.json(); input["source_trace"] = clipboardSourceTrace ?? NSNull() }
@@ -904,7 +910,7 @@ public enum RelayMarkNativeRichEditing {
         })
         // An edited or pasted heading never takes an unchanged heading's anchor,
         // here or elsewhere in the paper, nor an identity used outside the window.
-        let reserved = Reserved(identity: { outside?.identity($0) ?? false },
+        let reserved = Reserved(identity: { $0 == RelayMarkNativeDocument.virtualParagraphID || outside?.identity($0) ?? false },
                                 anchor: { unchangedAnchors.contains($0) || outside?.anchor($0) == true })
         try applyRepairs(identified(witnessed.doc, seen: &seen, anchors: &anchors, preferredIDs: preferredIDs,
                                     retainedHeadingPositions: unchangedHeadings, reserved: reserved))
@@ -1010,7 +1016,7 @@ public enum RelayMarkNativeRichEditing {
               let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any] else {
             throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
         }
-        return Scope(tree: tree, projection: try document.richProseProjection(), nodes: nil, offset: 0)
+        return Scope(tree: RelayMarkNativeDocument.projected(tree), projection: try document.richProseProjection(), nodes: nil, offset: 0)
     }
 
     /// An item window: the touched items of top-level list `node` with one

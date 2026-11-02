@@ -81,6 +81,19 @@ Swift/JavaScript snapshots are lossless diagnostic trees:
 
 The generic Elixir Markdown codec accepts the equivalent structural shape with `tag` instead of `name` and text leaves containing `delta`. Host adapters translate these field names; neither JSON snapshot shape replaces the binary replica as the durable authority. Unsupported XML remains in binary state even when a source/rendering adapter cannot interpret it.
 
+## Empty fragment
+
+An empty root `Y.XmlFragment` is a valid collaborative document. As in stock y-prosemirror and
+y-tiptap, an editor shows and projects it as one empty paragraph (cursor at offset 0), in the
+view only: opening, projecting, joining or rendering writes nothing, and the portable snapshot of
+an empty fragment stays `children: []`. The projected paragraph carries the fixed placeholder
+identity `b00000000000040008000000000000000`, which is never persisted. The first local edit
+writes a paragraph with a fresh identity and the edit's content in one transaction. Two replicas
+that both make a first edit on an empty fragment and then merge hold two paragraphs, as in
+y-prosemirror. `from_snapshot` still refuses an empty `children` array: a host presents the
+placeholder paragraph before asking the engine to convert (relaymark-native `RelayMarkNativeDocument`
+does this once, for every native projection and rich edit).
+
 ## Positions, edits, and origins
 
 All XML text indices and lengths are UTF-16 code units. JavaScript string length and Foundation `NSRange` use that coordinate system; Swift `Character` counts and UTF-8 byte counts do not. UI edits must respect grapheme boundaries while converting to UTF-16. The fixture includes an emoji skin-tone/ZWJ cluster, a regional-indicator flag, a decomposed combining accent, and Japanese text. Applying/replaying an update must not normalize Unicode.
