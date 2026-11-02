@@ -20,6 +20,23 @@ set -euo pipefail
 root=${0:A:h:h}
 cd $root
 
+# One build per checkout at a time. Every run deletes and rebuilds
+# target/swift-engine and moves the generated bindings into the Swift sources,
+# so a second run in the same checkout removed the first run's
+# work/generated/relaymark_ffi.swift mid-build ("No such file or directory"),
+# and during --publish it could replace the archive between its checksum and
+# the upload. The wait is bounded; on timeout nothing is built or published.
+if [[ -z ${RELAYMARK_ENGINE_BUILD_LOCKED:-} ]]; then
+  mkdir -p target
+  wait_seconds=${RELAYMARK_ENGINE_LOCK_WAIT:-3600}
+  RELAYMARK_ENGINE_BUILD_LOCKED=1 lockf -k -t $wait_seconds target/swift-engine.lock zsh ${0:A} "$@" || {
+    rc=$?
+    (( rc == 75 )) && print -u2 "Another engine build in this checkout held the lock for ${wait_seconds}s; nothing was built."
+    exit $rc
+  }
+  exit 0
+fi
+
 publish=false
 [[ ${1:-} == --publish ]] && publish=true
 repository=boldflight/relay-mark
