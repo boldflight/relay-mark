@@ -17,6 +17,8 @@
 use std::cmp::Ordering;
 use std::sync::LazyLock;
 
+use icu_collator::options::CollatorOptions;
+use icu_collator::{Collator, CollatorBorrowed};
 use regex::Regex;
 use serde_json::{Map, Value, json};
 use unicode_normalization::UnicodeNormalization;
@@ -113,45 +115,14 @@ fn by_name(a: &Value, b: &Value) -> Ordering {
     cmp16(&name_of(a).to_lowercase(), &name_of(b).to_lowercase()).then_with(|| by_id(a, b))
 }
 
-/// `Intl.Collator('en')` for the Inbox and Collections tie-break names:
-/// primary order ignores case and accents (separators, then symbols, digits,
-/// letters), then accents, then lowercase before uppercase. It stands in for
-/// ICU, as the web's collator stands in for PostgreSQL's collation.
+/// `Intl.Collator('und')`: the CLDR root collation with default options (no
+/// numeric ordering), shared with the web so the Inbox and Collections tie-break
+/// names order the same everywhere. The CLDR version tracks icu_collator's
+/// bundled data; a browser's ICU can differ slightly for rare characters.
 fn collate(a: &str, b: &str) -> Ordering {
-    fn primary(text: &str) -> Vec<(u8, char)> {
-        text.nfd()
-            .filter(|c| !is_mark(*c))
-            .flat_map(char::to_lowercase)
-            .map(|c| {
-                let class = if c.is_whitespace() {
-                    0
-                } else if c.is_alphabetic() {
-                    3
-                } else if c.is_numeric() {
-                    2
-                } else {
-                    1
-                };
-                (class, c)
-            })
-            .collect()
-    }
-    fn accents(text: &str) -> Vec<char> {
-        text.nfd().filter(|c| is_mark(*c)).collect()
-    }
-    primary(a).cmp(&primary(b)).then_with(|| accents(a).cmp(&accents(b))).then_with(|| {
-        // Lowercase sorts before uppercase at the first case difference.
-        a.nfd().zip(b.nfd()).find(|(x, y)| x != y).map_or(Ordering::Equal, |(x, y)| match (x.is_uppercase(), y.is_uppercase()) {
-            (false, true) => Ordering::Less,
-            (true, false) => Ordering::Greater,
-            _ => x.cmp(&y),
-        })
-    })
-}
-
-fn is_mark(c: char) -> bool {
-    static MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\p{M}$").expect("mark pattern"));
-    MARK.is_match(c.encode_utf8(&mut [0; 4]))
+    static COLLATOR: LazyLock<CollatorBorrowed<'static>> =
+        LazyLock::new(|| Collator::try_new(Default::default(), CollatorOptions::default()).expect("root collator"));
+    COLLATOR.compare(a, b)
 }
 
 /// `Relay.Core.Tags.normalize_tag_input/1`: the one tag-name rule.
@@ -177,8 +148,6 @@ fn values(value: Option<&Value>) -> Vec<String> {
 
 struct Filter<'p> {
     kind: &'p str,
-    /// The collection a placement must name; none for the lists below.
-    placement: Option<&'p str>,
     account: &'p Value,
     source: Option<&'p str>,
     types: Vec<String>,
@@ -195,7 +164,6 @@ impl<'p> Filter<'p> {
         };
         Filter {
             kind,
-            placement: None,
             account,
             source: str_field(params, "content_source"),
             types,
@@ -212,11 +180,6 @@ impl<'p> Filter<'p> {
             Some("mine") if !mine => return false,
             Some("others") if mine => return false,
             _ => {}
-        }
-        if let (Some(want), Some(placement)) = (self.placement, card.get("placement").filter(|p| truthy(Some(p))))
-            && str_field(placement, "collection_id") != Some(want)
-        {
-            return false;
         }
         let card_trashed = card.get("card").and_then(|c| c.get("trashed?"));
         if if self.kind == "trash" { card_trashed == Some(&Value::Bool(false)) } else { trashed(card) } {
@@ -432,4 +395,29 @@ pub fn evaluate(input: &Value) -> Result<Value> {
     let page = (input.get("page").and_then(Value::as_i64).unwrap_or(1).max(1) as usize).min(page_count);
     let ids: Vec<&str> = kept.iter().skip((page - 1) * page_size).take(page_size).filter_map(|c| str_field(c, "entity_id")).collect();
     Ok(json!({"status": "complete", "ids": ids, "total": kept.len(), "page": page, "page_count": page_count}))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::collate;
+    use std::cmp::Ordering::{Greater, Less};
+
+    /// Orders of the CLDR root collation (UTS #35 "Root Collation", built on UTS #10's
+    /// default weights, non-ignorable punctuation, no numeric ordering), which the web
+    /// gets from `Intl.Collator('und')`. Keep: a plain code-point compare puts "A" before "a"
+    /// and "é" after "f", and the Inbox tie-break would list differently from the web.
+    #[test]
+    fn names_order_as_the_root_collation_does() {
+        // Accents are a secondary difference: "e" < "é", yet both sort before "f" (UTS #10 section 1.2).
+        assert_eq!(collate("e", "é"), Less);
+        assert_eq!(collate("é", "f"), Less);
+        // Case is a tertiary difference and the root orders lowercase first.
+        assert_eq!(collate("a", "A"), Less);
+        assert_eq!(collate("A", "b"), Less);
+        // No numeric ordering: "item 10" sorts before "item 2" character by character.
+        assert_eq!(collate("item 10", "item 2"), Less);
+        // Space is not ignored, so it sorts before any letter.
+        assert_eq!(collate("a b", "ab"), Less);
+        assert_eq!(collate("b", "a"), Greater);
+    }
 }
