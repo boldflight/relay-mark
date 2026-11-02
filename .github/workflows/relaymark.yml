@@ -38,6 +38,12 @@ jobs:
           npm test
           npm run conformance
 
+      - name: Packaged adapter files match a fresh build
+        run: |
+          npm run build:collaboration
+          changed=$(git status --porcelain -- adapters/elixir/priv src adapters/swift/Sources/RelayMarkModel/PMSchema.swift)
+          if [ -n "$changed" ]; then echo "Packaged files differ from a fresh build:"; echo "$changed"; exit 1; fi
+
   elixir-adapter:
     name: Elixir adapter
     runs-on: ubuntu-24.04

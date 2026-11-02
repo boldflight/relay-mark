@@ -1,5 +1,11 @@
 # RelayMark Git and Swift release notes
 
+## Elixir adapter 0.7.7
+
+- The Hex package ships the browser settings rebase (`settings-rebase.js`) and
+  `settings-rebase-v1.json`. CI fails when the committed package files differ
+  from a fresh `npm run build:collaboration`.
+
 ## Elixir adapter 0.7.6
 
 - relay_mark_elixir 0.7.5 shipped an incomplete native source; do not use it.

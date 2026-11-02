@@ -1,5 +1,12 @@
 # RelayMark Elixir adapter release notes
 
+## 0.7.7
+
+- Ships the client-only settings rebase for browsers:
+  `priv/collaboration/settings-rebase.js`, a self-contained bundle, and its
+  shared contract `priv/relaymark/editor/settings-rebase-v1.json`, so the web's
+  question block applies the same rule as relaymark-core and Swift.
+
 ## 0.7.6
 
 - 0.7.5 shipped an incomplete native source; do not use it. Its package lacked

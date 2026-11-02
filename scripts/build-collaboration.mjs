@@ -10,6 +10,8 @@ await writeFile('src/editor-schema.js', '// Generated from spec/relaymark/editor
 await copyFile('spec/relaymark/editor-schema.json','adapters/elixir/priv/relaymark/editor-schema.json')
 await mkdir('adapters/elixir/priv/relaymark/editor',{recursive:true})
 await copyFile('spec/relaymark/editor/input-rules-v1.json','adapters/elixir/priv/relaymark/editor/input-rules-v1.json')
+// The shared settings-rebase contract the browser's question block implements (copyFile throws if missing).
+await copyFile('spec/relaymark/editor/settings-rebase-v1.json','adapters/elixir/priv/relaymark/editor/settings-rebase-v1.json')
 await writeFile('adapters/swift/Sources/RelayMarkModel/PMSchema.swift', 'import Foundation\n\n/// Generated from spec/relaymark/editor-schema.json. Never edit independently.\npackage enum RelayMarkNativeProseMirrorSchema {\n    package static let json = #"'+JSON.stringify(editorSchema)+'"#\n    package static let nodeAttributeOrder: [String: [String]] = '+JSON.stringify(Object.fromEntries(editorSchema.nodes.map(node=>[node.name,Object.keys(node.attrs??{})]))).replaceAll('{','[').replaceAll('}',']')+'\n    package static let markAttributeOrder: [String: [String]] = '+JSON.stringify(Object.fromEntries(editorSchema.marks.map(mark=>[mark.name,Object.keys(mark.attrs??{})]))).replaceAll('{','[').replaceAll('}',']')+'\n}\n')
 const directives = await Promise.all((await readdir('spec/relaymark/directives')).filter(name => name.endsWith('.json')).sort().map(async name => JSON.parse(await readFile('spec/relaymark/directives/'+name,'utf8'))))
 await writeFile('src/directive-registry.js', '// Generated from spec/relaymark/directives. Never edit independently.\nexport const directiveSpecifications = '+JSON.stringify(directives)+';\n')
@@ -26,5 +28,9 @@ await build({ entryPoints: ['src/document-source.js'], bundle: true, format: 'es
 // Editor-only schema and table helpers for stock-binding TipTap hosts. The
 // shipped schema and HTML rules modules stay shared siblings, not inlined.
 await build({ entryPoints: ['src/editor.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2020', external: ['prosemirror-model', 'prosemirror-tables', './document-html-rules.js', './editor-schema.js'], minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/editor.js' })
+
+// The client-only settings rebase (spec/relaymark/editor/settings-rebase-v1.json) for the browser's
+// question block, bundled with its canonical JSON comparison so it loads with no other module.
+await build({ entryPoints: ['src/settings-rebase.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/settings-rebase.js' })
 
 await build({ entryPoints: ['src/document-url.js'], bundle: true, format: 'esm', platform: 'browser', target: 'es2023', minify: true, legalComments: 'inline', outfile: 'adapters/elixir/priv/collaboration/document-url.js' })

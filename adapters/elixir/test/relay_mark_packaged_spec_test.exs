@@ -6,6 +6,7 @@ defmodule RelayMark.PackagedSpecTest do
   @schema_files ~w(
     contract.json
     editor/input-rules-v1.json
+    editor/settings-rebase-v1.json
     editor-schema.json
     xml-attribute-encoding.json
     schemas/relaymark-diagnostic.schema.json

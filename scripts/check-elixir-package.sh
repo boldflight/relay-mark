@@ -19,6 +19,15 @@ adapter="$repository/adapters/elixir"
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/relay-mark-package-gate.XXXXXX")
 trap 'rm -rf "$scratch"' EXIT INT TERM
 
+# The committed package files (priv/collaboration, priv/relaymark) must equal a fresh build.
+if command -v npm >/dev/null 2>&1 && [ -d "$repository/node_modules" ]; then
+  (cd "$repository" && npm run --silent build:collaboration &&
+    changed=$(git status --porcelain -- adapters/elixir/priv src adapters/swift/Sources/RelayMarkModel/PMSchema.swift) &&
+    if [ -n "$changed" ]; then echo "Packaged files differ from a fresh build:" >&2; echo "$changed" >&2; exit 1; fi)
+else
+  echo "note: node_modules missing; skipping the packaged-files freshness check (CI runs it)"
+fi
+
 cd "$adapter"
 rm -rf native/relaymark _build deps doc
 
