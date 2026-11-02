@@ -423,7 +423,8 @@ public final class RelayMarkNativeDocument {
         let envelope = try JSONDecoder().decode([String:RelayMarkValue].self,from:envelopeData)
         return try replaceSnapshotNodes([SnapshotNodeReplacement(parentPath:[],start:0,count:0,nodes:nodes)],metadataUpdates:envelope,origin:Origin("relaymark.initialization"))
     }
-    public func authoredDocument() throws -> Data { try RelayMarkSourceCodec.snapshotToDocument(projectedSnapshot()) }
+    /// The stored document: an empty fragment is the empty document (no blocks), never the editor's placeholder.
+    public func authoredDocument() throws -> Data { try RelayMarkSourceCodec.snapshotToDocument(snapshot()) }
 
     public func proseProjection() throws -> RelayMarkCollaborativeProse {
         try RelayMarkCollaborativeProse(snapshot: projectedSnapshot())

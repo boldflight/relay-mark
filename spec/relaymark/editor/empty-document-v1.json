@@ -1,0 +1,58 @@
+{
+  "fixture_version": 1,
+  "description": "The empty document is valid everywhere. The canonical empty state is an empty `Y.XmlFragment`, exactly as y-prosemirror stores it; the empty paragraph exists only in an editor's view (see collaboration/README.md, Empty fragment). Opening, projecting or rendering an empty document writes nothing. Each case is a relaymark-core job by name, as the Rust engine, the Elixir adapter and the Swift package call it.",
+  "cases": [
+    {
+      "name": "an empty document is an empty fragment",
+      "job": "to_snapshot",
+      "options": {},
+      "input": {
+        "type": "relaymark.document",
+        "blocks": []
+      },
+      "expected": {
+        "kind": "fragment",
+        "children": []
+      }
+    },
+    {
+      "name": "an empty fragment is the empty document",
+      "job": "from_snapshot",
+      "options": {},
+      "input": {
+        "kind": "fragment",
+        "children": []
+      },
+      "expected": {
+        "type": "relaymark.document",
+        "blocks": []
+      }
+    },
+    {
+      "name": "the empty document normalizes to itself",
+      "job": "normalize",
+      "options": {},
+      "input": {
+        "type": "relaymark.document",
+        "blocks": []
+      },
+      "expected": {
+        "type": "relaymark.document",
+        "blocks": []
+      }
+    },
+    {
+      "name": "the empty document projects an empty body and empty html",
+      "job": "project",
+      "options": {},
+      "input": {
+        "type": "relaymark.document",
+        "blocks": []
+      },
+      "expected": {
+        "body": "",
+        "body_html": ""
+      }
+    }
+  ]
+}

@@ -248,7 +248,9 @@ pub fn to_relaymark(prosemirror: &Value) -> Result<Value> {
     require_type(prosemirror, "doc")?;
     assert_content_depth(prosemirror, 0)?;
     let mut seen = Seen::new();
-    let blocks = children(prosemirror, "doc", 1)?.iter().map(|node| map_block(node, &mut seen, 0)).collect::<Result<Vec<_>>>()?;
+    // An empty document has no `content` at all in editor JSON.
+    let nodes: &[Value] = if prosemirror.get("content").is_some() { children(prosemirror, "doc", 0)? } else { &[] };
+    let blocks = nodes.iter().map(|node| map_block(node, &mut seen, 0)).collect::<Result<Vec<_>>>()?;
     let mut document = Map::new();
     document.insert("type".into(), Value::String("relaymark.document".into()));
     document.insert("blocks".into(), Value::Array(blocks));
@@ -927,10 +929,8 @@ pub fn to_prosemirror(document: &Value) -> Result<Value> {
     if type_of(document) != Some("relaymark.document") {
         bail!("Expected a canonical RelayMark AST document");
     }
-    let blocks = match document.get("blocks").and_then(Value::as_array) {
-        Some(blocks) if !blocks.is_empty() => blocks,
-        _ => bail!("document requires an array of at least 1 children"),
-    };
+    // The empty document (no blocks) is valid: an empty fragment, as y-prosemirror stores it.
+    let Some(blocks) = document.get("blocks").and_then(Value::as_array) else { bail!("document requires an array of children") };
     for block in blocks {
         assert_content_depth(block, 1)?;
     }

@@ -42,10 +42,8 @@ final class RelayMarkNativeEmptyFragmentTests: XCTestCase {
         XCTAssertEqual(String(prose.text.characters), "")
         XCTAssertEqual(prose.blockPaths, [[0]])
         XCTAssertEqual(prose.blockRanges, [NSRange(location: 0, length: 0)])
-        let blocks = try XCTUnwrap(authored["blocks"] as? [[String: Any]])
-        XCTAssertEqual(blocks.count, 1)
-        XCTAssertEqual(blocks.first?["type"] as? String, "paragraph")
-        XCTAssertEqual(blocks.first?["id"] as? String, RelayMarkNativeDocument.virtualParagraphID)
+        // The stored document is the empty document; only the view has a paragraph.
+        XCTAssertEqual((authored["blocks"] as? [Any])?.count, 0)
     }
 
     // Keep: before this, a rich edit on an empty paper failed on the projection, so a Today paper

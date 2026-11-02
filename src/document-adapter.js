@@ -40,7 +40,8 @@ export function proseMirrorToRelayMark(prosemirror) {
   requireType(prosemirror, "doc");
   assertContentDepth(prosemirror);
   const seen = new Set();
-  const blocks = children(prosemirror, "doc", 1).map(node => mapBlock(node, seen, 0));
+  // The empty document has no content: an empty fragment, as y-prosemirror stores it.
+  const blocks = (prosemirror.content === undefined ? [] : children(prosemirror, "doc", 0)).map(node => mapBlock(node, seen, 0));
   return { type: "relaymark.document", blocks, ...metadata };
  });
 }
@@ -64,7 +65,7 @@ export function relayMarkToProseMirror(document) {
   }
   assertContentDepth({ content: document.blocks });
   const seen = new Set();
-  const blocks = children({ content: document.blocks }, "document", 1);
+  const blocks = children({ content: document.blocks }, "document", 0);
   const metadata=Object.fromEntries(["frontmatter","annotations","resources","meta"].filter(key=>Object.hasOwn(document,key)).map(key=>[key,document[key]]));
   assertAuthoredMetadata(metadata);
   return { type: "doc", ...(Object.keys(metadata).length?{attrs:{relaymark:metadata}}:{}), content: blocks.map(block => unmapBlock(block, seen, 0)) };

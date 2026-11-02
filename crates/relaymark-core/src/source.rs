@@ -1844,6 +1844,10 @@ fn parse_inline_or_empty(text: &str) -> Result<Vec<Value>> {
 pub fn project_markdown(document: &Value) -> Result<String> {
     normalize_document(document)?;
     let blocks = document["blocks"].as_array().map(Vec::as_slice).unwrap_or(&[]);
+    // The empty document projects to the empty body, not a lone newline.
+    if blocks.is_empty() {
+        return Ok(String::new());
+    }
     let parts = blocks.iter().map(markdown).collect::<Result<Vec<_>>>()?;
     Ok(parts.join("\n\n") + "\n")
 }

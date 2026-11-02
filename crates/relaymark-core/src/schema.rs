@@ -174,7 +174,10 @@ impl EditorSchema {
     fn check(&self, node: &PmNode) -> Result<()> {
         let spec = &self.nodes[node.kind];
         let children: String = node.content.iter().map(|child| node_char(child.kind)).collect();
+        // The empty document is valid although ProseMirror's `doc` wants a block: an empty fragment is
+        // exactly how y-prosemirror stores one, and the empty paragraph exists only in an editor's view.
         let valid_sequence = match &spec.content {
+            Some(_) if spec.name == "doc" && children.is_empty() => true,
             Some(pattern) => pattern.is_match(&children),
             None => children.is_empty(),
         };

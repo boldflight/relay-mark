@@ -13,7 +13,7 @@ public enum RelayMarkNativeDocumentProjection {
     @MainActor
     public static func project(document: RelayMarkNativeDocument) throws -> RelayMarkDocument {
         guard document.integrationStatus().isComplete else { throw Failure.unsupported("incomplete update") }
-        return try project(snapshot: document.projectedSnapshot())
+        return try project(snapshot: document.snapshot())
     }
 
     public static func project(snapshot: Data) throws -> RelayMarkDocument {
