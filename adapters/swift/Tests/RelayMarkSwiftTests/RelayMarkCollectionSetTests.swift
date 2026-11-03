@@ -7,7 +7,7 @@ import Testing
 /// vendored as spec/relaymark/collection-set-v1.json) through the Swift engine
 /// binding, so Apple lists the same members in the same order as the web.
 struct RelayMarkCollectionSetTests {
-    static let pinnedSHA256 = "4b9cbc0022124a3b6c25d03f35f629ebac668e63d563680cc5641a9c1f78ff6f"
+    static let pinnedSHA256 = "36e31c51468f5d554efa38c680ea05cccdd70d895e5e162363db6e7c56100896"
 
     @Test func everySharedCaseListsAsTheContractSays() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
@@ -18,7 +18,7 @@ struct RelayMarkCollectionSetTests {
         let fixture = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
         let sharedRecords = try #require(fixture["records"] as? [[String: Any]])
         let cases = try #require(fixture["cases"] as? [[String: Any]])
-        #expect(cases.count == 42)
+        #expect(cases.count == 51)
         for item in cases {
             let name = item["name"] as? String ?? "?"
             let list = try #require(RelayMarkCollectionSet.List(rawValue: item["list"] as? String ?? ""), "\(name)")
@@ -28,7 +28,7 @@ struct RelayMarkCollectionSetTests {
             let expectedGroups = item["groups"] as? [String: Any]
             let grouping = (expectedGroups?["grouping"] as? String).flatMap(RelayMarkCollectionSet.Grouping.init(rawValue:))
             let query = RelayMarkCollectionSet.Query(list: list, entityID: item["entity_id"] as? String, account: item["account"] as? String,
-                params: item["params"] as? [String: Any] ?? [:], page: item["page"] as? Int ?? 1, pageSize: item["page_size"] as? Int ?? 24, grouping: grouping)
+                params: item["params"] as? [String: Any] ?? [:], page: item["page"] as? Int ?? 1, pageSize: item["page_size"] as? Int ?? 24, grouping: grouping, timezone: item["timezone"] as? String)
             let projected = Set(item["server_projected"] as? [String] ?? [])
             let page = try RelayMarkCollectionSet.evaluate(records: records, shellEntityTypes: shell, serverProjected: projected, query: query)
             // The pre-encoded entry point answers identically.
@@ -44,6 +44,8 @@ struct RelayMarkCollectionSetTests {
                 let descriptors = (expectedGroups["descriptors"] as? [[String]] ?? []).map { RelayMarkCollectionSet.Groups.Descriptor(key: $0[0], label: $0.count > 1 ? $0[1] : nil) }
                 #expect(page.groups?.descriptors == descriptors, "\(name)")
                 #expect(page.groups?.entityGroupKeys == expectedGroups["entity_group_keys"] as? [String: String], "\(name)")
+                #expect(page.groups?.dateContext == (expectedGroups["date_context"] as? [String: Any])?["timezone"] as? String, "\(name)")
+                #expect(page.groups?.sortKeys == expectedGroups["sort_keys"] as? [String: [Int]], "\(name)")
             } else {
                 #expect(page.groups == nil, "\(name)")
             }

@@ -419,6 +419,7 @@ pub fn evaluate(input: &Value) -> Result<Value> {
     match str_field(input, "grouping") {
         None => {}
         Some(grouping @ ("type" | "status")) => answer["groups"] = group_metadata(grouping, &shown, &types),
+        Some("date") => answer["groups"] = date_group_metadata(&shown, str_field(input, "timezone")),
         Some(other) => bail!("Unknown grouping {other}"),
     }
     Ok(answer)
@@ -567,6 +568,67 @@ fn group_metadata(grouping: &str, cards: &[&Value], types: &[&Value]) -> Value {
     // descriptor carries the type's own name.
     let descriptors: Vec<Value> = groups.iter().map(|g| if grouping == "type" { json!([g.key, g.label]) } else { json!([g.key]) }).collect();
     json!({"grouping": grouping, "descriptors": descriptors, "entity_group_keys": keys})
+}
+
+// ── Date groups ─────────────────────────────────────────────────────────
+//
+// Keyed by each record's local date in the settings timezone: an event's `start_date`, else
+// its `starts_at`, else a task's `due_at`, else undated. Descriptors are keys only (the
+// reader's date words resolve at render), ranked by `sort_keys`: `[0, gregorian_days]`
+// (days since 0000-01-01, as Elixir's `Date.to_gregorian_days/1`) or `[1]` for undated.
+// Zones come from the tz database bundled in the binary (jiff-tzdb), so every platform
+// answers alike.
+
+const UNIX_EPOCH_GREGORIAN_DAYS: i64 = 719_528;
+
+/// `Relay.Timezones.resolve/1`: blank and "UTC" mean Etc/UTC, and so does an unknown zone.
+fn resolve_timezone(name: Option<&str>) -> (String, jiff::tz::TimeZone) {
+    let name = name.map(str::trim).filter(|n| !n.is_empty() && *n != "UTC");
+    match name.and_then(|n| jiff::tz::TimeZone::get(n).ok().map(|zone| (n, zone))) {
+        Some((n, zone)) => (n.to_owned(), zone),
+        None => ("Etc/UTC".to_owned(), jiff::tz::TimeZone::get("Etc/UTC").unwrap_or(jiff::tz::TimeZone::UTC)),
+    }
+}
+
+fn local_date(value: Option<&str>, zone: &jiff::tz::TimeZone) -> Option<jiff::civil::Date> {
+    let text = value?;
+    let instant = text
+        .parse::<jiff::Timestamp>()
+        .ok()
+        .or_else(|| text.parse::<jiff::civil::DateTime>().ok()?.to_zoned(jiff::tz::TimeZone::UTC).ok().map(|z| z.timestamp()))?;
+    Some(instant.to_zoned(zone.clone()).date())
+}
+
+fn record_date(card: &Value, zone: &jiff::tz::TimeZone) -> Option<jiff::civil::Date> {
+    let event = card.get("event").filter(|e| e.is_object());
+    let from_event = event.and_then(|e| str_field(e, "start_date").and_then(|d| d.parse().ok()).or_else(|| local_date(str_field(e, "starts_at"), zone)));
+    from_event.or_else(|| local_date(card.get("task").and_then(|t| str_field(t, "due_at")), zone))
+}
+
+fn gregorian_days(date: jiff::civil::Date) -> i64 {
+    date.at(0, 0, 0, 0).to_zoned(jiff::tz::TimeZone::UTC).map_or(0, |z| z.timestamp().as_second().div_euclid(86_400)) + UNIX_EPOCH_GREGORIAN_DAYS
+}
+
+fn date_group_metadata(cards: &[&Value], timezone: Option<&str>) -> Value {
+    let (name, zone) = resolve_timezone(timezone);
+    let mut groups: Vec<(Vec<i64>, String)> = Vec::new();
+    let mut keys = Map::new();
+    for card in cards {
+        let (sort_key, key) = match record_date(card, &zone) {
+            Some(date) => (vec![0, gregorian_days(date)], format!("date:{date}")),
+            None => (vec![1], "date:undated".to_owned()),
+        };
+        if !groups.iter().any(|(_, k)| *k == key) {
+            groups.push((sort_key, key.clone()));
+        }
+        if let Some(id) = str_field(card, "entity_id") {
+            keys.insert(id.to_owned(), Value::String(key));
+        }
+    }
+    groups.sort();
+    let sort_keys: Map<String, Value> = groups.iter().map(|(sort_key, key)| (key.clone(), json!(sort_key))).collect();
+    let descriptors: Vec<Value> = groups.iter().map(|(_, key)| json!([key])).collect();
+    json!({"grouping": "date", "date_context": {"timezone": name}, "descriptors": descriptors, "sort_keys": sort_keys, "entity_group_keys": keys})
 }
 
 #[cfg(test)]

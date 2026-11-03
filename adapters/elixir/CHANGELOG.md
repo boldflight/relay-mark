@@ -17,7 +17,10 @@
   (`icu_collator`, a new dependency of the native crate). The job takes an
   optional `server_projected` list of collection ids: those and collections
   whose card is not held answer `partial`; every other collection, shared and
-  query-listed ones included, is evaluated locally.
+  query-listed ones included, is evaluated locally. The job also takes `timezone` and `groups.grouping: "date"`
+  (local-date groups, keys and `sort_keys` only), resolving zones with `jiff`
+  and its bundled tz database (IANA tzdata 2026e), a new dependency of the
+  native crate.
 
 ## 0.7.7
 

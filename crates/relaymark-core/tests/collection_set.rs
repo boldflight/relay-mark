@@ -10,8 +10,8 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 /// The authority's SHA-256. Re-vendoring changes this and the case count together.
-const PINNED_SHA256: &str = "4b9cbc0022124a3b6c25d03f35f629ebac668e63d563680cc5641a9c1f78ff6f";
-const PINNED_CASES: usize = 42;
+const PINNED_SHA256: &str = "36e31c51468f5d554efa38c680ea05cccdd70d895e5e162363db6e7c56100896";
+const PINNED_CASES: usize = 51;
 
 fn bytes() -> Vec<u8> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../spec/relaymark/collection-set-v1.json");
@@ -47,8 +47,8 @@ fn every_case_lists_what_the_contract_says() {
             failures.push(format!("{}: {actual} != {}", case["name"], case["expect"]));
         }
         if let Some(groups) = case.get("groups") {
-            let actual = json!({"descriptors": got["groups"]["descriptors"], "entity_group_keys": got["groups"]["entity_group_keys"]});
-            let expected = json!({"descriptors": groups["descriptors"], "entity_group_keys": groups["entity_group_keys"]});
+            let actual = json!({"descriptors": got["groups"]["descriptors"], "entity_group_keys": got["groups"]["entity_group_keys"], "sort_keys": got["groups"]["sort_keys"], "date_context": got["groups"]["date_context"]});
+            let expected = json!({"descriptors": groups["descriptors"], "entity_group_keys": groups["entity_group_keys"], "sort_keys": groups["sort_keys"], "date_context": groups["date_context"]});
             if actual != expected {
                 failures.push(format!("{} (groups): {actual} != {expected}", case["name"]));
             }

@@ -20,7 +20,7 @@ public enum RelayMarkCollectionSet {
 
     /// Groups v1 metadata for the page's records.
     public enum Grouping: String, Sendable {
-        case type, status
+        case type, status, date
     }
 
     public struct Query {
@@ -36,8 +36,12 @@ public enum RelayMarkCollectionSet {
         public var pageSize: Int
         /// When set, the page carries `groups` for this grouping.
         public var grouping: Grouping?
+        /// The settings timezone (IANA) a `.date` grouping reads local dates in; blank, "UTC" or an
+        /// unknown zone resolve to "Etc/UTC".
+        public var timezone: String?
 
-        public init(list: List, entityID: String? = nil, account: String? = nil, params: [String: Any] = [:], page: Int = 1, pageSize: Int = 24, grouping: Grouping? = nil) {
+        public init(list: List, entityID: String? = nil, account: String? = nil, params: [String: Any] = [:], page: Int = 1, pageSize: Int = 24, grouping: Grouping? = nil, timezone: String? = nil) {
+            self.timezone = timezone
             self.grouping = grouping
             self.list = list
             self.entityID = entityID
@@ -58,6 +62,10 @@ public enum RelayMarkCollectionSet {
         public var grouping: Grouping
         public var descriptors: [Descriptor]
         public var entityGroupKeys: [String: String]
+        /// A `.date` grouping: the resolved timezone the dates are local to.
+        public var dateContext: String?
+        /// A `.date` grouping: each descriptor key's rank, `[0, gregorianDays]` or `[1]` for undated.
+        public var sortKeys: [String: [Int]]?
     }
 
     public struct Page: Equatable, Sendable {
@@ -96,6 +104,7 @@ public enum RelayMarkCollectionSet {
         ]
         if let grouping = query.grouping { input["grouping"] = grouping.rawValue }
         if let entityID = query.entityID { input["entity_id"] = entityID }
+        if let timezone = query.timezone { input["timezone"] = timezone }
         if !serverProjected.isEmpty { input["server_projected"] = serverProjected.sorted() }
         // Splice the records into the envelope: `{` + `"records":<bytes>,` + the rest of the object.
         var envelope = try RelayMarkEngineCall.json(input)
@@ -113,7 +122,8 @@ public enum RelayMarkCollectionSet {
                   let keys = raw["entity_group_keys"] as? [String: String], descriptors.allSatisfy({ (1...2).contains($0.count) }) else {
                 throw RelayMarkSourceCodec.Failure.invalidInput
             }
-            groups = Groups(grouping: grouping, descriptors: descriptors.map { .init(key: $0[0], label: $0.count > 1 ? $0[1] : nil) }, entityGroupKeys: keys)
+            groups = Groups(grouping: grouping, descriptors: descriptors.map { .init(key: $0[0], label: $0.count > 1 ? $0[1] : nil) }, entityGroupKeys: keys,
+                            dateContext: (raw["date_context"] as? [String: Any])?["timezone"] as? String, sortKeys: raw["sort_keys"] as? [String: [Int]])
         }
         return Page(status: status, ids: ids, total: result["total"] as? Int, page: page, pageCount: result["page_count"] as? Int, groups: groups)
     }

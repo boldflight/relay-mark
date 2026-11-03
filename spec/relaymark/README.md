@@ -550,6 +550,14 @@ other-workspace and query-listed ones included, is evaluated locally: members
 (edge and `source: "query"` alike) in source order, so by `position`, then
 `order_key` bytewise, then `added_at`, then entity id.
 
+`groups.grouping: "date"` takes a top-level `timezone` (IANA; blank, "UTC" or an
+unknown zone resolve to `Etc/UTC`) and answers `date_context`, key-only
+descriptors and `sort_keys`. A record's local date is its event's `start_date`,
+else `starts_at`, else a task's `due_at`, else undated; keys are
+`date:YYYY-MM-DD` or `date:undated`, ranked `[0, gregorian_days]` or `[1]`.
+Zones come from the tz database bundled into the engine (`jiff`), never the
+system's.
+
 To re-vendor, copy the file from the relay-elixir commit that changed it
 (`git -C <relay-elixir> show <sha>:test/fixtures/collection_set_v1.json >
 spec/relaymark/collection-set-v1.json`), then update the pinned SHA-256 and case
