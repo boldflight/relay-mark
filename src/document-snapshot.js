@@ -7,6 +7,10 @@ import {linkDefaults} from './document-links.js';
 import {canonicalAttributeCodec} from './document-attributes.js';
 const schema=createCanonicalEditorSchema();
 const metadataKeys=['frontmatter','annotations','resources','meta'];
+// The empty document is valid although ProseMirror's `doc` wants a block: an empty fragment is exactly
+// how y-prosemirror stores one, and the empty paragraph exists only in an editor's view. Every other
+// node, and every non-empty doc, is checked against the schema as before (same rule as the Rust engine).
+function checkedNode(pm){const node=schema.nodeFromJSON(pm);if(node.type.name!=='doc'||node.childCount)node.check();return node;}
 export function documentToSnapshot(ast){ast=normalizeDocument(ast);return proseMirrorToSnapshot(relayMarkToProseMirror(ast),ast);}
 /** The finite importer supplies an already schema-checked PM tree; identity repair
  * remains solely importDocumentSnapshot's responsibility. */
@@ -24,12 +28,12 @@ export function snapshotToDocumentWithProseMirror(snapshot){
  function nodes(children,depth=0){if(depth>64||!Array.isArray(children))throw new TypeError('Invalid portable children');return children.flatMap(n=>{if(n.kind==='text'){only(n,['kind','delta']);if(!Array.isArray(n.delta))throw new TypeError('Invalid text delta');return n.delta.map(run=>{only(run,['insert','attributes']);if(typeof run.insert!=='string'||!run.insert)throw new TypeError('Invalid text insert');const attributes=run.attributes||{};only(attributes,['link','bold','code','italic','strike','underline','highlight','superscript','subscript','ai_authored']);const marks=Object.entries(attributes).map(([type,attrs])=>{only(attrs,type==='link'?['href','target','rel','class','title']:type==='ai_authored'?['run_id']:[]);return type==='link'?{type,attrs:{...linkDefaults,...attrs}}:type==='ai_authored'?{type,attrs}:{type};}).sort((a,b)=>marksOrder.indexOf(a.type)-marksOrder.indexOf(b.type));return {type:'text',text:run.insert,...(marks.length?{marks}: {})};});}
  only(n,['kind','name','attributes','children']);if(n.kind!=='element'||typeof n.name!=='string')throw new TypeError('Invalid portable element');only(n.attributes,Object.keys(n.attributes||{}));const content=nodes(n.children,depth+1),attributes={...({heading:{headingId:null},orderedList:{start:1,type:null},taskItem:{checked:false,entityId:null},codeBlock:{language:null},tableCell:{colspan:1,rowspan:1,colwidth:null,align:null},tableHeader:{colspan:1,rowspan:1,colwidth:null,align:null},image:{alt:null,title:null},callout:{tone:'neutral',emphasis:'soft'},agentSuggestion:{confidence:null},questionBlock:{required:false,points:null,min:null,max:null,settings:{}},questionOption:{correct:false,points:null,settings:{}}}[n.name]||{}),...canonicalAttributeCodec.decode(n.name,n.attributes)};return [{type:n.name,...(Object.keys(attributes).length?{attrs:attributes}:{}),...(content.length?{content}: {})}];});}
  const pm={type:'doc',content:nodes(snapshot.children)};proseMirrorToRelayMark(pm);
- const normalized=schema.nodeFromJSON(pm);normalized.check();const document=proseMirrorToRelayMark(JSON.parse(JSON.stringify(normalized.toJSON())));if(Object.hasOwn(snapshot,'metadata')){only(snapshot.metadata,metadataKeys);Object.assign(document,cloneJSON(snapshot.metadata));}return {document,prosemirror:relayMarkToProseMirror(document)};
+ const normalized=checkedNode(pm);const document=proseMirrorToRelayMark(JSON.parse(JSON.stringify(normalized.toJSON())));if(Object.hasOwn(snapshot,'metadata')){only(snapshot.metadata,metadataKeys);Object.assign(document,cloneJSON(snapshot.metadata));}return {document,prosemirror:relayMarkToProseMirror(document)};
 }
 
 /** Canonical semantic AST normalization: text segmentation has no authored ID.
  * Block/option identities, marks, atom boundaries and envelope values remain exact. */
 export function normalizeDocument(document){
- const pm=relayMarkToProseMirror(document),normalized=schema.nodeFromJSON(pm);normalized.check();
+ const pm=relayMarkToProseMirror(document),normalized=checkedNode(pm);
  return {...document,blocks:proseMirrorToRelayMark(JSON.parse(JSON.stringify(normalized.toJSON()))).blocks};
 }
