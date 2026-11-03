@@ -1,5 +1,17 @@
 # RelayMark Elixir adapter release notes
 
+## 0.7.9
+
+- The packaged JS document source (`priv/collaboration/document-source.js`)
+  accepts the empty document, completing 0.7.8: `serializeDocument`,
+  `normalizeDocument`, `documentToSnapshot`, `snapshotToDocument` and
+  `projectDocumentMarkdown` no longer throw `Invalid content for node doc` on
+  `{"type":"relaymark.document","blocks":[]}`. The empty document normalizes to
+  itself and projects body `""` and html `""`; its metadata is still validated.
+  The ProseMirror schema keeps `doc` as `block+`, with the same single exception
+  for the empty doc as the Rust engine. The JS suite now runs
+  `spec/relaymark/editor/empty-document-v1.json`.
+
 ## 0.7.8
 
 - The empty document is valid everywhere. An empty fragment, the empty document

@@ -1,5 +1,13 @@
 # RelayMark Git and Swift release notes
 
+## Elixir adapter 0.7.9
+
+- Empty document in the JS reference: `normalizeDocument`, `serializeDocument`,
+  the snapshot conversions and `projectDocumentMarkdown` accept zero blocks
+  (they threw `Invalid content for node doc`), matching relaymark-core, the
+  Elixir adapter and Swift. `spec/relaymark/editor/empty-document-v1.json` now
+  runs in the JS suite too.
+
 ## Next release (after 0.7.8)
 
 - Swift `RelayMarkNativeRichEditing.appendParagraph(document:id:text:expectedSnapshot:)`
