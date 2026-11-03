@@ -794,6 +794,37 @@ public enum RelayMarkNativeRichEditing {
         return try change(transform, source: source, bridge: bridge, document: document)
     }
 
+    /// Appends literal human text as one root paragraph through the shared
+    /// replacement transaction. Newlines become hard breaks, never Markdown
+    /// commands. The exact snapshot and canonical ID are validated before any
+    /// write; the host owns authorization, provenance and duplicate turns.
+    public static func appendParagraph(document: RelayMarkNativeDocument, id: String, text: String,
+                                       expectedSnapshot: Data) throws -> Change {
+        guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
+              !text.isEmpty, text.utf16.count <= 131_072,
+              !text.unicodeScalars.contains(where: {
+                  $0 == "\u{FFFC}" || $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}"
+              }),
+              let tree = try JSONSerialization.jsonObject(with: expectedSnapshot) as? [String: Any],
+              let blocks = tree["children"] as? [[String: Any]],
+              blocks.count < RelayMarkNativeDocument.maximumBlocks else {
+            throw RelayMarkNativeDocument.Failure.unsupportedProseEdit
+        }
+        var children: [[String: Any]] = []
+        for (index, line) in text.components(separatedBy: "\n").enumerated() {
+            if index > 0 {
+                children.append(["kind": "element", "name": "hardBreak", "attributes": [:], "children": []])
+            }
+            if !line.isEmpty { children.append(["kind": "text", "delta": [["insert": line]]]) }
+        }
+        let paragraph: [String: Any] = ["kind": "element", "name": "paragraph",
+            "attributes": ["relaymarkId": id], "children": children]
+        // The existing full candidate projection checks the supplied ID and
+        // uniqueness against nested blocks before the maintained ReplaceStep.
+        return try replaceRootChildren(document: document, tree: tree,
+            index: blocks.count, count: 0, replacements: [paragraph])
+    }
+
     /// An explicit root-child replacement command, using the full shared rich
     /// fragment and one maintained ReplaceStep rather than a document diff.
     static func replaceRootChildren(document: RelayMarkNativeDocument, tree: [String: Any],

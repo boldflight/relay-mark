@@ -1,5 +1,14 @@
 # RelayMark Git and Swift release notes
 
+## Next release (after 0.7.8)
+
+- Swift `RelayMarkNativeRichEditing.appendParagraph(document:id:text:expectedSnapshot:)`
+  appends literal human text as one root paragraph through the shared root
+  replacement (one maintained ReplaceStep). Newlines become hard breaks, never
+  Markdown; the exact snapshot and a caller-chosen unique `relaymarkId` are
+  checked before any write, so a retried append is recognisable by its ID.
+  Talk to Relay dictation uses it on Apple.
+
 ## Elixir adapter 0.7.8 and engine
 
 - Empty document: an empty fragment, the empty document and the empty body agree
