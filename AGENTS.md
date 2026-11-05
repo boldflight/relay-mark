@@ -37,3 +37,7 @@ and licensing.
 - Use focused checks during implementation. Documentation-only changes need
   link and diff validation. Once a commit is pushed, don't amend, rebase or
   force-push it; make a corrective commit.
+
+- Apple builds use the latest stable Xcode and its bundled Swift toolchain. Never
+  pin an exact Xcode version in policy or automation; newer stable releases are
+  adopted without a policy edit (Douglas, November 6, 2026).

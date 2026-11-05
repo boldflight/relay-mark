@@ -10,7 +10,7 @@ cross-runtime meaning; every runtime must agree with them.
 - Node.js 20 or newer
 - Rust, at the version pinned in `rust-toolchain.toml`
 - Elixir 1.18 or newer with Erlang/OTP 27, for the Elixir adapter
-- Xcode 27.1 (Swift 6.4) on macOS, for the Swift package
+- the latest stable Xcode and its bundled Swift toolchain on macOS, for the Swift package
 
 ## Build and test
 
