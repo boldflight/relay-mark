@@ -949,6 +949,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let view = notification.object as? CollaborationTextView else { return }
             editor.selectionDidChange(view)
+            if view.editorLayout == .content { view.scrollRangeToVisible(view.viewSelection) }
         }
         func update(_ view: CollaborationTextView) {
             apply(services, to: view)
@@ -980,6 +981,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
     private(set) var textView: CollaborationTextView?
     private(set) var scrollView: NSScrollView?
     private var sizing = RelayEditorContentSizing()
+    private var revealAfterLayout = false
     override public var isFlipped: Bool { true }
 
     func install(_ view: CollaborationTextView) {
@@ -1016,7 +1018,10 @@ public struct RelayMarkEditorView: NSViewRepresentable {
     override public func layout() {
         super.layout()
         if let scrollView { scrollView.frame = bounds }
-        else { textView?.frame = bounds; scheduleContentMeasurement() }
+        else {
+            textView?.frame = bounds; scheduleContentMeasurement()
+            if revealAfterLayout { revealAfterLayout = false; textView.map { $0.scrollRangeToVisible($0.viewSelection) } }
+        }
     }
     func contentSize(at width: CGFloat) -> CGSize? {
         guard let view = textView, view.editorLayout == .content, width.isFinite, width > 0 else { return nil }
@@ -1030,7 +1035,10 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         sizing.schedule { [weak self] in
             guard let self, let size = contentSize(at: bounds.width) else { return nil }
             return size.height
-        } changed: { [weak self] in self?.invalidateIntrinsicContentSize() }
+        } changed: { [weak self] in
+            self?.revealAfterLayout = true
+            self?.invalidateIntrinsicContentSize()
+        }
     }
 }
 
@@ -2016,6 +2024,9 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             viewController.formattingDescriptor = .init(string: view.textStorage, range: view.selectedRange)
         }
         func textViewDidChangeSelection(_ view: UITextView) {
+            if let paper = view as? CollaborationTextView, paper.editorLayout == .content {
+                paper.scrollRangeToVisible(paper.viewSelection)
+            }
             guard !updating, let view = view as? CollaborationTextView, !view.retired, view.markedTextRange == nil,
                 view.editingSession == nil || view.editingSession === session else { return }
             if view.pasteCommand?.range != view.paperSelection { view.pasteCommand = nil }
@@ -2052,6 +2063,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
 public final class CollaborationTextContainer: UIView {
     private(set) var textView: CollaborationTextView?
     private var sizing = RelayEditorContentSizing()
+    private var revealAfterLayout = false
     /// VoiceOver reads a hosted header before the paper's text.
     override public var accessibilityElements: [Any]? {
         get { textView.map { view in [view.headerView, view].compactMap { $0 } } }
@@ -2084,6 +2096,7 @@ public final class CollaborationTextContainer: UIView {
     override public func layoutSubviews() {
         super.layoutSubviews()
         scheduleContentMeasurement()
+        if revealAfterLayout { revealAfterLayout = false; textView.map { $0.scrollRangeToVisible($0.viewSelection) } }
     }
     func contentSize(at width: CGFloat) -> CGSize? {
         guard let view = textView, view.editorLayout == .content, width.isFinite, width > 0 else { return nil }
@@ -2097,7 +2110,10 @@ public final class CollaborationTextContainer: UIView {
         sizing.schedule { [weak self] in
             guard let self, let size = contentSize(at: bounds.width) else { return nil }
             return size.height
-        } changed: { [weak self] in self?.invalidateIntrinsicContentSize() }
+        } changed: { [weak self] in
+            self?.revealAfterLayout = true
+            self?.invalidateIntrinsicContentSize()
+        }
     }
 }
 @MainActor
@@ -2107,6 +2123,11 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     func contentHeight(at width: CGFloat) -> CGFloat {
         textContainer.size = CGSize(width: max(1, width - textContainerInset.left - textContainerInset.right), height: .greatestFiniteMagnitude)
         return max(font?.lineHeight ?? 17, RelayTextGeometry(textLayoutManager)?.contentHeight ?? 0) + textContainerInset.top + textContainerInset.bottom
+    }
+    override func scrollRangeToVisible(_ range: NSRange) {
+        guard editorLayout == .content else { return super.scrollRangeToVisible(range) }
+        guard let position = position(from: beginningOfDocument, offset: NSMaxRange(range)) else { return }
+        scrollRectToVisible(caretRect(for: position), animated: false)
     }
     override func scrollRectToVisible(_ rect: CGRect, animated: Bool) {
         guard editorLayout == .content else { return super.scrollRectToVisible(rect, animated: animated) }
