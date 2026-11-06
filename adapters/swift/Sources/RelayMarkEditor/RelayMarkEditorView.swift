@@ -980,7 +980,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
 @MainActor public final class CollaborationTextContainer: NSView {
     private(set) var textView: CollaborationTextView?
     private(set) var scrollView: NSScrollView?
-    private var sizing = RelayEditorContentSizing()
+    private var sizing = RelayEditorContentLayout()
     private var revealAfterLayout = false
     override public var isFlipped: Bool { true }
 
@@ -996,6 +996,12 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         view.editorLayout = services.layout
         configureLayout()
         scrollView?.contentInsets.bottom = services.bottomContentInset ?? 0
+        sizing.viewportDidChange(layout: services.layout, revision: services.contentViewportRevision) { [weak self] in
+            guard let self else { return }
+            layoutSubtreeIfNeeded()
+            guard let view = textView, !view.retired, view.editorLayout == .content else { return }
+            view.scrollRangeToVisible(view.viewSelection)
+        }
         scheduleContentMeasurement()
     }
     private func configureLayout() {
@@ -2062,7 +2068,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
 @MainActor
 public final class CollaborationTextContainer: UIView {
     private(set) var textView: CollaborationTextView?
-    private var sizing = RelayEditorContentSizing()
+    private var sizing = RelayEditorContentLayout()
     private var revealAfterLayout = false
     /// VoiceOver reads a hosted header before the paper's text.
     override public var accessibilityElements: [Any]? {
@@ -2091,6 +2097,12 @@ public final class CollaborationTextContainer: UIView {
         view.contentInset.bottom = services.layout == .viewport ? services.bottomContentInset ?? 0 : 0
         view.verticalScrollIndicatorInsets.bottom = view.contentInset.bottom
         view.attach(header: services.layout == .viewport ? services.header : nil)
+        sizing.viewportDidChange(layout: services.layout, revision: services.contentViewportRevision) { [weak self] in
+            guard let self else { return }
+            layoutIfNeeded()
+            guard let view = textView, !view.retired, view.editorLayout == .content else { return }
+            view.scrollRangeToVisible(view.viewSelection)
+        }
         scheduleContentMeasurement()
     }
     override public func layoutSubviews() {
@@ -2644,9 +2656,29 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
 
 /// Coalesces TextKit/layout notifications without invalidating SwiftUI again when
 /// only the viewport moved. Measurement never replaces text or finalizes marked input.
-@MainActor private final class RelayEditorContentSizing {
+@MainActor private final class RelayEditorContentLayout {
     private var pending: Task<Void, Never>?
     private var height: CGFloat?
+    private var viewportRevision: Int?
+    private var pendingReveal: Task<Void, Never>?
+
+    func viewportDidChange(layout: RelayMarkEditorLayout, revision: Int, reveal: @escaping () -> Void) {
+        guard layout == .content else {
+            viewportRevision = nil
+            pendingReveal?.cancel(); pendingReveal = nil
+            return
+        }
+        guard viewportRevision != revision else { return }
+        viewportRevision = revision
+        pendingReveal?.cancel()
+        pendingReveal = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard !Task.isCancelled, let self else { return }
+            pendingReveal = nil
+            reveal()
+        }
+    }
+
     func schedule(measure: @escaping () -> CGFloat?, changed: @escaping () -> Void) {
         guard pending == nil else { return }
         pending = Task { @MainActor [weak self] in

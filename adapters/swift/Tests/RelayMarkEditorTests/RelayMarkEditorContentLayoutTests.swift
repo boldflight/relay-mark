@@ -9,8 +9,21 @@ import AppKit
 import UIKit
 #endif
 
-@MainActor
+@MainActor @Suite(.serialized)
 struct RelayMarkEditorContentLayoutTests {
+    private func settle(_ container: CollaborationTextContainer) async {
+        for _ in 0..<4 {
+            await Task.yield()
+            #if os(macOS)
+            container.needsLayout = true
+            container.layoutSubtreeIfNeeded()
+            #else
+            container.setNeedsLayout()
+            container.layoutIfNeeded()
+            #endif
+        }
+    }
+
     private func session(_ source: String, persist: @escaping () -> Void = {}) throws -> RelayMarkEditorSession {
         #if os(macOS)
         _ = NSApplication.shared
@@ -122,7 +135,7 @@ struct RelayMarkEditorContentLayoutTests {
 
     #if os(macOS)
     @Test("The content editor reveals the caret through the enclosing host scroll")
-    func caretReachesParentScroll() throws {
+    func caretReachesParentScroll() async throws {
         let owner = try session((0..<100).map { "Paragraph \($0)" }.joined(separator: "\n\n"))
         let coordinator = RelayMarkEditorView.TextCoordinator(session: owner)
         var services = RelayMarkEditorServices(); services.layout = .content
@@ -148,10 +161,27 @@ struct RelayMarkEditorContentLayoutTests {
         #expect(container.scrollView == nil)
         #expect(view.enclosingScrollView === parent)
         #expect(parent.contentView.bounds.minY > 0)
+        await settle(container)
+        parent.contentView.scroll(to: .zero)
+        await settle(container)
+        #expect(parent.contentView.bounds.minY == 0, "Scrolling without a viewport change must stay put")
+        container.configure(services)
+        await settle(container)
+        #expect(parent.contentView.bounds.minY == 0, "An unchanged viewport revision must preserve the person's scrolling")
+        services.contentViewportRevision = 1
+        container.configure(services)
+        await settle(container)
+        #expect(parent.contentView.bounds.minY > 0, "A changed host viewport must reveal the focused caret")
+        window.makeFirstResponder(nil)
+        parent.contentView.scroll(to: .zero)
+        services.contentViewportRevision = 2
+        container.configure(services)
+        await settle(container)
+        #expect(parent.contentView.bounds.minY == 0, "An unfocused input must not reveal")
     }
     #else
     @Test("The content editor reveals the caret through the enclosing host scroll")
-    func caretReachesParentScroll() throws {
+    func caretReachesParentScroll() async throws {
         let owner = try session((0..<100).map { "Paragraph \($0)" }.joined(separator: "\n\n"))
         let coordinator = RelayMarkEditorView.TextCoordinator(session: owner)
         var services = RelayMarkEditorServices(); services.layout = .content
@@ -177,6 +207,27 @@ struct RelayMarkEditorContentLayoutTests {
         #expect(!view.isScrollEnabled)
         #expect(parent.contentOffset.y > 0)
         #expect(view.contentOffset == .zero)
+        await settle(container)
+        parent.setContentOffset(.zero, animated: false)
+        container.configure(services)
+        await settle(container)
+        #expect(parent.contentOffset == .zero, "An unchanged viewport revision must preserve the person's scrolling")
+        services.contentViewportRevision = 1
+        container.configure(services)
+        await settle(container)
+        #expect(parent.contentOffset.y > 0, "A changed host viewport must reveal the focused caret")
+        let oldOffset = parent.contentOffset.y
+        parent.frame.size.height = 60
+        services.contentViewportRevision = 2
+        container.configure(services)
+        await settle(container)
+        #expect(parent.contentOffset.y > oldOffset, "A parent-only viewport resize must reveal the focused caret again")
+        view.resignFirstResponder()
+        parent.setContentOffset(.zero, animated: false)
+        services.contentViewportRevision = 3
+        container.configure(services)
+        await settle(container)
+        #expect(parent.contentOffset == .zero, "An unfocused input must not reveal")
     }
     #endif
 }

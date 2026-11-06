@@ -55,6 +55,10 @@ public struct RelayMarkImageFile: Sendable, Equatable {
 @MainActor public struct RelayMarkEditorServices {
     /// A standalone scrolling viewport, or natural-height text inside the host's scroll.
     public var layout: RelayMarkEditorLayout = .viewport
+    /// Content mode only: change this when the host scroll's viewport size or
+    /// content insets change, so its focused caret is revealed after layout.
+    /// Scrolling alone must leave it unchanged.
+    public var contentViewportRevision: Int = 0
     public var images: (any RelayMarkImageService)?
     public var paste: (any RelayMarkPasteService)?
     public var links: (any RelayMarkLinkService)?
