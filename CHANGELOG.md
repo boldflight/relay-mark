@@ -1,5 +1,10 @@
 # RelayMark Git and Swift release notes
 
+## [0.7.10] - 2026-11-06
+
+- Swift editors can use `RelayMarkEditorServices.layout = .content` inside a host-owned scroll. TextKit measures the natural content height, including wrapping, attachments and the final empty line, and caret reveal reaches the parent scroll on AppKit and UIKit. Standalone editors retain their scrolling viewport by default.
+- Layout changes retain the native input client, marked text, canonical undo and accessibility behavior. The engine artifact, document contract and Elixir package are unchanged.
+
 ## Elixir adapter 0.7.9
 
 - Empty document in the JS reference: `normalizeDocument`, `serializeDocument`,

@@ -712,33 +712,32 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         let text: TextCoordinator
         init(text: TextCoordinator) { self.text = text }
     }
-    public func makeNSView(context: Context) -> NSScrollView {
+    public func makeNSView(context: Context) -> CollaborationTextContainer {
         context.coordinator.text.services = services
-        let scroll = NSScrollView()
-        scroll.hasVerticalScroller = true
-        scroll.drawsBackground = false
-        scroll.automaticallyAdjustsContentInsets = false
-        scroll.documentView = context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel)
-        scroll.contentInsets.bottom = services.bottomContentInset ?? 0
-        return scroll
+        let container = CollaborationTextContainer()
+        container.install(context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel))
+        container.configure(services)
+        return container
     }
-    public func updateNSView(_ scroll: NSScrollView, context: Context) {
+    public func updateNSView(_ container: CollaborationTextContainer, context: Context) {
         _ = services.imageStore?.revision
         context.coordinator.text.services = services
         if context.coordinator.text.session !== session {
-            let previous = scroll.documentView as? CollaborationTextView
+            let previous = container.textView
             let wasFocused = previous.map { $0.window?.firstResponder === $0 } ?? false
             if let previous { context.coordinator.text.retire(previous) }
             context.coordinator.text.session = session
             let replacement = context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel)
-            scroll.documentView = replacement
-            if wasFocused { scroll.window?.makeFirstResponder(replacement) }
-        } else if let view = scroll.documentView as? CollaborationTextView { context.coordinator.text.update(view) }
-        // The host's clearance below the last line, as on UIKit.
-        if scroll.contentInsets.bottom != services.bottomContentInset ?? 0 { scroll.contentInsets.bottom = services.bottomContentInset ?? 0 }
+            container.install(replacement)
+            if wasFocused { container.window?.makeFirstResponder(replacement) }
+        } else if let view = container.textView { context.coordinator.text.update(view) }
+        container.configure(services)
     }
-    public static func dismantleNSView(_ scroll: NSScrollView, coordinator: Coordinator) {
-        if let view = scroll.documentView as? CollaborationTextView { coordinator.text.retire(view) }
+    public func sizeThatFits(_ proposal: ProposedViewSize, nsView: CollaborationTextContainer, context: Context) -> CGSize? {
+        proposal.width.flatMap { nsView.contentSize(at: $0) }
+    }
+    public static func dismantleNSView(_ container: CollaborationTextContainer, coordinator: Coordinator) {
+        if let view = container.textView { coordinator.text.retire(view) }
     }
     @MainActor final class TextCoordinator: NSObject, NSTextViewDelegate {
         /// The host's services; tests may set the closures below directly.
@@ -962,8 +961,10 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             session.focusRequest = nil
             update(view)
             window.makeFirstResponder(view)
+            view.scrollRangeToVisible(view.viewSelection)
         }
         private func apply(_ services: RelayMarkEditorServices, to view: CollaborationTextView) {
+            view.editorLayout = services.layout
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
@@ -971,6 +972,65 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             view.previousTextElement = services.previousTextElement
             view.linkPreviousTextElement()
         }
+    }
+}
+
+/// Keeps the native input client stable while the host chooses its scroll owner.
+@MainActor public final class CollaborationTextContainer: NSView {
+    private(set) var textView: CollaborationTextView?
+    private(set) var scrollView: NSScrollView?
+    private var sizing = RelayEditorContentSizing()
+    override public var isFlipped: Bool { true }
+
+    func install(_ view: CollaborationTextView) {
+        textView?.onContentLayoutChange = nil
+        textView?.removeFromSuperview()
+        textView = view
+        view.onContentLayoutChange = { [weak self] in self?.scheduleContentMeasurement() }
+        configureLayout()
+    }
+    func configure(_ services: RelayMarkEditorServices) {
+        guard let view = textView else { return }
+        view.editorLayout = services.layout
+        configureLayout()
+        scrollView?.contentInsets.bottom = services.bottomContentInset ?? 0
+        scheduleContentMeasurement()
+    }
+    private func configureLayout() {
+        guard let view = textView else { return }
+        if view.editorLayout == .viewport {
+            if scrollView == nil {
+                view.removeFromSuperview()
+                let scroll = NSScrollView()
+                scroll.hasVerticalScroller = true; scroll.drawsBackground = false
+                scroll.automaticallyAdjustsContentInsets = false
+                scrollView = scroll; addSubview(scroll)
+            }
+            if scrollView?.documentView !== view { scrollView?.documentView = view }
+        } else {
+            if let scrollView { scrollView.documentView = nil; scrollView.removeFromSuperview(); self.scrollView = nil }
+            if view.superview !== self { addSubview(view) }
+        }
+        needsLayout = true
+    }
+    override public func layout() {
+        super.layout()
+        if let scrollView { scrollView.frame = bounds }
+        else { textView?.frame = bounds; scheduleContentMeasurement() }
+    }
+    func contentSize(at width: CGFloat) -> CGSize? {
+        guard let view = textView, view.editorLayout == .content, width.isFinite, width > 0 else { return nil }
+        return CGSize(width: width, height: view.contentHeight(at: width))
+    }
+    override public var intrinsicContentSize: NSSize {
+        contentSize(at: bounds.width).map { NSSize(width: NSView.noIntrinsicMetric, height: $0.height) } ?? super.intrinsicContentSize
+    }
+    private func scheduleContentMeasurement() {
+        guard textView?.editorLayout == .content else { return }
+        sizing.schedule { [weak self] in
+            guard let self, let size = contentSize(at: bounds.width) else { return nil }
+            return size.height
+        } changed: { [weak self] in self?.invalidateIntrinsicContentSize() }
     }
 }
 
@@ -989,6 +1049,21 @@ public struct RelayMarkEditorView: NSViewRepresentable {
 
 @MainActor
 final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContentStorageDelegate, AXCustomContentProvider {
+    var editorLayout: RelayMarkEditorLayout = .viewport
+    var onContentLayoutChange: (() -> Void)?
+    override func scrollRangeToVisible(_ range: NSRange) {
+        guard editorLayout == .content else { return super.scrollRangeToVisible(range) }
+        guard window?.firstResponder === self, let document = enclosingScrollView?.documentView,
+              let geometry = RelayTextGeometry(textLayoutManager) else { return }
+        let frames = geometry.segmentFrames(range)
+        guard let rect = frames.first ?? geometry.lineFrame(at: min(range.location, string.utf16.count)) else { return }
+        document.scrollToVisible(convert(rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y), to: document))
+    }
+    func contentHeight(at width: CGFloat) -> CGFloat {
+        textContainer?.containerSize = NSSize(width: max(1, width - 2 * textContainerInset.width), height: .greatestFiniteMagnitude)
+        let font = font ?? NSFont.systemFont(ofSize: 15)
+        return max(font.ascender - font.descender + font.leading, RelayTextGeometry(textLayoutManager)?.contentHeight ?? 0) + 2 * textContainerInset.height
+    }
     /// The host's image capability and collaborator colors, from its services.
     var imagePolicy = RelayNativeImageRepresentation()
     var collaboratorColor: (String) -> Color = RelayMarkEditorServices.hexColor
@@ -1042,7 +1117,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     var viewSelection: NSRange { selectedRange() }
     func showSelection(_ range: NSRange) { setSelectedRange(range); scrollRangeToVisible(range) }
     func unmarkPaperText() { unmarkText() }
-    func paperNeedsDisplay() { needsDisplay = true }
+    func paperNeedsDisplay() { needsDisplay = true; onContentLayoutChange?() }
     func replaceAllText(_ text: NSAttributedString) {
         performPaperEdit { textStorage?.setAttributedString(text) }
     }
@@ -1532,8 +1607,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         context.coordinator.text.services = services
         let container = CollaborationTextContainer()
         container.install(context.coordinator.text.makeTextView(accessibilityLabel: accessibilityLabel))
-        container.textView.map(applyBottomInset)
-        container.textView?.attach(header: services.header)
+        container.configure(services)
         return container
     }
     public func updateUIView(_ container: CollaborationTextContainer, context: Context) {
@@ -1548,18 +1622,10 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             container.install(replacement)
             if wasFocused { replacement.becomeFirstResponder() }
         } else if let view = container.textView { context.coordinator.text.update(view) }
-        container.textView.map(applyBottomInset)
-        // Only the instance is compared: the host feeds the header's content itself.
-        container.textView?.attach(header: services.header)
+        container.configure(services)
     }
-    /// The host's room below the last line, in place of the safe-area adjustment.
-    private func applyBottomInset(_ view: CollaborationTextView) {
-        let behavior: UIScrollView.ContentInsetAdjustmentBehavior = services.bottomContentInset == nil ? .automatic : .never
-        let inset = services.bottomContentInset ?? 0
-        if view.contentInsetAdjustmentBehavior != behavior { view.contentInsetAdjustmentBehavior = behavior }
-        guard view.contentInset.bottom != inset else { return }
-        view.contentInset.bottom = inset
-        view.verticalScrollIndicatorInsets.bottom = inset
+    public func sizeThatFits(_ proposal: ProposedViewSize, uiView: CollaborationTextContainer, context: Context) -> CGSize? {
+        proposal.width.flatMap { uiView.contentSize(at: $0) }
     }
     public static func dismantleUIView(_ container: CollaborationTextContainer, coordinator: Coordinator) {
         if let view = container.textView { view.attach(header: nil); coordinator.text.retire(view) }
@@ -1968,8 +2034,10 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             session.focusRequest = nil
             update(view)
             view.becomeFirstResponder()
+            view.scrollRangeToVisible(view.viewSelection)
         }
         private func apply(_ services: RelayMarkEditorServices, to view: CollaborationTextView) {
+            view.editorLayout = services.layout
             view.imagePolicy = .init(accepted: services.images?.acceptedImageTypes ?? [],
                                      maximumBytes: services.images?.maximumImageBytes ?? 0)
             view.collaboratorColor = services.collaboratorColor
@@ -1983,14 +2051,17 @@ public struct RelayMarkEditorView: UIViewRepresentable {
 @MainActor
 public final class CollaborationTextContainer: UIView {
     private(set) var textView: CollaborationTextView?
+    private var sizing = RelayEditorContentSizing()
     /// VoiceOver reads a hosted header before the paper's text.
     override public var accessibilityElements: [Any]? {
         get { textView.map { view in [view.headerView, view].compactMap { $0 } } }
         set {}
     }
     func install(_ view: CollaborationTextView) {
+        textView?.onContentLayoutChange = nil
         textView?.removeFromSuperview()
         textView = view
+        view.onContentLayoutChange = { [weak self] in self?.scheduleContentMeasurement() }
         view.translatesAutoresizingMaskIntoConstraints = false
         addSubview(view)
         NSLayoutConstraint.activate([
@@ -1998,9 +2069,57 @@ public final class CollaborationTextContainer: UIView {
             view.topAnchor.constraint(equalTo: topAnchor), view.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }
+    func configure(_ services: RelayMarkEditorServices) {
+        guard let view = textView else { return }
+        view.editorLayout = services.layout
+        view.isScrollEnabled = services.layout == .viewport
+        if services.layout == .content, view.contentOffset != .zero { view.setContentOffset(.zero, animated: false) }
+        let behavior: UIScrollView.ContentInsetAdjustmentBehavior = services.layout == .content || services.bottomContentInset != nil ? .never : .automatic
+        view.contentInsetAdjustmentBehavior = behavior
+        view.contentInset.bottom = services.layout == .viewport ? services.bottomContentInset ?? 0 : 0
+        view.verticalScrollIndicatorInsets.bottom = view.contentInset.bottom
+        view.attach(header: services.layout == .viewport ? services.header : nil)
+        scheduleContentMeasurement()
+    }
+    override public func layoutSubviews() {
+        super.layoutSubviews()
+        scheduleContentMeasurement()
+    }
+    func contentSize(at width: CGFloat) -> CGSize? {
+        guard let view = textView, view.editorLayout == .content, width.isFinite, width > 0 else { return nil }
+        return CGSize(width: width, height: view.contentHeight(at: width))
+    }
+    override public var intrinsicContentSize: CGSize {
+        contentSize(at: bounds.width).map { CGSize(width: UIView.noIntrinsicMetric, height: $0.height) } ?? super.intrinsicContentSize
+    }
+    private func scheduleContentMeasurement() {
+        guard textView?.editorLayout == .content else { return }
+        sizing.schedule { [weak self] in
+            guard let self, let size = contentSize(at: bounds.width) else { return nil }
+            return size.height
+        } changed: { [weak self] in self?.invalidateIntrinsicContentSize() }
+    }
 }
 @MainActor
 final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDelegate, RelayPaperTextView, NSTextContentStorageDelegate, AXCustomContentProvider {
+    var editorLayout: RelayMarkEditorLayout = .viewport
+    var onContentLayoutChange: (() -> Void)?
+    func contentHeight(at width: CGFloat) -> CGFloat {
+        textContainer.size = CGSize(width: max(1, width - textContainerInset.left - textContainerInset.right), height: .greatestFiniteMagnitude)
+        return max(font?.lineHeight ?? 17, RelayTextGeometry(textLayoutManager)?.contentHeight ?? 0) + textContainerInset.top + textContainerInset.bottom
+    }
+    override func scrollRectToVisible(_ rect: CGRect, animated: Bool) {
+        guard editorLayout == .content else { return super.scrollRectToVisible(rect, animated: animated) }
+        guard isFirstResponder else { return }
+        var ancestor = superview
+        while let view = ancestor {
+            if let scroll = view as? UIScrollView, scroll.isScrollEnabled {
+                scroll.scrollRectToVisible(convert(rect, to: scroll), animated: animated)
+                return
+            }
+            ancestor = view.superview
+        }
+    }
     /// Lets the task-checkbox tap recognize together with the text view's own
     /// taps. Without it the checkbox tap wins and a tap never focuses the paper.
     final class SimultaneousTapDelegate: NSObject, UIGestureRecognizerDelegate {
@@ -2088,7 +2207,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     var viewSelection: NSRange { selectedRange }
     func showSelection(_ range: NSRange) { selectedRange = range; scrollRangeToVisible(range) }
     func unmarkPaperText() { unmarkText() }
-    func paperNeedsDisplay() { setNeedsDisplay() }
+    func paperNeedsDisplay() { setNeedsDisplay(); onContentLayoutChange?() }
     func replaceAllText(_ text: NSAttributedString) {
         pasteCommand = nil
         attributedText = text
@@ -2103,6 +2222,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         super.layoutSubviews()
         assert(textLayoutManager != nil, "The paper switched to TextKit 1 compatibility mode")
         layOutHeader()
+        onContentLayoutChange?()
         for span in paper.tables.spans where span.table.isGridLoaded && span.table.grid.superview != nil {
             span.table.grid.updateVisible(in: convert(bounds, to: span.table.grid))
         }
@@ -2501,6 +2621,24 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
 }
 #endif
 
+/// Coalesces TextKit/layout notifications without invalidating SwiftUI again when
+/// only the viewport moved. Measurement never replaces text or finalizes marked input.
+@MainActor private final class RelayEditorContentSizing {
+    private var pending: Task<Void, Never>?
+    private var height: CGFloat?
+    func schedule(measure: @escaping () -> CGFloat?, changed: @escaping () -> Void) {
+        guard pending == nil else { return }
+        pending = Task { @MainActor [weak self] in
+            await Task.yield()
+            guard let self else { return }
+            defer { pending = nil }
+            guard let next = measure(), next != height else { return }
+            height = next
+            changed()
+        }
+    }
+}
+
 /// TextKit 2 geometry in text-container coordinates; offsets remain canonical UTF-16.
 /// Queries lay out only the fragments they touch, never the whole paper.
 @MainActor
@@ -2517,6 +2655,13 @@ struct RelayTextGeometry {
 
     var length: Int { storage.length }
     var padding: CGFloat { manager.textContainer?.lineFragmentPadding ?? 0 }
+
+    /// Natural document height for a host-owned scroll. TextKit keeps unchanged
+    /// fragments cached; attachments and a final empty line contribute their real layout.
+    var contentHeight: CGFloat {
+        manager.ensureLayout(for: content.documentRange)
+        return ceil(max(manager.usageBoundsForTextContainer.maxY, lineFrame(at: length)?.maxY ?? 0))
+    }
 
     func location(_ offset: Int) -> (any NSTextLocation)? {
         guard offset >= 0, offset <= length else { return nil }

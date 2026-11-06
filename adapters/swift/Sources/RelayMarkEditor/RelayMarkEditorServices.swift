@@ -53,6 +53,8 @@ public struct RelayMarkImageFile: Sendable, Equatable {
 /// editor does not offer: images and rich pastes are refused, fragment links
 /// and buttons do nothing.
 @MainActor public struct RelayMarkEditorServices {
+    /// A standalone scrolling viewport, or natural-height text inside the host's scroll.
+    public var layout: RelayMarkEditorLayout = .viewport
     public var images: (any RelayMarkImageService)?
     public var paste: (any RelayMarkPasteService)?
     public var links: (any RelayMarkLinkService)?
@@ -72,12 +74,12 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     /// The link to a section of this paper by its destination name, for
     /// "Copy link to this section"; nil offers no link.
     public var sectionLink: ((String) -> URL?)?
-    /// Room below the paper's last line when the host lays the editor out under
+    /// Viewport mode only: room below the paper's last line when the host lays the editor out under
     /// its own bars and floating controls: the text scrolls under them and can
     /// rest clear of them. Nil leaves the bottom to the system's safe-area
     /// adjustment; a value replaces it.
     public var bottomContentInset: CGFloat?
-    /// SwiftUI content laid out above the paper's text inside the editor's own
+    /// Viewport mode only: SwiftUI content laid out above the paper's text inside the editor's own
     /// scroll (UIKit): it scrolls away with the text, and the caret's keyboard
     /// handling stays the text view's. Nil shows the text alone.
     public var header: RelayMarkEditorHeader?
@@ -98,6 +100,12 @@ public struct RelayMarkImageFile: Sendable, Equatable {
         return Color(red: Double((hex >> 16) & 255) / 255, green: Double((hex >> 8) & 255) / 255,
                      blue: Double(hex & 255) / 255)
     }
+}
+
+/// Who owns scrolling around the editor. Editing behavior is identical in both modes.
+public enum RelayMarkEditorLayout: Equatable, Sendable {
+    case viewport
+    case content
 }
 
 /// Content a host shows above the paper's text, inside the editor's scroll
