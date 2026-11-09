@@ -5,7 +5,6 @@ import RelayMarkCollaboration
 import RelayMarkNativeCollaboration
 import RelayMarkProseProjection
 import RelayMarkSwift
-import SwiftUI
 
 /// An ordinary authored-prose editor over one native Yrs replica. The host
 /// persists each exact update through its existing account-bound journal.
@@ -21,7 +20,7 @@ public final class RelayMarkEditorSession {
     /// Advances whenever `text` is replaced; a text view compares it instead of the text.
     @ObservationIgnored public private(set) var textRevision = 0
     /// Set when a peer's text-only update re-projected just its leaves.
-    @ObservationIgnored var textSplice: RelayTextSplice?
+    @ObservationIgnored package var textSplice: RelayTextSplice?
     /// Edits that reached a whole-paper path because no fast path took them.
     /// Kept on this device only, so real editing shows whether it happens.
     @ObservationIgnored private(set) var fallbackEdits = 0
@@ -41,20 +40,20 @@ public final class RelayMarkEditorSession {
     /// Sections of the text revision they were read from.
     @ObservationIgnored var sectionCache: (revision: Int, sections: [RelayPaperSection])?
     /// A host's request to move keyboard focus into the paper, until a view takes it.
-    @ObservationIgnored var focusRequest: RelayPaperFocus?
-    @ObservationIgnored var onFocusRequest: (() -> Void)?
+    @ObservationIgnored package var focusRequest: RelayPaperFocus?
+    @ObservationIgnored package var onFocusRequest: (() -> Void)?
     /// Folded sections by destination name: this session's view state, never saved or synced.
     public internal(set) var foldedSections: Set<String> = []
     public var onSelectionChange: (() -> Void)?
     public private(set) var remoteSelections: [RelayMarkRemoteSelection] = []
     public var isTaskList: Bool { false }
-    var nativeTableCells: [RelayMarkCollaborativeProse.TableCell] {
+    package var nativeTableCells: [RelayMarkCollaborativeProse.TableCell] {
         return (try? currentProjection().tableCells) ?? []
     }
-    var nativeCallouts: [RelayMarkCollaborativeProse.Callout] {
+    package var nativeCallouts: [RelayMarkCollaborativeProse.Callout] {
         return (try? currentProjection().callouts) ?? []
     }
-    var nativeQuestions: [RelayMarkCollaborativeProse.Question] {
+    package var nativeQuestions: [RelayMarkCollaborativeProse.Question] {
         return (try? currentProjection().questions) ?? []
     }
     public var nativeTaskItems: [RelayMarkCollaborativeProse.TaskItem] {
@@ -95,7 +94,7 @@ public final class RelayMarkEditorSession {
     private var declaredMarkedInput: RelayDeclaredMarkedInput?
 
     /// OS producer admission, before native view mutation. No candidate/baseline extraction.
-    func declareMarkedInput(_ literal: String?, replacement: NSRange, selection: NSRange,
+    package func declareMarkedInput(_ literal: String?, replacement: NSRange, selection: NSRange,
         platform: RelayDeclaredMarkedInput.Platform, suppliedReplacement: NSRange?, phase: RelayDeclaredMarkedInput.Phase, from token: Composition) -> Bool {
         guard !invalidated, canEdit(), activeComposition?.id == token.id, token.owner == compositionOwner else { return false }
         do {
@@ -118,7 +117,7 @@ public final class RelayMarkEditorSession {
 
     /// Marked input stays outside the CRDT until the OS commits it. Peer updates
     /// that arrive meanwhile wait and merge after the commit.
-    struct Composition {
+    package struct Composition {
         fileprivate let owner: UUID
         let id: UUID
         fileprivate let original: AttributedString
@@ -774,7 +773,7 @@ public final class RelayMarkEditorSession {
     }
 
     /// Marked input remains outside the CRDT until the OS commits it.
-    func beginComposition() throws -> Composition {
+    package func beginComposition() throws -> Composition {
         guard isEditable, pending == nil, activeComposition == nil else { throw CancellationError() }
         let token = Composition(owner: compositionOwner, id: UUID(), original: text)
         activeComposition = token
@@ -782,7 +781,7 @@ public final class RelayMarkEditorSession {
         return token
     }
 
-    func cancelComposition(_ token: Composition) {
+    package func cancelComposition(_ token: Composition) {
         guard activeComposition?.id == token.id, token.owner == compositionOwner else { return }
         activeComposition = nil
         declaredMarkedInput = nil
@@ -791,7 +790,7 @@ public final class RelayMarkEditorSession {
 
     /// Applies the committed text as one edit against the text the composition
     /// started from; peer updates that waited merge afterwards.
-    func commitComposition(_ proposed: AttributedString, from token: Composition) throws {
+    package func commitComposition(_ proposed: AttributedString, from token: Composition) throws {
         guard !invalidated, canEdit(), activeComposition?.id == token.id,
               token.owner == compositionOwner else { throw CancellationError() }
         noteFallback("composition")
@@ -824,7 +823,7 @@ public final class RelayMarkEditorSession {
     /// view shows exactly that literal in place, so the commit reads only the
     /// leaf. Returns the replaced range and committed text; nil leaves the
     /// commit to `commitComposition`.
-    func commitCompositionNatively(from token: Composition, renderedLength: Int,
+    package func commitCompositionNatively(from token: Composition, renderedLength: Int,
                                    rendered: (NSRange) -> String?) -> (range: NSRange, text: String)? {
         guard !invalidated, canEdit(), activeComposition?.id == token.id, token.owner == compositionOwner,
               let declared = declaredMarkedInput, declared.tokenID == token.id, declared.ownerID == token.owner,
@@ -845,14 +844,14 @@ public final class RelayMarkEditorSession {
         return (range, literal)
     }
 
-    func registerNativeCompositionFinalizer(_ finish: @escaping () throws -> Void, refresh: @escaping () -> Void) -> UUID {
+    package func registerNativeCompositionFinalizer(_ finish: @escaping () throws -> Void, refresh: @escaping () -> Void) -> UUID {
         let id = UUID()
         guard !invalidated else { return id }
         nativeCompositionFinalizer = (id, finish, refresh)
         return id
     }
 
-    func unregisterNativeCompositionFinalizer(_ registration: UUID) {
+    package func unregisterNativeCompositionFinalizer(_ registration: UUID) {
         if nativeCompositionFinalizer?.id == registration { nativeCompositionFinalizer = nil }
     }
 

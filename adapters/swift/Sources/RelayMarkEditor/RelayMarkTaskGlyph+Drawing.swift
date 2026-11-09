@@ -1,3 +1,4 @@
+import RelayMarkEditorCore
 import SwiftUI
 #if os(macOS)
 import AppKit
@@ -5,58 +6,20 @@ import AppKit
 import UIKit
 #endif
 
-/// The one checklist and task status glyph on Apple. A checklist checkbox is a
-/// task's status circle, so paper checklists, task chips, rows, cards, headers
-/// and status menus all draw this, at any size, from one routine. Its tokens
-/// match the web's glyph (docs/engineering/entity-card-contracts.md in
-/// relay-elixir): a ring a ninth of the diameter thick around a faint tint of
-/// its own colour; done is a filled circle with a check, cancelled one with a
-/// cross. The host chooses the colour (a task's priority, green when done).
-public struct RelayMarkTaskGlyph: Equatable, Sendable {
-    public enum Shape: Sendable, Equatable {
-        /// To do, or an unticked checklist item.
-        case open
-        /// Backlog.
-        case dashed
-        /// In progress: the ring with its trailing half filled, one ring width inside the ring.
-        case half
-        /// Done, or a ticked checklist item.
-        case done
-        case cancelled
+extension RelayMarkTaskGlyph.Tint {
+    /// The system colour the tint names.
+    public var color: Color {
+        switch self {
+        case .neutral: .secondary
+        case .red: .red
+        case .orange: .orange
+        case .blue: .blue
+        case .green: .green
+        }
     }
+}
 
-    public var shape: Shape
-    public var tint: Color
-
-    public init(_ shape: Shape, tint: Color) {
-        self.shape = shape
-        self.tint = tint
-    }
-
-    /// The one diameter on every surface beside text, as the web's 18 px
-    /// `--relay-task-glyph-size`: chips, rows, cards, menus, inline references and
-    /// 15 pt paper prose. Paper prose scales it with its own point size.
-    public static let size: CGFloat = 18
-    public static let sizePerPoint: CGFloat = size / 15
-    /// The ring's thickness as a share of the diameter: 2 pt at 18 pt, as the web's.
-    public static let strokeRatio: CGFloat = 2 / 18
-
-    /// The ring's thickness at `diameter`, in whole points as on the web (whose
-    /// browsers snap a border to whole pixels): 2 at 16 and 18, 3 at 24 and 30,
-    /// 6 at 52. The in-progress half sits one ring inside it.
-    public static func stroke(diameter: CGFloat) -> CGFloat {
-        max(1, (diameter * strokeRatio).rounded())
-    }
-    /// The inner tint's opacity of the ring's colour.
-    public static let tintOpacity: CGFloat = 0.12
-    /// A checklist item without a Task: a neutral ring, green once ticked.
-    public static let neutral = Color.secondary
-    public static let done = Color.green
-
-    public static func checklist(checked: Bool) -> Self {
-        checked ? .init(.done, tint: done) : .init(.open, tint: neutral)
-    }
-
+extension RelayMarkTaskGlyph {
     /// Draws the glyph filling the square `rect` with the resolved tint.
     public func draw(in context: CGContext, rect: CGRect, tint color: CGColor) {
         let diameter = min(rect.width, rect.height)
@@ -109,7 +72,7 @@ public struct RelayMarkTaskGlyph: Equatable, Sendable {
     /// The glyph as an image for menus and other image-only places; it redraws
     /// in the appearance it is shown in.
     @MainActor public func image(diameter: CGFloat = size) -> NSImage {
-        let tint = NSColor(self.tint)
+        let tint = NSColor(self.tint.color)
         return NSImage(size: CGSize(width: diameter, height: diameter), flipped: true) { rect in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             draw(in: context, rect: rect, tint: tint.cgColor)
@@ -120,7 +83,7 @@ public struct RelayMarkTaskGlyph: Equatable, Sendable {
     /// The glyph as an image for menus and other image-only places, with light
     /// and dark variants.
     @MainActor public func image(diameter: CGFloat = size) -> UIImage {
-        let asset = UIImageAsset(), tint = UIColor(self.tint)
+        let asset = UIImageAsset(), tint = UIColor(self.tint.color)
         for style in [UIUserInterfaceStyle.light, .dark] {
             let traits = UITraitCollection(userInterfaceStyle: style)
             let renderer = UIGraphicsImageRenderer(size: CGSize(width: diameter, height: diameter),
@@ -147,7 +110,7 @@ public struct RelayMarkTaskGlyphView: View {
 
     public var body: some View {
         Canvas { context, size in
-            let tint = glyph.tint.resolve(in: environment).cgColor
+            let tint = glyph.tint.color.resolve(in: environment).cgColor
             context.withCGContext { glyph.draw(in: $0, rect: CGRect(origin: .zero, size: size), tint: tint) }
         }
         .aspectRatio(1, contentMode: .fit)

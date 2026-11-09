@@ -1,6 +1,7 @@
 import Accessibility
 import Foundation
 import RelayMarkCollaboration
+import RelayMarkEditorCore
 import UniformTypeIdentifiers
 import RelayMarkProseProjection
 import SwiftUI
@@ -3210,5 +3211,5 @@ private func drawTaskGlyph(_ glyph: RelayMarkTaskGlyph, in rect: CGRect) {
     #else
     guard let context = UIGraphicsGetCurrentContext() else { return }
     #endif
-    glyph.draw(in: context, rect: rect, tint: PlatformColor(glyph.tint).cgColor)
+    glyph.draw(in: context, rect: rect, tint: PlatformColor(glyph.tint.color).cgColor)
 }

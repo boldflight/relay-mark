@@ -1,7 +1,6 @@
 import Foundation
 import RelayMarkNativeCollaboration
 import RelayMarkProseProjection
-import SwiftUI
 
 /// One paper editing command, defined once for every Apple platform. The menu
 /// bar, the edit menu, the paper toolbar, the formatting panel and the / menu
@@ -10,6 +9,27 @@ import SwiftUI
 /// / menu runs a catalog command by looking it up here.
 public struct RelayMarkEditorCommand: Identifiable, Hashable, Sendable {
     public enum Section: CaseIterable, Sendable { case block, listDepth, mark, insert }
+
+    /// A command's key equivalent: a key and its modifiers, which RelayMarkEditor
+    /// maps to the platform's keyboard shortcut.
+    public struct Shortcut: Hashable, Sendable {
+        public struct Modifiers: OptionSet, Hashable, Sendable {
+            public let rawValue: Int
+            public init(rawValue: Int) { self.rawValue = rawValue }
+            public static let command = Self(rawValue: 1 << 0)
+            public static let shift = Self(rawValue: 1 << 1)
+            public static let option = Self(rawValue: 1 << 2)
+            public static let control = Self(rawValue: 1 << 3)
+        }
+
+        public let key: Character
+        public let modifiers: Modifiers
+
+        public init(_ key: Character, modifiers: Modifiers = .command) {
+            self.key = key
+            self.modifiers = modifiers
+        }
+    }
 
     enum Operation: Equatable, Sendable {
         case block(RelayMarkNativeBlockStyle)
@@ -25,7 +45,7 @@ public struct RelayMarkEditorCommand: Identifiable, Hashable, Sendable {
     public let title: String
     public let systemImage: String
     public let section: Section
-    public let shortcut: KeyboardShortcut?
+    public let shortcut: Shortcut?
     let operation: Operation
 
     public static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
@@ -48,15 +68,15 @@ public struct RelayMarkEditorCommand: Identifiable, Hashable, Sendable {
     /// Every command, in menu order. Titles read the current localization.
     public static var all: [RelayMarkEditorCommand] {
         func command(_ id: String, _ title: String, _ image: String, _ section: Section, _ operation: Operation,
-                     _ key: KeyEquivalent? = nil, _ modifiers: EventModifiers = .command) -> RelayMarkEditorCommand {
+                     _ key: Character? = nil, _ modifiers: Shortcut.Modifiers = .command) -> RelayMarkEditorCommand {
             .init(id: id, title: title, systemImage: image, section: section,
-                  shortcut: key.map { KeyboardShortcut($0, modifiers: modifiers) }, operation: operation)
+                  shortcut: key.map { Shortcut($0, modifiers: modifiers) }, operation: operation)
         }
         let headings = (1...6).map { level in
             command("editor.heading.\(level)",
                     String(localized: "Heading \(level)", bundle: .module, comment: "Editor command that makes the block a heading of this level."),
                     "textformat.size", .block, .block(.heading(level)),
-                    KeyEquivalent(Character(String(level))), [.command, .option, .shift])
+                    Character(String(level)), [.command, .option, .shift])
         }
         return [
             command("editor.body", String(localized: "Body", bundle: .module, comment: "Editor command that returns the block to body text."),

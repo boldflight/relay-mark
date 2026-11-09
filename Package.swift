@@ -27,6 +27,7 @@ let package = Package(
         .library(name: "RelayMarkProseProjection", targets: ["RelayMarkProseProjection"]),
         .library(name: "RelayMarkModel", targets: ["RelayMarkModel"]),
         .library(name: "RelayMarkNativeCollaboration", targets: ["RelayMarkNativeCollaboration"]),
+        .library(name: "RelayMarkEditorCore", targets: ["RelayMarkEditorCore"]),
         .library(name: "RelayMarkEditor", targets: ["RelayMarkEditor"])
     ],
     targets: [
@@ -49,15 +50,29 @@ let package = Package(
             dependencies: ["RelayMarkModel", "RelayMarkProseProjection", "RelayMarkSwift", "YSwift"],
             path: "adapters/swift/Sources/RelayMarkNativeCollaboration"
         ),
+        // The editor session, its editing APIs and the task glyph value, without
+        // SwiftUI, AppKit or UIKit, so headless sessions and tests can use them.
+        .target(
+            name: "RelayMarkEditorCore",
+            dependencies: ["RelayMarkCollaboration", "RelayMarkNativeCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
+            path: "adapters/swift/Sources/RelayMarkEditorCore",
+            resources: [.process("Resources")]
+        ),
         .target(
             name: "RelayMarkEditor",
-            dependencies: ["RelayMarkCollaboration", "RelayMarkNativeCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
+            dependencies: ["RelayMarkEditorCore", "RelayMarkCollaboration", "RelayMarkNativeCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
             path: "adapters/swift/Sources/RelayMarkEditor",
             resources: [.process("Resources")]
         ),
         .testTarget(
+            name: "RelayMarkEditorCoreTests",
+            dependencies: ["RelayMarkEditorCore", "RelayMarkNativeCollaboration", "RelayMarkCollaboration", "RelayMarkSwift"],
+            path: "adapters/swift/Tests/RelayMarkEditorCoreTests",
+            resources: [.copy("Fixtures")]
+        ),
+        .testTarget(
             name: "RelayMarkEditorTests",
-            dependencies: ["RelayMarkEditor", "RelayMarkNativeCollaboration", "RelayMarkCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
+            dependencies: ["RelayMarkEditor", "RelayMarkEditorCore", "RelayMarkNativeCollaboration", "RelayMarkCollaboration", "RelayMarkProseProjection", "RelayMarkSwift"],
             path: "adapters/swift/Tests/RelayMarkEditorTests",
             resources: [.copy("Fixtures")]
         ),

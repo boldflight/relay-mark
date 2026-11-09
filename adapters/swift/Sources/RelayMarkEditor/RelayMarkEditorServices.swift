@@ -1,4 +1,5 @@
 import Foundation
+import RelayMarkEditorCore
 import SwiftUI
 
 /// A pasted or dropped image the host has not received yet.

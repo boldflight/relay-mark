@@ -36,7 +36,8 @@ This repository owns the portable RelayMark contract:
   the packaged RelayMark source and HTML codecs, exposed as the root Swift
   package product `RelayMarkSwift`; the ProseMirror
   port (`RelayMarkModel`), its Yjs binding (`RelayMarkNativeCollaboration`)
-  and the native TextKit 2 editor (`RelayMarkEditor`). See
+  and the native TextKit 2 editor (`RelayMarkEditor`, over its headless
+  session in `RelayMarkEditorCore`). See
   [native editor architecture](docs/editor-architecture.md).
 - `adapters/elixir/` - generic Elixir value models, document validation, and
   Agent Answer transported-pair validation.

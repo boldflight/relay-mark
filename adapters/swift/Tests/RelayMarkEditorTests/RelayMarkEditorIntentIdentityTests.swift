@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import RelayMarkEditor
+@testable import RelayMarkEditorCore
 
 /// Foundation uniques attribute dictionaries process-wide, and NSPresentationIntent
 /// equality ignores parents. Two lists whose items share identities must still

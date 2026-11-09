@@ -5,7 +5,6 @@ import RelayMarkCollaboration
 import RelayMarkNativeCollaboration
 import RelayMarkProseProjection
 import RelayMarkSwift
-import SwiftUI
 
 /// Block structure commands: list starts and depth, callouts, tables, block
 /// styles and headings.
@@ -237,7 +236,7 @@ extension RelayMarkEditorSession {
         retryPersistence()
     }
 
-    func deleteTableNatively(at paperLocation: Int) -> Bool {
+    package func deleteTableNatively(at paperLocation: Int) -> Bool {
         setNativeSelection(NSRange(location: paperLocation, length: 0))
         do { try performTableCommand(.deleteTable, using: prepareTableCommand(.deleteTable)); return true }
         catch { return false }
@@ -396,7 +395,7 @@ extension RelayMarkEditorSession {
         return block.path
     }
 
-    func handleNativeListIndent(backward: Bool) -> Bool {
+    package func handleNativeListIndent(backward: Bool) -> Bool {
         guard (try? selectedRichListParagraph()) != nil else { return false }
         if backward ? canOutdentSelectedListItem : canIndentSelectedListItem {
             changeSelectedListDepth(backward ? .outdent : .indent)

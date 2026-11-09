@@ -5,7 +5,7 @@ import Foundation
 /// and surface from it. The host supplies statuses and reports when they change.
 extension RelayMarkEditorSession {
     /// The status the chip of `entityID`'s item shows, asking the host once per change.
-    func linkedTaskStatus(entityID: String, checked: Bool) -> RelayMarkTaskGlyph? {
+    package func linkedTaskStatus(entityID: String, checked: Bool) -> RelayMarkTaskGlyph? {
         let key = LinkedTaskKey(entityID: entityID, checked: checked)
         if let known = linkedTaskStatuses[key] { return known }
         let status = linkedTaskStatus?(entityID, checked)

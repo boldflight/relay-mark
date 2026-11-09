@@ -1,4 +1,5 @@
 import Foundation
+import RelayMarkEditorCore
 #if os(macOS)
 import AppKit
 typealias LayoutColor = NSColor

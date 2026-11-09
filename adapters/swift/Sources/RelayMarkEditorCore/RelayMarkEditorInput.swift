@@ -1,7 +1,6 @@
 import Foundation
 import RelayMarkCollaboration
 import RelayMarkProseProjection
-import SwiftUI
 
 func relayPaperInlineSemantics(_ value: AttributedString) -> AttributedString {
     var result = value
@@ -16,12 +15,16 @@ func relayPaperInlineSemantics(_ value: AttributedString) -> AttributedString {
 
 /// A single native replacement request, not an authorship assertion. Only use it
 /// while its exact baseline and resulting candidate still match the editor.
-struct RelayNativeTextReplacement {
-    let baseline: String
-    let range: NSRange
-    let replacement: String
+package struct RelayNativeTextReplacement {
+    package let baseline: String
+    package let range: NSRange
+    package let replacement: String
 
-    func matches(original: String, proposed: String) -> Bool {
+    package init(baseline: String, range: NSRange, replacement: String) {
+        self.baseline = baseline; self.range = range; self.replacement = replacement
+    }
+
+    package func matches(original: String, proposed: String) -> Bool {
         guard baseline == original, range.location >= 0, range.length >= 0,
             range.location <= baseline.utf16.count,
             range.length <= baseline.utf16.count - range.location,
@@ -42,15 +45,15 @@ struct RelayNativeFormattingChange: Equatable {
     let enabled: Bool
 }
 
-struct RelayNativeFormattingCommand {
-    let baseline: AttributedString
-    let range: NSRange
+package struct RelayNativeFormattingCommand {
+    package let baseline: AttributedString
+    package let range: NSRange
     /// AppKit's font command may toggle either trait; UIKit supplies the exact selector.
-    let mark: RelayMarkFormattingMark?
+    package let mark: RelayMarkFormattingMark?
 }
 
 extension RelayMarkFormattingMark {
-    var inlineIntent: InlinePresentationIntent {
+    package var inlineIntent: InlinePresentationIntent {
         switch self {
         case .bold: .stronglyEmphasized
         case .italic: .emphasized
@@ -61,28 +64,28 @@ extension RelayMarkFormattingMark {
 }
 
 /// Captured by an explicit native paste command, never inferred from replacement text.
-struct RelayNativePasteCommand {
-    let id: UUID
-    let baseline: AttributedString
-    let range: NSRange
-    let preservesFormatting: Bool
+package struct RelayNativePasteCommand {
+    package let id: UUID
+    package let baseline: AttributedString
+    package let range: NSRange
+    package let preservesFormatting: Bool
 
-    init(baseline: AttributedString, range: NSRange, preservesFormatting: Bool = false) {
+    package init(baseline: AttributedString, range: NSRange, preservesFormatting: Bool = false) {
         id = UUID(); self.baseline = baseline; self.range = range
         self.preservesFormatting = preservesFormatting
     }
 
-    func matches(_ replacement: RelayNativeTextReplacement, current: AttributedString) -> Bool {
+    package func matches(_ replacement: RelayNativeTextReplacement, current: AttributedString) -> Bool {
         baseline == current && range == replacement.range &&
             replacement.baseline == String(baseline.characters)
     }
 
-    func plainCandidate(replacement: RelayNativeTextReplacement, rendered: String) -> AttributedString? {
+    package func plainCandidate(replacement: RelayNativeTextReplacement, rendered: String) -> AttributedString? {
         candidate(replacement: replacement, rendered: rendered,
                   inserted: AttributedString(replacement.replacement), usesDestinationIntent: false)
     }
 
-    func attributedCandidate(replacement: RelayNativeTextReplacement,
+    package func attributedCandidate(replacement: RelayNativeTextReplacement,
                              rendered: AttributedString) -> AttributedString? {
         let plain = String(rendered.characters)
         guard let raw = Range(NSRange(location: range.location,
@@ -179,26 +182,30 @@ public struct RelayMarkRemoteSelection: Identifiable, Equatable, Sendable {
     public let color: String
     public let range: NSRange
     public let caretLocation: Int
+
+    package init(id: UInt64, name: String, color: String, range: NSRange, caretLocation: Int) {
+        self.id = id; self.name = name; self.color = color; self.range = range; self.caretLocation = caretLocation
+    }
 }
 
 /// Exact OS-declared marked literal, not an edit proof, baseline or Apply anchor.
-struct RelayDeclaredMarkedInput: Equatable, Sendable {
+package struct RelayDeclaredMarkedInput: Equatable, Sendable {
     /// Bounds an OS-declared literal, with any earlier marked literal it replaces.
     static let byteLimit = 32 * 1024 * 1024
     struct Invalid: Error {}
-    enum Platform: String, Sendable { case appKit, uiKit }
-    enum Phase: String, Sendable { case marked, final }
-    let tokenID: UUID
+    package enum Platform: String, Sendable { case appKit, uiKit }
+    package enum Phase: String, Sendable { case marked, final }
+    package let tokenID: UUID
     let ownerID: UUID
-    let revision: Int
-    let platform: Platform
-    let phase: Phase
+    package let revision: Int
+    package let platform: Platform
+    package let phase: Phase
     let previousMarkedLiteral: String?
-    let literal: String? // nil is explicit OS cancellation.
+    package let literal: String? // nil is explicit OS cancellation.
     let initialReplacement: NSRange
-    let replacement: NSRange
-    let selection: NSRange
-    let suppliedReplacement: NSRange?
+    package let replacement: NSRange
+    package let selection: NSRange
+    package let suppliedReplacement: NSRange?
     init(tokenID: UUID, ownerID: UUID, revision: Int, platform: Platform, literal: String?,
         initialReplacement: NSRange, replacement: NSRange, selection: NSRange, suppliedReplacement: NSRange?, phase: Phase = .marked, previousMarkedLiteral: String? = nil) throws {
         func valid(_ range: NSRange) -> Bool {

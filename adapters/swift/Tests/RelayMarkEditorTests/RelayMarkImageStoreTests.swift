@@ -1,6 +1,7 @@
 #if os(macOS)
 import AppKit
 @testable import RelayMarkEditor
+@testable import RelayMarkEditorCore
 import Testing
 
 @MainActor

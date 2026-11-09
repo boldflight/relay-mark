@@ -2,6 +2,7 @@
 
 ## Next Swift release (after 0.7.10)
 
+- `RelayMarkEditorCore` is a new product holding `RelayMarkEditorSession`, its editing APIs (`ReferenceInsertion`, linked-task status, sections, task drafts), `RelayMarkEditorCommand` and the `RelayMarkTaskGlyph` value without SwiftUI, AppKit or UIKit; `RelayMarkEditor` keeps the views and depends on it. Breaking: import `RelayMarkEditorCore` for those types; `RelayMarkTaskGlyph.tint` is a `RelayMarkTaskGlyph.Tint` (`neutral`, `red`, `orange`, `blue`, `green`) whose `color` RelayMarkEditor supplies, `RelayMarkTaskGlyph.neutral`/`.done` colours are gone, and `RelayMarkEditorCommand.shortcut` is a platform-neutral `Shortcut` whose `keyboardShortcut` RelayMarkEditor supplies.
 - `RelayMarkTaskGlyph` is 18 pt on every surface beside text (`size` 18, `sizePerPoint` 18/15), the web's 18px. The ring is a ninth of the diameter (`strokeRatio` 2/18) and `stroke(diameter:)` rounds it to whole points as browsers round the web's border: 2 at 16 and 18, 3 at 24 and 30, 6 at 52. The in-progress half sits one ring inside the ring. The engine artifact, document contract and Elixir package are unchanged.
 
 ## [0.7.10] - 2026-11-06

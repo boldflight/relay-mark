@@ -18,7 +18,8 @@ RelayMark format; nothing stores Markdown.
 | 1. Format | `RelayMarkSwift` | The RelayMark document and source codecs, the schema contract, HTML and clipboard import, editor commands, clipboard navigation plans and the causal write plan (relaymark-core through `RelayMarkEngine`) | Foundation, RelayMarkEngine |
 | 2. Model | `RelayMarkModel` | The ProseMirror port: schema, nodes, slices, resolved positions, steps, transforms, commands | Foundation |
 | 3. Collaboration | `RelayMarkNativeCollaboration` | The Yjs binding (`PMYXmlBridge`), the native replica, editing commands as Yjs transactions, presence, update footprints | 1, 2, `RelayMarkProseProjection`, YSwift |
-| 4. Editor | `RelayMarkEditor` | The editor session, the TextKit 2 views for macOS and iOS, table attachments, layout fragments, Find, accessibility, and the services a host supplies | 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration`, SwiftUI, AppKit/UIKit |
+| 4a. Editor core | `RelayMarkEditorCore` | The editor session and its editing APIs, the command catalog with platform-neutral shortcuts, and the task glyph value (shape and semantic tint), without SwiftUI, AppKit or UIKit | 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration` |
+| 4b. Editor | `RelayMarkEditor` | The TextKit 2 views for macOS and iOS, table attachments, layout fragments, Find, accessibility, command menus, task glyph drawing and colours, and the services a host supplies | 4a, 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration`, SwiftUI, AppKit/UIKit |
 | 5. Host | outside this repository | Persistence and transport, authorization, product authoring and UI around the paper | 1–4 |
 
 `RelayMarkProseProjection` and `RelayMarkCollaboration` are shared value types:
@@ -93,7 +94,9 @@ The public API is the session's state and command vocabulary, the SwiftUI
 `RelayMarkEditorView`, and the service and intake types. The text-view
 coordinator, layout fragments, table attachments, the attributed-text codec
 and the splice machinery are internal; this repository's tests reach them
-with `@testable import`.
+with `@testable import`. The session's contract with the text view
+(`RelayPaperTextEditing` and its native edit commands) is `package` in
+`RelayMarkEditorCore`, so only RelayMarkEditor uses it.
 
 ## Performance
 

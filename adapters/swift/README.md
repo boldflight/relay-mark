@@ -31,7 +31,9 @@ and Relay Kit without creating a reverse dependency.
 `RelayMarkEditor` is the native editor for these papers: a session over one
 RelayMark Yjs replica, TextKit 2 views for macOS and iOS, and the services
 through which a host supplies persistence, images, rich paste, links and paper
-controls. It imports no host module. See
+controls. It imports no host module. Its session, editing APIs, command
+catalog and task glyph value are `RelayMarkEditorCore`, which imports no UI
+framework, so a host's headless session code can use them. See
 [native editor architecture](../../docs/editor-architecture.md).
 
 For durable action rows, `proposalID` is the generator/client identity and

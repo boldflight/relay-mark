@@ -1,5 +1,6 @@
 import Foundation
 @testable import RelayMarkEditor
+@testable import RelayMarkEditorCore
 import Testing
 #if os(macOS)
 import AppKit

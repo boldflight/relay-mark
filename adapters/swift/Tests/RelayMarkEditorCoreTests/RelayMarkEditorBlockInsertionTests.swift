@@ -1,5 +1,5 @@
 import Foundation
-@testable import RelayMarkEditor
+@testable import RelayMarkEditorCore
 import Testing
 import RelayMarkCollaboration
 import RelayMarkSwift

@@ -50,7 +50,7 @@ extension RelayMarkEditorSession {
 
     /// Paper ranges hidden by folded sections, in order. Fold state of headings
     /// that no longer exist is dropped here.
-    var hiddenSectionRanges: [NSRange] {
+    package var hiddenSectionRanges: [NSRange] {
         guard !foldedSections.isEmpty else { return [] }
         let sections = sections
         let present = Set(sections.map(\.id))

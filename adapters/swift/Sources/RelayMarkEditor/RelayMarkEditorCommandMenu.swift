@@ -1,3 +1,4 @@
+import RelayMarkEditorCore
 import SwiftUI
 
 /// Every `RelayMarkEditorCommand` as SwiftUI menu content, one section per
@@ -19,7 +20,7 @@ public struct RelayMarkEditorCommandMenu: View {
             Section {
                 ForEach(RelayMarkEditorCommand.commands(in: section)) { command in
                     Button(command.title, systemImage: command.systemImage) { session?.perform(command) }
-                        .keyboardShortcut(shortcuts ? command.shortcut : nil)
+                        .keyboardShortcut(shortcuts ? command.shortcut?.keyboardShortcut : nil)
                         .disabled(session?.canPerform(command) != true)
                 }
             }

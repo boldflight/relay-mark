@@ -5,10 +5,11 @@ struct RelayMarkEditorLocalizationTests {
     // Bug caught: a new editor string (a VoiceOver label, a paste failure)
     // shipping in English to a Japanese reader, or a translation that drops a
     // placeholder and shows the wrong text.
-    @Test("Every editor string has Japanese with the same placeholders")
-    func everyStringHasJapanese() throws {
+    @Test("Every editor string has Japanese with the same placeholders",
+          arguments: ["RelayMarkEditor", "RelayMarkEditorCore"])
+    func everyStringHasJapanese(target: String) throws {
         let catalog = URL(filePath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appending(path: "Sources/RelayMarkEditor/Resources/Localizable.xcstrings")
+            .appending(path: "Sources/\(target)/Resources/Localizable.xcstrings")
         let root = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: catalog)) as? [String: Any])
         let strings = try #require(root["strings"] as? [String: [String: Any]])
         let specifier = /%(?:\d+\$)?(lld|ld|d|@|lf|f)/

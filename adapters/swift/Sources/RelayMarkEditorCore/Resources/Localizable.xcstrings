@@ -1,0 +1,446 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Body" : {
+      "comment" : "Editor command that returns the block to body text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本文"
+          }
+        }
+      }
+    },
+    "Bold" : {
+      "comment" : "Editor command that toggles bold text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "太字"
+          }
+        }
+      }
+    },
+    "Bullet List" : {
+      "comment" : "Editor command that makes the block a bulleted list.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "箇条書き"
+          }
+        }
+      }
+    },
+    "Callout" : {
+      "comment" : "Editor command that inserts a callout.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コールアウト"
+          }
+        }
+      }
+    },
+    "Checklist" : {
+      "comment" : "Editor command that makes the block a checklist of tasks.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "チェックリスト"
+          }
+        }
+      }
+    },
+    "Code Block" : {
+      "comment" : "Editor command that inserts a code block.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "コードブロック"
+          }
+        }
+      }
+    },
+    "Divider" : {
+      "comment" : "Editor command that inserts a divider.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "区切り線"
+          }
+        }
+      }
+    },
+    "Heading %lld" : {
+      "comment" : "Editor command that makes the block a heading of this level.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "見出し%lld"
+          }
+        }
+      }
+    },
+    "Highlight" : {
+      "comment" : "Editor command that toggles highlighted text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ハイライト"
+          }
+        }
+      }
+    },
+    "Indent" : {
+      "comment" : "Editor command that nests the list item one level deeper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インデント"
+          }
+        }
+      }
+    },
+    "Inline Code" : {
+      "comment" : "Editor command that toggles inline code.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インラインコード"
+          }
+        }
+      }
+    },
+    "Italic" : {
+      "comment" : "Editor command that toggles italic text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "斜体"
+          }
+        }
+      }
+    },
+    "Numbered List" : {
+      "comment" : "Editor command that makes the block a numbered list.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "番号付きリスト"
+          }
+        }
+      }
+    },
+    "Outdent" : {
+      "comment" : "Editor command that moves the list item one level out.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "インデントを戻す"
+          }
+        }
+      }
+    },
+    "Quote" : {
+      "comment" : "Editor command that makes the block a quote.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "引用"
+          }
+        }
+      }
+    },
+    "Strikethrough" : {
+      "comment" : "Editor command that toggles struck-through text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取り消し線"
+          }
+        }
+      }
+    },
+    "Subscript" : {
+      "comment" : "Editor command that toggles subscript text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下付き"
+          }
+        }
+      }
+    },
+    "Superscript" : {
+      "comment" : "Editor command that toggles superscript text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上付き"
+          }
+        }
+      }
+    },
+    "Table" : {
+      "comment" : "VoiceOver label of a table in the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "表"
+          }
+        }
+      }
+    },
+    "The HTML clipboard payload could not be read within the supported input limit." : {
+      "comment" : "Paste failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップボードの HTML を、対応する入力サイズの範囲内で読み取れませんでした。"
+          }
+        }
+      }
+    },
+    "The clipboard provider delivered an invalid item." : {
+      "comment" : "Paste failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "クリップボードから無効な項目が渡されました。"
+          }
+        }
+      }
+    },
+    "The formatting selection changed before it could be saved." : {
+      "comment" : "Shown on the paper when formatting is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存する前に、書式を設定する選択範囲が変更されました。"
+          }
+        }
+      }
+    },
+    "The image could not be read within the supported input limit." : {
+      "comment" : "Image input failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "画像を、対応する入力サイズの範囲内で読み取れませんでした。"
+          }
+        }
+      }
+    },
+    "The image provider delivered the same input twice." : {
+      "comment" : "Image input failure shown on the paper.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同じ画像が2回渡されました。"
+          }
+        }
+      }
+    },
+    "The native replacement no longer matches this paper." : {
+      "comment" : "Shown on the paper when an edit is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この置き換えは、現在のペーパーと一致しなくなりました。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Place the cursor at the end of a paragraph and try again." : {
+      "comment" : "Shown when an insertion's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。段落の末尾にカーソルを置いて、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Select an untitled callout and try again." : {
+      "comment" : "Shown when a callout's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。タイトルのないコールアウトを選択して、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Select the authored block or insertion point and try again." : {
+      "comment" : "Shown when an authored block's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。作成したブロックまたは挿入位置を選択して、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paper or selection changed. Select the reference or insertion point and try again." : {
+      "comment" : "Shown when a reference's target moved.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーパーまたは選択範囲が変更されました。参照または挿入位置を選択して、もう一度お試しください。"
+          }
+        }
+      }
+    },
+    "The paste selection changed before it could be saved." : {
+      "comment" : "Shown on the paper when a paste is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存する前に、ペースト先の選択範囲が変更されました。"
+          }
+        }
+      }
+    },
+    "This Return needs a supported structural boundary." : {
+      "comment" : "Shown on the paper when a Return is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この改行には、対応している構造の区切りが必要です。"
+          }
+        }
+      }
+    },
+    "This clipboard content can't be pasted here." : {
+      "comment" : "Shown when the clipboard holds nothing the paper can paste.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このクリップボードの内容はここにペーストできません。"
+          }
+        }
+      }
+    },
+    "This edit contains unsupported structure or marks." : {
+      "comment" : "Shown on the paper when an edit is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この編集には、対応していない構造または書式が含まれています。"
+          }
+        }
+      }
+    },
+    "This editing session is no longer active." : {
+      "comment" : "Shown when the paper's editing session has ended.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この編集セッションは終了しています。"
+          }
+        }
+      }
+    },
+    "This join could not be applied without changing unsupported structure." : {
+      "comment" : "Shown on the paper when a join is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "対応していない構造を変更せずに、この結合を適用できませんでした。"
+          }
+        }
+      }
+    },
+    "This pasted input could not be inserted." : {
+      "comment" : "Shown on the paper when a paste is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ペーストした内容を挿入できませんでした。"
+          }
+        }
+      }
+    },
+    "This selection contains an unsupported formatting target. Your candidate is retained." : {
+      "comment" : "Shown on the paper when formatting is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "この選択範囲には書式を設定できない対象が含まれています。変更内容は保持されています。"
+          }
+        }
+      }
+    },
+    "This selection could not be replaced without changing unsupported structure." : {
+      "comment" : "Shown on the paper when a replacement is kept for review.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "対応していない構造を変更せずに、この選択範囲を置き換えられませんでした。"
+          }
+        }
+      }
+    },
+    "This task is linked to an item its host updates, and no host is handling it. The checkbox has not changed." : {
+      "comment" : "Shown when a linked task's checkbox cannot change.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "このタスクは別の画面が更新する項目にリンクされていますが、その画面が開いていません。チェックボックスは変更されていません。"
+          }
+        }
+      }
+    },
+    "Underline" : {
+      "comment" : "Editor command that toggles underlined text.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下線"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

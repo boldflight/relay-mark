@@ -5,12 +5,11 @@ import RelayMarkCollaboration
 import RelayMarkNativeCollaboration
 import RelayMarkProseProjection
 import RelayMarkSwift
-import SwiftUI
 
 /// The native text view's editing contract: typing, structure, paste and
 /// marks as range commands into the replica.
 extension RelayMarkEditorSession: RelayPaperTextEditing {
-    var nativeEmptyBlocks: [RelayEmptyProseBlock] {
+    package var nativeEmptyBlocks: [RelayEmptyProseBlock] {
             guard let projection = try? currentProjection() else { return [] }
             return emptyBlocks(of: projection)
         }
@@ -26,7 +25,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
             }
         }
 
-    func edit(_ candidate: AttributedString, nativeReplacement: RelayNativeTextReplacement?,
+    package func edit(_ candidate: AttributedString, nativeReplacement: RelayNativeTextReplacement?,
               nativePaste: RelayNativePasteCommand?) {
         if nativePaste == nil, let command = nativeReplacement,
            typeNatively(range: command.range, replacement: command.replacement) { return }
@@ -337,7 +336,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
 
     /// Whether a typed replacement stays inside one text leaf, the case the
     /// typing path handles without reading the whole paper.
-    func canTypeNatively(range: NSRange, replacement: String) -> Bool {
+    package func canTypeNatively(range: NSRange, replacement: String) -> Bool {
         guard isEditable, pending == nil, activeComposition == nil,
               replacement.utf16.count <= 131_072,
               !replacement.unicodeScalars.contains(where: { "\n\r\u{2028}\u{2029}\u{FFFC}".unicodeScalars.contains($0) }),
@@ -357,7 +356,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
     /// Types or deletes inside one text leaf. Only that leaf changes in the
     /// replica and the projection is updated in place, so the cost does not
     /// grow with the paper. Returns false when the edit needs the general path.
-    @discardableResult func typeNatively(range: NSRange, replacement: String) -> Bool {
+    @discardableResult package func typeNatively(range: NSRange, replacement: String) -> Bool {
         guard canTypeNatively(range: range, replacement: replacement),
               let position = (try? currentProjection())?.textPosition(replacing: range),
               let selected = Range(range, in: text) else { return false }
@@ -448,7 +447,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
     }
 
     /// Rich text pasted over a selection, with its marks, the same way.
-    func pasteNatively(range: NSRange, piece: AttributedString) -> Bool {
+    package func pasteNatively(range: NSRange, piece: AttributedString) -> Bool {
         var normalized = piece
         let plain = String(piece.characters)
         if plain.contains("\r\n") { normalized = AttributedString(plain.replacingOccurrences(of: "\r\n", with: "\n")) }
@@ -458,7 +457,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         return editStructureNatively(range: range, replacement: text, pasting: true, runs: runs)
     }
 
-    func editStructureNatively(range: NSRange, replacement: String) -> Bool {
+    package func editStructureNatively(range: NSRange, replacement: String) -> Bool {
         editStructureNatively(range: range, replacement: replacement, pasting: false)
     }
 
@@ -557,7 +556,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
     /// text becomes the structure or mark, as one undo step, and the keystroke
     /// itself is not typed. Only a rule's last character costs more than a
     /// set lookup; marked (IME) input never reaches here.
-    func applyInputRuleNatively(range: NSRange, replacement: String) -> Bool {
+    package func applyInputRuleNatively(range: NSRange, replacement: String) -> Bool {
         guard isEditable, pending == nil, activeComposition == nil, range.length == 0,
               let last = replacement.last, RelayMarkContentEditCodec.inputRuleTriggers.contains(last) else { return false }
         let revisionBefore = document.revision, textBefore = textRevision
@@ -595,7 +594,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         return true
     }
 
-    func handleNativeEdgeDeletion(backward: Bool) -> Bool {
+    package func handleNativeEdgeDeletion(backward: Bool) -> Bool {
         guard isEditable, pending == nil,
               activeComposition == nil, let selection = nativeSelection, selection.length == 0 else { return false }
         let length = String(text.characters).utf16.count
@@ -797,7 +796,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
 
     /// Adds `mark` unless the whole selection already has it, then removes it.
     /// At a caret it toggles the mark for the next text typed there.
-    func toggleMarkNatively(_ mark: RelayMarkFormattingMark, range: NSRange) -> Bool {
+    package func toggleMarkNatively(_ mark: RelayMarkFormattingMark, range: NSRange) -> Bool {
         if range.length == 0 { return toggleTypingMark(mark, at: range.location) }
         guard let bounds = Range(range, in: text) else { return false }
         if mark == .code, text[bounds].characters.contains(where: { $0 == "\n" || $0 == "\u{2028}" }) { return false }
@@ -840,7 +839,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
     /// commands, reading only the blocks the selection touches. Code is
     /// exclusive with the other marks, as in the browser. False leaves the
     /// edit to the general path.
-    func formatNatively(range: NSRange, mark: RelayMarkFormattingMark, enabled: Bool) -> Bool {
+    package func formatNatively(range: NSRange, mark: RelayMarkFormattingMark, enabled: Bool) -> Bool {
         guard isEditable, pending == nil, activeComposition == nil,
               range.length > 0, (try? reading({ paper in
                   let blocks = paper.blocks(intersecting: range)
@@ -928,7 +927,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         } catch { retain(candidate, reason: error.localizedDescription) }
     }
 
-    func editFormatting(_ candidate: AttributedString, command: RelayNativeFormattingCommand) {
+    package func editFormatting(_ candidate: AttributedString, command: RelayNativeFormattingCommand) {
         guard isEditable, pending == nil, activeComposition == nil else { return }
         noteFallback("formatting")
         guard command.baseline == text else {
@@ -1105,12 +1104,12 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         retryPersistence()
     }
 
-    func acceptsNativePastePayload(_ value: String) -> Bool {
+    package func acceptsNativePastePayload(_ value: String) -> Bool {
         !isInvalidated && canEdit() && value.utf16.count <= 131_072 &&
             !value.unicodeScalars.contains { $0 == "\r" || $0 == "\u{2028}" || $0 == "\u{2029}" || $0 == "\u{FFFC}" }
     }
 
-    func acceptsNativeReplacement(baseline: String, range: NSRange, replacement: String) -> Bool {
+    package func acceptsNativeReplacement(baseline: String, range: NSRange, replacement: String) -> Bool {
             if canTypeNatively(range: range, replacement: replacement) { return true }
             if replacement == "\n", activeComposition != nil { return false }
             if activeComposition == nil, baseline == String(text.characters),
@@ -1120,7 +1119,7 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
                 document: document, baseline: baseline, range: range, replacement: replacement)
         }
 
-    func preserveRejectedPaste(_ candidate: AttributedString, id: UUID) {
+    package func preserveRejectedPaste(_ candidate: AttributedString, id: UUID) {
         guard !isInvalidated else { return }
         retain(candidate, reason: String(localized: "This pasted input could not be inserted.", bundle: .module, comment: "Shown on the paper when a paste is kept for review."))
     }

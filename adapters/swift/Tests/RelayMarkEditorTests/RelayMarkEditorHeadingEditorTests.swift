@@ -4,6 +4,7 @@ import RelayMarkCollaboration
 import RelayMarkSwift
 import RelayMarkNativeCollaboration
 @testable import RelayMarkEditor
+@testable import RelayMarkEditorCore
 #if os(macOS)
 import AppKit
 import SwiftUI
