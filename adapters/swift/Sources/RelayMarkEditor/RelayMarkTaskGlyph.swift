@@ -40,6 +40,13 @@ public struct RelayMarkTaskGlyph: Equatable, Sendable {
     public static let sizePerPoint: CGFloat = size / 15
     /// The ring's thickness as a share of the diameter: 2 pt at 18 pt, as the web's.
     public static let strokeRatio: CGFloat = 2 / 18
+
+    /// The ring's thickness at `diameter`, in whole points as on the web (whose
+    /// browsers snap a border to whole pixels): 2 at 16 and 18, 3 at 24 and 30,
+    /// 6 at 52. The in-progress half sits one ring inside it.
+    public static func stroke(diameter: CGFloat) -> CGFloat {
+        max(1, (diameter * strokeRatio).rounded())
+    }
     /// The inner tint's opacity of the ring's colour.
     public static let tintOpacity: CGFloat = 0.12
     /// A checklist item without a Task: a neutral ring, green once ticked.
@@ -54,7 +61,7 @@ public struct RelayMarkTaskGlyph: Equatable, Sendable {
     public func draw(in context: CGContext, rect: CGRect, tint color: CGColor) {
         let diameter = min(rect.width, rect.height)
         let box = CGRect(x: rect.midX - diameter / 2, y: rect.midY - diameter / 2, width: diameter, height: diameter)
-        let stroke = diameter * Self.strokeRatio
+        let stroke = Self.stroke(diameter: diameter)
         context.saveGState()
         defer { context.restoreGState() }
         switch shape {

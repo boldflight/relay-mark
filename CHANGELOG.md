@@ -1,5 +1,9 @@
 # RelayMark Git and Swift release notes
 
+## Next Swift release (after 0.7.10)
+
+- `RelayMarkTaskGlyph` is 18 pt on every surface beside text (`size` 18, `sizePerPoint` 18/15), the web's 18px. The ring is a ninth of the diameter (`strokeRatio` 2/18) and `stroke(diameter:)` rounds it to whole points as browsers round the web's border: 2 at 16 and 18, 3 at 24 and 30, 6 at 52. The in-progress half sits one ring inside the ring. The engine artifact, document contract and Elixir package are unchanged.
+
 ## [0.7.10] - 2026-11-06
 
 - Swift editors can use `RelayMarkEditorServices.layout = .content` inside a host-owned scroll. TextKit measures the natural content height, including wrapping, attachments and the final empty line, and caret reveal reaches the parent scroll on AppKit and UIKit. Standalone editors retain their scrolling viewport by default.
