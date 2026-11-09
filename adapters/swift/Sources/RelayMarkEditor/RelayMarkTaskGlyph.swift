@@ -9,7 +9,7 @@ import UIKit
 /// task's status circle, so paper checklists, task chips, rows, cards, headers
 /// and status menus all draw this, at any size, from one routine. Its tokens
 /// match the web's glyph (docs/engineering/entity-card-contracts.md in
-/// relay-elixir): a ring a tenth of the diameter thick around a faint tint of
+/// relay-elixir): a ring a ninth of the diameter thick around a faint tint of
 /// its own colour; done is a filled circle with a check, cancelled one with a
 /// cross. The host chooses the colour (a task's priority, green when done).
 public struct RelayMarkTaskGlyph: Equatable, Sendable {
@@ -18,7 +18,7 @@ public struct RelayMarkTaskGlyph: Equatable, Sendable {
         case open
         /// Backlog.
         case dashed
-        /// In progress: the ring with its trailing half filled.
+        /// In progress: the ring with its trailing half filled, one ring width inside the ring.
         case half
         /// Done, or a ticked checklist item.
         case done
@@ -33,11 +33,13 @@ public struct RelayMarkTaskGlyph: Equatable, Sendable {
         self.tint = tint
     }
 
-    /// The diameter beside body text (15 pt), and its ratio to the text's point size.
-    public static let size: CGFloat = 20
+    /// The one diameter on every surface beside text, as the web's 18 px
+    /// `--relay-task-glyph-size`: chips, rows, cards, menus, inline references and
+    /// 15 pt paper prose. Paper prose scales it with its own point size.
+    public static let size: CGFloat = 18
     public static let sizePerPoint: CGFloat = size / 15
-    /// The ring's thickness as a share of the diameter: 2 pt at 20 pt.
-    public static let strokeRatio: CGFloat = 0.1
+    /// The ring's thickness as a share of the diameter: 2 pt at 18 pt, as the web's.
+    public static let strokeRatio: CGFloat = 2 / 18
     /// The inner tint's opacity of the ring's colour.
     public static let tintOpacity: CGFloat = 0.12
     /// A checklist item without a Task: a neutral ring, green once ticked.

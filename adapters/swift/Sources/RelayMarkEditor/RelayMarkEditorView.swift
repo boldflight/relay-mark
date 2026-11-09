@@ -3100,7 +3100,7 @@ final class RelayTaskItemRun: NSObject {
     }
     override var hash: Int { (entityID?.hashValue ?? 0) ^ checked.hashValue }
 
-    /// The glyph's diameter beside text of `font`: 20 pt beside 15 pt body text.
+    /// The glyph's diameter beside text of `font`: 18 pt beside 15 pt body text.
     static func diameter(_ font: PlatformFont) -> CGFloat { (font.pointSize * RelayMarkTaskGlyph.sizePerPoint).rounded() }
     /// Between a plain item's glyph and its title, as the web's 0.5rem.
     static let textGap: CGFloat = 8
