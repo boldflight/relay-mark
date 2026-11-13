@@ -9,12 +9,12 @@ import SwiftUI
 #if os(macOS)
 import AppKit
 typealias PlatformFont = NSFont
-private typealias PlatformColor = NSColor
+typealias PlatformColor = NSColor
 typealias PlatformImage = NSImage
 #else
 import UIKit
 typealias PlatformFont = UIFont
-private typealias PlatformColor = UIColor
+typealias PlatformColor = UIColor
 typealias PlatformImage = UIImage
 #endif
 
@@ -40,650 +40,6 @@ struct RelayNativeImageRepresentation {
     }
 }
 
-private extension NSAttributedString.Key {
-    static let relayIntent = NSAttributedString.Key("RelayInlineIntent")
-    static let relayBlockIntent = NSAttributedString.Key("RelayBlockIntent")
-    static let relayBold = NSAttributedString.Key("RelayRenderedBold")
-    static let relayListMarker = NSAttributedString.Key("RelayListMarker")
-    static let relayItalic = NSAttributedString.Key("RelayRenderedItalic")
-    static let relayOfferedMarks = NSAttributedString.Key("RelayOfferedMarks")
-    static let relayAIAuthored = NSAttributedString.Key("RelayAIAuthored")
-    static let relayTaskItem = NSAttributedString.Key("RelayTaskItem")
-}
-
-@MainActor
-enum NativeProseCodec {
-    private static func traits(_ font: PlatformFont) -> (bold: Bool, italic: Bool) {
-        #if os(macOS)
-        let traits = NSFontManager.shared.traits(of: font)
-        return (traits.contains(.boldFontMask), traits.contains(.italicFontMask))
-        #else
-        let traits = font.fontDescriptor.symbolicTraits
-        return (traits.contains(.traitBold), traits.contains(.traitItalic))
-        #endif
-    }
-
-    static func listMarker(_ intent: PresentationIntent?) -> (label: String, depth: Int)? {
-        let components = intent?.components ?? []
-        let depth = components.filter { component in
-            if case .orderedList = component.kind { return true }
-            if case .unorderedList = component.kind { return true }
-            return false
-        }.count
-        guard depth > 0, let ordinal = components.compactMap({ component -> Int? in
-            if case .listItem(let ordinal) = component.kind { return ordinal }; return nil
-        }).first else { return nil }
-        for component in components {
-            if case .orderedList = component.kind { return ("\(ordinal).", depth) }
-            if case .unorderedList = component.kind { return ("•", depth) }
-        }
-        return nil
-    }
-
-    static func attributed(_ value: AttributedString, emptyBlocks: [RelayEmptyProseBlock] = [],
-                           tableCells: [RelayMarkCollaborativeProse.TableCell] = [],
-                           callouts: [RelayMarkCollaborativeProse.Callout] = [],
-                           questions: [RelayMarkCollaborativeProse.Question] = [],
-                           taskItems: [RelayMarkCollaborativeProse.TaskItem] = [],
-                           inlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] = [],
-                           blockAtoms: [RelayMarkCollaborativeProse.BlockAtom] = [],
-                           authoredWidgets: [RelayMarkCollaborativeProse.AuthoredWidget] = [],
-                           entityReferenceAtoms: [RelayMarkCollaborativeProse.EntityReferenceAtom] = [],
-                           mediaAtoms: [RelayMarkCollaborativeProse.MediaAtom] = [],
-                           suggestionAtoms: [RelayMarkCollaborativeProse.SuggestionAtom] = [],
-                           mediaImages: RelayMarkImageStore? = nil,
-                           startingAt base: Int = 0, inParagraphAt paragraphStart: Int? = nil) -> NSAttributedString {
-        // Metadata is in paper offsets; `value` starts at `base`.
-        func local(_ range: NSRange) -> NSRange { NSRange(location: range.location - base, length: range.length) }
-        let result = NSMutableAttributedString(string: "")
-        let taskMarkers = Dictionary(uniqueKeysWithValues: taskItems.map {
-            ($0.firstParagraphRange.location, $0.checked ? "☑" : "☐")
-        })
-        // A checklist item's title runs carry the item, from which the text view draws its
-        // glyph and, for an item linked to a Task, the Task's chip.
-        let taskRuns = Dictionary(uniqueKeysWithValues: taskItems.map { item in
-            (item.firstParagraphRange.location, RelayTaskItemRun(entityID: item.entityID, checked: item.checked))
-        })
-        // Every run of a task's first paragraph carries its marker, however the runs split.
-        var paragraphStart = paragraphStart ?? base
-        for run in value.runs {
-            if result.length > 0, (result.string as NSString).character(at: result.length - 1) == 10 {
-                paragraphStart = base + result.length
-            }
-            let intent = run.inlinePresentationIntent ?? []
-            let offered = run[RelayMarkOfferedMarksAttribute.self] ?? []
-            var size: CGFloat = 15
-            var heading = false
-            var code = intent.contains(.code)
-            for component in run.presentationIntent?.components ?? [] {
-                if case .header(let level) = component.kind { size = level == 1 ? 28 : level == 2 ? 23 : 19; heading = true }
-                if case .codeBlock = component.kind { code = true }
-            }
-            let bold = heading || intent.contains(.stronglyEmphasized), italic = intent.contains(.emphasized)
-            #if os(macOS)
-            var font = code ? NSFont.monospacedSystemFont(ofSize: size, weight: bold ? .bold : .regular) : NSFont.systemFont(ofSize: size, weight: bold ? .bold : .regular)
-            if italic { font = NSFontManager.shared.convert(font, toHaveTrait: .italicFontMask) }
-            #else
-            var font = code ? UIFont.monospacedSystemFont(ofSize: size, weight: bold ? .bold : .regular) : UIFont.systemFont(ofSize: size, weight: bold ? .bold : .regular)
-            if italic, let descriptor = font.fontDescriptor.withSymbolicTraits(font.fontDescriptor.symbolicTraits.union(.traitItalic)) { font = UIFont(descriptor: descriptor, size: size) }
-            font = UIFontMetrics(forTextStyle: .body).scaledFont(for: font)
-            #endif
-            var attrs: [NSAttributedString.Key: Any] = [.font: font,
-                .relayBold: bold, .relayItalic: italic, .foregroundColor: PlatformColor.labelColorCompat]
-            // Block separators carry no inline intent. Preserve absence rather
-            // than turning an unchanged native roundtrip into a different baseline.
-            if let originalIntent = run.inlinePresentationIntent { attrs[.relayIntent] = originalIntent }
-            if let block = run.presentationIntent { attrs[.relayBlockIntent] = RelayBlockIntent(block) }
-            if intent.contains(.strikethrough) { attrs[.strikethroughStyle] = NSUnderlineStyle.single.rawValue }
-            if !offered.isEmpty { attrs[.relayOfferedMarks] = offered }
-            if offered.contains(.underline) { attrs[.underlineStyle] = NSUnderlineStyle.single.rawValue }
-            if offered.contains(.highlight) { attrs[.backgroundColor] = PlatformColor.systemYellow.withAlphaComponent(0.25) }
-            // Agent-written words read subdued, as on web, until a person edits them.
-            if let run = run[RelayMarkAIAuthoredAttribute.self] {
-                attrs[.relayAIAuthored] = run; attrs[.foregroundColor] = PlatformColor.secondaryLabelColorCompat
-            }
-            // A block separator belongs to no title; whichever paragraph a render reaches it from,
-            // it stays unmarked.
-            if let task = taskRuns[paragraphStart], run.inlinePresentationIntent != nil {
-                attrs[.relayTaskItem] = task
-                // A ticked item's title reads subdued, as on the web; the text view draws its
-                // line-through, since a strikethrough attribute would read back as a mark.
-                if task.checked { attrs[.foregroundColor] = PlatformColor.secondaryLabelColorCompat }
-            }
-            if offered.contains(.subscript) || offered.contains(.superscript) {
-                attrs[.baselineOffset] = offered.contains(.subscript) ? -size * 0.25 : size * 0.35
-                #if os(macOS)
-                var scriptFont = NSFont.systemFont(ofSize: size * 0.8, weight: bold ? .bold : .regular)
-                if italic { scriptFont = NSFontManager.shared.convert(scriptFont, toHaveTrait: .italicFontMask) }
-                attrs[.font] = scriptFont
-                #else
-                var scriptFont = UIFont.systemFont(ofSize: size * 0.8, weight: bold ? .bold : .regular)
-                if italic, let descriptor = scriptFont.fontDescriptor.withSymbolicTraits(scriptFont.fontDescriptor.symbolicTraits.union(.traitItalic)) {
-                    scriptFont = UIFont(descriptor: descriptor, size: size * 0.8)
-                }
-                attrs[.font] = UIFontMetrics(forTextStyle: .body).scaledFont(for: scriptFont)
-                #endif
-            }
-            if let link = run.link { attrs[.link] = link }
-            let paragraph = NSMutableParagraphStyle()
-            paragraph.paragraphSpacing = 5
-            if run.presentationIntent?.components.contains(where: { if case .listItem = $0.kind { true } else if case .blockQuote = $0.kind { true } else { false } }) == true {
-                paragraph.headIndent = 18; paragraph.firstLineHeadIndent = 18
-            }
-            if let marker = listMarker(run.presentationIntent) {
-                let label = taskMarkers[paragraphStart] ?? marker.label
-                attrs[.relayListMarker] = label
-                let width = (label as NSString).size(withAttributes: [.font: font]).width
-                paragraph.headIndent = taskMarkers[paragraphStart] == nil
-                    ? CGFloat(marker.depth - 1) * 24 + max(24, width + 10) : taskIndent(font, depth: marker.depth)
-                if taskMarkers[paragraphStart] != nil { paragraph.paragraphSpacing = taskSpacing }
-                paragraph.firstLineHeadIndent = paragraph.headIndent
-            }
-            attrs[.paragraphStyle] = paragraph
-            let characters = String(value[run.range].characters)
-            let thematicBreak = run.presentationIntent?.components.contains {
-                if case .thematicBreak = $0.kind { true } else { false }
-            } == true
-            // Preserve the one-unit CRDT atom; never substitute visual dashes or a label.
-            if thematicBreak && characters == "\u{FFFC}" {
-                attrs[.attachment] = ThematicBreakAttachment.shared
-            }
-            result.append(NSAttributedString(string: characters, attributes: attrs))
-        }
-        for block in emptyBlocks where block.offset - base >= 0 && block.offset - base < result.length {
-            // Style the existing newline glyph only. Its semantic attributes stay
-            // absent, preserving the exact canonical attributed-text roundtrip.
-            if let paragraph = emptyParagraphStyle(block.intent, task: taskMarkers[block.offset] != nil) {
-                result.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: block.offset - base, length: 1))
-            }
-        }
-        for cell in tableCells {
-            let cellRange = local(cell.range)
-            guard cell.columns > 0, cell.row >= 0, cell.column >= 0,
-                  cell.rowSpan > 0, cell.columnSpan > 0,
-                  cellRange.location >= 0, cellRange.length >= 0,
-                  NSMaxRange(cellRange) <= result.length else { continue }
-            let styledRange = cellRange.length > 0 ? cellRange :
-                NSRange(location: cellRange.location, length: cellRange.location < result.length ? 1 : 0)
-            guard styledRange.length > 0, let alignment = cell.alignment else { continue }
-            let existing = result.attribute(.paragraphStyle, at: styledRange.location,
-                effectiveRange: nil) as? NSParagraphStyle
-            let paragraph = (existing?.mutableCopy() as? NSMutableParagraphStyle) ?? NSMutableParagraphStyle()
-            switch alignment {
-            case "left": paragraph.alignment = .left
-            case "center": paragraph.alignment = .center
-            case "right": paragraph.alignment = .right
-            default: break
-            }
-            result.addAttribute(.paragraphStyle, value: paragraph, range: styledRange)
-        }
-        for callout in callouts {
-            let calloutRange = local(callout.range)
-            guard calloutRange.location >= 0, calloutRange.length > 0,
-                  NSMaxRange(calloutRange) <= result.length else { continue }
-            result.addAttribute(.relayBlock, value: RelayBlockStyle(identity: callout.id.hashValue,
-                appearance: .callout(tone: callout.tone, strong: callout.emphasis == "strong")), range: calloutRange)
-        }
-        // Question cards share the callouts' block drawing.
-        for question in questions {
-            let range = local(question.range)
-            guard range.location >= 0, range.length > 0, NSMaxRange(range) <= result.length else { continue }
-            result.addAttribute(.relayBlock, value: RelayBlockStyle(identity: question.relaymarkID.hashValue, appearance: .card), range: range)
-        }
-        for atom in inlineAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
-            NSMaxRange(local(atom.range)) <= result.length &&
-            (result.string as NSString).substring(with: local(atom.range)) == "\u{FFFC}" {
-            // The one-unit text map remains canonical. Identity, source and XML
-            // path stay on the projection, outside TextKit's attributed storage.
-            let font = result.attribute(.font, at: local(atom.range).location, effectiveRange: nil) as? PlatformFont
-                ?? PlatformFont.systemFont(ofSize: 13)
-            result.addAttribute(.attachment, value: InlineAtomAttachment.attachment(
-                label: atom.label, kind: atom.kind, font: font), range: local(atom.range))
-        }
-        for atom in blockAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
-            NSMaxRange(local(atom.range)) <= result.length &&
-            (result.string as NSString).substring(with: local(atom.range)) == "\u{FFFC}" {
-            let font = result.attribute(.font, at: local(atom.range).location, effectiveRange: nil) as? PlatformFont
-                ?? PlatformFont.systemFont(ofSize: 13)
-            result.addAttribute(.attachment, value: PaperControlAttachment.attachment(
-                atom: atom, font: font), range: local(atom.range))
-        }
-        for widget in authoredWidgets where (widget.kind == .dataView || widget.kind == .directive) &&
-            widget.range.length == 1 && local(widget.range).location >= 0 && NSMaxRange(local(widget.range)) <= result.length &&
-            (result.string as NSString).substring(with: local(widget.range)) == "\u{FFFC}" {
-            let attributes = (try? JSONSerialization.jsonObject(with: widget.attributes)) as? [String: Any] ?? [:]
-            let title = attributes["title"] as? String ?? attributes["label"] as? String ?? attributes["source"] as? String
-                ?? String(widget.nodeName.dropFirst("relay".count))
-            let font = result.attribute(.font, at: local(widget.range).location, effectiveRange: nil) as? PlatformFont
-                ?? PlatformFont.systemFont(ofSize: 13)
-            result.addAttribute(.attachment, value: InlineAtomAttachment.attachment(title: title,
-                description: widget.kind == .dataView ? String(localized: "Data view", bundle: .module, comment: "VoiceOver description of an embedded data view.") : String(localized: "Authored widget", bundle: .module, comment: "VoiceOver description of an embedded authored widget."), font: font), range: local(widget.range))
-        }
-        for atom in entityReferenceAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
-            NSMaxRange(local(atom.range)) <= result.length &&
-            (result.string as NSString).substring(with: local(atom.range)) == "\u{FFFC}" {
-            let font = result.attribute(.font, at: local(atom.range).location, effectiveRange: nil) as? PlatformFont
-                ?? PlatformFont.systemFont(ofSize: 13)
-            let title = String(localized: "Reference: \(atom.label)", bundle: .module, comment: "Text and VoiceOver label of a block reference chip; the placeholder is the referenced item's title.")
-            result.addAttribute(.attachment, value: InlineAtomAttachment.attachment(
-                title: title, description: title, font: font), range: local(atom.range))
-        }
-        for atom in mediaAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
-            NSMaxRange(local(atom.range)) <= result.length &&
-            (result.string as NSString).substring(with: local(atom.range)) == "\u{FFFC}" {
-            let font = result.attribute(.font, at: local(atom.range).location, effectiveRange: nil) as? PlatformFont
-                ?? PlatformFont.systemFont(ofSize: 13)
-            let image = atom.kind == .image ? mediaImages?.image(for: atom.source) : nil
-            result.addAttribute(.attachment, value: MediaAtomAttachment.attachment(
-                atom: atom, font: font, image: image), range: local(atom.range))
-        }
-        for atom in suggestionAtoms where atom.range.length == 1 && local(atom.range).location >= 0 &&
-            NSMaxRange(local(atom.range)) <= result.length &&
-            (result.string as NSString).substring(with: local(atom.range)) == "\u{FFFC}" {
-            let font = result.attribute(.font, at: local(atom.range).location, effectiveRange: nil) as? PlatformFont
-                ?? PlatformFont.systemFont(ofSize: 13)
-            result.addAttribute(.attachment, value: AgentSuggestionAttachment.attachment(
-                atom: atom, font: font), range: local(atom.range))
-        }
-        return result
-    }
-
-    /// The paper as the editor shows it: each table is one attachment character
-    /// whose cells hold their own text. `tables` supplies the attachment of a table
-    /// identity, so an unchanged table keeps its attachment and grid.
-    static func viewText(_ value: AttributedString, emptyBlocks: [RelayEmptyProseBlock] = [],
-                         tableCells: [RelayMarkCollaborativeProse.TableCell] = [],
-                         callouts: [RelayMarkCollaborativeProse.Callout] = [],
-                         questions: [RelayMarkCollaborativeProse.Question] = [],
-                         taskItems: [RelayMarkCollaborativeProse.TaskItem] = [],
-                         inlineAtoms: [RelayMarkCollaborativeProse.InlineAtom] = [],
-                         blockAtoms: [RelayMarkCollaborativeProse.BlockAtom] = [],
-                         authoredWidgets: [RelayMarkCollaborativeProse.AuthoredWidget] = [],
-                         entityReferenceAtoms: [RelayMarkCollaborativeProse.EntityReferenceAtom] = [],
-                         mediaAtoms: [RelayMarkCollaborativeProse.MediaAtom] = [],
-                         suggestionAtoms: [RelayMarkCollaborativeProse.SuggestionAtom] = [],
-                         mediaImages: RelayMarkImageStore? = nil, startingAt base: Int = 0,
-                         tables: (Int, Int, [RelayTableCellModel]) -> RelayTableAttachment) -> (text: NSAttributedString, spans: [RelayTableSpan]) {
-        let full = attributed(value, emptyBlocks: emptyBlocks, tableCells: tableCells, callouts: callouts,
-            questions: questions, taskItems: taskItems,
-            inlineAtoms: inlineAtoms, blockAtoms: blockAtoms, authoredWidgets: authoredWidgets,
-            entityReferenceAtoms: entityReferenceAtoms, mediaAtoms: mediaAtoms, suggestionAtoms: suggestionAtoms,
-            mediaImages: mediaImages, startingAt: base)
-        guard !tableCells.isEmpty else { return (full, []) }
-        let groups = tableModels(tableCells, in: full, base: base)
-        guard !groups.isEmpty else { return (full, []) }
-        let result = NSMutableAttributedString()
-        var spans: [RelayTableSpan] = [], copied = 0
-        for group in groups {
-            let local = NSRange(location: group.range.location - base, length: group.range.length)
-            result.append(full.attributedSubstring(from: NSRange(location: copied, length: local.location - copied)))
-            let table = tables(group.identity, group.range.location, group.cells)
-            spans.append(RelayTableSpan(view: base + result.length, table: table))
-            result.append(NSAttributedString(string: "\u{FFFC}", attributes: tableAttributes(table)))
-            copied = NSMaxRange(local)
-        }
-        result.append(full.attributedSubstring(from: NSRange(location: copied, length: full.length - copied)))
-        return (result, spans)
-    }
-
-    /// Each table's cells, with each cell's paragraphs together, in paper order.
-    /// Cell ranges are relative to the table's first offset.
-    static func tableModels(_ cells: [RelayMarkCollaborativeProse.TableCell], in rendered: NSAttributedString,
-                            base: Int) -> [(identity: Int, range: NSRange, cells: [RelayTableCellModel])] {
-        var groups: [(identity: Int, range: NSRange, cells: [RelayTableCellModel])] = []
-        var paper: [[NSRange]] = []
-        for cell in cells.sorted(by: { $0.range.location < $1.range.location }) {
-            let local = NSRange(location: cell.range.location - base, length: cell.range.length)
-            guard local.location >= 0, NSMaxRange(local) <= rendered.length else { continue }
-            if groups.last?.identity != cell.tableIdentity {
-                groups.append((cell.tableIdentity, cell.range, [])); paper.append([])
-            }
-            let index = groups.count - 1
-            groups[index].range = NSUnionRange(groups[index].range, cell.range)
-            if let last = groups[index].cells.indices.last, groups[index].cells[last].row == cell.row,
-               groups[index].cells[last].column == cell.column {
-                paper[index][last] = NSUnionRange(paper[index][last], cell.range)
-            } else {
-                groups[index].cells.append(RelayTableCellModel(row: cell.row, column: cell.column, rowSpan: max(1, cell.rowSpan),
-                    columnSpan: max(1, cell.columnSpan), header: cell.header, columnWidths: cell.columnWidths,
-                    range: cell.range, text: NSAttributedString()))
-                paper[index].append(cell.range)
-            }
-        }
-        for index in groups.indices {
-            let start = groups[index].range.location
-            for (cellIndex, range) in paper[index].enumerated() {
-                groups[index].cells[cellIndex].range = NSRange(location: range.location - start, length: range.length)
-                groups[index].cells[cellIndex].text = rendered.attributedSubstring(from: NSRange(location: range.location - base, length: range.length))
-            }
-        }
-        return groups
-    }
-
-    static func tableAttributes(_ table: RelayTableAttachment) -> [NSAttributedString.Key: Any] {
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.paragraphSpacing = 5
-        return [.attachment: table, .font: PlatformFont.systemFont(ofSize: 15), .paragraphStyle: paragraph]
-    }
-
-    /// Renders `range` of the session text into `old` of a view showing the
-    /// text before a leaf-only change. A leaf lies inside one block, so its
-    /// rendered block style, including table and callout geometry, carries over.
-    static func splice(_ storage: NSTextStorage, replacing old: NSRange, with value: AttributedString, range: NSRange,
-                       taskItems: [RelayMarkCollaborativeProse.TaskItem]) -> Bool {
-        guard old.location >= 0, old.length > 0, NSMaxRange(old) <= storage.length,
-              let bounds = Range(range, in: value),
-              let paragraph = storage.attribute(.paragraphStyle, at: old.location, effectiveRange: nil) else { return false }
-        let piece = NSMutableAttributedString(attributedString: attributed(AttributedString(value[bounds]),
-            taskItems: taskItems, startingAt: range.location, inParagraphAt: taskParagraph(containing: range, taskItems)))
-        piece.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: piece.length))
-        for key in blockKeys where key != .paragraphStyle {
-            if let value = storage.attribute(key, at: old.location, effectiveRange: nil) {
-                piece.addAttribute(key, value: value, range: NSRange(location: 0, length: piece.length))
-            }
-        }
-        storage.replaceCharacters(in: old, with: piece)
-        return true
-    }
-
-    /// Presentation that belongs to a whole block, carried over by leaf edits.
-    static let blockKeys: [NSAttributedString.Key] = [.paragraphStyle, .relayBlock]
-
-    private static func taskParagraph(containing range: NSRange, _ taskItems: [RelayMarkCollaborativeProse.TaskItem]) -> Int? {
-        taskItems.first { $0.firstParagraphRange.location <= range.location &&
-            NSMaxRange($0.firstParagraphRange) >= NSMaxRange(range) }?.firstParagraphRange.location
-    }
-
-    /// Gives characters TextKit just typed their canonical rendering from the
-    /// session text. TextKit's typing attributes can differ, for example past a
-    /// link's end; the paragraph style stays TextKit's, which keeps it uniform.
-    /// `paper` is where the characters are in `value`, when `range` in the view differs.
-    static func restyle(_ storage: NSTextStorage, range: NSRange, paper: Int? = nil, from value: AttributedString,
-                        taskItems: [RelayMarkCollaborativeProse.TaskItem]) {
-        let source = NSRange(location: paper ?? range.location, length: range.length)
-        guard range.length > 0, NSMaxRange(range) <= storage.length, let bounds = Range(source, in: value) else { return }
-        let piece = attributed(AttributedString(value[bounds]), taskItems: taskItems, startingAt: source.location,
-                               inParagraphAt: taskParagraph(containing: source, taskItems))
-        guard piece.length == range.length else { return }
-        let text = storage.string as NSString
-        /// Block presentation comes from the paragraph's own untouched text,
-        /// not from typing attributes TextKit took from a neighbouring block.
-        func blockSource(_ location: Int) -> Int {
-            let paragraph = text.paragraphRange(for: NSRange(location: location, length: 0))
-            let separator = NSMaxRange(paragraph) - 1
-            let content = separator >= paragraph.location && text.character(at: separator) == 10 ? separator : NSMaxRange(paragraph)
-            for candidate in [paragraph.location, content - 1] where candidate >= paragraph.location && candidate < content &&
-                !NSLocationInRange(candidate, range) { return candidate }
-            return location
-        }
-        storage.beginEditing()
-        defer { storage.endEditing() }
-        piece.enumerateAttributes(in: NSRange(location: 0, length: piece.length)) { attributes, run, _ in
-            let target = NSRange(location: range.location + run.location, length: run.length)
-            var attributes = attributes
-            let anchor = blockSource(target.location)
-            for key in blockKeys { attributes[key] = storage.attribute(key, at: anchor, effectiveRange: nil) }
-            storage.setAttributes(attributes, range: target)
-        }
-    }
-
-    /// A checklist item's text starts after its glyph and a gap, so the glyph sits at the item's edge.
-    static func taskIndent(_ font: PlatformFont, depth: Int) -> CGFloat {
-        CGFloat(depth - 1) * 24 + RelayTaskItemRun.diameter(font) + RelayTaskItemRun.textGap
-    }
-
-    /// Checklist items stand a little further apart than paragraphs, so a glyph taller
-    /// than the line and a chip's surface clear the next item.
-    static let taskSpacing: CGFloat = 8
-
-    /// An empty paragraph's style; an empty checklist item keeps its siblings' indent and spacing.
-    static func emptyParagraphStyle(_ intent: PresentationIntent, task: Bool) -> NSParagraphStyle? {
-        let attributes = emptyAttributes(intent)
-        guard let style = attributes[.paragraphStyle] as? NSParagraphStyle else { return nil }
-        guard task, let marker = listMarker(intent), let font = attributes[.font] as? PlatformFont,
-              let indented = style.mutableCopy() as? NSMutableParagraphStyle else { return style }
-        indented.headIndent = taskIndent(font, depth: marker.depth)
-        indented.firstLineHeadIndent = indented.headIndent
-        indented.paragraphSpacing = taskSpacing
-        return indented
-    }
-
-    static func emptyAttributes(_ intent: PresentationIntent, inlineIntent: InlinePresentationIntent = [], link: URL? = nil, typingStyle: AttributedString? = nil) -> [NSAttributedString.Key: Any] {
-        var sample = typingStyle ?? AttributedString("x")
-        sample.presentationIntent = intent
-        if typingStyle == nil { sample.inlinePresentationIntent = inlineIntent; sample.link = link }
-        return attributed(sample).attributes(at: 0, effectiveRange: nil)
-    }
-
-    /// TextKit may substitute AppleColorEmoji without bold/italic font traits.
-    /// Ordinary typing/IME keeps stored semantic intent; only an explicit native
-    /// font command should interpret a rendered font change as a mark change.
-    static func value(_ source: NSAttributedString, inferFontChanges: Bool = true) -> AttributedString {
-        var result = AttributedString()
-        source.enumerateAttributes(in: NSRange(location: 0, length: source.length)) { attributes, range, _ in
-            var part = AttributedString((source.string as NSString).substring(with: range))
-            var intent = attributes[.relayIntent] as? InlinePresentationIntent ?? []
-            if inferFontChanges, let font = attributes[.font] as? PlatformFont {
-                let actual = traits(font)
-                if actual.bold != (attributes[.relayBold] as? Bool ?? false) {
-                    if actual.bold { intent.insert(.stronglyEmphasized) } else { intent.remove(.stronglyEmphasized) }
-                }
-                if actual.italic != (attributes[.relayItalic] as? Bool ?? false) {
-                    if actual.italic { intent.insert(.emphasized) } else { intent.remove(.emphasized) }
-                }
-            }
-            if (attributes[.strikethroughStyle] as? Int ?? 0) != 0 { intent.insert(.strikethrough) } else { intent.remove(.strikethrough) }
-            if attributes[.relayIntent] != nil || !intent.isEmpty { part.inlinePresentationIntent = intent }
-            var offered = attributes[.relayOfferedMarks] as? Set<RelayMarkOfferedMark> ?? []
-            if inferFontChanges, attributes[.relayOfferedMarks] == nil,
-               (attributes[.underlineStyle] as? Int ?? 0) != 0 { offered.insert(.underline) }
-            if !offered.isEmpty { part[RelayMarkOfferedMarksAttribute.self] = offered }
-            if let run = attributes[.relayAIAuthored] as? String { part[RelayMarkAIAuthoredAttribute.self] = run }
-            if let link = attributes[.link] as? URL { part.link = link }
-            if let link = attributes[.link] as? String { part.link = URL(string: link) }
-            part.presentationIntent = (attributes[.relayBlockIntent] as? RelayBlockIntent)?.intent
-            result.append(part)
-        }
-        return result
-    }
-}
-
-/// A block intent compared by its whole chain. Foundation uniques attribute
-/// dictionaries process-wide and NSPresentationIntent equality ignores parents,
-/// so a bare intent can come back with another list's parents.
-final class RelayBlockIntent: NSObject {
-    let intent: PresentationIntent
-    init(_ intent: PresentationIntent) { self.intent = intent }
-    override func isEqual(_ object: Any?) -> Bool { (object as? RelayBlockIntent)?.intent == intent }
-    override var hash: Int { intent.hashValue }
-    override var description: String { String(describing: intent) }
-}
-
-/// Display only: the projector retains identity and the editor rejects atom replacement.
-@MainActor
-private enum InlineAtomAttachment {
-    private static let cache: NSCache<NSString, NSTextAttachment> = {
-        let cache = NSCache<NSString, NSTextAttachment>()
-        cache.countLimit = 256
-        return cache
-    }()
-
-    static func attachment(label: String, kind: RelayMarkCollaborativeProse.InlineAtom.Kind,
-                           font: PlatformFont) -> NSTextAttachment {
-        let title = kind == .relayTag ? label : "@\(label)"
-        return attachment(title: title,
-            description: kind == .relayTag ? String(localized: "Tag \(label)", bundle: .module, comment: "VoiceOver label of a tag chip; the placeholder is the tag.") : String(localized: "Reference \(label)", bundle: .module, comment: "VoiceOver label of an inline reference chip; the placeholder is the referenced item's title."), font: font)
-    }
-
-    static func attachment(title: String, description: String, font: PlatformFont) -> NSTextAttachment {
-        let visible = title.count > 80 ? String(title.prefix(79)) + "…" : title
-        #if os(macOS)
-        let appearance = "dynamic"
-        #else
-        let appearance = String(UITraitCollection.current.userInterfaceStyle.rawValue)
-        #endif
-        let key = "\(description):\(title):\(font.fontName):\(font.pointSize):\(appearance)" as NSString
-        if let cached = cache.object(forKey: key) { return cached }
-        let size = (visible as NSString).size(withAttributes: [.font: font])
-        let bounds = CGRect(x: 0, y: -3, width: ceil(size.width) + 14, height: max(20, ceil(size.height) + 5))
-        let attachment = NSTextAttachment(data: nil, ofType: nil)
-        attachment.bounds = bounds
-        #if os(macOS)
-        let image = NSImage(size: bounds.size, flipped: false) { rect in
-            NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
-            NSBezierPath(roundedRect: rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 5, yRadius: 5).fill()
-            NSColor.labelColor.set()
-            (visible as NSString).draw(at: CGPoint(x: 7, y: (rect.height - size.height) / 2), withAttributes: [.font: font])
-            return true
-        }
-        image.accessibilityDescription = description
-        attachment.image = image
-        #else
-        let image = UIGraphicsImageRenderer(size: bounds.size).image { context in
-            UIColor.systemFill.setFill()
-            UIBezierPath(roundedRect: CGRect(origin: .zero, size: bounds.size), cornerRadius: 5).fill()
-            UIColor.label.set()
-            (visible as NSString).draw(at: CGPoint(x: 7, y: (bounds.height - size.height) / 2), withAttributes: [.font: font])
-        }
-        attachment.image = image
-        attachment.accessibilityLabel = description
-        #endif
-        cache.setObject(attachment, forKey: key)
-        return attachment
-    }
-}
-
-@MainActor
-private enum PaperControlAttachment {
-    static func attachment(atom: RelayMarkCollaborativeProse.BlockAtom,
-                           font: PlatformFont) -> NSTextAttachment {
-        let title: String
-        switch atom.control {
-        case .button: title = String(localized: "Button: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the button's label.")
-        case .anchor: title = String(localized: "Anchor: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the anchor's name.")
-        case .connection: title = String(localized: "Connection: \(atom.displayLabel)", bundle: .module, comment: "Paper control chip; the placeholder is the connection's label.")
-        }
-        // The control is an authored declaration. Clicking or executing it is a
-        // separate host action, never a TextKit or CRDT side effect.
-        return InlineAtomAttachment.attachment(title: title, description: title, font: font)
-    }
-}
-
-@MainActor
-private enum AgentSuggestionAttachment {
-    static func attachment(atom: RelayMarkCollaborativeProse.SuggestionAtom,
-                           font: PlatformFont) -> NSTextAttachment {
-        let preview = atom.content.replacingOccurrences(of: "\n", with: " ")
-        let title = String(localized: "Suggestion (\(atom.kind)): \(preview)", bundle: .module, comment: "Agent suggestion chip; the placeholders are the suggestion kind and its text.")
-        let description = String(localized: "Agent suggestion, \(atom.review), \(atom.kind). \(atom.content)", bundle: .module, comment: "VoiceOver description of an agent suggestion: review state, kind, then its text.")
-        // The authored Markdown stays on the Yrs atom. This preview never
-        // converts an Accept or Dismiss tap into a CRDT or domain action.
-        return InlineAtomAttachment.attachment(title: title, description: description, font: font)
-    }
-}
-
-/// Accessible fallback until the app resolves authorized media for the same editor.
-@MainActor
-enum MediaAtomAttachment {
-    private static let images: NSCache<NSString, NSTextAttachment> = {
-        let cache = NSCache<NSString, NSTextAttachment>()
-        cache.countLimit = 64
-        return cache
-    }()
-
-    static func attachment(atom: RelayMarkCollaborativeProse.MediaAtom, font: PlatformFont,
-                           image: PlatformImage?) -> NSTextAttachment {
-        guard let image, image.size.width > 0, image.size.height > 0 else { return attachment(atom: atom, font: font) }
-        // Reuse one attachment per displayed image so unchanged text stays equal.
-        let key = [atom.id, atom.source, String(ObjectIdentifier(image).hashValue),
-            String(describing: atom.width), String(describing: atom.height),
-            String(describing: atom.alt), String(describing: atom.title)].description as NSString
-        if let cached = images.object(forKey: key) { return cached }
-        var size = image.size
-        if let width = atom.width { size.width = CGFloat(width) }
-        if let height = atom.height { size.height = CGFloat(height) }
-        if atom.width != nil && atom.height == nil { size.height = size.width * image.size.height / image.size.width }
-        if atom.height != nil && atom.width == nil { size.width = size.height * image.size.width / image.size.height }
-        // Bound presentation only; the authored dimensions remain unchanged.
-        let scale = min(1, 520 / size.width, 400 / size.height)
-        let attachment = NSTextAttachment(data: nil, ofType: nil)
-        attachment.image = image
-        attachment.bounds = CGRect(x: 0, y: 0, width: size.width * scale, height: size.height * scale)
-        #if os(macOS)
-        if let described = image.copy() as? NSImage {
-            described.accessibilityDescription = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
-            attachment.image = described
-        }
-        #else
-        attachment.accessibilityLabel = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
-        #endif
-        images.setObject(attachment, forKey: key)
-        return attachment
-    }
-
-    static func attachment(atom: RelayMarkCollaborativeProse.MediaAtom,
-                           font: PlatformFont) -> NSTextAttachment {
-        let title: String
-        let description: String
-        switch atom.kind {
-        case .image:
-            title = atom.alt.map { String(localized: "Image: \($0)", bundle: .module, comment: "VoiceOver label of an image; the placeholder is its alt text.") } ?? String(localized: "Image", bundle: .module, comment: "VoiceOver label of an image without alt text.")
-            description = title
-        case .videoEmbed:
-            title = String(localized: "Video", bundle: .module, comment: "Label of a video attachment in the paper.")
-            description = String(localized: "Video attachment", bundle: .module, comment: "VoiceOver description of a video attachment.")
-        }
-        // Authenticated media retrieval and playback are host capabilities.
-        // The authored source and ID remain in Yrs, not the TextKit attachment.
-        return InlineAtomAttachment.attachment(title: title, description: description, font: font)
-    }
-}
-
-/// Geometry follows the text container, including list indentation and window resizing.
-@MainActor
-private final class ThematicBreakAttachment: NSTextAttachment {
-    static let shared: ThematicBreakAttachment = {
-        let attachment = ThematicBreakAttachment(data: nil, ofType: nil)
-        #if !os(macOS)
-        attachment.accessibilityLabel = String(localized: "Horizontal rule", bundle: .module, comment: "VoiceOver label for a horizontal rule in the paper.")
-        #endif
-        return attachment
-    }()
-
-    override func attachmentBounds(for attributes: [NSAttributedString.Key: Any], location: any NSTextLocation,
-                                   textContainer: NSTextContainer?, proposedLineFragment lineFrag: CGRect, position: CGPoint) -> CGRect {
-        let padding = textContainer?.lineFragmentPadding ?? 0
-        return CGRect(x: 0, y: 0, width: max(1, lineFrag.width - max(padding, position.x - lineFrag.minX) - padding), height: 18)
-    }
-
-    override func image(for imageBounds: CGRect, attributes: [NSAttributedString.Key: Any],
-                        location: any NSTextLocation, textContainer: NSTextContainer?) -> PlatformImage? {
-        let size = CGSize(width: max(1, imageBounds.width), height: 18)
-        #if os(macOS)
-        let image = NSImage(size: size, flipped: false) { rect in
-            NSColor.separatorColor.setFill()
-            NSBezierPath(rect: CGRect(x: 0, y: rect.midY, width: rect.width, height: 1)).fill()
-            return true
-        }
-        image.accessibilityDescription = String(localized: "Horizontal rule", bundle: .module, comment: "VoiceOver label for a horizontal rule in the paper.")
-        #else
-        let image = UIGraphicsImageRenderer(size: size).image { context in
-            UIColor.separator.setFill()
-            context.fill(CGRect(x: 0, y: size.height / 2, width: size.width, height: 1))
-        }
-        #endif
-        return image
-    }
-}
-
-private extension PlatformColor {
-    /// A published collaborator color, as the host resolves it.
-    static func collaborator(_ value: String, resolve: (String) -> Color) -> PlatformColor {
-        PlatformColor(resolve(value))
-    }
-}
-
-/// Native undo must target CRDT origins, never a second text-system history.
 private final class CollaborationUndoManager: UndoManager, @unchecked Sendable {
     override init() { super.init(); disableUndoRegistration() }
     @MainActor var undoAction: (() -> Void)?
@@ -830,11 +186,12 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                 view.imagePolicy.acceptedIdentifiers.map { NSPasteboard.PasteboardType($0) })))
             view.isRichText = true; view.drawsBackground = false
             view.isVerticallyResizable = true; view.isHorizontallyResizable = false
+            view.minSize = .zero
+            view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
             view.autoresizingMask = [.width]
             view.textContainer?.widthTracksTextView = true
             view.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
-            // NSTextView's inset is the same on both sides: half the margins each,
-            // and textContainerOrigin moves the container toward the trailing edge.
+            // Native symmetric insets; no origin override or synthetic gutter.
             view.textContainerInset = NSSize(width: (RelayPaperMargins.leading + RelayPaperMargins.trailing) / 2, height: 20)
             view.setAccessibilityLabel(accessibilityLabel)
             view.onSessionEdit = { [weak self, weak view] in
@@ -920,6 +277,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                   view.editingSession === session, !session.isInvalidated else { return false }
             activate(href)
             update(view)
+            view.scrollRangeToVisible(view.viewSelection)
             return true
         }
 
@@ -941,7 +299,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
                 view.editingSession == nil || view.editingSession === session else { return }
             textDidChange(Notification(name: NSText.didChangeNotification, object: view))
         }
-        /// Writing Tools rewrites the paper's prose; each table cell is its own text view.
+        /// Writing Tools rewrites prose; structured table attachments are excluded.
         func textView(_ textView: NSTextView, writingToolsIgnoredRangesInEnclosingRange enclosingRange: NSRange) -> [NSValue] {
             guard let view = textView as? CollaborationTextView else { return [] }
             return view.paper.tables.spans.filter { NSLocationInRange($0.view, enclosingRange) }
@@ -950,7 +308,6 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let view = notification.object as? CollaborationTextView else { return }
             editor.selectionDidChange(view)
-            if view.editorLayout == .content { view.scrollRangeToVisible(view.viewSelection) }
         }
         func update(_ view: CollaborationTextView) {
             apply(services, to: view)
@@ -982,7 +339,6 @@ public struct RelayMarkEditorView: NSViewRepresentable {
     private(set) var textView: CollaborationTextView?
     private(set) var scrollView: NSScrollView?
     private var sizing = RelayEditorContentLayout()
-    private var revealAfterLayout = false
     override public var isFlipped: Bool { true }
 
     func install(_ view: CollaborationTextView) {
@@ -1000,7 +356,8 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         sizing.viewportDidChange(layout: services.layout, revision: services.contentViewportRevision) { [weak self] in
             guard let self else { return }
             layoutSubtreeIfNeeded()
-            guard let view = textView, !view.retired, view.editorLayout == .content else { return }
+            guard let view = textView, !view.retired, view.editorLayout == .content,
+                  view.window?.firstResponder === view else { return }
             view.scrollRangeToVisible(view.viewSelection)
         }
         scheduleContentMeasurement()
@@ -1027,11 +384,24 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         if let scrollView { scrollView.frame = bounds }
         else {
             textView?.frame = bounds; scheduleContentMeasurement()
-            if revealAfterLayout { revealAfterLayout = false; textView.map { $0.scrollRangeToVisible($0.viewSelection) } }
         }
     }
     func contentSize(at width: CGFloat) -> CGSize? {
         guard let view = textView, view.editorLayout == .content, width.isFinite, width > 0 else { return nil }
+        // SwiftUI may probe a width it never assigns. NSTextView's native fitting
+        // mutates its frame, so restore the live layout after measuring a proposal.
+        let originalFrame = view.frame
+        defer {
+            let changedWidth = view.frame.width != originalFrame.width
+            if view.frame != originalFrame { view.frame = originalFrame }
+            if changedWidth, originalFrame.width > 0,
+               let manager = view.textLayoutManager, let content = manager.textContentManager {
+                // Restore preceding native fragment positions as well as width.
+                // A target-only reveal can otherwise observe estimated positions
+                // left by the rejected proposal in this full-height editor.
+                manager.ensureLayout(for: content.documentRange)
+            }
+        }
         return CGSize(width: width, height: view.contentHeight(at: width))
     }
     override public var intrinsicContentSize: NSSize {
@@ -1043,7 +413,6 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             guard let self, let size = contentSize(at: bounds.width) else { return nil }
             return size.height
         } changed: { [weak self] in
-            self?.revealAfterLayout = true
             self?.invalidateIntrinsicContentSize()
         }
     }
@@ -1068,16 +437,25 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     var onContentLayoutChange: (() -> Void)?
     override func scrollRangeToVisible(_ range: NSRange) {
         guard editorLayout == .content else { return super.scrollRangeToVisible(range) }
-        guard window?.firstResponder === self, let document = enclosingScrollView?.documentView,
-              let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        let frames = geometry.segmentFrames(range)
-        guard let rect = frames.first ?? geometry.lineFrame(at: min(range.location, string.utf16.count)) else { return }
-        document.scrollToVisible(convert(rect.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y), to: document))
+        guard let document = enclosingScrollView?.documentView,
+              let ranges = RelayTextKitRanges(textLayoutManager), let nativeRange = ranges.textRange(range) else { return }
+        // An explicit reveal must lay out its target after native width changes;
+        // the host-owned scroll bypasses NSTextView's usual reveal/layout work.
+        ranges.manager.ensureLayout(for: nativeRange)
+        // TextKit supplies the selection segment, including an empty terminal
+        // caret. Converting its container coordinates is the only adjustment.
+        ranges.manager.enumerateTextSegments(in: nativeRange, type: .selection, options: []) { _, frame, _, _ in
+            document.scrollToVisible(convert(frame.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y), to: document))
+            return false
+        }
     }
     func contentHeight(at width: CGFloat) -> CGFloat {
-        textContainer?.containerSize = NSSize(width: max(1, width - 2 * textContainerInset.width), height: .greatestFiniteMagnitude)
-        let font = font ?? NSFont.systemFont(ofSize: 15)
-        return max(font.ascender - font.descender + font.leading, RelayTextGeometry(textLayoutManager)?.contentHeight ?? 0) + 2 * textContainerInset.height
+        if frame.width != width { setFrameSize(NSSize(width: width, height: frame.height)) }
+        guard let manager = textLayoutManager, let content = manager.textContentManager else { return 0 }
+        // The single host scroll needs the document height. Ask TextKit at this
+        // sizing boundary; never infer a final line or lay out while drawing.
+        manager.ensureLayout(for: content.documentRange)
+        return manager.usageBoundsForTextContainer.height + 2 * textContainerInset.height
     }
     /// The host's image capability and collaborator colors, from its services.
     var imagePolicy = RelayNativeImageRepresentation()
@@ -1085,15 +463,12 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     /// The only way to make the editor: Relay's TextKit 2 stack. A subclass
     /// built with `init(frame:)` starts in TextKit 1 compatibility mode.
     static func textKit2(frame: CGRect = .zero) -> CollaborationTextView {
-        let storage = NSTextContentStorage(), manager = RelayTextLayoutManager()
+        let storage = NSTextContentStorage(), manager = NSTextLayoutManager()
         storage.addTextLayoutManager(manager)
         let container = NSTextContainer(size: CGSize(width: frame.width, height: CGFloat.greatestFiniteMagnitude))
         manager.textContainer = container
         let view = Self(frame: frame, textContainer: container)
         view.contentStorage = storage
-        #if os(macOS)
-        view.paper.disclosuresFollowPointer = true
-        #endif
         // Folded sections' paragraphs are skipped from layout, never removed from the text.
         storage.delegate = view
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
@@ -1130,17 +505,16 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     }
     var hasMarkedInput: Bool { hasMarkedText() }
     var viewSelection: NSRange { selectedRange() }
-    func showSelection(_ range: NSRange) { setSelectedRange(range); scrollRangeToVisible(range) }
+    func showSelection(_ range: NSRange) {
+        setSelectedRange(range)
+        if editorLayout == .viewport || window?.firstResponder === self { scrollRangeToVisible(range) }
+    }
     func unmarkPaperText() { unmarkText() }
-    func paperNeedsDisplay() { needsDisplay = true; onContentLayoutChange?() }
+    func paperNeedsDisplay() { needsDisplay = true }
     func replaceAllText(_ text: NSAttributedString) {
         performPaperEdit { textStorage?.setAttributedString(text) }
     }
-    func focus(_ cell: RelayTableCellTextView, selecting range: NSRange) {
-        if NSMaxRange(range) <= cell.string.utf16.count, cell.selectedRange() != range { cell.setSelectedRange(range) }
-        if let window, window.firstResponder === self { window.makeFirstResponder(cell) }
-    }
-    var tableUndoManager: UndoManager? { collaborationUndo }
+
     /// Find in paper searches the paper's text, table cells included.
     private(set) lazy var paperFinder = RelayPaperFinder(view: self)
     override func performTextFinderAction(_ sender: Any?) {
@@ -1264,69 +638,32 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
               (title.accessibilitySharedTextUIElements() ?? []).contains(where: { $0 as AnyObject === self }) else { return }
         title.setAccessibilitySharedTextUIElements(nil)
     }
-    /// The paper's leading margin is wider than its trailing one by the gutter. The
-    /// symmetric inset already leaves the container its width; only its origin moves,
-    /// so the container agrees with the view's width tracking and layout settles.
-    override var textContainerOrigin: NSPoint {
-        let origin = super.textContainerOrigin
-        return NSPoint(x: origin.x + (RelayPaperMargins.leading - RelayPaperMargins.trailing) / 2, y: origin.y)
-    }
-    /// The pointer adapter: the heading under the pointer shows its chevron.
-    private var hoverArea: NSTrackingArea?
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        if let hoverArea { removeTrackingArea(hoverArea) }
-        let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-                                  owner: self)
-        addTrackingArea(area)
-        hoverArea = area
-    }
-    override func mouseMoved(with event: NSEvent) {
-        super.mouseMoved(with: event)
-        let point = convert(event.locationInWindow, from: nil)
-        let geometry = RelayTextGeometry(textLayoutManager)
-        let line = geometry?.paragraphRange(atY: point.y - textContainerOrigin.y)
-        hoverHeading(line.flatMap { headingParagraph(at: $0.location)?.location })
-    }
-    override func mouseExited(with event: NSEvent) {
-        super.mouseExited(with: event)
-        hoverHeading(nil)
-    }
-    private func hoverHeading(_ location: Int?) {
-        guard paper.hoveredHeading != location else { return }
-        paper.hoveredHeading = location
-        needsDisplay = true
-    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         onMovedToWindow?()
     }
     override func mouseDown(with event: NSEvent) {
-        let point = convert(event.locationInWindow, from: nil)
-        if !retired, !hasMarkedText(), let geometry = RelayTextGeometry(textLayoutManager),
-           let id = sectionDisclosureHit(at: CGPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y), geometry: geometry) {
-            toggleSection(id); return
-        }
-        if !retired, !hasMarkedText(), let onPaperButton,
-           let offset = characterOffset(at: point), onPaperButton(offset) { return }
-        if !retired, isEditable, let onTaskCheckbox,
-           let offset = taskCheckboxOffset(at: point), onTaskCheckbox(offset) { return }
+        // Semantic attachment activation uses AppKit hit testing. Text selection
+        // is entirely NSTextView's; there is no gutter hit-testing layer.
+        if activatePaperButton(at: convert(event.locationInWindow, from: nil)) { return }
         super.mouseDown(with: event)
     }
-    /// The UTF-16 offset of the character drawn under `point` in view coordinates.
-    func characterOffset(at point: CGPoint) -> Int? {
-        let origin = textContainerOrigin
-        return RelayTextGeometry(textLayoutManager)?.characterOffset(at: CGPoint(x: point.x - origin.x, y: point.y - origin.y))
+    func activatePaperButton(at point: CGPoint) -> Bool {
+        guard !retired, !hasMarkedText(), let onPaperButton,
+              let offset = characterOffset(at: point) else { return false }
+        return onPaperButton(offset)
     }
-    /// The task whose checkbox marker is under `point`, or the touched character
-    /// when the paper has no task items.
-    func taskCheckboxOffset(at point: CGPoint) -> Int? {
-        guard let geometry = RelayTextGeometry(textLayoutManager) else { return nil }
-        let origin = textContainerOrigin
-        let location = CGPoint(x: point.x - origin.x, y: point.y - origin.y)
-        let taskItems = paper.viewTaskItems
-        if !taskItems.isEmpty { return taskMarkerHit(at: location, geometry: geometry, taskItems: taskItems) }
-        return geometry.nearestCharacter(at: location)
+    func characterOffset(at point: CGPoint) -> Int? {
+        guard let window, let ranges = RelayTextKitRanges(textLayoutManager) else { return nil }
+        // NSTextInputClient resolves a character, whereas insertion hit testing
+        // returns the boundary after an attachment when its trailing half is hit.
+        let screenPoint = window.convertPoint(toScreen: convert(point, to: nil))
+        let index = characterIndex(for: screenPoint)
+        guard index >= 0, index < ranges.length,
+              let frame = ranges.characterFrame(at: index) else { return nil }
+        // Native character hit testing can return the nearest character outside
+        // its bounds. Activate only inside the segment TextKit actually rendered.
+        return frame.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y).contains(point) ? index : nil
     }
     var onImageInputFailure: ((String) -> Void)? = nil
     var onBeginImageInput: ((NSRange, String, String) -> RelayMarkImageIntake?)?
@@ -1515,9 +852,11 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     func applyEmptyTypingStyle() {
         let selection = paperSelection
         if selection.length == 0, let block = paper.emptyBlocks.first(where: { $0.offset == selection.location }) {
-            var attributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link, typingStyle: block.typingStyle)
-            if paper.taskItems.contains(where: { $0.firstParagraphRange.location == block.offset }) {
-                attributes[.paragraphStyle] = NativeProseCodec.emptyParagraphStyle(block.intent, task: true)
+            var attributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link,
+                typingStyle: block.typingStyle, listContext: paper.nativeLists)
+            if let task = paper.taskItems.first(where: { $0.firstParagraphRange.location == block.offset }) {
+                attributes[.paragraphStyle] = NativeProseCodec.emptyParagraphStyle(block.intent, checked: task.checked,
+                    listContext: paper.nativeLists)
             }
             typingAttributes = attributes
         }
@@ -1575,6 +914,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
     override func textViewportLayoutControllerDidLayout(_ controller: NSTextViewportLayoutController) {
         super.textViewportLayoutControllerDidLayout(controller)
         viewportDidLayout(controller)
+        onContentLayoutChange?()
     }
 
     nonisolated func textContentManager(_ textContentManager: NSTextContentManager, shouldEnumerate textElement: NSTextElement,
@@ -1582,21 +922,7 @@ final class CollaborationTextView: NSTextView, RelayPaperTextView, NSTextContent
         nonisolated(unsafe) let element = textElement
         return MainActor.assumeIsolated { paperShows(element) }
     }
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        let glyph = { [editingSession] (item: RelayTaskItemRun) in taskGlyph(item, session: editingSession) }
-        drawTaskItems(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut, glyph: glyph)
-        drawListMarkers(geometry: geometry, origin: textContainerOrigin, laidOut: paper.laidOut,
-                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems, glyph: glyph)
-        drawSectionDisclosures(geometry: geometry, origin: textContainerOrigin)
-        drawRemoteSelections(paper.remoteSelections.filter { !paper.isHidden($0.caretLocation) }, resolveColor: collaboratorColor, geometry: geometry,
-            origin: textContainerOrigin, length: string.utf16.count) { [weak self] offset in
-                guard let self, let window = self.window else { return nil }
-                let screen = self.firstRect(forCharacterRange: NSRange(location: offset, length: 0), actualRange: nil)
-                return self.convert(window.convertFromScreen(screen), from: nil)
-            }
-    }
+
 }
 #else
 @MainActor
@@ -1741,10 +1067,6 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 endComposition(view)
             }
             view.backgroundColor = .clear
-            // Checklist glyphs, chips and markers are drawn in the view itself; when its
-            // size settles after the first draw they redraw for the new layout, never a
-            // stretched copy of the old one.
-            view.contentMode = .redraw
             view.textContainerInset = UIEdgeInsets(top: view.baseTopInset, left: RelayPaperMargins.leading, bottom: 8, right: RelayPaperMargins.trailing)
             view.allowsEditingTextAttributes = true
             view.textFormattingConfiguration = CollaborationTextView.formattingPanel
@@ -1849,6 +1171,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                       ObjectIdentifier(session) == owner, !session.isInvalidated else { return }
                 activate(href)
                 update(view)
+                view.scrollRangeToVisible(view.viewSelection)
             }
         }
 
@@ -2003,7 +1326,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
                 view.editingSession == nil || view.editingSession === session else { return }
             textViewDidChange(view)
         }
-        /// Writing Tools rewrites the paper's prose; each table cell is its own text view.
+        /// Writing Tools rewrites prose; structured table attachments are excluded.
         func textView(_ textView: UITextView, writingToolsIgnoredRangesInEnclosingRange enclosingRange: NSRange) -> [NSValue] {
             guard let view = textView as? CollaborationTextView else { return [] }
             return view.paper.tables.spans.filter { NSLocationInRange($0.view, enclosingRange) }
@@ -2031,9 +1354,6 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             viewController.formattingDescriptor = .init(string: view.textStorage, range: view.selectedRange)
         }
         func textViewDidChangeSelection(_ view: UITextView) {
-            if let paper = view as? CollaborationTextView, paper.editorLayout == .content {
-                paper.scrollRangeToVisible(paper.viewSelection)
-            }
             guard !updating, let view = view as? CollaborationTextView, !view.retired, view.markedTextRange == nil,
                 view.editingSession == nil || view.editingSession === session else { return }
             if view.pasteCommand?.range != view.paperSelection { view.pasteCommand = nil }
@@ -2070,7 +1390,6 @@ public struct RelayMarkEditorView: UIViewRepresentable {
 public final class CollaborationTextContainer: UIView {
     private(set) var textView: CollaborationTextView?
     private var sizing = RelayEditorContentLayout()
-    private var revealAfterLayout = false
     /// VoiceOver reads a hosted header before the paper's text.
     override public var accessibilityElements: [Any]? {
         get { textView.map { view in [view.headerView, view].compactMap { $0 } } }
@@ -2101,7 +1420,7 @@ public final class CollaborationTextContainer: UIView {
         sizing.viewportDidChange(layout: services.layout, revision: services.contentViewportRevision) { [weak self] in
             guard let self else { return }
             layoutIfNeeded()
-            guard let view = textView, !view.retired, view.editorLayout == .content else { return }
+            guard let view = textView, !view.retired, view.editorLayout == .content, view.isFirstResponder else { return }
             view.scrollRangeToVisible(view.viewSelection)
         }
         scheduleContentMeasurement()
@@ -2109,7 +1428,6 @@ public final class CollaborationTextContainer: UIView {
     override public func layoutSubviews() {
         super.layoutSubviews()
         scheduleContentMeasurement()
-        if revealAfterLayout { revealAfterLayout = false; textView.map { $0.scrollRangeToVisible($0.viewSelection) } }
     }
     func contentSize(at width: CGFloat) -> CGSize? {
         guard let view = textView, view.editorLayout == .content, width.isFinite, width > 0 else { return nil }
@@ -2124,7 +1442,6 @@ public final class CollaborationTextContainer: UIView {
             guard let self, let size = contentSize(at: bounds.width) else { return nil }
             return size.height
         } changed: { [weak self] in
-            self?.revealAfterLayout = true
             self?.invalidateIntrinsicContentSize()
         }
     }
@@ -2134,8 +1451,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     var editorLayout: RelayMarkEditorLayout = .viewport
     var onContentLayoutChange: (() -> Void)?
     func contentHeight(at width: CGFloat) -> CGFloat {
-        textContainer.size = CGSize(width: max(1, width - textContainerInset.left - textContainerInset.right), height: .greatestFiniteMagnitude)
-        return max(font?.lineHeight ?? 17, RelayTextGeometry(textLayoutManager)?.contentHeight ?? 0) + textContainerInset.top + textContainerInset.bottom
+        sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
     }
     override func scrollRangeToVisible(_ range: NSRange) {
         guard editorLayout == .content else { return super.scrollRangeToVisible(range) }
@@ -2144,7 +1460,6 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     }
     override func scrollRectToVisible(_ rect: CGRect, animated: Bool) {
         guard editorLayout == .content else { return super.scrollRectToVisible(rect, animated: animated) }
-        guard isFirstResponder else { return }
         var ancestor = superview
         while let view = ancestor {
             if let scroll = view as? UIScrollView, scroll.isScrollEnabled {
@@ -2167,15 +1482,12 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     /// The only way to make the editor: Relay's TextKit 2 stack. A subclass
     /// built with `init(frame:)` starts in TextKit 1 compatibility mode.
     static func textKit2(frame: CGRect = .zero) -> CollaborationTextView {
-        let storage = NSTextContentStorage(), manager = RelayTextLayoutManager()
+        let storage = NSTextContentStorage(), manager = NSTextLayoutManager()
         storage.addTextLayoutManager(manager)
         let container = NSTextContainer(size: CGSize(width: frame.width, height: CGFloat.greatestFiniteMagnitude))
         manager.textContainer = container
         let view = Self(frame: frame, textContainer: container)
         view.contentStorage = storage
-        #if os(macOS)
-        view.paper.disclosuresFollowPointer = true
-        #endif
         // Folded sections' paragraphs are skipped from layout, never removed from the text.
         storage.delegate = view
         // A table's grid stays with its attachment, wherever its paragraph is laid out.
@@ -2239,27 +1551,23 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     }
     var hasMarkedInput: Bool { markedTextRange != nil }
     var viewSelection: NSRange { selectedRange }
-    func showSelection(_ range: NSRange) { selectedRange = range; scrollRangeToVisible(range) }
+    func showSelection(_ range: NSRange) {
+        selectedRange = range
+        if editorLayout == .viewport || isFirstResponder { scrollRangeToVisible(range) }
+    }
     func unmarkPaperText() { unmarkText() }
-    func paperNeedsDisplay() { setNeedsDisplay(); onContentLayoutChange?() }
+    func paperNeedsDisplay() { setNeedsDisplay() }
     func replaceAllText(_ text: NSAttributedString) {
         pasteCommand = nil
         attributedText = text
     }
-    func focus(_ cell: RelayTableCellTextView, selecting range: NSRange) {
-        if NSMaxRange(range) <= cell.text.utf16.count, cell.selectedRange != range { cell.selectedRange = range }
-        if isFirstResponder { cell.becomeFirstResponder() }
-    }
-    var tableUndoManager: UndoManager? { collaborationUndo }
+
     /// Only the table rows near the screen keep cell text views.
     override func layoutSubviews() {
         super.layoutSubviews()
         assert(textLayoutManager != nil, "The paper switched to TextKit 1 compatibility mode")
         layOutHeader()
         onContentLayoutChange?()
-        for span in paper.tables.spans where span.table.isGridLoaded && span.table.grid.superview != nil {
-            span.table.grid.updateVisible(in: convert(bounds, to: span.table.grid))
-        }
     }
     private func changeListDepth(backward: Bool) -> Bool {
         guard !retired, isEditable, markedTextRange == nil, compositionCompletion == nil,
@@ -2404,21 +1712,9 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
                                shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
     }
     @objc func handleTaskTap(_ gesture: UITapGestureRecognizer) {
-        guard gesture.state == .ended, !retired, markedTextRange == nil else { return }
-        let point = gesture.location(in: self)
-        let location = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
-        guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        if let id = sectionDisclosureHit(at: location, geometry: geometry) { toggleSection(id); return }
-        if let onPaperButton, let offset = geometry.characterOffset(at: location), onPaperButton(offset) { return }
-        guard isEditable, let onTaskCheckbox, let offset = taskCheckboxOffset(at: point) else { return }
-        _ = onTaskCheckbox(offset)
-    }
-    /// The task whose checkbox marker is under `point` in view coordinates.
-    func taskCheckboxOffset(at point: CGPoint) -> Int? {
-        let taskItems = paper.viewTaskItems
-        guard !taskItems.isEmpty, let geometry = RelayTextGeometry(textLayoutManager) else { return nil }
-        let location = CGPoint(x: point.x - textContainerInset.left, y: point.y - textContainerInset.top)
-        return taskMarkerHit(at: location, geometry: geometry, taskItems: taskItems)
+        guard gesture.state == .ended, !retired, markedTextRange == nil,
+              let onPaperButton, let range = characterRange(at: gesture.location(in: self)) else { return }
+        _ = onPaperButton(offset(from: beginningOfDocument, to: range.start))
     }
     private func receiveImageProviders(_ providers: [NSItemProvider], range: NSRange) -> Bool {
         guard providers.contains(where: { $0.registeredTypeIdentifiers.contains(where: { RelayNativeImageRepresentation.isImage($0) }) }) else { return false }
@@ -2551,9 +1847,11 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     func applyEmptyTypingStyle() {
         let selection = paperSelection
         if selection.length == 0, let block = paper.emptyBlocks.first(where: { $0.offset == selection.location }) {
-            var attributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link, typingStyle: block.typingStyle)
-            if paper.taskItems.contains(where: { $0.firstParagraphRange.location == block.offset }) {
-                attributes[.paragraphStyle] = NativeProseCodec.emptyParagraphStyle(block.intent, task: true)
+            var attributes = NativeProseCodec.emptyAttributes(block.intent, inlineIntent: block.inlineIntent, link: block.link,
+                typingStyle: block.typingStyle, listContext: paper.nativeLists)
+            if let task = paper.taskItems.first(where: { $0.firstParagraphRange.location == block.offset }) {
+                attributes[.paragraphStyle] = NativeProseCodec.emptyParagraphStyle(block.intent, checked: task.checked,
+                    listContext: paper.nativeLists)
             }
             typingAttributes = attributes
         }
@@ -2606,16 +1904,6 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     override func find(_ sender: Any?) { paperFind?.presentFindNavigator(showingReplace: false) }
     override func findNext(_ sender: Any?) { paperFind?.findNext() }
     override func findPrevious(_ sender: Any?) { paperFind?.findPrevious() }
-    fileprivate func drawFound(in context: CGContext) {
-        guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        for (range, style) in search.decorations {
-            guard let shown = paper.tables.view(range) else { continue }
-            context.setFillColor(UIColor.systemYellow.withAlphaComponent(style == .highlighted ? 0.6 : 0.3).cgColor)
-            for frame in geometry.segmentFrames(shown) {
-                context.fill(frame.offsetBy(dx: textContainerInset.left, dy: textContainerInset.top))
-            }
-        }
-    }
     override func insertText(_ text: String) {
         guard !retired, isEditable else { return }
         if (markedTextRange != nil || compositionCompletion != nil), let onDeclaredMarkedInput {
@@ -2630,6 +1918,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     override func textViewportLayoutControllerDidLayout(_ controller: NSTextViewportLayoutController) {
         super.textViewportLayoutControllerDidLayout(controller)
         viewportDidLayout(controller)
+        onContentLayoutChange?()
     }
 
     nonisolated func textContentManager(_ textContentManager: NSTextContentManager, shouldEnumerate textElement: NSTextElement,
@@ -2637,21 +1926,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         nonisolated(unsafe) let element = textElement
         return MainActor.assumeIsolated { paperShows(element) }
     }
-    override func draw(_ rect: CGRect) {
-        super.draw(rect)
-        guard let geometry = RelayTextGeometry(textLayoutManager) else { return }
-        let origin = CGPoint(x: textContainerInset.left, y: textContainerInset.top)
-        if let context = UIGraphicsGetCurrentContext() { drawFound(in: context) }
-        let glyph = { [editingSession] (item: RelayTaskItemRun) in taskGlyph(item, session: editingSession) }
-        drawTaskItems(geometry: geometry, origin: origin, laidOut: paper.laidOut, glyph: glyph)
-        drawListMarkers(geometry: geometry, origin: origin, laidOut: paper.laidOut,
-                        emptyBlocks: paper.viewEmptyBlocks, taskItems: paper.viewTaskItems, glyph: glyph)
-        drawSectionDisclosures(geometry: geometry, origin: origin)
-        drawRemoteSelections(paper.remoteSelections.filter { !paper.isHidden($0.caretLocation) }, resolveColor: collaboratorColor, geometry: geometry, origin: origin, length: text.utf16.count) { [weak self] offset in
-                guard let self, let position = self.position(from: self.beginningOfDocument, offset: offset) else { return nil }
-                return self.caretRect(for: position)
-            }
-    }
+
 }
 #endif
 
@@ -2693,10 +1968,11 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
     }
 }
 
-/// TextKit 2 geometry in text-container coordinates; offsets remain canonical UTF-16.
-/// Queries lay out only the fragments they touch, never the whole paper.
+/// Converts canonical UTF-16 ranges to TextKit ranges. Rectangles, when needed
+/// by system integrations, come directly from enumerateTextSegments. No layout is
+/// requested here, and no line, glyph, marker or caret geometry is synthesized.
 @MainActor
-struct RelayTextGeometry {
+struct RelayTextKitRanges {
     let manager: NSTextLayoutManager
     let content: NSTextContentManager
     let storage: NSTextStorage
@@ -2708,14 +1984,6 @@ struct RelayTextGeometry {
     }
 
     var length: Int { storage.length }
-    var padding: CGFloat { manager.textContainer?.lineFragmentPadding ?? 0 }
-
-    /// Natural document height for a host-owned scroll. TextKit keeps unchanged
-    /// fragments cached; attachments and a final empty line contribute their real layout.
-    var contentHeight: CGFloat {
-        manager.ensureLayout(for: content.documentRange)
-        return ceil(max(manager.usageBoundsForTextContainer.maxY, lineFrame(at: length)?.maxY ?? 0))
-    }
 
     func location(_ offset: Int) -> (any NSTextLocation)? {
         guard offset >= 0, offset <= length else { return nil }
@@ -2750,159 +2018,6 @@ struct RelayTextGeometry {
         return segmentFrames(NSRange(location: offset, length: 1)).first
     }
 
-    /// The line holding `offset` across the container width, starting at the
-    /// container's leading edge; at the end, the empty line after a final newline.
-    /// A fragment's own origin already includes its paragraph's indent (a list item's),
-    /// which callers add themselves, so the frame starts at the container edge, not the fragment.
-    func lineFrame(at offset: Int) -> CGRect? {
-        guard offset >= 0, offset <= length else { return nil }
-        if offset == length {
-            guard let end = location(length) else { return nil }
-            if let fragment = manager.textLayoutFragment(for: end), self.offset(fragment.rangeInElement.location) == length {
-                manager.ensureLayout(for: fragment.rangeInElement)
-                let frame = fragment.layoutFragmentFrame
-                return CGRect(x: 0, y: frame.minY, width: frame.maxX, height: frame.height)
-            }
-            guard length > 0, (storage.string as NSString).character(at: length - 1) == 10,
-                  let last = lineFrame(at: length - 1) else { return nil }
-            // The empty last line follows the paragraph before it and that paragraph's spacing.
-            let spacing = (storage.attribute(.paragraphStyle, at: length - 1, effectiveRange: nil) as? NSParagraphStyle)?.paragraphSpacing ?? 0
-            return last.offsetBy(dx: 0, dy: last.height + spacing)
-        }
-        guard let target = location(offset), let fragment = manager.textLayoutFragment(for: target) else { return nil }
-        manager.ensureLayout(for: fragment.rangeInElement)
-        let frame = fragment.layoutFragmentFrame
-        let inner = offset - self.offset(fragment.rangeInElement.location)
-        let lines = fragment.textLineFragments
-        guard let line = lines.first(where: { NSLocationInRange(inner, $0.characterRange) }) ?? lines.last else { return nil }
-        let bounds = line.typographicBounds
-        return CGRect(x: 0, y: frame.minY + bounds.minY, width: frame.maxX, height: bounds.height)
-    }
-
-    /// Whether TextKit resolved the paragraph at `offset` to run right to left.
-    func isRightToLeft(at offset: Int) -> Bool {
-        guard let location = location(offset) else { return false }
-        return manager.baseWritingDirection(at: location) == .rightToLeft
-    }
-
-    /// The offsets of the laid-out paragraph across the line at `y`.
-    func paragraphRange(atY y: CGFloat) -> NSRange? {
-        let width = manager.textContainer?.size.width ?? 0
-        return manager.textLayoutFragment(for: CGPoint(x: width / 2, y: y)).map { range($0.rangeInElement) }
-    }
-
-    /// Where a paragraph's list or task marker of `width` is drawn, on the
-    /// paragraph's leading side: beside its first character, or inside the
-    /// indent of an empty paragraph.
-    func markerFrame(at offset: Int, width: CGFloat, empty: Bool, headIndent: CGFloat) -> CGRect? {
-        let rightToLeft = isRightToLeft(at: offset)
-        if empty {
-            guard let line = lineFrame(at: offset), line.height > 0 else { return nil }
-            let x = rightToLeft ? line.maxX - padding - headIndent + 7 : line.minX + padding + headIndent - width - 7
-            return CGRect(x: x, y: line.minY, width: width, height: line.height)
-        }
-        guard let character = characterFrame(at: offset) else { return nil }
-        let x = rightToLeft ? character.maxX + 7 : character.minX - width - 7
-        return CGRect(x: x, y: character.minY, width: width, height: character.height)
-    }
-
-    /// The character whose drawn frame contains `point`, never the nearest one.
-    func characterOffset(at point: CGPoint) -> Int? {
-        guard let fragment = manager.textLayoutFragment(for: point) else { return nil }
-        let frame = fragment.layoutFragmentFrame
-        let base = offset(fragment.rangeInElement.location)
-        for line in fragment.textLineFragments {
-            let bounds = line.typographicBounds.offsetBy(dx: frame.minX, dy: frame.minY)
-            guard point.y >= bounds.minY, point.y < bounds.maxY else { continue }
-            let range = line.characterRange
-            for inner in range.location..<NSMaxRange(range) {
-                if let rect = characterFrame(at: base + inner), rect.contains(point) { return base + inner }
-            }
-            return nil
-        }
-        return nil
-    }
-
-    /// The nearest character to `point`, as a click on plain text resolves it.
-    func nearestCharacter(at point: CGPoint) -> Int? {
-        guard let fragment = manager.textLayoutFragment(for: point) else { return nil }
-        let frame = fragment.layoutFragmentFrame
-        let base = offset(fragment.rangeInElement.location)
-        let lines = fragment.textLineFragments
-        guard let line = lines.first(where: {
-            let bounds = $0.typographicBounds.offsetBy(dx: frame.minX, dy: frame.minY)
-            return point.y >= bounds.minY && point.y < bounds.maxY
-        }) ?? lines.last else { return nil }
-        let range = line.characterRange
-        guard range.length > 0 else { return min(base + range.location, max(0, length - 1)) }
-        var best = base + range.location, distance = CGFloat.greatestFiniteMagnitude
-        for inner in range.location..<NSMaxRange(range) {
-            guard let rect = characterFrame(at: base + inner) else { continue }
-            let gap = point.x < rect.minX ? rect.minX - point.x : max(0, point.x - rect.maxX)
-            if gap < distance { distance = gap; best = base + inner }
-        }
-        return best
-    }
-}
-
-@MainActor
-private func drawRemoteSelections(_ selections: [RelayMarkRemoteSelection], resolveColor: (String) -> Color, geometry: RelayTextGeometry,
-                                  origin: CGPoint, length: Int, nativeCaret: (Int) -> CGRect?) {
-    for selection in selections where NSMaxRange(selection.range) <= length {
-        let color = PlatformColor.collaborator(selection.color, resolve: resolveColor)
-        if selection.range.length > 0 {
-            for rect in geometry.segmentFrames(selection.range) {
-                color.withAlphaComponent(0.18).setFill()
-                let shifted = rect.offsetBy(dx: origin.x, dy: origin.y)
-                #if os(macOS)
-                NSBezierPath(rect: shifted).fill()
-                #else
-                UIBezierPath(rect: shifted).fill()
-                #endif
-            }
-        }
-        var caret = CGRect(x: origin.x, y: origin.y, width: 2, height: 18)
-        let end = selection.caretLocation
-        if length > 0, let rect = geometry.characterFrame(at: min(end, length - 1)) {
-            caret = CGRect(x: (end == length ? rect.maxX : rect.minX) + origin.x, y: rect.minY + origin.y, width: 2, height: max(16, rect.height))
-        }
-        if let native = nativeCaret(selection.caretLocation) { caret = CGRect(x: native.minX, y: native.minY, width: 2, height: max(16, native.height)) }
-        color.setFill()
-        #if os(macOS)
-        NSBezierPath(rect: caret).fill()
-        #else
-        UIBezierPath(rect: caret).fill()
-        #endif
-        let label = NSAttributedString(string: String(selection.name.prefix(24)), attributes: [.font: PlatformFont.systemFont(ofSize: 10), .foregroundColor: color])
-        label.draw(at: CGPoint(x: caret.maxX + 2, y: max(0, caret.minY - 12)))
-    }
-}
-
-/// Markers are gutter drawings, not inserted characters: CRDT, marked input and
-/// remote selections all retain the canonical UTF-16 coordinate space.
-@MainActor
-private func taskMarkerHit(at point: CGPoint, geometry: RelayTextGeometry,
-                           taskItems: [RelayMarkCollaborativeProse.TaskItem]) -> Int? {
-    // Only the tasks on the tapped line can have a checkbox under it.
-    guard let line = geometry.paragraphRange(atY: point.y) else { return nil }
-    let storage = geometry.storage
-    for item in taskItems where item.firstParagraphRange.location >= line.location &&
-        item.firstParagraphRange.location <= NSMaxRange(line) {
-        let offset = item.firstParagraphRange.location
-        guard offset >= 0, offset <= storage.length else { continue }
-        let frame: CGRect?
-        if item.firstParagraphRange.length > 0 {
-            frame = taskItemLayout(at: offset, geometry: geometry)?.glyph
-        } else {
-            let font = offset < storage.length ? storage.attribute(.font, at: offset, effectiveRange: nil) as? PlatformFont : nil
-            let style = offset < storage.length ? storage.attribute(.paragraphStyle, at: offset, effectiveRange: nil) as? NSParagraphStyle : nil
-            frame = taskGlyphFrame(at: offset, empty: true, headIndent: style?.headIndent ?? 0, font: font ?? .systemFont(ofSize: 15),
-                                   gap: RelayTaskItemRun.textGap, geometry: geometry)
-        }
-        // The glyph takes the tap with a little room around it.
-        if let frame, frame.insetBy(dx: -6, dy: -6).contains(point) { return offset }
-    }
-    return nil
 }
 
 extension RelayPaperTextView {
@@ -2949,70 +2064,6 @@ extension RelayPaperTextView {
         return editingSession?.sections.first { $0.heading.location == paper }?.id
     }
 
-    /// Each laid-out heading's fold controls, in container coordinates, placed as
-    /// the web places them: a 1.5rem chevron whose right edge meets the heading's
-    /// text, 0.25em below its top, and when folded an expand control 0.5rem after
-    /// the text. Section names are read only while a section is folded.
-    func sectionDisclosures(geometry: RelayTextGeometry) -> [RelayHeadingDisclosure] {
-        guard let session = editingSession else { return [] }
-        let visible = paper.laidOut.map(geometry.range) ?? NSRange(location: 0, length: geometry.length)
-        let folded: Set<Int> = session.foldedSections.isEmpty ? [] : Set(session.sections.compactMap { section in
-            session.foldedSections.contains(section.id) ? paper.tables.view(section.heading.location) : nil
-        })
-        let size = RelayPaperMargins.gutter, caret = viewSelection.location
-        return headingParagraphs(in: visible).compactMap { heading in
-            guard !paper.isHidden(heading.location) else { return nil }
-            let font = heading.location < geometry.length
-                ? geometry.storage.attribute(.font, at: heading.location, effectiveRange: nil) as? PlatformFont : nil
-            let em = font?.pointSize ?? 15
-            let start: CGFloat, top: CGFloat, end: CGRect
-            if heading.length == 0 {
-                guard let line = geometry.lineFrame(at: heading.location), line.height > 0 else { return nil }
-                start = line.minX + geometry.padding; top = line.minY
-                end = CGRect(x: start, y: line.minY, width: 0, height: line.height)
-            } else {
-                guard let first = geometry.characterFrame(at: heading.location),
-                      let last = geometry.characterFrame(at: NSMaxRange(heading) - 1) else { return nil }
-                start = first.minX; top = first.minY; end = last
-            }
-            let isFolded = folded.contains(heading.location)
-            let shown = !paper.disclosuresFollowPointer || paper.hoveredHeading == heading.location ||
-                (caret >= heading.location && caret <= NSMaxRange(heading))
-            return RelayHeadingDisclosure(heading: heading,
-                chevron: CGRect(x: start - size, y: top + em * 0.25, width: size, height: size),
-                expand: isFolded ? CGRect(x: end.maxX + 8, y: end.midY - size / 2, width: size, height: size) : nil,
-                folded: isFolded, shown: shown)
-        }
-    }
-
-    func drawSectionDisclosures(geometry: RelayTextGeometry, origin: CGPoint) {
-        // Where every chevron always shows, it stays subtle; on hover it shows plainly.
-        let tone: CGFloat = paper.disclosuresFollowPointer ? 1 : 0.55
-        for disclosure in sectionDisclosures(geometry: geometry) {
-            if disclosure.shown {
-                drawSymbol(disclosure.folded ? "chevron.right" : "chevron.down",
-                           in: disclosure.chevron.offsetBy(dx: origin.x, dy: origin.y), tone: tone)
-            }
-            if let expand = disclosure.expand { drawSymbol("ellipsis", in: expand.offsetBy(dx: origin.x, dy: origin.y), tone: 1) }
-        }
-    }
-
-    private func drawSymbol(_ name: String, in rect: CGRect, tone: CGFloat) {
-        let color = PlatformColor.secondaryLabelColorCompat.withAlphaComponent(tone)
-        #if os(macOS)
-        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(
-            NSImage.SymbolConfiguration(pointSize: 11, weight: .semibold).applying(.init(hierarchicalColor: color))) else { return }
-        let size = image.size
-        image.draw(in: CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height),
-                   from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-        #else
-        guard let image = UIImage(systemName: name, withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold))?
-            .withTintColor(color, renderingMode: .alwaysOriginal) else { return }
-        let size = image.size
-        image.draw(in: CGRect(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2, width: size.width, height: size.height))
-        #endif
-    }
-
     /// The heading menu's entries for the section at the caret: fold or unfold it,
     /// and copy its link when the host gives sections links.
     func sectionMenuEntries(link: ((String) -> URL?)?) -> [(title: String, run: () -> Void)] {
@@ -3034,182 +2085,15 @@ extension RelayPaperTextView {
         return entries
     }
 
-    /// The section whose heading disclosure is under `point`, in container coordinates.
-    func sectionDisclosureHit(at point: CGPoint, geometry: RelayTextGeometry) -> String? {
-        guard let hit = sectionDisclosures(geometry: geometry).first(where: { disclosure in
-            [disclosure.chevron, disclosure.expand].contains { $0?.insetBy(dx: -4, dy: -4).contains(point) == true } })
-        else { return nil }
-        return sectionID(atHeading: hit.heading.location)
-    }
 }
 
-@MainActor
-private func drawListMarkers(geometry: RelayTextGeometry, origin: CGPoint, laidOut: NSTextRange?,
-                             emptyBlocks: [RelayEmptyProseBlock], taskItems: [RelayMarkCollaborativeProse.TaskItem],
-                             glyph: (RelayTaskItemRun) -> RelayMarkTaskGlyph) {
-    let storage = geometry.storage
-    let source = storage.string as NSString
-    let visible = laidOut.map(geometry.range) ?? NSRange(location: 0, length: storage.length)
-    func isVisible(_ offset: Int) -> Bool { offset >= visible.location && offset <= NSMaxRange(visible) }
-    let tasks = Dictionary(taskItems.map { ($0.firstParagraphRange.location, RelayTaskItemRun(entityID: $0.entityID, checked: $0.checked)) },
-                           uniquingKeysWith: { first, _ in first })
-    for block in emptyBlocks where block.offset >= 0 && block.offset <= storage.length && isVisible(block.offset) {
-        guard let marker = NativeProseCodec.listMarker(block.intent) else { continue }
-        if let task = tasks[block.offset] {
-            // An empty checklist item still shows its glyph, where its title will start.
-            let font = NativeProseCodec.emptyAttributes(block.intent)[.font] as? PlatformFont ?? .systemFont(ofSize: 15)
-            guard let frame = taskGlyphFrame(at: block.offset, empty: true, headIndent: NativeProseCodec.taskIndent(font, depth: marker.depth),
-                                             font: font, gap: RelayTaskItemRun.textGap, geometry: geometry) else { continue }
-            drawTaskGlyph(glyph(task), in: frame.offsetBy(dx: origin.x, dy: origin.y))
-            continue
-        }
-        let attrs = NativeProseCodec.emptyAttributes(block.intent)
-        let style = attrs[.paragraphStyle] as? NSParagraphStyle
-        let label = NSAttributedString(string: marker.label, attributes: attrs)
-        guard let frame = geometry.markerFrame(at: block.offset, width: label.size().width, empty: true,
-                                               headIndent: style?.headIndent ?? 0) else { continue }
-        label.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY))
-    }
-    storage.enumerateAttribute(.relayListMarker, in: NSIntersectionRange(visible, NSRange(location: 0, length: storage.length))) { value, range, _ in
-        guard let label = value as? String, range.location < source.length,
-              range.location == 0 || source.character(at: range.location - 1) == 10,
-              // A checklist item's glyph is drawn with its title.
-              storage.attribute(.relayTaskItem, at: range.location, effectiveRange: nil) == nil else { return }
-        let font = storage.attribute(.font, at: range.location, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15)
-        let marker = NSAttributedString(string: label, attributes: [.font: font, .foregroundColor: PlatformColor.labelColorCompat])
-        guard let frame = geometry.markerFrame(at: range.location, width: marker.size().width, empty: false,
-                                               headIndent: 0) else { return }
-        marker.draw(at: CGPoint(x: origin.x + frame.minX, y: origin.y + frame.minY))
-    }
-}
-
-/// A checklist item, as the value of its title runs' text attribute. The text
-/// view draws the item's glyph from it and, for an item linked to a Task, the
-/// Task chip: the web chip's surfaced fill around the glyph and title.
 final class RelayTaskItemRun: NSObject {
     let entityID: String?
     let checked: Bool
-
-    init(entityID: String?, checked: Bool) {
-        self.entityID = entityID
-        self.checked = checked
-    }
-
+    init(entityID: String?, checked: Bool) { self.entityID = entityID; self.checked = checked }
     override func isEqual(_ object: Any?) -> Bool {
         guard let other = object as? RelayTaskItemRun else { return false }
         return entityID == other.entityID && checked == other.checked
     }
     override var hash: Int { (entityID?.hashValue ?? 0) ^ checked.hashValue }
-
-    /// The glyph's diameter beside text of `font`: 18 pt beside 15 pt body text.
-    static func diameter(_ font: PlatformFont) -> CGFloat { (font.pointSize * RelayMarkTaskGlyph.sizePerPoint).rounded() }
-    /// Between a plain item's glyph and its title, as the web's 0.5rem.
-    static let textGap: CGFloat = 8
-    /// A chip's spacing, as the web chip's: between glyph and title, and inside its edge,
-    /// so the chip's edge meets a plain item's glyph column.
-    static let chipGap: CGFloat = 4
-    static let chipPadding: CGFloat = 4
-}
-
-/// Where a checklist item's glyph of `font` sits before its title, `gap` from it,
-/// in container coordinates: beside its first character, or inside the indent
-/// of an empty item.
-@MainActor
-func taskGlyphFrame(at offset: Int, empty: Bool, headIndent: CGFloat, font: PlatformFont, gap: CGFloat,
-                            geometry: RelayTextGeometry) -> CGRect? {
-    let size = RelayTaskItemRun.diameter(font)
-    let rightToLeft = geometry.isRightToLeft(at: offset)
-    let line: CGRect, start: CGFloat
-    if empty {
-        guard let frame = geometry.lineFrame(at: offset), frame.height > 0 else { return nil }
-        line = frame
-        start = rightToLeft ? frame.maxX - geometry.padding - headIndent : frame.minX + geometry.padding + headIndent
-    } else {
-        guard let character = geometry.characterFrame(at: offset) else { return nil }
-        line = character
-        start = rightToLeft ? character.maxX : character.minX
-    }
-    let x = rightToLeft ? start + gap : start - gap - size
-    return CGRect(x: x, y: line.midY - size / 2, width: size, height: size)
-}
-
-/// A checklist item's drawing for the paragraph starting at `paragraph`, in
-/// container coordinates: its glyph, its title's line frames and, when it is
-/// linked to a Task, the chip's surface (a pill around one line, a rounded box
-/// around a wrapped title). Nil when the paragraph is no item's title or is not laid out.
-@MainActor
-func taskItemLayout(at paragraph: Int, geometry: RelayTextGeometry)
-    -> (item: RelayTaskItemRun, glyph: CGRect, title: [CGRect], chip: (surface: CGRect, radius: CGFloat)?, font: PlatformFont)? {
-    let storage = geometry.storage, text = storage.string as NSString
-    guard paragraph >= 0, paragraph < storage.length else { return nil }
-    var range = NSRange()
-    let bounds = text.paragraphRange(for: NSRange(location: paragraph, length: 0))
-    guard let item = storage.attribute(.relayTaskItem, at: paragraph, longestEffectiveRange: &range, in: bounds) as? RelayTaskItemRun
-    else { return nil }
-    while range.length > 0, text.character(at: NSMaxRange(range) - 1) == 10 { range.length -= 1 }
-    let title = geometry.segmentFrames(range)
-    let font = storage.attribute(.font, at: paragraph, effectiveRange: nil) as? PlatformFont ?? .systemFont(ofSize: 15)
-    let linked = item.entityID != nil
-    guard let glyph = taskGlyphFrame(at: paragraph, empty: false, headIndent: 0, font: font,
-                                     gap: linked ? RelayTaskItemRun.chipGap : RelayTaskItemRun.textGap, geometry: geometry),
-          let first = title.first else { return nil }
-    let chip = linked ? (title.reduce(glyph) { $0.union($1) }.insetBy(dx: -RelayTaskItemRun.chipPadding, dy: -1.5),
-                         (max(first.height, glyph.height) + 3) / 2) : nil
-    return (item, glyph, title, chip, font)
-}
-
-/// Each checklist item under its text: a linked item's chip surface, the item's
-/// glyph and, once ticked, its title's line-through.
-@MainActor
-private func drawTaskItems(geometry: RelayTextGeometry, origin: CGPoint, laidOut: NSTextRange?,
-                           glyph: (RelayTaskItemRun) -> RelayMarkTaskGlyph) {
-    let storage = geometry.storage, text = storage.string as NSString
-    let visible = laidOut.map(geometry.range) ?? NSRange(location: 0, length: storage.length)
-    storage.enumerateAttribute(.relayTaskItem, in: NSIntersectionRange(visible, NSRange(location: 0, length: storage.length)),
-                               options: .longestEffectiveRangeNotRequired) { value, range, _ in
-        guard value is RelayTaskItemRun, range.location == 0 || text.character(at: range.location - 1) == 10,
-              let layout = taskItemLayout(at: range.location, geometry: geometry) else { return }
-        if let chip = layout.chip {
-            // The web chip's surfaced fill and hairline stroke.
-            let rect = chip.surface.offsetBy(dx: origin.x, dy: origin.y).insetBy(dx: 0.5, dy: 0.5)
-            #if os(macOS)
-            let path = NSBezierPath(roundedRect: rect, xRadius: chip.radius, yRadius: chip.radius)
-            #else
-            let path = UIBezierPath(roundedRect: rect, cornerRadius: chip.radius)
-            #endif
-            PlatformColor.labelColorCompat.withAlphaComponent(0.045).setFill(); path.fill()
-            path.lineWidth = 1; PlatformColor.labelColorCompat.withAlphaComponent(0.1).setStroke(); path.stroke()
-        }
-        if layout.item.checked {
-            PlatformColor.secondaryLabelColorCompat.setFill()
-            for line in layout.title {
-                let y = origin.y + line.minY + layout.font.ascender - layout.font.xHeight / 2
-                let strike = CGRect(x: origin.x + line.minX, y: y - 0.5, width: line.width, height: 1)
-                #if os(macOS)
-                NSBezierPath(rect: strike).fill()
-                #else
-                UIBezierPath(rect: strike).fill()
-                #endif
-            }
-        }
-        drawTaskGlyph(glyph(layout.item), in: layout.glyph.offsetBy(dx: origin.x, dy: origin.y))
-    }
-}
-
-/// The paper's glyph for a checklist item: a plain item's checkbox, or the host's
-/// glyph for a linked item's Task, falling back to the item's checkbox state.
-@MainActor
-private func taskGlyph(_ item: RelayTaskItemRun, session: (any RelayPaperTextEditing)?) -> RelayMarkTaskGlyph {
-    item.entityID.flatMap { session?.linkedTaskStatus(entityID: $0, checked: item.checked) }
-        ?? .checklist(checked: item.checked)
-}
-
-@MainActor
-private func drawTaskGlyph(_ glyph: RelayMarkTaskGlyph, in rect: CGRect) {
-    #if os(macOS)
-    guard let context = NSGraphicsContext.current?.cgContext else { return }
-    #else
-    guard let context = UIGraphicsGetCurrentContext() else { return }
-    #endif
-    glyph.draw(in: context, rect: rect, tint: PlatformColor(glyph.tint.color).cgColor)
 }

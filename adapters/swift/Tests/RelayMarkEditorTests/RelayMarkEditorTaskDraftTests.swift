@@ -191,7 +191,8 @@ struct RelayMarkEditorTaskDraftTests {
         defer { paper.retire() }
         func drawnMarker() -> String? {
             paper.coordinator.update(paper.view)
-            return paper.view.paperStorage.attribute(NSAttributedString.Key("RelayListMarker"), at: 0, effectiveRange: nil) as? String
+            let style = paper.view.paperStorage.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle
+            return style?.textLists.last?.markerFormat.rawValue
         }
         #expect(drawnMarker() == "☐")
         let item = try #require(paper.editor.nativeTaskItems.first)
@@ -273,29 +274,6 @@ struct RelayMarkEditorTaskDraftTests {
         #expect(paper.view.layer.needsDisplay(), "the old drawing would be stretched to the new size")
     }
 
-    // Bug caught: the trailing empty draft's glyph drawn one indent too far right, over the
-    // text of the item above it (M10 iPhone), or up into that item's chip (M11 Mac). It must
-    // sit in the same column as the item's own, on the line below it.
-    @Test("An empty trailing checklist item's glyph is drawn in its sibling's column, below it")
-    func emptyDraftCheckboxAlignsWithItsSibling() throws {
-        let paper = try Paper([["type": "taskList", "content": [
-            ["type": "taskItem", "attrs": ["checked": true],
-             "content": [["type": "paragraph", "content": [["type": "text", "text": "Buy candles"]]]]],
-            ["type": "taskItem", "attrs": ["checked": false], "content": [["type": "paragraph"]]]]]])
-        defer { paper.retire() }
-        paper.coordinator.update(paper.view)
-        paper.view.layoutIfNeeded()
-        let geometry = try #require(RelayTextGeometry(paper.view.textLayoutManager))
-        let item = try #require(paper.view.paper.taskItems.first)
-        let block = try #require(paper.view.paper.emptyBlocks.first)
-        let font = try #require(NativeProseCodec.emptyAttributes(block.intent)[.font] as? UIFont)
-        let depth = try #require(NativeProseCodec.listMarker(block.intent)).depth
-        let sibling = try #require(taskItemLayout(at: item.firstParagraphRange.location, geometry: geometry)?.glyph)
-        let empty = try #require(taskGlyphFrame(at: block.offset, empty: true, headIndent: NativeProseCodec.taskIndent(font, depth: depth),
-                                                font: font, gap: RelayTaskItemRun.textGap, geometry: geometry))
-        #expect(abs(sibling.minX - empty.minX) < 1, "sibling \(sibling.minX), empty \(empty.minX)")
-        #expect(empty.minY >= sibling.maxY, "the empty item's glyph clears the item above: \(empty.minY) < \(sibling.maxY)")
-    }
 #endif
 
     /// The Yjs anchor task creation sends: y-prosemirror's positions, with the

@@ -4,6 +4,7 @@ import Foundation
 import Testing
 import RelayMarkCollaboration
 import RelayMarkNativeCollaboration
+import RelayMarkProseProjection
 import RelayMarkSwift
 #if os(macOS)
 import AppKit
@@ -13,6 +14,21 @@ import UIKit
 
 @MainActor
 struct RelayMarkEditorProseCodecTests {
+    @Test(arguments: [RelayMarkOfferedMark.subscript, .superscript])
+    func scriptMarksUseFontFeaturesWithoutReplacingTypography(mark: RelayMarkOfferedMark) throws {
+        var original = AttributedString("H2x")
+        original.inlinePresentationIntent = [.code, .stronglyEmphasized, .emphasized]
+        let ordinary = NativeProseCodec.attributed(original)
+        let originalFont = try #require(ordinary.attribute(.font, at: 0, effectiveRange: nil) as? PlatformFont)
+        original[RelayMarkOfferedMarksAttribute.self] = [mark]
+        let native = NativeProseCodec.attributed(original)
+        let scriptFont = try #require(native.attribute(.font, at: 0, effectiveRange: nil) as? PlatformFont)
+        #expect(native.attribute(.baselineOffset, at: 0, effectiveRange: nil) == nil)
+        #expect(scriptFont.pointSize == originalFont.pointSize)
+        #expect(scriptFont.fontDescriptor.symbolicTraits == originalFont.fontDescriptor.symbolicTraits)
+        #expect(NativeProseCodec.value(native) == original)
+    }
+
     @Test func typingPreservesStoredMarksWhileExplicitFontChangeCanRemoveThem() {
         var marked = AttributedString("Bold 🌍")
         marked.inlinePresentationIntent = .stronglyEmphasized
@@ -31,6 +47,9 @@ struct RelayMarkEditorProseCodecTests {
     }
 
     @Test func ruleIsOneNativeAttachmentWithAccessibleDescriptionAndAdaptiveWidth() throws {
+        #if os(macOS)
+        _ = NSApplication.shared
+        #endif
         var rule = AttributedString("\u{FFFC}")
         rule.presentationIntent = PresentationIntent(.thematicBreak, identity: 1)
         let native = NativeProseCodec.attributed(rule)
@@ -39,25 +58,18 @@ struct RelayMarkEditorProseCodecTests {
         let attachment = try #require(native.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment)
         let container = NSTextContainer(size: CGSize(width: 300, height: 100))
         let location = NSTextContentStorage().documentRange.location
+        let provider = try #require(attachment.viewProvider(for: nil, location: location, textContainer: container))
+        provider.loadView()
+        #expect(provider.view != nil)
         func bounds(_ width: CGFloat) -> CGRect {
-            attachment.attachmentBounds(for: [:], location: location, textContainer: container,
+            provider.attachmentBounds(for: [:], location: location, textContainer: container,
                 proposedLineFragment: CGRect(x: 0, y: 0, width: width, height: 20), position: .zero)
         }
         let wide = bounds(300), narrow = bounds(100)
         #expect(wide.width > narrow.width)
         #expect(narrow.width > 0 && narrow.width <= 100)
-        let image = try #require(attachment.image(for: wide, attributes: [:], location: location, textContainer: container))
-        #if os(macOS)
-        let tiff = try #require(image.tiffRepresentation)
-        let bitmap = try #require(NSBitmapImageRep(data: tiff))
-        let visibleRows = (0..<bitmap.pixelsHigh).filter {
-            (bitmap.colorAt(x: bitmap.pixelsWide / 2, y: $0)?.alphaComponent ?? 0) > 0
-        }
-        #expect(!visibleRows.isEmpty && visibleRows.count < bitmap.pixelsHigh)
-        #expect(image.accessibilityDescription == "Horizontal rule")
-        #else
-        #expect(attachment.accessibilityLabel == "Horizontal rule")
-        #endif
+        #expect(wide.height > 0 && narrow.height > 0)
+        #expect((attachment as? any RelayTextAttachmentLabel)?.label == "Horizontal rule")
         #expect(NativeProseCodec.value(native).presentationIntent == rule.presentationIntent)
         #expect(String(NativeProseCodec.value(native).characters) == "\u{FFFC}")
     }

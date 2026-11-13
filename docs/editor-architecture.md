@@ -15,8 +15,7 @@ RelayMark format; nothing stores Markdown.
 
 The [November 13 standing rule and foundation plan](plans/2026-11-13-native-editor-foundation.md)
 supersede earlier recommendations to build custom geometry, layout fragments or
-overlays for web parity. The inventory below describes existing implementation,
-not approval to preserve those rendering mechanisms. Preserve the canonical
+overlays for web parity. The current editor uses Apple framework text views and native list attributes. Preserve the canonical
 model/engine and replace unsupported presentation with established primitives.
 
 ## Layers
@@ -27,7 +26,7 @@ model/engine and replace unsupported presentation with established primitives.
 | 2. Model | `RelayMarkModel` | The ProseMirror port: schema, nodes, slices, resolved positions, steps, transforms, commands | Foundation |
 | 3. Collaboration | `RelayMarkNativeCollaboration` | The Yjs binding (`PMYXmlBridge`), the native replica, editing commands as Yjs transactions, presence, update footprints | 1, 2, `RelayMarkProseProjection`, YSwift |
 | 4a. Editor core | `RelayMarkEditorCore` | The editor session and its editing APIs, the command catalog with platform-neutral shortcuts, and the task glyph value (shape and semantic tint), without SwiftUI, AppKit or UIKit | 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration` |
-| 4b. Editor | `RelayMarkEditor` | The TextKit 2 views for macOS and iOS, table attachments, layout fragments, Find, accessibility, command menus, task glyph drawing and colours, and the services a host supplies | 4a, 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration`, SwiftUI, AppKit/UIKit |
+| 4b. Editor | `RelayMarkEditor` | The TextKit 2 views for macOS and iOS, system-measured read-only table attachments, native Find/accessibility, command menus, rendering-only peer-selection highlights and task icon graphics, and the services a host supplies | 4a, 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration`, SwiftUI, AppKit/UIKit |
 | 5. Host | outside this repository | Persistence and transport, authorization, product authoring and UI around the paper | 1–4 |
 
 `RelayMarkProseProjection` and `RelayMarkCollaboration` are shared value types:
@@ -100,21 +99,64 @@ on `selectedEntityReferenceID` and the session's insertion commands.
 
 The public API is the session's state and command vocabulary, the SwiftUI
 `RelayMarkEditorView`, and the service and intake types. The text-view
-coordinator, layout fragments, table attachments, the attributed-text codec
+coordinator, table attachments, the attributed-text codec
 and the splice machinery are internal; this repository's tests reach them
 with `@testable import`. The session's contract with the text view
 (`RelayPaperTextEditing` and its native edit commands) is `package` in
 `RelayMarkEditorCore`, so only RelayMarkEditor uses it.
 
+## Current native presentation
+
+Apple's OS 27 `NSTextView` and `UITextView` own TextKit 2 rendering, input,
+selection and hit testing. `NSParagraphStyle.textLists` owns bullets, numbers and
+checklist markers. No Relay line-layout fragment, glyph rectangle reconstruction,
+marker gutter, nearest-character scan or custom caret painting remains.
+
+The canonical bridge retains Rust/Comrak, ProseMirror/Yjs meaning, UTF-16 range
+mapping, incremental edits, marked input, persistence and semantic undo. Native
+presentation is intentionally smaller than the web editor:
+
+- Prose, marks, headings and lists use native attributed text. Continuation
+  paragraphs in one list item remain plain; a final empty list marker appears
+  after typing because the system drops zero-length paragraph list attributes.
+- Subscript/superscript request the font's native vertical-position features.
+  Missing glyph forms stay plain; no baseline offsets or font-size arithmetic.
+- Callouts/questions use native background attributes, without custom borders or
+  fragment padding. Inline atoms use system-measured SwiftUI attachment labels.
+- Tables preserve the complete tree, spans, widths and embedded payloads, with a
+  read-only system layout. Whole-table copy/delete and remote updates remain;
+  cell editing and new-table creation are not offered by the native UI.
+- Folding uses shared commands and the content-storage enumeration delegate.
+  There are no painted chevrons or marker hit regions.
+- Remote nonempty selections use TextKit rendering-only background attributes.
+  Presence transport/state is unchanged. Remote caret/name drawing is deferred.
+- Native Find handles its own decoration. Matches inside preserved tables select
+  the whole attachment; cell-specific geometry is not synthesized.
+
+The app keeps a single host-owned scroll view. Text sizing consumes UIKit fitting
+sizes or TextKit usage bounds only at the sizing boundary. Native selection
+segments/coordinate conversion support explicit caret reveal; selection-only
+notifications never force measurement or scroll changes. The app's Actions menu
+has stable placement, independent of selection-dependent available commands.
+
 ## Performance
 
-Editing cost must not grow with the paper. The edit-cost tests compare a
-1 KB and a 1 MB paper through the real text views on macOS and iOS: an edit
-at 1 MB may cost at most four times its 1 KB cost plus 20 ms. The gates cover
-typing, Return and joins, selection replacement, marked input, bold, list
-depth, plain and rich paste, undo and redo, long lists, tables, scrolling, and
-peers' typing and Return. They run on macOS with `swift test` and on iOS
-through `xcodebuild test -scheme RelayMark-Package`.
+Relay's engine and bridge work must stay bounded as papers grow. The edit-cost
+tests compare 1 KB and 1 MB papers: the ordinary native edit gates allow at most
+four times the small-paper cost plus 20 ms. They cover typing, Return and joins,
+selection replacement, marked input, bold, list depth, paste, undo/redo, tables,
+scrolling and peer edits. Existing engine/bridge thresholds remain unchanged.
+
+Douglas accepted one documented exception on November 13: very large native
+`NSTextList` layouts take roughly 200 ms per edit in both stock NSTextView and
+STTextView. The large-list native test retains local/remote correctness,
+convergence and no-whole-paper-fallback assertions at 1 KB and 1 MB, and reports
+timings without asserting constant-time platform layout. Keep true native list
+semantics; no per-item list fragmentation or custom markers to hide this limit.
+See the [qualification evidence and decision](plans/2026-11-13-native-editor-foundation.md#large-list-performance-qualification--accepted-native-limit).
+
+Tests run on macOS with `swift test` and on iOS through
+`xcodebuild test -scheme RelayMark-Package`.
 
 ### Remaining whole-paper paths
 
@@ -139,8 +181,8 @@ keeping our document model rather than its Markdown storage:
 
 - Work scoped to the blocks an edit touches, with the projection kept and
   updated per block instead of rebuilt.
-- Historical: custom block-decoration fragments. This is now an audit/removal
-  candidate, not a recommended pattern under the November 13 rule.
+- Removed: custom block-decoration fragments. Native attributes now supply
+  the supported presentation; do not restore the historical layout machinery.
 - Synchronous host services with no-op defaults; the engine ships no picker
   UI.
 - Standard view-coordinate conversion remains valid integration; custom overlay

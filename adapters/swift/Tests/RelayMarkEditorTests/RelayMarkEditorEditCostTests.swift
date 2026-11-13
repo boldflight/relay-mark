@@ -8,7 +8,8 @@ import RelayMarkSwift
 import AppKit
 #endif
 
-/// Typing cost must not depend on how long the paper is.
+/// Relay's edit path stays bounded; native large-list layout has an explicitly
+/// accepted platform limit, with correctness checked at both document sizes.
 @MainActor @Suite("Native edit cost", .serialized)
 struct RelayMarkEditorEditCostTests {
     /// Each size's paper is parsed once; later replicas apply its seed update.
@@ -303,7 +304,7 @@ struct RelayMarkEditorEditCostTests {
         defer { coordinator.retire(view) }
         coordinator.update(view)
         // After marks and at paragraph starts, where TextKit's typing attributes come
-        // from a neighbour. Table cells are their own text views.
+        // from a neighbour. Table contents below use the preserved read-only projection.
         let places = ["Heading bold", "Plain bold", "a link", "First item", "Open task", "Last"].map { ($0, true) } +
             ["Plain", "First", "Open", "Last"].map { ($0, false) }
         for (needle, after) in places {
@@ -315,13 +316,12 @@ struct RelayMarkEditorEditCostTests {
             #expect(editor.textRevision != before && editor.failure == nil, "typing after \(needle)")
             expectRendersLikeFullRender(view, editor)
         }
-        // A character typed in a cell's own text view is styled as a full render styles it.
+        // Shared table edits refresh the read-only native attachment.
         for needle in ["left", "right"] {
-            let table = try #require(view.paper.tables.spans.first?.table)
-            let cell = table.grid.cellView(try #require(table.cells.firstIndex { $0.text.string.hasPrefix(needle) }))
-            cell.setSelectedRange(NSRange(location: needle.utf16.count, length: 0))
-            cell.insertText("z", replacementRange: NSRange(location: NSNotFound, length: 0))
-            #expect(editor.failure == nil && String(editor.text.characters).contains(needle + "z"), "typing in cell \(needle)")
+            let at = (String(editor.text.characters) as NSString).range(of: needle).location + needle.utf16.count
+            #expect(editor.typeNatively(range: NSRange(location: at, length: 0), replacement: "z"))
+            coordinator.update(view)
+            #expect(editor.failure == nil)
             expectRendersLikeFullRender(view, editor)
         }
         // Return inside bold text stores the mark for the new paragraph's first character.
@@ -366,6 +366,8 @@ struct RelayMarkEditorEditCostTests {
         reference.update(referenceView)
         guard let shown = view.textStorage, let full = referenceView.textStorage else { Issue.record("No text storage"); return }
         guard shown.string == full.string else { Issue.record("Text differs from a full render"); return }
+        var expectedToActualLists: [ObjectIdentifier: ObjectIdentifier] = [:]
+        var actualToExpectedLists: [ObjectIdentifier: ObjectIdentifier] = [:]
         for index in 0..<full.length {
             var expected = full.attributes(at: index, effectiveRange: nil)
             var actual = shown.attributes(at: index, effectiveRange: nil)
@@ -373,11 +375,36 @@ struct RelayMarkEditorEditCostTests {
             let expectedStyle = expected.removeValue(forKey: .paragraphStyle) as? NSParagraphStyle
             let actualStyle = actual.removeValue(forKey: .paragraphStyle) as? NSParagraphStyle
             #expect(expectedFont?.fontName == actualFont?.fontName && expectedFont?.pointSize == actualFont?.pointSize, "font at \(index)")
-            #expect(expectedStyle?.headIndent == actualStyle?.headIndent, "paragraph style at \(index)")
+            if let expectedStyle, let actualStyle {
+                let expectedLists = expectedStyle.textLists, actualLists = actualStyle.textLists
+                #expect(expectedLists.count == actualLists.count, "list depth at \(index)")
+                for (expectedList, actualList) in zip(expectedLists, actualLists) {
+                    #expect(expectedList.markerFormat == actualList.markerFormat &&
+                        expectedList.startingItemNumber == actualList.startingItemNumber &&
+                        expectedList.listOptions == actualList.listOptions, "list attributes at \(index)")
+                    let expectedID = ObjectIdentifier(expectedList), actualID = ObjectIdentifier(actualList)
+                    #expect(expectedToActualLists[expectedID].map { $0 == actualID } ?? true,
+                        "one canonical list split into multiple native lists at \(index)")
+                    #expect(actualToExpectedLists[actualID].map { $0 == expectedID } ?? true,
+                        "separate canonical lists merged into one native list at \(index)")
+                    expectedToActualLists[expectedID] = actualID
+                    actualToExpectedLists[actualID] = expectedID
+                }
+                let expectedParagraph = expectedStyle.mutableCopy() as! NSMutableParagraphStyle
+                let actualParagraph = actualStyle.mutableCopy() as! NSMutableParagraphStyle
+                expectedParagraph.textLists = []; actualParagraph.textLists = []
+                #expect(expectedParagraph.isEqual(actualParagraph), "paragraph style at \(index)")
+            } else {
+                #expect((expectedStyle == nil) == (actualStyle == nil), "paragraph style presence at \(index)")
+            }
             #expect(Set(expected.keys) == Set(actual.keys), "attributes at \(index)")
             for (key, value) in expected {
                 if let intent = value as? PresentationIntent {
                     #expect(intent == actual[key] as? PresentationIntent, "\(key.rawValue) at \(index)")
+                } else if let task = value as? RelayTaskItemRun {
+                    let other = actual[key] as? RelayTaskItemRun
+                    #expect(task.entityID == other?.entityID && task.checked == other?.checked,
+                        "task identity/state at \(index)")
                 } else if let table = value as? RelayTableAttachment {
                     // Each view has its own table attachment; they must show the same cells.
                     let other = actual[key] as? RelayTableAttachment
@@ -720,9 +747,25 @@ struct RelayMarkEditorEditCostTests {
         })
     }
 
-    @Test("Editing a long list costs the same at 1 KB and 1 MB", arguments: ["-", "- [ ]"])
-    func listEditsAreIndependentOfListLength(marker: String) async throws {
-        try await gate("List \(marker)", rounds: 4) { try await listEdits(bytes: $0, marker: marker) }
+    // Douglas accepted TextKit 2's large-list layout cost on November 13, 2026.
+    // Stock NSTextView and STTextView reproduce it without Relay. Preserve true
+    // native list grouping; do not restore custom markers to meet a timing gate.
+    // Engine/bridge and other native edit-cost gates above remain unchanged.
+    // See docs/plans/2026-11-13-native-editor-foundation.md.
+    @Test("Native list edits preserve canonical state without whole-paper fallback",
+          arguments: ["-", "- [ ]"], [1_024, 1_048_576])
+    func listEditsPreserveCanonicalState(marker: String, bytes: Int) async throws {
+        let probe = try await listEdits(bytes: bytes, marker: marker)
+        var costs: [String: [Duration]] = [:]
+        for round in 0..<4 {
+            for sample in try await probe.round(round) {
+                costs[sample.name, default: []].append(sample.cost)
+            }
+        }
+        try probe.finish()
+        for name in costs.keys.sorted() {
+            print("Native list \(marker) \(name) median at \(bytes / 1_024) KB: \(median(try #require(costs[name])))")
+        }
     }
 
     /// A paper holding one table of eight-column rows, as many as fit up to
@@ -742,40 +785,38 @@ struct RelayMarkEditorEditCostTests {
         return document
     }
 
-    /// Typing, Return, Bold and Undo in a table cell's text view, a peer's
-    /// typing in a cell, and Return and its join in the paragraph beside the
-    /// table, through the session and the real AppKit views.
+    /// Supported native work beside a preserved read-only table, plus a peer's
+    /// cell edit. Cell-editor operations belong to the shared engine tests; the
+    /// native adapter does not expose an editable text view inside a table.
     private func tableEdits(bytes: Int) async throws -> Probe {
         let document = try tablePaper(bytes: bytes)
         let peer = RelayMarkNativeDocument(); try peer.applyUpdate(document.encodeUpdate())
         let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
         let (coordinator, view) = await mountView(editor)
         view.textLayoutManager?.textViewportLayoutController.layoutViewport()
-        let table = try #require(view.paper.tables.spans.first?.table)
+        #expect(!view.paper.tables.spans.isEmpty)
         let clock = ContinuousClock()
         return Probe(round: { index in
             var samples: [(name: String, cost: Duration)] = []
             func measure(_ name: String, _ work: () throws -> Void) rethrows {
                 let start = clock.now; try work(); samples.append((name, clock.now - start))
             }
-            // The paragraph after the table: the table is the edit's neighbour.
             let beside = (view.string as NSString).range(of: "Lorem").location + 6 + index
+            view.setSelectedRange(NSRange(location: beside, length: 0))
+            let original = view.string
+            measure("type beside") { view.insertText("x", replacementRange: NSRange(location: NSNotFound, length: 0)) }
+            measure("undo beside") { editor.undo(); coordinator.update(view) }
+            #expect(view.string == original)
             view.setSelectedRange(NSRange(location: beside, length: 0))
             measure("return beside") { view.insertNewline(nil) }
             measure("join beside") { view.deleteBackward(nil) }
+            let selection = view.selectedRange()
             let marker = " r1c\(1 + index * 2)."
-            let cellIndex = try #require(table.cells.firstIndex { $0.text.string.contains(marker) })
-            let cell = table.grid.cellView(cellIndex)
-            let at = (cell.string as NSString).range(of: marker).location
-            cell.setSelectedRange(NSRange(location: at, length: 0))
-            measure("type") { cell.insertText("x", replacementRange: NSRange(location: NSNotFound, length: 0)) }
-            measure("return") { cell.insertNewline(nil) }
-            measure("undo") { editor.undo(); coordinator.update(view) }
-            let paper = (String(editor.text.characters) as NSString).range(of: marker)
-            measure("bold") { #expect(editor.toggleMarkNatively(.bold, range: NSRange(location: paper.location - 4, length: 4))); coordinator.update(view) }
+            let paper = (String(try peer.richProseProjection().text.characters) as NSString).range(of: marker)
             let path = try #require(peer.richProseProjection().textPosition(replacing: NSRange(location: paper.location, length: 0))).path
             let typed = try peer.typeText("p", replacing: 0, at: 1, path: path).update
             try measure("peer type") { try editor.applyRemoteUpdate(typed); coordinator.update(view) }
+            #expect(view.selectedRange() == selection, "a peer's read-only cell update keeps the local prose selection")
             try peer.applyUpdate(document.encodeUpdate(since: peer.stateVector()))
             return samples
         }, finish: {
@@ -787,7 +828,7 @@ struct RelayMarkEditorEditCostTests {
         })
     }
 
-    @Test("Editing a table costs the same in a 1 KB and a 1 MB paper")
+    @Test("Editing beside and remotely updating a table costs the same in a 1 KB and a 1 MB paper")
     func tableEditsAreIndependentOfPaperSize() async throws {
         try await gate("Table", rounds: 4, tableEdits)
     }

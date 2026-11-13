@@ -1,11 +1,10 @@
 import Foundation
+import SwiftUI
 import RelayMarkEditorCore
 #if os(macOS)
 import AppKit
-private typealias GridColor = NSColor
 #else
 import UIKit
-private typealias GridColor = UIColor
 #endif
 
 /// One table cell as the paper shows it: its place in the grid, the canonical
@@ -23,26 +22,14 @@ struct RelayTableCellModel {
     var text: NSAttributedString
 }
 
-/// Edits made in a table's cells go to the paper's session through its editor.
-@MainActor
-protocol RelayTableEditing: AnyObject {
-    var tablesEditable: Bool { get }
-    var tableUndoManager: UndoManager? { get }
-    func tableCellDidChange(_ table: RelayTableAttachment, at index: Int, text: NSAttributedString)
-    func tableCellDidSelect(_ table: RelayTableAttachment, at index: Int, range: NSRange)
-    /// The host's commands on the selection, run on the paper's selection in a cell.
-    var cellSelectionActions: [(name: String, perform: () -> Bool)] { get }
-}
-
-/// A table is one attachment character in the paper's text. Its cells are
-/// small standard text views in a grid; only the rows near the screen have one.
+/// A table remains one preserved attachment in the paper. SwiftUI renders a
+/// read-only projection; canonical cell contents and spans stay in the document.
 @MainActor
 final class RelayTableAttachment: NSTextAttachment {
     let identity: Int
     /// The paper offset of the table's first cell; cell ranges count from it.
     var start: Int
     private(set) var cells: [RelayTableCellModel]
-    weak var editor: RelayTableEditing?
     private var loadedGrid: RelayTableGridView?
     var grid: RelayTableGridView {
         if let loadedGrid { return loadedGrid }
@@ -277,425 +264,131 @@ struct RelayTableSpans {
     }
 }
 
-/// Column edges and row tops of a table at one width, from the cells' text.
-/// Each cell's measured height is kept, so an edit measures only its own cell.
-struct RelayTableGeometry {
-    var columnX: [CGFloat] = [0]
-    var rowTops: [CGFloat] = [0]
-    private var heights: [CGFloat] = []
-    static let padding: CGFloat = 4
+/// A read-only table projection. Grid owns all column and row measurement; Text
+/// owns shaping and wrapping. Row-spanning cells are shown once in their starting
+/// row with empty covered positions, without changing the canonical table.
+struct RelayTableContent: View {
+    private struct Row: Identifiable {
+        let id: Int
+        let slots: [Slot]
+    }
+    private struct Slot: Identifiable {
+        let id: Int
+        let cell: RelayTableCellModel?
+    }
+    private let rows: [Row]
 
-    init() {}
-    init(cells: [RelayTableCellModel], columns: Int, rows: Int, width: CGFloat) {
-        var authored = [CGFloat?](repeating: nil, count: columns)
-        for cell in cells {
-            guard let widths = cell.columnWidths, widths.count == cell.columnSpan else { continue }
-            for (index, value) in widths.enumerated() where cell.column + index < columns && value > 0 {
-                authored[cell.column + index] = CGFloat(min(value, 4_096))
+    init(cells: [RelayTableCellModel], rows: Int, columns: Int) {
+        let cellsByRow = Dictionary(grouping: cells, by: \.row)
+        self.rows = (0..<rows).map { row in
+            var slots: [Slot] = []
+            var column = 0
+            for cell in (cellsByRow[row] ?? []).sorted(by: { $0.column < $1.column }) {
+                while column < cell.column {
+                    slots.append(Slot(id: column, cell: nil))
+                    column += 1
+                }
+                slots.append(Slot(id: cell.column, cell: cell))
+                column = cell.column + cell.columnSpan
             }
-        }
-        let fixed = authored.compactMap { $0 }.reduce(0, +)
-        let flexible = authored.filter { $0 == nil }.count
-        let share = flexible > 0 ? max(48, (width - fixed) / CGFloat(flexible)) : 0
-        var resolved = authored.map { $0 ?? share }
-        let total = resolved.reduce(0, +)
-        if total > width, total > 0 { resolved = resolved.map { $0 * width / total } }
-        columnX = [0]
-        for value in resolved { columnX.append(columnX.last! + value) }
-        heights = cells.map { height(of: $0) }
-        placeRows(cells, rows: rows)
-    }
-
-    /// Cells `old` were replaced by `count` cells, now at the same place in `cells`.
-    mutating func replace(_ old: Range<Int>, count: Int, in cells: [RelayTableCellModel], rows: Int) {
-        guard heights.count - old.count + count == cells.count else {
-            heights = cells.map { height(of: $0) }; placeRows(cells, rows: rows); return
-        }
-        heights.replaceSubrange(old, with: cells[old.lowerBound..<(old.lowerBound + count)].map { height(of: $0) })
-        placeRows(cells, rows: rows)
-    }
-
-    /// One cell's text changed. Returns whether any row moved.
-    mutating func remeasure(_ index: Int, in cells: [RelayTableCellModel], rows: Int) -> Bool {
-        guard heights.indices.contains(index) else { return false }
-        let height = height(of: cells[index])
-        guard height != heights[index] else { return false }
-        heights[index] = height
-        let before = rowTops
-        placeRows(cells, rows: rows)
-        return rowTops != before
-    }
-
-    private mutating func placeRows(_ cells: [RelayTableCellModel], rows: Int) {
-        var rowHeights = [CGFloat](repeating: 0, count: rows)
-        for (index, cell) in cells.enumerated() where cell.rowSpan == 1 && cell.row < rows {
-            rowHeights[cell.row] = max(rowHeights[cell.row], heights[index])
-        }
-        for (index, cell) in cells.enumerated() where cell.rowSpan > 1 && cell.row < rows {
-            let last = min(rows - 1, cell.row + cell.rowSpan - 1)
-            let have = rowHeights[cell.row...last].reduce(0, +)
-            if heights[index] > have { rowHeights[last] += heights[index] - have }
-        }
-        rowTops = [0]
-        rowTops.reserveCapacity(rows + 1)
-        for value in rowHeights { rowTops.append(rowTops.last! + value) }
-    }
-
-    var size: CGSize { CGSize(width: columnX.last ?? 0, height: rowTops.last ?? 0) }
-
-    func x(_ column: Int) -> CGFloat { columnX[min(max(0, column), columnX.count - 1)] }
-    func top(_ row: Int) -> CGFloat { rowTops[min(max(0, row), rowTops.count - 1)] }
-    func frame(of cell: RelayTableCellModel) -> CGRect {
-        CGRect(x: x(cell.column), y: top(cell.row), width: x(cell.column + cell.columnSpan) - x(cell.column),
-               height: top(cell.row + cell.rowSpan) - top(cell.row))
-    }
-    func textWidth(of cell: RelayTableCellModel) -> CGFloat {
-        max(1, x(cell.column + cell.columnSpan) - x(cell.column) - 2 * Self.padding)
-    }
-    func height(of cell: RelayTableCellModel) -> CGFloat {
-        Self.textHeight(cell.text, width: textWidth(of: cell)) + 2 * Self.padding
-    }
-    static func textHeight(_ text: NSAttributedString, width: CGFloat) -> CGFloat {
-        let font = text.length > 0 ? text.attribute(.font, at: 0, effectiveRange: nil) as? PlatformFont : nil
-        let line = font ?? PlatformFont.systemFont(ofSize: 15)
-        let minimum = ceil(line.ascender - line.descender + line.leading)
-        guard text.length > 0 else { return minimum }
-        let measured = text.boundingRect(with: CGSize(width: width, height: .greatestFiniteMagnitude),
-                                         options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil).height
-        return max(minimum, ceil(measured))
-    }
-}
-
-#if os(macOS)
-/// One cell's text, edited in a standard TextKit 2 text view.
-final class RelayTableCellTextView: NSTextView {
-    /// VoiceOver in a cell reaches the paper's selection commands.
-    override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
-        (super.accessibilityCustomActions() ?? []) + (grid?.table.editor?.cellSelectionActions ?? []).map { action in
-            NSAccessibilityCustomAction(name: action.name) { action.perform() }
-        }
-    }
-    /// A Genmoji has no RelayMark node: inserted, it would be lost on the next render.
-    override var supportsAdaptiveImageGlyph: Bool { get { false } set {} }
-    var index = 0
-    weak var grid: RelayTableGridView?
-    override var undoManager: UndoManager? { grid?.table.editor?.tableUndoManager ?? super.undoManager }
-    override func insertTab(_ sender: Any?) { if grid?.moveFocus(from: index, backward: false) != true { super.insertTab(sender) } }
-    override func insertBacktab(_ sender: Any?) { if grid?.moveFocus(from: index, backward: true) != true { super.insertBacktab(sender) } }
-    /// Find in a cell is Find in the whole paper.
-    override func performTextFinderAction(_ sender: Any?) {
-        guard let paper = sequence(first: superview, next: { $0?.superview }).compactMap({ $0 as? CollaborationTextView }).first
-        else { return super.performTextFinderAction(sender) }
-        paper.performTextFinderAction(sender)
-    }
-}
-#else
-/// One cell's text, edited in a standard TextKit 2 text view.
-final class RelayTableCellTextView: UITextView {
-    var index = 0
-    weak var grid: RelayTableGridView?
-    override var textInputContextIdentifier: String? { CollaborationTextView.keyboardContext }
-    /// VoiceOver in a cell reaches the paper's selection commands in its Edit rotor.
-    override var accessibilityCustomActions: [UIAccessibilityCustomAction]? {
-        get {
-            (super.accessibilityCustomActions ?? []) + (grid?.table.editor?.cellSelectionActions ?? []).map { action in
-                let custom = UIAccessibilityCustomAction(name: action.name) { _ in action.perform() }
-                custom.category = UIAccessibilityCustomAction.editCategory
-                return custom
+            while column < columns {
+                slots.append(Slot(id: column, cell: nil))
+                column += 1
             }
+            return Row(id: row, slots: slots)
         }
-        set { super.accessibilityCustomActions = newValue }
     }
-    /// VoiceOver's lines rotor and read-all go on to the neighbouring cell in reading order.
-    override var accessibilityPreviousTextNavigationElement: Any? {
-        get { index > 0 ? grid?.cellView(index - 1) : nil }
-        set {}
-    }
-    override var accessibilityNextTextNavigationElement: Any? {
-        get { grid.flatMap { index + 1 < $0.table.cells.count ? $0.cellView(index + 1) : nil } }
-        set {}
-    }
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        assert(textLayoutManager != nil, "A table cell switched to TextKit 1 compatibility mode")
-    }
-    override var undoManager: UndoManager? { grid?.table.editor?.tableUndoManager ?? super.undoManager }
-    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
-        if presses.count == 1, let key = presses.first?.key, key.charactersIgnoringModifiers == "\t",
-           key.modifierFlags.intersection([.command, .control, .alternate]).isEmpty,
-           grid?.moveFocus(from: index, backward: key.modifierFlags.contains(.shift)) == true { return }
-        super.pressesBegan(presses, with: event)
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            Label(String(localized: "Read-only table", bundle: .module,
+                         comment: "Caption for a preserved table whose cells cannot be edited in this app."),
+                  systemImage: "tablecells")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
+                ForEach(rows) { row in
+                    GridRow {
+                        ForEach(row.slots) { slot in
+                            if let cell = slot.cell {
+                                RelayTableCellContent(cell: cell).equatable()
+                                    .gridCellColumns(cell.columnSpan)
+                            } else {
+                                Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
+                            }
+                        }
+                    }
+                }
+            }
+            .textSelection(.enabled)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-#endif
 
-/// The grid of a table's cells. Cell text views exist only for the rows near
-/// the visible part of the paper; the others are recycled.
+/// Stable cell identity and value equality let SwiftUI update only changed cell
+/// content. These are document values; SwiftUI still owns every layout decision.
+private struct RelayTableCellContent: View, @MainActor Equatable {
+    let cell: RelayTableCellModel
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.cell.header == rhs.cell.header && lhs.cell.text == rhs.cell.text
+    }
+
+    var body: some View {
+        Text(attributed(cell.text))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+            .background(cell.header ? Color.secondary.opacity(0.12) : .clear)
+            .accessibilityAddTraits(cell.header ? .isHeader : [])
+    }
+
+    /// SwiftUI Text does not host NSTextAttachment views. Render their labels in
+    /// this read-only projection only; canonical text and ranges remain untouched.
+    private func attributed(_ text: NSAttributedString) -> AttributedString {
+        let display = NSMutableAttributedString(attributedString: text)
+        var attachments: [(NSRange, String)] = []
+        text.enumerateAttribute(.attachment, in: NSRange(location: 0, length: text.length)) { value, range, _ in
+            guard value is NSTextAttachment else { return }
+            let label = (value as? any RelayTextAttachmentLabel)?.label
+                ?? String(localized: "Attachment", bundle: .module,
+                          comment: "Read-only table placeholder for an embedded item that cannot be rendered in the cell.")
+            attachments.append((range, label))
+        }
+        for (range, label) in attachments.reversed() {
+            var attributes = text.attributes(at: range.location, effectiveRange: nil)
+            attributes[.attachment] = nil
+            display.replaceCharacters(in: range, with: NSAttributedString(string: label, attributes: attributes))
+        }
+        #if os(macOS)
+        return (try? AttributedString(display, including: \.appKit)) ?? AttributedString(display.string)
+        #else
+        return (try? AttributedString(display, including: \.uiKit)) ?? AttributedString(display.string)
+        #endif
+    }
+}
+
+/// Table data refreshes the shared system-measured attachment surface.
 @MainActor
-final class RelayTableGridView: PlatformTableView {
+final class RelayTableGridView: RelayHostingAttachmentView<RelayTableContent> {
     unowned let table: RelayTableAttachment
-    private(set) var geometry = RelayTableGeometry()
-    private var width: CGFloat = 0
-    private(set) var live: [Int: RelayTableCellTextView] = [:]
-    private var pool: [RelayTableCellTextView] = []
-    private var shown = CGRect.null
-    /// Rows outside the visible part of the paper that still have text views.
-    static let margin: CGFloat = 400
+    private var proposedWidth: CGFloat = 0
 
     init(table: RelayTableAttachment) {
         self.table = table
-        super.init(frame: .zero)
-        #if os(macOS)
-        wantsLayer = true
-        setAccessibilityRole(.table)
-        setAccessibilityLabel(String(localized: "Table", bundle: .module, comment: "VoiceOver label of a table in the paper."))
-        #else
-        accessibilityContainerType = .dataTable
-        #endif
+        super.init(rootView: RelayTableContent(cells: table.cells, rows: table.rows, columns: table.columns))
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    #if os(macOS)
-    override var isFlipped: Bool { true }
-    #endif
 
-    /// The grid's size at `width`; lays the cells out again when the width changed.
-    @discardableResult func layout(width: CGFloat) -> CGSize {
-        if abs(width - self.width) >= 0.5 || geometry.rowTops.count != table.rows + 1 {
-            self.width = width
-            geometry = RelayTableGeometry(cells: table.cells, columns: table.columns, rows: table.rows, width: width)
-            placeLiveCells()
-        }
-        frame.size = geometry.size
-        return geometry.size
+    @discardableResult override func layout(width: CGFloat) -> CGSize {
+        proposedWidth = width
+        return super.layout(width: width)
     }
 
-    /// One cell's text changed: its row may grow or shrink. Returns whether the table's height changed.
-    @discardableResult func cellDidChange(_ index: Int) -> Bool {
-        let before = geometry.size.height
-        guard geometry.remeasure(index, in: table.cells, rows: table.rows) else { return false }
-        placeLiveCells()
-        frame.size = geometry.size
-        return geometry.size.height != before
+    func refresh() {
+        rootView = RelayTableContent(cells: table.cells, rows: table.rows, columns: table.columns)
+        if proposedWidth > 0 { layout(width: proposedWidth) }
     }
 
-    /// Cells were replaced in the model: live views show the new text.
-    func cellsReplaced(_ old: Range<Int>, count: Int) {
-        let delta = count - old.count
-        var moved: [Int: RelayTableCellTextView] = [:]
-        for (index, view) in live {
-            if index < old.lowerBound { moved[index] = view }
-            else if index >= old.upperBound { moved[index + delta] = view }
-            else if index < old.lowerBound + count { moved[index] = view }
-            else { recycle(view) }
-        }
-        live = moved
-        for (index, view) in live where index >= old.lowerBound && index < old.lowerBound + count {
-            show(index, in: view)
-        }
-        if geometry.rowTops.count == table.rows + 1 {
-            geometry.replace(old, count: count, in: table.cells, rows: table.rows)
-        } else {
-            geometry = RelayTableGeometry(cells: table.cells, columns: table.columns, rows: table.rows, width: width)
-        }
-        placeLiveCells()
-        frame.size = geometry.size
-    }
-
-    /// Shows a cell's current model text in its live view, keeping its selection where it can.
-    func refresh(_ index: Int) {
-        guard let view = live[index] else { return }
-        show(index, in: view)
-    }
-
-    /// Text views for the cells in `rect`, in grid coordinates.
-    func updateVisible(in rect: CGRect) {
-        guard geometry.rowTops.count > 1 else { return }
-        let band = rect.insetBy(dx: 0, dy: -Self.margin).intersection(CGRect(origin: .zero, size: geometry.size))
-        shown = band
-        let wanted = band.isNull ? Set<Int>() : Set(table.cells.indices.filter { geometry.frame(of: table.cells[$0]).intersects(band) })
-        for (index, view) in live where !wanted.contains(index) && !isEditing(view) {
-            live[index] = nil; recycle(view)
-        }
-        for index in wanted where live[index] == nil { _ = cellView(index) }
-    }
-
-    /// The text view of a cell, made live when it is not.
-    @discardableResult func cellView(_ index: Int) -> RelayTableCellTextView {
-        if let view = live[index] { return view }
-        let view = pool.popLast() ?? make()
-        live[index] = view
-        show(index, in: view)
-        addSubview(view)
-        return view
-    }
-
-    /// Tab moves to the next cell, Shift-Tab to the previous; at the table's edge, nothing.
-    @discardableResult func moveFocus(from index: Int, backward: Bool) -> Bool {
-        let next = index + (backward ? -1 : 1)
-        guard table.cells.indices.contains(next) else { return true }
-        let view = cellView(next)
-        #if os(macOS)
-        window?.makeFirstResponder(view)
-        view.setSelectedRange(NSRange(location: view.string.utf16.count, length: 0))
-        #else
-        view.becomeFirstResponder()
-        view.selectedRange = NSRange(location: view.text.utf16.count, length: 0)
-        #endif
-        return true
-    }
-
-    private func isEditing(_ view: RelayTableCellTextView) -> Bool {
-        #if os(macOS)
-        window?.firstResponder === view
-        #else
-        view.isFirstResponder
-        #endif
-    }
-
-    private func recycle(_ view: RelayTableCellTextView) {
-        view.removeFromSuperview()
-        pool.append(view)
-    }
-
-    private func placeLiveCells() {
-        for (index, view) in live where table.cells.indices.contains(index) {
-            view.frame = geometry.frame(of: table.cells[index])
-        }
-    }
-
-    private var updating = false
-
-    #if !os(macOS)
-    /// Find matches in cells, by cell, in cell text offsets.
-    var found: [Int: [(range: NSRange, highlighted: Bool)]] = [:] {
-        didSet { for (index, view) in live { decorate(view, index) } }
-    }
-    private func decorate(_ view: RelayTableCellTextView, _ index: Int) {
-        view.layer.sublayers?.filter { $0.name == "relay.found" }.forEach { $0.removeFromSuperlayer() }
-        guard let matches = found[index], let manager = view.textLayoutManager, let content = manager.textContentManager else { return }
-        for match in matches {
-            guard let start = content.location(content.documentRange.location, offsetBy: match.range.location),
-                  let end = content.location(start, offsetBy: match.range.length),
-                  let range = NSTextRange(location: start, end: end) else { continue }
-            manager.enumerateTextSegments(in: range, type: .standard, options: []) { _, frame, _, _ in
-                let layer = CALayer()
-                layer.name = "relay.found"
-                layer.backgroundColor = GridColor.systemYellow.withAlphaComponent(match.highlighted ? 0.6 : 0.3).cgColor
-                layer.frame = frame.offsetBy(dx: view.textContainerInset.left, dy: view.textContainerInset.top)
-                view.layer.addSublayer(layer)
-                return true
-            }
-        }
-    }
-    #endif
-
-    private func show(_ index: Int, in view: RelayTableCellTextView) {
-        let cell = table.cells[index]
-        updating = true
-        defer { updating = false }
-        view.index = index
-        view.frame = geometry.frame(of: cell)
-        #if os(macOS)
-        let selection = view.selectedRange()
-        if view.attributedString() != cell.text { view.textStorage?.setAttributedString(cell.text) }
-        if NSMaxRange(selection) <= cell.text.length { view.setSelectedRange(selection) }
-        view.backgroundColor = cell.header ? GridColor.systemGray.withAlphaComponent(0.12) : .clear
-        view.drawsBackground = cell.header
-        view.isEditable = table.editor?.tablesEditable ?? false
-        view.setAccessibilityLabel(cell.text.string)
-        #else
-        let selection = view.selectedRange
-        if view.attributedText != cell.text { view.attributedText = cell.text }
-        if NSMaxRange(selection) <= cell.text.length { view.selectedRange = selection }
-        view.backgroundColor = cell.header ? GridColor.systemGray.withAlphaComponent(0.12) : .clear
-        view.isEditable = table.editor?.tablesEditable ?? false
-        view.accessibilityTraits = cell.header ? [.header] : []
-        decorate(view, index)
-        #endif
-    }
-
-    private func make() -> RelayTableCellTextView {
-        #if os(macOS)
-        let view = RelayTableCellTextView(usingTextLayoutManager: true)
-        #if DEBUG
-        RelayTextKit1Guard.install()
-        #endif
-        view.isRichText = true
-        view.isVerticallyResizable = false; view.isHorizontallyResizable = false
-        view.textContainerInset = NSSize(width: RelayTableGeometry.padding, height: RelayTableGeometry.padding)
-        view.textContainer?.lineFragmentPadding = 0
-        view.textContainer?.widthTracksTextView = true
-        view.wantsLayer = true
-        view.layer?.borderWidth = 0.5
-        view.layer?.borderColor = GridColor.systemGray.withAlphaComponent(0.35).cgColor
-        view.allowsUndo = true
-        view.delegate = self
-        #else
-        let view = RelayTableCellTextView(usingTextLayoutManager: true)
-        view.isScrollEnabled = false
-        view.textContainerInset = UIEdgeInsets(top: RelayTableGeometry.padding, left: RelayTableGeometry.padding,
-                                               bottom: RelayTableGeometry.padding, right: RelayTableGeometry.padding)
-        view.textContainer.lineFragmentPadding = 0
-        view.layer.borderWidth = 0.5
-        view.layer.borderColor = GridColor.systemGray.withAlphaComponent(0.35).cgColor
-        view.adjustsFontForContentSizeCategory = true
-        view.delegate = self
-        #endif
-        view.grid = self
-        return view
-    }
-
-    fileprivate func cellChanged(_ view: RelayTableCellTextView) {
-        guard !updating, live[view.index] === view else { return }
-        #if os(macOS)
-        guard !view.hasMarkedText(), let text = view.textStorage else { return }
-        #else
-        guard view.markedTextRange == nil else { return }
-        let text = view.textStorage
-        #endif
-        table.editor?.tableCellDidChange(table, at: view.index, text: NSAttributedString(attributedString: text))
-    }
-
-    fileprivate func cellSelected(_ view: RelayTableCellTextView) {
-        guard !updating, live[view.index] === view else { return }
-        #if os(macOS)
-        table.editor?.tableCellDidSelect(table, at: view.index, range: view.selectedRange())
-        #else
-        table.editor?.tableCellDidSelect(table, at: view.index, range: view.selectedRange)
-        #endif
-    }
+    func cellsReplaced(_ old: Range<Int>, count: Int) { refresh() }
 }
-
-#if os(macOS)
-extension RelayTableGridView: NSTextViewDelegate {
-    func textDidChange(_ notification: Notification) {
-        guard let view = notification.object as? RelayTableCellTextView else { return }
-        cellChanged(view)
-    }
-    func textViewDidChangeSelection(_ notification: Notification) {
-        guard let view = notification.object as? RelayTableCellTextView else { return }
-        cellSelected(view)
-    }
-    func undoManager(for view: NSTextView) -> UndoManager? { table.editor?.tableUndoManager }
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        NotificationCenter.default.removeObserver(self, name: NSView.boundsDidChangeNotification, object: nil)
-        guard let clip = enclosingScrollView?.contentView else { updateVisible(in: visibleRect); return }
-        clip.postsBoundsChangedNotifications = true
-        NotificationCenter.default.addObserver(self, selector: #selector(scrolled), name: NSView.boundsDidChangeNotification, object: clip)
-        updateVisible(in: visibleRect)
-    }
-    @objc private func scrolled() { updateVisible(in: visibleRect) }
-}
-#else
-extension RelayTableGridView: UITextViewDelegate {
-    func textViewDidChange(_ textView: UITextView) {
-        guard let view = textView as? RelayTableCellTextView else { return }
-        cellChanged(view)
-    }
-    func textViewDidChangeSelection(_ textView: UITextView) {
-        guard let view = textView as? RelayTableCellTextView else { return }
-        cellSelected(view)
-    }
-}
-#endif

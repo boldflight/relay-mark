@@ -132,8 +132,6 @@ struct RelayMarkEditorUIKitReadingTests {
         let paper = try mount(fixture: "table-mixed-v3-draft")
         defer { paper.retire() }
         #expect(paper.view.textInputContextIdentifier == "relay.paper")
-        let table = try #require(paper.view.paper.tables.spans.first?.table)
-        #expect(table.grid.cellView(0).textInputContextIdentifier == "relay.paper")
     }
 
     // MARK: Natural Selection
@@ -203,81 +201,5 @@ struct RelayMarkEditorUIKitReadingTests {
         #expect(performed == [NSRange(location: 5, length: 3)])
     }
 
-    /// VoiceOver focused in a table cell reaches the same Edit-rotor commands as
-    /// in the paper, acting on the selection in that cell.
-    @Test func selectionCommandsAreInTheEditRotorInsideTableCells() throws {
-        var performed: [NSRange] = []
-        var services = RelayMarkEditorServices()
-        services.selectionActions = [RelayMarkSelectionAction(name: "Delete Row") { performed.append($0); return true }]
-        let paper = try mount(fixture: "table-mixed-v3-draft", services: services)
-        defer { paper.retire() }
-        let table = try #require(paper.view.paper.tables.spans.first?.table)
-        let cell = table.grid.cellView(0)
-        cell.selectedRange = NSRange(location: 1, length: 0)
-        table.grid.textViewDidChangeSelection(cell)
-        let action = try #require((cell.accessibilityCustomActions ?? []).first { $0.name == "Delete Row" })
-        #expect(action.category == UIAccessibilityCustomAction.editCategory)
-        #expect(action.actionHandler?(action) == true)
-        #expect(performed == [paper.editor.nativeSelection])
-        #expect(performed.first?.location == table.paperRange(of: 0).location + 1)
-    }
-
-    /// Each cell is its own text view; the lines rotor and read-all move from
-    /// one cell to the next in reading order instead of stopping at its edge.
-    @Test func voiceOverReadsATableCellByCell() throws {
-        let paper = try mount(fixture: "table-mixed-v3-draft")
-        defer { paper.retire() }
-        let table = try #require(paper.view.paper.tables.spans.first?.table)
-        #expect(table.cells.count >= 3)
-        let first = table.grid.cellView(0), second = table.grid.cellView(1)
-        #expect(first.accessibilityNextTextNavigationElement as AnyObject? === second)
-        #expect(second.accessibilityPreviousTextNavigationElement as AnyObject? === first)
-        #expect(first.accessibilityPreviousTextNavigationElement == nil)
-        let last = table.grid.cellView(table.cells.count - 1)
-        #expect(last.accessibilityNextTextNavigationElement == nil)
-    }
-
-    // MARK: Task markers
-
-    /// A right-to-left task's checkbox is on the right, where it is drawn, and a
-    /// tap there toggles it; a left-to-right one's stays on the left.
-    @Test(arguments: [("- [ ] مهمة عربية", true), ("- [ ] An English task", false)])
-    func taskCheckboxesSitOnTheParagraphsLeadingSide(markdown: String, rightToLeft: Bool) throws {
-        let paper = try mount(markdown: markdown)
-        defer { paper.retire() }
-        let geometry = try #require(RelayTextGeometry(paper.view.textLayoutManager))
-        let item = try #require(paper.view.paper.viewTaskItems.first)
-        let text = geometry.segmentFrames(item.firstParagraphRange).reduce(CGRect.null) { $0.union($1) }
-        let inset = paper.view.textContainerInset
-        let x = rightToLeft ? text.maxX + 12 : text.minX - 12
-        let point = CGPoint(x: x + inset.left, y: text.midY + inset.top)
-        #expect(paper.view.taskCheckboxOffset(at: point) == item.firstParagraphRange.location)
-    }
-
-    /// A tap is hit-tested against the tasks on its line, not by laying out
-    /// every task in the paper. A tap on a task's text is the worst case: no
-    /// checkbox is under it.
-    @Test func aTaskTapCostsTheSameInAShortAndALongList() throws {
-        func cost(tasks: Int) throws -> Duration {
-            let paper = try mount(markdown: (1...tasks).map { "- [ ] Task number \($0)" }.joined(separator: "\n"))
-            defer { paper.retire() }
-            let geometry = try #require(RelayTextGeometry(paper.view.textLayoutManager))
-            let item = try #require(paper.view.paper.viewTaskItems.first)
-            let text = try #require(geometry.characterFrame(at: item.firstParagraphRange.location + 3))
-            let inset = paper.view.textContainerInset
-            let point = CGPoint(x: text.midX + inset.left, y: text.midY + inset.top)
-            let clock = ContinuousClock()
-            var samples: [Duration] = []
-            for _ in 0..<5 {
-                let start = clock.now
-                #expect(paper.view.taskCheckboxOffset(at: point) == nil)
-                samples.append(clock.now - start)
-            }
-            return samples.sorted()[2]
-        }
-        let short = try cost(tasks: 20), long = try cost(tasks: 2_000)
-        print("Task tap median: 20 tasks \(short), 2000 tasks \(long)")
-        #expect(long <= short * 4 + .milliseconds(5))
-    }
 }
 #endif

@@ -40,7 +40,7 @@ struct RelayMarkEditorSectionFoldingTests {
     /// The paper offsets where TextKit laid out a paragraph.
     private func laidOutStarts(_ view: CollaborationTextView) throws -> Set<Int> {
         let manager = try #require(view.textLayoutManager)
-        let geometry = try #require(RelayTextGeometry(manager))
+        let geometry = try #require(RelayTextKitRanges(manager))
         var starts = Set<Int>()
         manager.enumerateTextLayoutFragments(from: manager.documentRange.location, options: [.ensuresLayout]) { fragment in
             starts.insert(geometry.offset(fragment.rangeInElement.location)); return true
@@ -150,100 +150,6 @@ struct RelayMarkEditorSectionFoldingTests {
         #expect(editor.foldedSections.isEmpty)
     }
 
-    /// The disclosure beside a heading folds its section, on a read-only paper too.
-    @Test func theHeadingsDisclosureFoldsItsSection() throws {
-        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
-        let (coordinator, view) = mount(editor)
-        defer { coordinator.retire(view) }
-        view.isPaperEditable = false
-        _ = try laidOutStarts(view)
-        let geometry = try #require(RelayTextGeometry(view.textLayoutManager))
-        let sub = offset(of: "Sub", in: view)
-        let disclosure = try #require(view.sectionDisclosures(geometry: geometry).first { $0.heading.location == sub })
-        let id = view.sectionDisclosureHit(at: CGPoint(x: disclosure.chevron.midX, y: disclosure.chevron.midY), geometry: geometry)
-        #expect(id == "sub")
-        #expect(view.toggleSection(try #require(id)))
-        #expect(!(try laidOutStarts(view)).contains(offset(of: "Third para", in: view)))
-    }
-
-    private func containerOriginX(_ view: CollaborationTextView) -> CGFloat {
-        #if os(macOS)
-        view.textContainerOrigin.x
-        #else
-        view.textContainerInset.left
-        #endif
-    }
-
-    private func containerWidth(_ view: CollaborationTextView) throws -> CGFloat {
-        #if os(macOS)
-        try #require(view.textContainer).size.width
-        #else
-        view.textContainer.size.width
-        #endif
-    }
-
-    private func disclosure(_ heading: String, in view: CollaborationTextView) throws -> (RelayHeadingDisclosure, RelayTextGeometry) {
-        _ = try laidOutStarts(view)
-        let geometry = try #require(RelayTextGeometry(view.textLayoutManager))
-        let location = offset(of: heading, in: view)
-        return (try #require(view.sectionDisclosures(geometry: geometry).first { $0.heading.location == location }), geometry)
-    }
-
-    /// As on the web, the chevron sits in a gutter before the heading's text,
-    /// 1.5rem wide, and the paper's leading margin makes room for it.
-    @Test func theChevronSitsInTheLeadingGutterBeforeItsHeading() throws {
-        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
-        let (coordinator, view) = mount(editor)
-        defer { coordinator.retire(view) }
-        let (disclosure, geometry) = try disclosure("Sub", in: view)
-        let text = try #require(geometry.characterFrame(at: disclosure.heading.location))
-        #expect(disclosure.chevron.width == 24 && disclosure.chevron.height == 24)
-        #expect(abs(disclosure.chevron.maxX - text.minX) < 0.5)
-        #expect(disclosure.chevron.minX + containerOriginX(view) >= 0, "the gutter is outside the view")
-        // The text keeps its trailing margin: the wider leading one narrows it.
-        let width = try containerWidth(view)
-        #expect(abs(containerOriginX(view) + width + RelayPaperMargins.trailing - view.bounds.width) < 0.5)
-    }
-
-    /// A folded heading shows an expand control after its text, as the web's "…"
-    /// does, and it unfolds the section.
-    @Test func aFoldedHeadingHasAnExpandControlAfterItsText() throws {
-        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
-        let (coordinator, view) = mount(editor)
-        defer { coordinator.retire(view) }
-        #expect(try disclosure("Sub", in: view).0.expand == nil)
-        #expect(view.toggleSection("sub"))
-        let (disclosure, geometry) = try disclosure("Sub", in: view)
-        let expand = try #require(disclosure.expand)
-        let last = try #require(geometry.characterFrame(at: NSMaxRange(disclosure.heading) - 1))
-        #expect(expand.minX >= last.maxX + 7.5)
-        #expect(view.sectionDisclosureHit(at: CGPoint(x: expand.midX, y: expand.midY), geometry: geometry) == "sub")
-    }
-
-    /// Where a pointer can hover, the chevron shows on the hovered heading or the
-    /// heading holding the caret, as on the web; elsewhere it always shows.
-    @Test func chevronsFollowThePointerWhereThereIsOne() throws {
-        let editor = try RelayMarkEditorSession(document: try document(markdown), persist: { _ in })
-        let (coordinator, view) = mount(editor)
-        defer { coordinator.retire(view) }
-        #if os(macOS)
-        #expect(view.paper.disclosuresFollowPointer)
-        #else
-        #expect(!view.paper.disclosuresFollowPointer)
-        #endif
-        view.paper.disclosuresFollowPointer = true
-        select(offset(of: "Fourth para", in: view), in: view, coordinator)
-        #expect(try !disclosure("Sub", in: view).0.shown)
-        view.paper.hoveredHeading = offset(of: "Sub", in: view)
-        #expect(try disclosure("Sub", in: view).0.shown)
-        view.paper.hoveredHeading = nil
-        select(offset(of: "Sub", in: view) + 1, in: view, coordinator)
-        #expect(try disclosure("Sub", in: view).0.shown)
-        view.paper.disclosuresFollowPointer = false
-        select(offset(of: "Fourth para", in: view), in: view, coordinator)
-        #expect(try disclosure("Sub", in: view).0.shown)
-    }
-
     #if os(macOS)
     /// In a window, as the app hosts it, the paper settles in one layout: its
     /// container is the width its margins leave, and no layout is left pending.
@@ -270,34 +176,4 @@ struct RelayMarkEditorSectionFoldingTests {
     }
     #endif
 
-    /// Every edit redraws the headings' disclosures. They are found from the
-    /// laid-out text, so a paper of two thousand headings costs what a short one does.
-    @Test func drawingHeadingDisclosuresCostsTheSameAtAnyLength() throws {
-        func paper(bytes: Int) throws -> (RelayMarkEditorSession, RelayMarkEditorView.TextCoordinator, CollaborationTextView) {
-            let paragraph = String(repeating: "Lorem ipsum dolor sit amet. ", count: 4)
-            var parts: [String] = [], size = 0
-            while size < bytes { let part = parts.count % 5 == 0 ? "## Heading \(parts.count)" : paragraph; parts.append(part); size += part.utf8.count + 2 }
-            let editor = try RelayMarkEditorSession(document: try document(parts.joined(separator: "\n\n")), persist: { _ in })
-            let (coordinator, view) = mount(editor)
-            view.textLayoutManager?.textViewportLayoutController.layoutViewport()
-            return (editor, coordinator, view)
-        }
-        let small = try paper(bytes: 1_024), large = try paper(bytes: 1_048_576)
-        defer { small.1.retire(small.2); large.1.retire(large.2) }
-        let clock = ContinuousClock()
-        var costs: ([Duration], [Duration]) = ([], [])
-        for round in 0..<7 {
-            for (index, paper) in [small, large].enumerated() {
-                #expect(paper.0.typeNatively(range: NSRange(location: 30 + round, length: 0), replacement: "a"))
-                paper.1.update(paper.2)
-                let geometry = try #require(RelayTextGeometry(paper.2.textLayoutManager))
-                let start = clock.now
-                #expect(!paper.2.sectionDisclosures(geometry: geometry).isEmpty)
-                if index == 0 { costs.0.append(clock.now - start) } else { costs.1.append(clock.now - start) }
-            }
-        }
-        let a = costs.0.sorted()[3], b = costs.1.sorted()[3]
-        print("Heading disclosures median: 1 KB \(a), 1 MB \(b)")
-        #expect(RelayMarkEditorEditCostTests.withinGate(b, of: a))
-    }
 }

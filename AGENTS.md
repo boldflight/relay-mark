@@ -79,5 +79,11 @@ app hosts, RelayMark adapters, read-only projections and auxiliary editors.
   composition, undo, synchronization and data preservation, plus a small real
   editing check for changed behavior. Using a library reduces risk; it does not
   prove our integration correct. Existing release gates remain applicable.
+- Douglas accepted TextKit 2's roughly 200 ms edit cost for 1 MB native lists on
+  November 13, 2026. Keep native list grouping and the documented limitation;
+  the native-list test checks correctness/convergence and records timing rather
+  than asserting constant-time system layout. Engine/bridge and all other
+  performance gates remain in force. Do not reintroduce custom geometry or
+  fragment lists to evade this accepted platform limit.
 
 See [the editor foundation plan](docs/plans/2026-11-13-native-editor-foundation.md) for the audit, candidate evaluation and proposed implementation sequence.

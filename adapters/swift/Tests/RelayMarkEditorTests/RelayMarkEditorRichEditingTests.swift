@@ -43,14 +43,6 @@ struct RelayMarkEditorRichSessionTests {
 
     private func tableUpdate() throws -> Data { try update("table-mixed-v3-draft") }
 
-    #if os(macOS)
-    /// The text view of the table cell holding a paper offset, and the offset inside that cell.
-    private func cell(_ view: CollaborationTextView, at paper: Int) throws -> (view: RelayTableCellTextView, offset: Int) {
-        let hit = try #require(view.paper.tables.table(holding: NSRange(location: paper, length: 0)))
-        return (hit.table.grid.cellView(hit.cell), paper - hit.table.paperRange(of: hit.cell).location)
-    }
-    #endif
-
     @Test("TextKit repeated Unicode and equal replacement retain actual input identities across peer undo", arguments: [false, true])
     func explicitRepeatedNativeInput(insert: Bool) throws {
         let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
@@ -276,7 +268,7 @@ struct RelayMarkEditorRichSessionTests {
         }
     }
 
-    @Test("One native rich task/cell editor keeps linked identity and deep checkbox/Return journals")
+    @Test("Shared task/table commands keep linked identity and checkbox/Return journals")
     func richTaskAndCellInput() throws {
         _ = NSApplication.shared
         let seed = try update("rich-containers-v3")
@@ -299,9 +291,8 @@ struct RelayMarkEditorRichSessionTests {
         defer { editor.invalidate(); coordinator.retire(view) }
         editor.setNativeSelection(range)
         coordinator.update(view)
-        let (cell, inside) = try self.cell(view, at: range.location)
-        #expect(cell.selectedRange() == NSRange(location: inside, length: 0), "The session's selection reaches the cell")
-        cell.insertNewline(nil)
+        #expect(editor.editStructureNatively(range: range, replacement: "\n"))
+        coordinator.update(view)
         #expect(editor.failure == nil && saved.count == 2)
         #expect(String(editor.text.characters) == (source as NSString).replacingCharacters(in: range, with: "\n"))
         #expect(editor.nativeTaskItems.allSatisfy { $0.checked })
@@ -1018,9 +1009,6 @@ struct RelayMarkEditorRichSessionTests {
         let mounted = try #require(view.paper.tables.spans.first?.table)
         #expect(mounted.cells.first?.columnSpan == 2)
         _ = mounted.grid.layout(width: 600)
-        let aliceView = mounted.grid.cellView(try #require(mounted.cells.firstIndex { $0.row == 1 && $0.column == 0 }))
-        let bobView = mounted.grid.cellView(try #require(mounted.cells.firstIndex { $0.row == 1 && $0.column == 1 }))
-        #expect(bobView.frame.minX > aliceView.frame.minX && abs(bobView.frame.minY - aliceView.frame.minY) < 1)
         #endif
         let before = try RelayMarkNativeDocumentProjection.project(document: document)
         let source = String(editor.text.characters)
@@ -1040,42 +1028,6 @@ struct RelayMarkEditorRichSessionTests {
         #expect(after.blocks[1].childBlocks[1].childBlocks[0].plainText == "Alicia")
         #expect(after.blocks[1].childBlocks[0] == before.blocks[1].childBlocks[0])
         #expect(after.blocks[1].childBlocks[1].childBlocks[1] == before.blocks[1].childBlocks[1].childBlocks[1])
-    }
-
-    @Test("Tab travels between cell views without a Yrs update")
-    func tableCellKeyboardNavigation() throws {
-        #if os(macOS)
-        let document = RelayMarkNativeDocument()
-        try document.applyUpdate(tableUpdate())
-        var saved = 0
-        let editor = try RelayMarkEditorSession(document: document, persist: { _ in saved += 1 })
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
-        let view = coordinator.makeTextView(accessibilityLabel: "Paper")
-        let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 640, height: 480),
-            styleMask: [.borderless], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.contentView = view
-        view.frame = NSRect(x: 0, y: 0, width: 640, height: 480)
-        window.orderFront(nil)
-        defer { coordinator.retire(view); window.contentView = nil; window.close() }
-        let manager = try #require(view.textLayoutManager)
-        manager.ensureLayout(for: manager.documentRange)
-        view.layoutSubtreeIfNeeded()
-        let table = try #require(view.paper.tables.spans.first?.table)
-        let before = try document.encodeUpdate()
-        let first = table.grid.cellView(0)
-        window.makeFirstResponder(first)
-        first.insertTab(nil)
-        #expect(window.firstResponder === table.grid.cellView(1))
-        table.grid.cellView(1).insertBacktab(nil)
-        #expect(window.firstResponder === first)
-        let last = table.grid.cellView(table.cells.count - 1)
-        window.makeFirstResponder(last)
-        last.insertTab(nil)
-        #expect(window.firstResponder === last, "Tab at the table's last cell stays there")
-        #expect(saved == 0)
-        #expect(try document.encodeUpdate() == before)
-        #endif
     }
 
     @Test("Delete Row maps the caret to the next surviving block")
@@ -1100,7 +1052,7 @@ struct RelayMarkEditorRichSessionTests {
     }
 
     #if os(macOS)
-    @Test("Mounted TextKit input delivers one table-cell edit to the same Yrs session")
+    @Test("Shared table edit updates the read-only native attachment through the same Yrs session")
     func mountedTableCellInput() throws {
         let document = RelayMarkNativeDocument()
         try document.applyUpdate(tableUpdate())
@@ -1110,19 +1062,20 @@ struct RelayMarkEditorRichSessionTests {
         let view = coordinator.makeTextView(accessibilityLabel: "Shared paper")
         defer { coordinator.retire(view) }
         let alice = (String(editor.text.characters) as NSString).range(of: "Alice")
-        let (cell, offset) = try self.cell(view, at: alice.location)
-        cell.insertText("Alicia", replacementRange: NSRange(location: offset, length: alice.length))
+        #expect(editor.typeNatively(range: alice, replacement: "Alicia"))
+        coordinator.update(view)
         #expect(editor.failure == nil, "\(editor.failure ?? "No failure")")
         #expect(saved.count == 1)
         #expect(String(editor.text.characters).contains("Alicia"))
         #expect(view.paperString == String(editor.text.characters))
-        let end = offset + 6
-        cell.insertText("!", replacementRange: NSRange(location: end, length: 0))
+        let end = alice.location + 6
+        #expect(editor.typeNatively(range: NSRange(location: end, length: 0), replacement: "!"))
+        coordinator.update(view)
         #expect(editor.failure == nil && saved.count == 2)
         #expect(String(editor.text.characters).contains("Alicia!"))
     }
 
-    @Test("Mounted TextKit input seeds an empty Yjs table cell")
+    @Test("Shared table editing seeds an empty Yjs cell without data loss")
     func mountedEmptyTableCellInput() throws {
         enum SaveFailure: Error { case disk }
         let seed = try tableUpdate()
@@ -1144,8 +1097,8 @@ struct RelayMarkEditorRichSessionTests {
         let view = coordinator.makeTextView(accessibilityLabel: "Shared paper")
         defer { coordinator.retire(view) }
         #expect(view.paper.emptyBlocks.contains { $0.offset == offset })
-        let (cell, inside) = try self.cell(view, at: offset)
-        cell.insertText("First", replacementRange: NSRange(location: inside, length: 0))
+        #expect(editor.editStructureNatively(range: NSRange(location: offset, length: 0), replacement: "First") || editor.pastePlainTextNatively(range: NSRange(location: offset, length: 0), text: "First"))
+        coordinator.update(view)
         #expect(editor.hasUnpersistedTransaction && attempts.count == 1)
         #expect(String(editor.text.characters).contains("First"))
         editor.undo()
@@ -1183,9 +1136,8 @@ struct RelayMarkEditorRichSessionTests {
         defer { coordinator.retire(view) }
         #if os(macOS)
         let at = (String(editor.text.characters) as NSString).range(of: "cell 3").location + 4
-        let (cell, inside) = try self.cell(view, at: at)
-        cell.setSelectedRange(NSRange(location: inside, length: 0))
-        cell.insertNewline(nil)
+        #expect(editor.editStructureNatively(range: NSRange(location: at, length: 0), replacement: "\n"))
+        coordinator.update(view)
         #expect(editor.failure == nil && editor.fallbackEdits == 0)
         #expect(view.paper.tables.spans.count == 1)
         let table = try #require(view.paper.tables.spans.first?.table)
@@ -1193,7 +1145,7 @@ struct RelayMarkEditorRichSessionTests {
         #endif
     }
 
-    @Test("Typing at the end of a table-only document targets its final empty cell")
+    @Test("Shared editing at a table-only document end preserves its final cell")
     func trailingEmptyCellInput() throws {
         let seed = try update("table-only-v3-draft")
         let document = RelayMarkNativeDocument(), peer = RelayMarkNativeDocument()
@@ -1211,8 +1163,8 @@ struct RelayMarkEditorRichSessionTests {
         #expect(view.paperValue() == editor.text)
         #expect(!coordinator.textView(view, shouldChangeTextIn: NSRange(location: 1, length: 0), replacementString: "Outside"))
         #expect(saved.isEmpty)
-        let (cell, inside) = try self.cell(view, at: offset)
-        cell.insertText("Tail", replacementRange: NSRange(location: inside, length: 0))
+        #expect(editor.editStructureNatively(range: NSRange(location: offset, length: 0), replacement: "Tail") || editor.pastePlainTextNatively(range: NSRange(location: offset, length: 0), text: "Tail"))
+        coordinator.update(view)
         #expect(editor.failure == nil && saved.count == 1, "\(editor.failure ?? "No saved final-cell edit")")
         #expect(view.paperString == String(editor.text.characters))
         try peer.applyUpdate(try #require(saved.last))
@@ -1240,8 +1192,9 @@ struct RelayMarkEditorRichSessionTests {
                     emptyBlocks: editor.nativeEmptyBlocks, taskItems: items)
                 #expect(NativeProseCodec.value(display) == editor.text)
                 for (item, marker) in zip(items, ["☑", "☐", "☐"]) {
-                    let rendered = display.attribute(NSAttributedString.Key("RelayListMarker"),
-                        at: item.firstParagraphRange.location, effectiveRange: nil) as? String
+                    let style = display.attribute(.paragraphStyle,
+                        at: item.firstParagraphRange.location, effectiveRange: nil) as? NSParagraphStyle
+                    let rendered = style?.textLists.last?.markerFormat.rawValue
                     #expect(rendered == marker)
                 }
             } else {
@@ -1397,7 +1350,7 @@ struct RelayMarkEditorRichSessionTests {
         #expect(NativeProseCodec.value(display) == editor.text)
         #expect((display.attribute(.underlineStyle, at: selected.location, effectiveRange: nil) as? Int) == NSUnderlineStyle.single.rawValue)
         #expect(display.attribute(.backgroundColor, at: selected.location, effectiveRange: nil) != nil)
-        #expect(display.attribute(.baselineOffset, at: selected.location, effectiveRange: nil) != nil)
+        #expect(display.attribute(.baselineOffset, at: selected.location, effectiveRange: nil) == nil)
 
         for (index, mark) in RelayMarkOfferedMark.allCases.enumerated() {
             editor.setNativeSelection(selected)

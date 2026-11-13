@@ -4,7 +4,7 @@ import RelayMarkEditorCore
 import AppKit
 
 /// Find in paper on AppKit. The find bar searches the paper's text, so a
-/// match inside a table cell is found, selected in its cell and scrolled to.
+/// match inside a preserved table selects and reveals the whole attachment.
 @MainActor
 final class RelayPaperFinder: NSObject, @preconcurrency NSTextFinderClient {
     weak var view: CollaborationTextView?
@@ -22,16 +22,8 @@ final class RelayPaperFinder: NSObject, @preconcurrency NSTextFinderClient {
     var isEditable: Bool { false }
     var string: String { view?.paperString ?? "" }
 
-    /// The selection in paper offsets, in the paper view or in the cell being edited.
-    var firstSelectedRange: NSRange {
-        guard let view else { return NSRange(location: 0, length: 0) }
-        if let cell = view.window?.firstResponder as? RelayTableCellTextView, let grid = cell.grid,
-           grid.table.cells.indices.contains(cell.index) {
-            let range = grid.table.paperRange(of: cell.index), selection = cell.selectedRange()
-            return NSRange(location: range.location + selection.location, length: selection.length)
-        }
-        return view.paperSelection
-    }
+    /// The native selection mapped to canonical paper offsets.
+    var firstSelectedRange: NSRange { view?.paperSelection ?? NSRange(location: 0, length: 0) }
     var selectedRanges: [NSValue] {
         get { [NSValue(range: firstSelectedRange)] }
         set {
@@ -39,10 +31,11 @@ final class RelayPaperFinder: NSObject, @preconcurrency NSTextFinderClient {
             if let shown = view.paper.tables.view(range) {
                 view.window?.makeFirstResponder(view)
                 view.setSelectedRange(shown)
-            } else if let hit = view.paper.tables.table(holding: range) {
-                let cell = hit.table.grid.cellView(hit.cell)
-                view.window?.makeFirstResponder(cell)
-                cell.setSelectedRange(NSRange(location: range.location - hit.table.paperRange(of: hit.cell).location, length: range.length))
+            } else if let span = view.paper.tables.spans.first(where: {
+                NSIntersectionRange($0.table.canonicalRange, range).length > 0
+            }) {
+                view.window?.makeFirstResponder(view)
+                view.setSelectedRange(NSRange(location: span.view, length: 1))
             }
         }
     }
@@ -50,12 +43,13 @@ final class RelayPaperFinder: NSObject, @preconcurrency NSTextFinderClient {
     func scrollRangeToVisible(_ range: NSRange) {
         guard let view else { return }
         if let shown = view.paper.tables.view(range) { view.scrollRangeToVisible(shown); return }
-        guard let hit = view.paper.tables.table(holding: range) else { return }
-        let cell = hit.table.grid.cellView(hit.cell)
-        view.scrollToVisible(view.convert(cell.frame, from: hit.table.grid).insetBy(dx: 0, dy: -24))
+        guard let span = view.paper.tables.spans.first(where: {
+            NSIntersectionRange($0.table.canonicalRange, range).length > 0
+        }) else { return }
+        view.scrollRangeToVisible(NSRange(location: span.view, length: 1))
     }
 
-    /// The paper view for body text, or a cell's text view for text in a table.
+    /// Both prose and preserved tables belong to the one native paper text view.
     func contentView(at index: Int, effectiveCharacterRange outRange: NSRangePointer) -> NSView {
         guard let view else { return NSView() }
         var start = 0
@@ -66,9 +60,9 @@ final class RelayPaperFinder: NSObject, @preconcurrency NSTextFinderClient {
                 return view
             }
             if index < NSMaxRange(table) || (index == NSMaxRange(table) && table.length == 0),
-               let cell = span.table.cell(containing: index) {
-                outRange.pointee = span.table.paperRange(of: cell)
-                return span.table.grid.cellView(cell)
+               span.table.cell(containing: index) != nil {
+                outRange.pointee = table
+                return view
             }
             start = NSMaxRange(table)
         }
@@ -78,16 +72,17 @@ final class RelayPaperFinder: NSObject, @preconcurrency NSTextFinderClient {
 
     func rects(forCharacterRange range: NSRange) -> [NSValue]? {
         guard let view else { return nil }
-        if let shown = view.paper.tables.view(range), let geometry = RelayTextGeometry(view.textLayoutManager) {
+        if let shown = view.paper.tables.view(range), let geometry = RelayTextKitRanges(view.textLayoutManager) {
             let origin = view.textContainerOrigin
             return geometry.segmentFrames(shown).map { NSValue(rect: $0.offsetBy(dx: origin.x, dy: origin.y)) }
         }
-        guard let hit = view.paper.tables.table(holding: range) else { return nil }
-        let cell = hit.table.grid.cellView(hit.cell)
-        guard let geometry = RelayTextGeometry(cell.textLayoutManager) else { return nil }
-        let local = NSRange(location: range.location - hit.table.paperRange(of: hit.cell).location, length: range.length)
-        let origin = cell.textContainerOrigin
-        return geometry.segmentFrames(local).map { NSValue(rect: $0.offsetBy(dx: origin.x, dy: origin.y)) }
+        guard let span = view.paper.tables.spans.first(where: {
+            NSIntersectionRange($0.table.canonicalRange, range).length > 0
+        }), let geometry = RelayTextKitRanges(view.textLayoutManager) else { return nil }
+        let origin = view.textContainerOrigin
+        return geometry.segmentFrames(NSRange(location: span.view, length: 1)).map {
+            NSValue(rect: $0.offsetBy(dx: origin.x, dy: origin.y))
+        }
     }
 
     var visibleCharacterRanges: [NSValue] { [NSValue(range: NSRange(location: 0, length: view?.paperLength ?? 0))] }
@@ -109,7 +104,7 @@ final class RelayPaperTextRange: UITextRange {
 }
 
 /// Find in paper on UIKit. It searches the paper's text, so matches inside
-/// table cells are found, highlighted in their cells and scrolled to.
+/// tables are found, and UIKit highlights and reveals their attachment.
 @MainActor
 final class RelayPaperTextSearch: NSObject, @preconcurrency UITextSearching, UIFindInteractionDelegate {
     typealias DocumentIdentifier = AnyHashable?
@@ -156,29 +151,30 @@ final class RelayPaperTextSearch: NSObject, @preconcurrency UITextSearching, UIF
         showDecorations()
     }
 
-    /// Matches in cells are drawn by their tables; the paper view draws the rest.
+    /// UIKit owns search decoration. A match inside a read-only table is
+    /// represented by its attachment rather than a fabricated cell rectangle.
     private func showDecorations() {
         guard let view else { return }
-        for span in view.paper.tables.spans where span.table.isGridLoaded {
-            var found: [Int: [(range: NSRange, highlighted: Bool)]] = [:]
-            for (range, style) in decorations {
-                guard let cell = span.table.cell(containing: range.location) else { continue }
-                let paper = span.table.paperRange(of: cell)
-                guard NSMaxRange(range) <= NSMaxRange(paper) else { continue }
-                found[cell, default: []].append((NSRange(location: range.location - paper.location, length: range.length), style == .highlighted))
-            }
-            span.table.grid.found = found
+        view.clearAllDecoratedFoundText()
+        for (range, style) in decorations {
+            guard let shown = shownRange(range, in: view),
+                  let start = view.position(from: view.beginningOfDocument, offset: shown.location),
+                  let end = view.position(from: start, offset: shown.length),
+                  let native = view.textRange(from: start, to: end) else { continue }
+            view.decorate(foundTextRange: native, document: nil, usingStyle: style)
         }
-        view.setNeedsDisplay()
+    }
+
+    private func shownRange(_ range: NSRange, in view: CollaborationTextView) -> NSRange? {
+        if let shown = view.paper.tables.view(range) { return shown }
+        return view.paper.tables.spans.first(where: {
+            NSIntersectionRange($0.table.canonicalRange, range).length > 0
+        }).map { NSRange(location: $0.view, length: 1) }
     }
 
     func scrollRangeToVisible(_ range: UITextRange, inDocument document: AnyHashable??) {
-        guard let view, let found = self.range(range) else { return }
-        if let shown = view.paper.tables.view(found) { view.scrollRangeToVisible(shown); return }
-        guard let hit = view.paper.tables.table(holding: found) else { return }
-        let cell = hit.table.grid.cellView(hit.cell)
-        view.scrollRectToVisible(view.convert(cell.frame, from: hit.table.grid).insetBy(dx: 0, dy: -24), animated: true)
-        showDecorations()
+        guard let view, let found = self.range(range), let shown = shownRange(found, in: view) else { return }
+        view.scrollRangeToVisible(shown)
     }
 
     func findInteraction(_ interaction: UIFindInteraction, sessionFor view: UIView) -> UIFindSession? {

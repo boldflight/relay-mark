@@ -12,8 +12,7 @@ import AppKit
 import UIKit
 #endif
 
-/// A form paper's questions are bordered cards drawn over the unchanged document text. These
-/// tests drive the shared codec and the macOS paper view.
+/// Standard attributed-string backgrounds distinguish blocks without changing document text.
 @MainActor
 struct RelayMarkEditorQuestionCardTests {
     static let source = """
@@ -43,64 +42,57 @@ struct RelayMarkEditorQuestionCardTests {
         NativeProseCodec.attributed(session.text, callouts: session.nativeCallouts, questions: session.nativeQuestions)
     }
 
-    @Test func eachQuestionIsOneCardAcrossItsLabelAndOptionsAndTheTextIsUntouched() throws {
+    @Test func nativeBackgroundsPreserveQuestionAndCalloutText() throws {
         let session = try session()
         let text = render(session)
-        func style(at word: String) -> RelayBlockStyle? {
-            text.attribute(.relayBlock, at: (text.string as NSString).range(of: word).location, effectiveRange: nil) as? RelayBlockStyle
+        for word in ["Capital?", "Paris", "London", "Rome", "Name?", "Safe guidance"] {
+            let offset = (text.string as NSString).range(of: word).location
+            #expect(text.attribute(.backgroundColor, at: offset, effectiveRange: nil) != nil)
         }
-        let capital = try #require(style(at: "Capital?"))
-        #expect(capital.appearance == .card)
-        #expect([style(at: "Paris"), style(at: "London"), style(at: "Rome")].allSatisfy { $0?.identity == capital.identity })
-        #expect(style(at: "Name?")?.identity != capital.identity)
-        #expect(style(at: "Safe guidance")?.appearance == .callout(tone: "info", strong: false))
         #expect(text.string == String(session.text.characters))
         #expect(NativeProseCodec.value(text) == session.text)
     }
+    @Test func calloutTintSurvivesLocalTypingAndRemoteLeafSplice() throws {
+        let session = try session(editable: true)
+        let storage = NSTextStorage(attributedString: render(session))
+        let start = (storage.string as NSString).range(of: "Safe guidance").location
+        let tint = try #require(storage.attribute(.backgroundColor, at: start, effectiveRange: nil) as? PlatformColor)
+        let insertion = NSRange(location: start + 4, length: 0)
+        #expect(session.typeNatively(range: insertion, replacement: " local"))
+        storage.replaceCharacters(in: insertion, with: " local")
+        NativeProseCodec.restyle(storage, range: NSRange(location: insertion.location, length: 6),
+            from: session.text, taskItems: [])
+        #expect((storage.attribute(.backgroundColor, at: insertion.location, effectiveRange: nil) as? PlatformColor) == tint)
+        #expect(NativeProseCodec.value(storage) == session.text)
 
-    #if os(macOS)
-    private func mount(_ session: RelayMarkEditorSession) throws -> (RelayMarkEditorView.TextCoordinator, CollaborationTextView, NSWindow) {
-        _ = NSApplication.shared
-        let coordinator = RelayMarkEditorView.TextCoordinator(session: session)
-        let view = coordinator.makeTextView(accessibilityLabel: "Paper")
-        let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 480, height: 800),
-            styleMask: [.borderless], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.contentView = view
-        view.frame = NSRect(x: 0, y: 0, width: 480, height: 800)
-        let manager = try #require(view.textLayoutManager)
-        manager.ensureLayout(for: manager.documentRange)
-        return (coordinator, view, window)
+        let old = (storage.string as NSString).range(of: "Safe local guidance")
+        let peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(session.document.encodeUpdate())
+        let update = try RelayMarkNativeRichEditing.replace(document: peer,
+            range: NSRange(location: NSMaxRange(old), length: 0), runs: [(" remotely", [:])],
+            expectedSnapshot: peer.snapshot()).update
+        try session.applyRemoteUpdate(update)
+        let replacement = NSRange(location: old.location, length: old.length + 9)
+        #expect(NativeProseCodec.splice(storage, replacing: old, with: session.text,
+            range: replacement, taskItems: []))
+        #expect((storage.attribute(.backgroundColor, at: NSMaxRange(replacement) - 1, effectiveRange: nil) as? PlatformColor) == tint)
+        #expect(NativeProseCodec.value(storage) == session.text)
     }
 
-    private func fragments(_ view: CollaborationTextView) throws -> [RelayBlockFragment] {
-        let manager = try #require(view.textLayoutManager)
-        var found: [RelayBlockFragment] = []
-        manager.enumerateTextLayoutFragments(from: manager.documentRange.location, options: [.ensuresLayout]) { fragment in
-            if let block = fragment as? RelayBlockFragment { found.append(block) }
-            return true
-        }
-        return found
-    }
-
-    @Test func adjacentCalloutAndCardsKeepTheirOwnFirstAndLastMargins() throws {
+    @Test func removingInlineHighlightRestoresIndependentBlockTint() throws {
         let session = try session()
-        let (coordinator, view, window) = try mount(session)
-        defer { coordinator.retire(view); window.contentView = nil; window.close() }
-        let blocks = try fragments(view)
-        // One callout paragraph, the question's label and three options, then the second question's label.
-        #expect(blocks.count == 6)
-        let callout = blocks[0], card = Array(blocks[1...4]), second = blocks[5]
-        #expect(callout.isFirst && callout.isLast)
-        #expect(card.map(\.isFirst) == [true, false, false, false])
-        #expect(card.map(\.isLast) == [false, false, false, true])
-        #expect(second.isFirst && second.isLast)
-        // Only a card's ends carry the margin around it; its middle paragraphs touch.
-        let style = card[0].block
-        #expect(card[0].topMargin == style.padding + style.outerGap)
-        #expect(card[1].topMargin == 0 && card[1].bottomMargin == 0)
-        #expect(card[3].bottomMargin == style.padding + style.outerGap)
-        #expect(callout.topMargin == callout.block.padding && callout.bottomMargin == callout.block.padding)
+        let storage = NSTextStorage(attributedString: render(session))
+        let target = (storage.string as NSString).range(of: "Safe guidance")
+        let tint = try #require(storage.attribute(.backgroundColor, at: target.location, effectiveRange: nil) as? PlatformColor)
+        var highlighted = session.text
+        let range = try #require(Range(target, in: highlighted))
+        highlighted[range][RelayMarkOfferedMarksAttribute.self] = [.highlight]
+        #expect(NativeProseCodec.splice(storage, replacing: target, with: highlighted, range: target, taskItems: []))
+        #expect((storage.attribute(.backgroundColor, at: target.location, effectiveRange: nil) as? PlatformColor) != tint)
+        #expect(NativeProseCodec.value(storage) == highlighted)
+        #expect(NativeProseCodec.splice(storage, replacing: target, with: session.text, range: target, taskItems: []))
+        #expect((storage.attribute(.backgroundColor, at: target.location, effectiveRange: nil) as? PlatformColor) == tint)
+        #expect(NativeProseCodec.value(storage) == session.text)
     }
-    #endif
+
 }

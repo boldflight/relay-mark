@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import RelayMarkEditorCore
 import RelayMarkProseProjection
 #if os(macOS)
@@ -16,6 +17,7 @@ final class RelayPaperViewState {
     var renderedTaskStateRevision = 0
     /// The session linked-task revision whose chips are drawn.
     var renderedLinkedTaskRevision = 0
+    let nativeLists = NativeProseCodec.ListContext()
     var tables = RelayTableSpans()
     var tableAttachments: [Int: RelayTableAttachment] = [:]
     /// Paper offsets, as the session gives them.
@@ -23,18 +25,13 @@ final class RelayPaperViewState {
     var taskItems: [RelayMarkCollaborativeProse.TaskItem] = []
     /// View offsets; peers' selections inside tables are not drawn.
     var remoteSelections: [RelayMarkRemoteSelection] = []
+    let remoteSelectionPresentation = RelayRemoteSelectionPresentation()
     /// The paragraphs the last viewport layout pass laid out; nil before the
-    /// first pass. Markers are drawn for these only.
+    /// first pass.
     var laidOut: NSTextRange?
     /// View offsets that folded sections hide, in order. TextKit does not lay out
     /// a paragraph that starts inside one; its text is unchanged.
     var hidden: [NSRange] = []
-    /// Where a pointer can hover (macOS), heading disclosures show only on the
-    /// hovered heading or the heading holding the caret, as on the web.
-    var disclosuresFollowPointer = false
-    /// The view offset of the heading under the pointer.
-    var hoveredHeading: Int?
-
     func isHidden(_ offset: Int) -> Bool {
         var low = 0, high = hidden.count
         while low < high {
@@ -44,7 +41,7 @@ final class RelayPaperViewState {
         return low < hidden.count && hidden[low].location <= offset
     }
 
-    /// Empty blocks at view offsets, for drawing.
+    /// Empty blocks at view offsets, for typing attributes.
     var viewEmptyBlocks: [RelayEmptyProseBlock] {
         guard !tables.spans.isEmpty else { return emptyBlocks }
         return emptyBlocks.compactMap { block in
@@ -54,7 +51,7 @@ final class RelayPaperViewState {
             return block
         }
     }
-    /// Task items at view offsets, for drawing and hit-testing.
+    /// Task items at view offsets, for semantic actions.
     var viewTaskItems: [RelayMarkCollaborativeProse.TaskItem] {
         guard !tables.spans.isEmpty else { return taskItems }
         return taskItems.compactMap { item in
@@ -66,23 +63,13 @@ final class RelayPaperViewState {
     }
 }
 
-/// A heading's fold controls, in text-container coordinates: the chevron in the
-/// paper's leading gutter, and when folded the expand control after its text.
-struct RelayHeadingDisclosure {
-    let heading: NSRange
-    let chevron: CGRect
-    let expand: CGRect?
-    let folded: Bool
-    /// Whether the chevron is drawn; it takes taps and clicks either way.
-    let shown: Bool
-}
-
 /// The platform text view the editor drives: AppKit's or UIKit's paper view.
 @MainActor
 protocol RelayPaperTextView: AnyObject {
     var paper: RelayPaperViewState { get }
     var paperStorage: NSTextStorage { get }
     var textLayoutManager: NSTextLayoutManager? { get }
+    var collaboratorColor: (String) -> Color { get }
     var editingSession: (any RelayPaperTextEditing)? { get set }
     var retired: Bool { get }
     var isPaperEditable: Bool { get set }
@@ -105,9 +92,6 @@ protocol RelayPaperTextView: AnyObject {
     func paperNeedsDisplay()
     /// The whole text is about to be replaced: pending paste state no longer applies.
     func replaceAllText(_ text: NSAttributedString)
-    /// Moves keyboard focus into a cell when the paper view has it.
-    func focus(_ cell: RelayTableCellTextView, selecting range: NSRange)
-    var tableUndoManager: UndoManager? { get }
 }
 
 extension RelayPaperTextView {
@@ -252,7 +236,7 @@ extension RelayPaperTextView {
         guard hidden != paper.hidden else { return }
         let changed = (paper.hidden + hidden).reduce(nil as NSRange?) { union, range in union.map { NSUnionRange($0, range) } ?? range }
         paper.hidden = hidden
-        if let changed, let manager = textLayoutManager, let range = RelayTextGeometry(manager)?.textRange(
+        if let changed, let manager = textLayoutManager, let range = RelayTextKitRanges(manager)?.textRange(
             NSRange(location: changed.location, length: min(changed.length, viewLength - changed.location))) {
             manager.invalidateLayout(for: range)
             manager.textViewportLayoutController.layoutViewport()
@@ -260,12 +244,9 @@ extension RelayPaperTextView {
         paperNeedsDisplay()
     }
 
-    /// The viewport finished a layout pass, for a scroll, an edit or a resize:
-    /// markers and overlays are drawn again over the paragraphs it laid out.
-    /// TextKit allows reading the controller's state only here.
+    /// Observe native viewport state only from the documented OS 27 callback.
     func viewportDidLayout(_ controller: NSTextViewportLayoutController) {
         paper.laidOut = controller.viewportRange
-        paperNeedsDisplay()
     }
 
     /// The table's attachment character is laid out again, at its grid's new size.
@@ -281,7 +262,7 @@ extension RelayPaperTextView {
 /// The editing logic shared by the AppKit and UIKit paper views: every edit is
 /// a range command into the session, and its result comes back as a splice.
 @MainActor
-final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing {
+final class RelayPaperEditor<Session: RelayPaperTextEditing> {
     var session: Session
     var mediaImages: RelayMarkImageStore?
     var updating = false
@@ -463,8 +444,6 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         guard !updating, owns(view), !view.hasMarkedInput, pendingTyping == nil else { return }
         session.setNativeSelection(view.paperSelection)
         view.refreshFolding()
-        // The heading holding the caret shows its chevron where chevrons follow the pointer.
-        if view.paper.disclosuresFollowPointer { view.paperNeedsDisplay() }
         view.applyEmptyTypingStyle()
     }
 
@@ -529,12 +508,13 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         view.paper.renderedTaskStateRevision = taskState
         view.paper.emptyBlocks = session.nativeEmptyBlocks
         view.paper.taskItems = session.nativeTaskItems
+        view.paper.nativeLists.reset()
         let rendered = NativeProseCodec.viewText(session.text, emptyBlocks: view.paper.emptyBlocks,
             tableCells: session.nativeTableCells, callouts: session.nativeCallouts, questions: session.nativeQuestions, taskItems: view.paper.taskItems,
             inlineAtoms: session.nativeInlineAtoms, blockAtoms: session.nativeBlockAtoms,
             authoredWidgets: session.nativeAuthoredWidgets, entityReferenceAtoms: session.nativeEntityReferenceAtoms,
             mediaAtoms: session.nativeMediaAtoms, suggestionAtoms: session.nativeSuggestionAtoms,
-            mediaImages: mediaImages) { [unowned view] in self.table(in: view, identity: $0, start: $1, cells: $2) }
+            mediaImages: mediaImages, listContext: view.paper.nativeLists) { [unowned view] in self.table(in: view, identity: $0, start: $1, cells: $2) }
         view.paper.tables = RelayTableSpans(spans: rendered.spans)
         let shown = Set(rendered.spans.map(\.table.identity))
         view.paper.tableAttachments = view.paper.tableAttachments.filter { shown.contains($0.key) }
@@ -548,7 +528,6 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             return table
         }
         let table = RelayTableAttachment(identity: identity, start: start, cells: cells)
-        table.editor = self
         view.paper.tableAttachments[identity] = table
         return table
     }
@@ -556,9 +535,10 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
     private func syncSelection(_ view: any RelayPaperTextView) {
         let tables = view.paper.tables
         if let range = session.nativeSelection {
-            if let hit = tables.table(holding: range) {
-                let cell = hit.table.paperRange(of: hit.cell)
-                view.focus(hit.table.grid.cellView(hit.cell), selecting: NSRange(location: range.location - cell.location, length: range.length))
+            if let hit = tables.table(holding: range),
+               let span = tables.spans.first(where: { $0.table === hit.table }) {
+                let shown = NSRange(location: span.view, length: 1)
+                if view.viewSelection != shown { view.showSelection(shown) }
             } else if let shown = tables.view(range), NSMaxRange(shown) <= view.viewLength, view.viewSelection != shown {
                 view.showSelection(shown)
             }
@@ -568,6 +548,8 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             guard let range = tables.view(peer.range), let caret = tables.view(peer.caretLocation) else { return nil }
             return RelayMarkRemoteSelection(id: peer.id, name: peer.name, color: peer.color, range: range, caretLocation: caret)
         }
+        view.paper.remoteSelectionPresentation.update(view.paper.remoteSelections,
+            in: view.textLayoutManager, color: view.collaboratorColor)
         view.refreshFolding()
         view.paperNeedsDisplay()
     }
@@ -626,11 +608,15 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             }
             guard let shown = view.paper.tables.view(old), NSMaxRange(shown) <= storage.length,
                   let bounds = Range(new, in: session.text) else { return false }
-            let piece = NativeProseCodec.viewText(AttributedString(session.text[bounds]), emptyBlocks: nodes.emptyBlocks,
+            let value = AttributedString(session.text[bounds])
+            guard view.paper.nativeLists.prepare(for: value, emptyBlocks: nodes.emptyBlocks,
+                canonical: session.text, canonicalEmptyBlocks: session.nativeEmptyBlocks) else { return false }
+            let piece = NativeProseCodec.viewText(value, emptyBlocks: nodes.emptyBlocks,
                 tableCells: nodes.tableCells, callouts: nodes.callouts, questions: nodes.questions, taskItems: nodes.taskItems,
                 inlineAtoms: nodes.inlineAtoms, blockAtoms: nodes.blockAtoms, authoredWidgets: nodes.authoredWidgets,
                 entityReferenceAtoms: nodes.entityReferenceAtoms, mediaAtoms: nodes.mediaAtoms,
-                suggestionAtoms: nodes.suggestionAtoms, mediaImages: mediaImages, startingAt: new.location) { [unowned view] in
+                suggestionAtoms: nodes.suggestionAtoms, mediaImages: mediaImages, startingAt: new.location,
+                listContext: view.paper.nativeLists) { [unowned view] in
                     self.table(in: view, identity: $0, start: $1, cells: $2)
                 }
             storage.replaceCharacters(in: shown, with: piece.text)
@@ -647,11 +633,12 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
                 let cell = hit.table.paperRange(of: hit.cell)
                 let edited = NSRange(location: cell.location, length: cell.length + delta)
                 guard let bounds = Range(edited, in: session.text) else { return false }
-                let text = NativeProseCodec.attributed(AttributedString(session.text[bounds]), startingAt: edited.location)
+                let text = NativeProseCodec.attributed(AttributedString(session.text[bounds]), startingAt: edited.location,
+                    listContext: view.paper.nativeLists)
                 hit.table.cellEdited(hit.cell, text: text, delta: delta)
                 if hit.table.isGridLoaded {
-                    hit.table.grid.refresh(hit.cell)
-                    if hit.table.grid.cellDidChange(hit.cell) { view.tableChanged(hit.table) }
+                    hit.table.grid.refresh()
+                    view.tableChanged(hit.table)
                 }
                 view.paper.tables.paperEdited(inTable: index, delta: delta)
                 shift(view, replacing: old, by: delta)
@@ -661,20 +648,23 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             shift(view, replacing: old, by: delta)
             view.paper.tables.viewEdited(at: NSMaxRange(shown), delta: delta)
             guard NativeProseCodec.splice(storage, replacing: shown, with: session.text, range: new,
-                                          taskItems: view.paper.taskItems) else { return false }
+                                          taskItems: view.paper.taskItems, listContext: view.paper.nativeLists) else { return false }
         }
         return true
     }
 
     /// Rows of a table re-projected in place, when the new text is only this table's cells.
     private func replaceRows(of table: RelayTableAttachment, old: NSRange, new: NSRange, nodes: RelayNativeRegion) -> Bool {
-        guard let bounds = Range(new, in: session.text) else { return false }
-        let piece = NativeProseCodec.attributed(AttributedString(session.text[bounds]), tableCells: nodes.tableCells,
+        guard let view, let bounds = Range(new, in: session.text) else { return false }
+        let value = AttributedString(session.text[bounds])
+        guard view.paper.nativeLists.prepare(for: value, emptyBlocks: nodes.emptyBlocks,
+            canonical: session.text, canonicalEmptyBlocks: session.nativeEmptyBlocks) else { return false }
+        let piece = NativeProseCodec.attributed(value, tableCells: nodes.tableCells,
             callouts: nodes.callouts, questions: nodes.questions,
             inlineAtoms: nodes.inlineAtoms, blockAtoms: nodes.blockAtoms,
             authoredWidgets: nodes.authoredWidgets, entityReferenceAtoms: nodes.entityReferenceAtoms,
             mediaAtoms: nodes.mediaAtoms, suggestionAtoms: nodes.suggestionAtoms, mediaImages: mediaImages,
-            startingAt: new.location)
+            startingAt: new.location, listContext: view.paper.nativeLists)
         let groups = NativeProseCodec.tableModels(nodes.tableCells, in: piece, base: new.location)
         guard groups.count == 1, let group = groups.first, group.identity == table.identity else { return false }
         // Outside its cells the new text may hold only the separators between rows.
@@ -708,7 +698,8 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
             view.paper.tables.viewEdited(at: location + typing.range.length, delta: delta)
             view.performPaperEdit {
                 NativeProseCodec.restyle(view.paperStorage, range: NSRange(location: location, length: typing.text.utf16.count),
-                                         paper: typing.range.location, from: session.text, taskItems: view.paper.taskItems)
+                                         paper: typing.range.location, from: session.text, taskItems: view.paper.taskItems,
+                                         listContext: view.paper.nativeLists)
             }
         }
         session.setNativeSelection(view.paperSelection)
@@ -716,75 +707,7 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing>: RelayTableEditing 
         return true
     }
 
-    // MARK: Table cells
 
-    var tablesEditable: Bool { session.isEditable && !(view?.retired ?? true) }
-    var tableUndoManager: UndoManager? { view?.tableUndoManager }
-
-    /// A cell's text view changed: the one replacement it made goes to the
-    /// session as typing, or as a structural command, at the cell's paper offsets.
-    func tableCellDidChange(_ table: RelayTableAttachment, at index: Int, text: NSAttributedString) {
-        guard !updating, let view, owns(view), session.isEditable, table.cells.indices.contains(index) else { return }
-        let before = table.cells[index].text.string as NSString, after = text.string as NSString
-        var prefix = 0
-        while prefix < before.length, prefix < after.length, before.character(at: prefix) == after.character(at: prefix) { prefix += 1 }
-        var suffix = 0
-        while suffix < before.length - prefix, suffix < after.length - prefix,
-              before.character(at: before.length - 1 - suffix) == after.character(at: after.length - 1 - suffix) { suffix += 1 }
-        let local = NSRange(location: prefix, length: before.length - prefix - suffix)
-        let replacement = after.substring(with: NSRange(location: prefix, length: after.length - prefix - suffix))
-        guard local.length > 0 || !replacement.isEmpty else { return }
-        let cell = table.paperRange(of: index)
-        let paper = NSRange(location: cell.location + local.location, length: local.length)
-        let shown = view.paper.renderedRevision?.text == session.textRevision
-        let wasUpdating = updating
-        updating = true
-        defer { updating = wasUpdating }
-        if !replacement.contains("\n"), session.canTypeNatively(range: paper, replacement: replacement),
-           session.typeNatively(range: paper, replacement: replacement) {
-            let delta = replacement.utf16.count - local.length
-            let typed = NSTextStorage(attributedString: text)
-            NativeProseCodec.restyle(typed, range: NSRange(location: local.location, length: replacement.utf16.count),
-                                     paper: paper.location, from: session.text, taskItems: [])
-            table.cellEdited(index, text: typed, delta: delta)
-            if let span = view.paper.tables.spans.firstIndex(where: { $0.table === table }) {
-                view.paper.tables.paperEdited(inTable: span, delta: delta)
-            }
-            shift(view, replacing: paper, by: delta)
-            if shown { view.paper.renderedRevision = (session.textRevision, mediaRevision, session.isEditable) }
-            table.grid.refresh(index)
-            if table.grid.cellDidChange(index) { view.tableChanged(table) }
-            session.setNativeSelection(NSRange(location: paper.location + replacement.utf16.count, length: 0))
-            updating = wasUpdating
-            if !shown { update(view) }
-            return
-        }
-        session.setNativeSelection(paper)
-        if !session.editStructureNatively(range: paper, replacement: replacement),
-           replacement.isEmpty || !session.pastePlainTextNatively(range: paper, text: replacement) {
-            // The paper did not take it: the cell shows the paper's text again.
-            table.grid.refresh(index)
-            return
-        }
-        updating = wasUpdating
-        update(view)
-    }
-
-    var cellSelectionActions: [(name: String, perform: () -> Bool)] {
-        guard let view, owns(view) else { return [] }
-        return view.selectionActions.map { action in
-            (action.name, { [weak self] in
-                guard let self, let selection = self.session.nativeSelection else { return false }
-                return action.perform(selection)
-            })
-        }
-    }
-
-    func tableCellDidSelect(_ table: RelayTableAttachment, at index: Int, range: NSRange) {
-        guard !updating, let view, owns(view), table.cells.indices.contains(index) else { return }
-        let cell = table.paperRange(of: index)
-        session.setNativeSelection(NSRange(location: cell.location + range.location, length: range.length))
-    }
 }
 
 /// Feedback for an edit the paper cannot take; an edit is never dropped silently.

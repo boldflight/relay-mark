@@ -4,6 +4,8 @@ import Foundation
 import Testing
 #if os(macOS)
 import AppKit
+#else
+import UIKit
 #endif
 import RelayMarkNativeCollaboration
 import RelayMarkSwift
@@ -30,9 +32,9 @@ struct RelayMarkEditorEmptyListEditorTests {
             let doc = try document(trailing: trailing)
             let editor = try RelayMarkEditorSession(document: doc, persist: { _ in })
             let block = try #require(editor.nativeEmptyBlocks.first)
-            let marker = try #require(NativeProseCodec.listMarker(block.intent))
-            #expect(marker.label == (trailing ? "•" : "4."))
-            #expect(marker.depth == (trailing ? 1 : 2))
+            let style = try #require(NativeProseCodec.emptyParagraphStyle(block.intent, checked: nil))
+            #expect(style.textLists.count == (trailing ? 1 : 2))
+            if !trailing { #expect(style.textLists.last?.startingItemNumber == 4) }
             let native = NativeProseCodec.attributed(editor.text, emptyBlocks: editor.nativeEmptyBlocks)
             #expect(NativeProseCodec.value(native) == editor.text)
             #expect(!native.string.contains("\u{FFFC}"))
@@ -99,7 +101,7 @@ struct RelayMarkEditorEmptyListEditorTests {
         #expect(try doc.resolve(anchor: anchor)?.index == 10)
     }
 
-    @Test func actualTextViewRendersEmptyMarkerAndTypesIntoSameParagraph() throws {
+    @Test func actualTextViewTypesIntoEmptyCanonicalListItem() throws {
         _ = NSApplication.shared
         for trailing in [false, true] {
             let doc = try document(trailing: trailing)
@@ -114,26 +116,21 @@ struct RelayMarkEditorEmptyListEditorTests {
             coordinator.update(view)
             let manager = try #require(view.textLayoutManager)
             manager.ensureLayout(for: manager.documentRange)
-            func raster() throws -> NSBitmapImageRep {
-                let image = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
-                view.cacheDisplay(in: view.bounds, to: image)
-                return image
+            if block.offset < view.string.utf16.count {
+                let style = view.textStorage?.attribute(.paragraphStyle, at: block.offset, effectiveRange: nil) as? NSParagraphStyle
+                #expect(style?.textLists.count == (trailing ? 1 : 2))
             }
-            let marked = try raster()
-            view.paper.emptyBlocks = []
-            let plain = try raster()
-            var pixels = 0
-            for y in 0..<marked.pixelsHigh {
-                for x in 0..<marked.pixelsWide where marked.colorAt(x: x, y: y) != plain.colorAt(x: x, y: y) { pixels += 1 }
-            }
-            #expect(pixels > 5)
-            coordinator.update(view)
+            // macOS 27 strips textLists from typingAttributes for the final
+            // zero-length paragraph. Keep its canonical list intent and native
+            // caret; do not invent a marker or insert a placeholder character.
             let baseline = view.string
             view.insertText("New 🌍", replacementRange: NSRange(location: block.offset, length: 0))
             #expect(editor.failure == nil)
             #expect(saved.count == 1)
             #expect(String(editor.text.characters) == (baseline as NSString).replacingCharacters(in: NSRange(location: block.offset, length: 0), with: "New 🌍"))
             #expect(editor.nativeEmptyBlocks.isEmpty)
+            let typedStyle = view.textStorage?.attribute(.paragraphStyle, at: block.offset, effectiveRange: nil) as? NSParagraphStyle
+            #expect(typedStyle?.textLists.count == (trailing ? 1 : 2))
             editor.undo()
             #expect(String(editor.text.characters) == baseline)
         }

@@ -69,7 +69,6 @@ struct RelayMarkEditorTextKit2Tests {
         try raster()
         let marker = try #require(view.paper.taskItems.last).firstParagraphRange.location
         _ = view.characterOffset(at: .zero)
-        _ = view.taskCheckboxOffset(at: CGPoint(x: 2, y: 30))
         view.setSelectedRange(NSRange(location: marker, length: 0))
         view.insertText("x", replacementRange: view.selectedRange())
         try raster()

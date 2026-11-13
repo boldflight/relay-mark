@@ -233,6 +233,28 @@
         }
       }
     },
+    "Attachment" : {
+      "comment" : "Read-only table placeholder for an embedded item that cannot be rendered in the cell.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添付ファイル"
+          }
+        }
+      }
+    },
+    "Read-only table" : {
+      "comment" : "Caption for a preserved table whose cells cannot be edited in this app.",
+      "localizations" : {
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "読み出し専用の表"
+          }
+        }
+      }
+    },
     "Table" : {
       "comment" : "VoiceOver label of a table in the paper.",
       "localizations" : {

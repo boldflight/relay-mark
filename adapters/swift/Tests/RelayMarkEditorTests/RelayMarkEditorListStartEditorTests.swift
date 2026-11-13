@@ -1,4 +1,9 @@
 import Foundation
+#if os(macOS)
+import AppKit
+#else
+import UIKit
+#endif
 @testable import RelayMarkEditor
 @testable import RelayMarkEditorCore
 import Testing
@@ -31,7 +36,10 @@ struct RelayMarkEditorListStartEditorTests {
         #expect(updates.count == 1 && editor.failure == nil)
 
         #expect(String(editor.text.characters) == original && editor.nativeSelection == selected)
-        #expect(editor.text.runs.compactMap { NativeProseCodec.listMarker($0.presentationIntent)?.label } == ["•", "7.", "•"])
+        let native = NativeProseCodec.attributed(editor.text)
+        let nestedOffset = (native.string as NSString).range(of: "Nested").location
+        let nestedStyle = try #require(native.attribute(.paragraphStyle, at: nestedOffset, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(nestedStyle.textLists.last?.startingItemNumber == 7)
         #expect(NativeProseCodec.value(NativeProseCodec.attributed(editor.text)) == editor.text)
         #expect(try document.resolve(anchor: anchor)?.index == 10)
         #expect(try document.resolve(anchor: anchor)?.path == [0, 0, 1, 0, 0, 0])
@@ -84,7 +92,12 @@ struct RelayMarkEditorListStartEditorTests {
         try editor.applyListStart(1, review: review)
         #expect(saved.isEmpty)
         try editor.applyListStart(12, review: review)
-        #expect(editor.text.runs.compactMap { NativeProseCodec.listMarker($0.presentationIntent)?.label } == ["12.", "•", "13."])
+        let native = NativeProseCodec.attributed(editor.text)
+        let outer = try #require(native.attribute(.paragraphStyle, at: 0, effectiveRange: nil) as? NSParagraphStyle)
+        let siblingOffset = (native.string as NSString).range(of: "Sibling").location
+        let sibling = try #require(native.attribute(.paragraphStyle, at: siblingOffset, effectiveRange: nil) as? NSParagraphStyle)
+        #expect(outer.textLists.first?.startingItemNumber == 12)
+        #expect(outer.textLists.first === sibling.textLists.first)
         #expect(saved.count == 1)
     }
 
