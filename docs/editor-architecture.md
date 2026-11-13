@@ -11,6 +11,14 @@ applies each command, a Yjs binding writes its steps, and a TextKit 2 view
 shows a projection of the document. Markdown import and export go through the
 RelayMark format; nothing stores Markdown.
 
+## Native foundation policy
+
+The [November 13 standing rule and foundation plan](plans/2026-11-13-native-editor-foundation.md)
+supersede earlier recommendations to build custom geometry, layout fragments or
+overlays for web parity. The inventory below describes existing implementation,
+not approval to preserve those rendering mechanisms. Preserve the canonical
+model/engine and replace unsupported presentation with established primitives.
+
 ## Layers
 
 | Layer | Swift product | Owns | Depends on |
@@ -131,8 +139,9 @@ keeping our document model rather than its Markdown storage:
 
 - Work scoped to the blocks an edit touches, with the projection kept and
   updated per block instead of rebuilt.
-- One custom layout fragment for block decoration.
+- Historical: custom block-decoration fragments. This is now an audit/removal
+  candidate, not a recommended pattern under the November 13 rule.
 - Synchronous host services with no-op defaults; the engine ships no picker
   UI.
-- Overlay geometry converted through the view hierarchy rather than assumed
-  from the text view's frame.
+- Standard view-coordinate conversion remains valid integration; custom overlay
+  geometry and placement are superseded by the November 13 rule.

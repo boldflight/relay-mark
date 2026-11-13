@@ -41,3 +41,43 @@ and licensing.
 - Apple builds use the latest stable Xcode and its bundled Swift toolchain. Never
   pin an exact Xcode version in policy or automation; newer stable releases are
   adopted without a policy edit (Douglas, November 6, 2026).
+
+## Native text editing primitives — standing rule (Douglas, 2026-11-13)
+
+This rule supersedes earlier feature-parity directions or examples that encourage
+custom native text layout. Apply it to the entire Apple editor stack, including
+app hosts, RelayMark adapters, read-only projections and auxiliary editors.
+
+- Text rendering, shaping, wrapping, line/paragraph layout, caret placement,
+  selection, hit testing, list-marker placement and scrolling primitives must
+  come from Apple's documented text system or a deliberately selected,
+  established, maintained library. Use TextKit 2 for the native editor.
+- ZERO bespoke text geometry or layout algorithms: no guessed line heights,
+  reconstructed glyph/character rectangles, nearest-character loops, manually
+  positioned bullets/numbers/carets, click-offset corrections, parallel layout
+  caches, or layout-forcing work inside drawing to imitate web features. Do not
+  move that code into another helper, package, or an agent-authored framework.
+- Thin adapters may map canonical document ranges to native ranges, set supported
+  attributes, consume framework-provided geometry and use standard coordinate
+  conversion APIs at view boundaries. That is integration, not permission to
+  synthesize replacement geometry or build a second selection/layout engine.
+- Keep the universal Rust engine, canonical RelayMark/ProseMirror/Yjs meaning,
+  web compatibility, authorization and durable edits. Audit custom code; do not
+  discard domain adapters merely because they are ours. Native presentation
+  need not replicate every web feature. Prefer a supported simpler presentation,
+  preserved noneditable content or an explicitly deferred capability to a hack.
+  Never flatten or lose unsupported nodes during editing or save.
+- Evaluate Apple primitives first, then maintained libraries against actual
+  platform coverage, integration fit, maintenance and licensing. Cite the owning
+  API or upstream implementation for the chosen primitive. Inspiration from a
+  project is not permission to copy its custom geometry or maintain a local fork.
+  No new geometry workaround or fallback engine without Douglas's explicit
+  decision; surface the unsupported feature or upstream defect instead.
+- Correct foundations take priority over elaborate regression infrastructure.
+  Do not add a custom layout engine and try to legitimize it with more tests.
+  Retain proportionate integration/conformance checks for our document bridge,
+  composition, undo, synchronization and data preservation, plus a small real
+  editing check for changed behavior. Using a library reduces risk; it does not
+  prove our integration correct. Existing release gates remain applicable.
+
+See [the editor foundation plan](docs/plans/2026-11-13-native-editor-foundation.md) for the audit, candidate evaluation and proposed implementation sequence.
