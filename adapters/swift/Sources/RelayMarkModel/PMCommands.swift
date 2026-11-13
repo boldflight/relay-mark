@@ -266,6 +266,31 @@ package enum PMCommands {
         return nil
     }
 
+    // ProseMirror joinTextblockForward: join only the adjacent textblocks,
+    // rather than restructuring their enclosing list items.
+    package static func joinTextblockForward(_ state: PMState) throws -> PMState? {
+        guard let cursor$ = try cursor(state), cursor$.parent.isTextblock,
+              cursor$.parentOffset == cursor$.parent.content.size,
+              let cut$ = findCutAfter(cursor$), var before = cut$.nodeBefore,
+              var after = cut$.nodeAfter else { return nil }
+        var beforePos = cut$.pos - 1, afterPos = cut$.pos + 1
+        while !before.isTextblock {
+            guard !before.type.flag("isolating"), let child = before.lastChild else { return nil }
+            before = child
+            beforePos -= 1
+        }
+        while !after.isTextblock {
+            guard !after.type.flag("isolating"), let child = after.firstChild else { return nil }
+            after = child
+            afterPos += 1
+        }
+        guard let step = try pmReplaceStep(state.doc, beforePos, afterPos, .empty), step.from == beforePos else { return nil }
+        if case .replace = step, step.slice.size >= afterPos - beforePos { return nil }
+        var transform = state.transform
+        try transform.step(step)
+        return PMState(transform: transform, selection: .text(beforePos))
+    }
+
     package static func selectNodeBackward(_ state: PMState) throws -> PMState? {
         guard case .text(let head) = state.selection else { return nil }
         let head$ = try state.doc.resolve(head)
@@ -530,7 +555,8 @@ package enum PMCommands {
             return try chain(state, [focus, liftItem, .prosemirror(joinBackward)])
         }
         if nextDepth > 0 && nextDepth < position.depth {
-            return try chain(state, [.prosemirror(joinForward), .prosemirror(joinBackward)])
+            if let joined = try joinTextblockForward(state) { return (joined, true) }
+            return (state, false)
         }
         if let joined = try joinItemForward(state) { return (joined, true) }
         return (state, false)

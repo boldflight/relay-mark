@@ -1,5 +1,11 @@
 # RelayMark Elixir adapter release notes
 
+## 0.7.10
+
+- Update the packaged collaboration dependencies and Rustler to current releases.
+  Native list Delete follows the same textblock join as TipTap 3.34, preserving
+  web and Apple editing conformance at nested list boundaries.
+
 ## 0.7.9
 
 - The packaged JS document source (`priv/collaboration/document-source.js`)
