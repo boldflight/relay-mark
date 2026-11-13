@@ -26,12 +26,20 @@ model/engine and replace unsupported presentation with established primitives.
 | 2. Model | `RelayMarkModel` | The ProseMirror port: schema, nodes, slices, resolved positions, steps, transforms, commands | Foundation |
 | 3. Collaboration | `RelayMarkNativeCollaboration` | The Yjs binding (`PMYXmlBridge`), the native replica, editing commands as Yjs transactions, presence, update footprints | 1, 2, `RelayMarkProseProjection`, YSwift |
 | 4a. Editor core | `RelayMarkEditorCore` | The editor session and its editing APIs, the command catalog with platform-neutral shortcuts, and the task glyph value (shape and semantic tint), without SwiftUI, AppKit or UIKit | 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration` |
-| 4b. Editor | `RelayMarkEditor` | The TextKit 2 views for macOS and iOS, system-measured read-only table attachments, native Find/accessibility, command menus, rendering-only peer-selection highlights and task icon graphics, and the services a host supplies | 4a, 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration`, SwiftUI, AppKit/UIKit |
+| 4b. Editor | `RelayMarkEditor` | The TextKit 2 paper views, isolated Apple TextKit 1 table attachments, native Find/accessibility, command menus, rendering-only peer-selection highlights and task icon graphics, and the services a host supplies | 4a, 1, 3, `RelayMarkProseProjection`, `RelayMarkCollaboration`, SwiftUI, AppKit/UIKit |
 | 5. Host | outside this repository | Persistence and transport, authorization, product authoring and UI around the paper | 1–4 |
 
 `RelayMarkProseProjection` and `RelayMarkCollaboration` are shared value types:
 the attributed-text projection of a paper and the local transaction a host
 saves.
+
+Each table has one explicitly initialized `NSTextView`/`UITextView` with native
+`NSTextTable` attributes. Its surrounding paper remains TextKit 2. Apple owns
+table geometry and input primitives; `RelayTableEditor` maps semantic ranges into
+the existing editor session, including collaboration and undo. Table structure
+uses shared engine commands through native controls. See the
+[approved table boundary](plans/2026-11-13-native-editor-foundation.md#native-table-views--approved-follow-up)
+for supported editing and preserved read-only cases.
 
 ### The dependency rule
 

@@ -40,7 +40,7 @@ struct RelayNativeImageRepresentation {
     }
 }
 
-private final class CollaborationUndoManager: UndoManager, @unchecked Sendable {
+final class CollaborationUndoManager: UndoManager, @unchecked Sendable {
     override init() { super.init(); disableUndoRegistration() }
     @MainActor var undoAction: (() -> Void)?
     @MainActor var redoAction: (() -> Void)?
@@ -239,6 +239,7 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             editor.updating = true
             defer { editor.updating = false }
             if view.editingSession === session, session.isEditable { try? finishComposition(view) }
+            editor.retireTables(view)
             if let composition, view.editingSession === session { session.cancelComposition(composition) }
             composition = nil
             if let registration = view.finalizerRegistration { view.editingSession?.unregisterNativeCompositionFinalizer(registration) }
@@ -1123,6 +1124,7 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             updating = true
             defer { updating = false }
             if view.editingSession === session, session.isEditable { try? finishComposition(view) }
+            editor.retireTables(view)
             if let composition, view.editingSession === session { session.cancelComposition(composition) }
             composition = nil
             if let registration = view.finalizerRegistration { view.editingSession?.unregisterNativeCompositionFinalizer(registration) }
@@ -1562,7 +1564,7 @@ final class CollaborationTextView: UITextView, UITextDropDelegate, UITextDragDel
         attributedText = text
     }
 
-    /// Only the table rows near the screen keep cell text views.
+    /// The paper remains on TextKit 2 while table attachments own their native views.
     override func layoutSubviews() {
         super.layoutSubviews()
         assert(textLayoutManager != nil, "The paper switched to TextKit 1 compatibility mode")

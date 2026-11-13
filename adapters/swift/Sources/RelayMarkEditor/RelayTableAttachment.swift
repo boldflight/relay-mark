@@ -22,13 +22,14 @@ struct RelayTableCellModel {
     var text: NSAttributedString
 }
 
-/// A table remains one preserved attachment in the paper. SwiftUI renders a
-/// read-only projection; canonical cell contents and spans stay in the document.
+/// One preserved attachment in the TextKit 2 paper, with its own Apple TextKit 1
+/// view for native table layout and interaction.
 @MainActor
 final class RelayTableAttachment: NSTextAttachment {
+    var editing: (any RelayTableEditing)?
     let identity: Int
     /// The paper offset of the table's first cell; cell ranges count from it.
-    var start: Int
+    var start: Int { didSet { loadedGrid?.updateStart(start) } }
     private(set) var cells: [RelayTableCellModel]
     private var loadedGrid: RelayTableGridView?
     var grid: RelayTableGridView {
@@ -71,7 +72,9 @@ final class RelayTableAttachment: NSTextAttachment {
     func update(start: Int, cells: [RelayTableCellModel]) {
         self.start = start
         guard cells.count != self.cells.count || zip(cells, self.cells).contains(where: { !$0.sameCell(as: $1) }) else {
-            self.cells = cells; return
+            self.cells = cells
+            loadedGrid?.refreshAvailability()
+            return
         }
         let old = self.cells.count
         self.cells = cells
@@ -262,133 +265,4 @@ struct RelayTableSpans {
         }
         return result
     }
-}
-
-/// A read-only table projection. Grid owns all column and row measurement; Text
-/// owns shaping and wrapping. Row-spanning cells are shown once in their starting
-/// row with empty covered positions, without changing the canonical table.
-struct RelayTableContent: View {
-    private struct Row: Identifiable {
-        let id: Int
-        let slots: [Slot]
-    }
-    private struct Slot: Identifiable {
-        let id: Int
-        let cell: RelayTableCellModel?
-    }
-    private let rows: [Row]
-
-    init(cells: [RelayTableCellModel], rows: Int, columns: Int) {
-        let cellsByRow = Dictionary(grouping: cells, by: \.row)
-        self.rows = (0..<rows).map { row in
-            var slots: [Slot] = []
-            var column = 0
-            for cell in (cellsByRow[row] ?? []).sorted(by: { $0.column < $1.column }) {
-                while column < cell.column {
-                    slots.append(Slot(id: column, cell: nil))
-                    column += 1
-                }
-                slots.append(Slot(id: cell.column, cell: cell))
-                column = cell.column + cell.columnSpan
-            }
-            while column < columns {
-                slots.append(Slot(id: column, cell: nil))
-                column += 1
-            }
-            return Row(id: row, slots: slots)
-        }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading) {
-            Label(String(localized: "Read-only table", bundle: .module,
-                         comment: "Caption for a preserved table whose cells cannot be edited in this app."),
-                  systemImage: "tablecells")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 8) {
-                ForEach(rows) { row in
-                    GridRow {
-                        ForEach(row.slots) { slot in
-                            if let cell = slot.cell {
-                                RelayTableCellContent(cell: cell).equatable()
-                                    .gridCellColumns(cell.columnSpan)
-                            } else {
-                                Color.clear.gridCellUnsizedAxes([.horizontal, .vertical])
-                            }
-                        }
-                    }
-                }
-            }
-            .textSelection(.enabled)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// Stable cell identity and value equality let SwiftUI update only changed cell
-/// content. These are document values; SwiftUI still owns every layout decision.
-private struct RelayTableCellContent: View, @MainActor Equatable {
-    let cell: RelayTableCellModel
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.cell.header == rhs.cell.header && lhs.cell.text == rhs.cell.text
-    }
-
-    var body: some View {
-        Text(attributed(cell.text))
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(4)
-            .background(cell.header ? Color.secondary.opacity(0.12) : .clear)
-            .accessibilityAddTraits(cell.header ? .isHeader : [])
-    }
-
-    /// SwiftUI Text does not host NSTextAttachment views. Render their labels in
-    /// this read-only projection only; canonical text and ranges remain untouched.
-    private func attributed(_ text: NSAttributedString) -> AttributedString {
-        let display = NSMutableAttributedString(attributedString: text)
-        var attachments: [(NSRange, String)] = []
-        text.enumerateAttribute(.attachment, in: NSRange(location: 0, length: text.length)) { value, range, _ in
-            guard value is NSTextAttachment else { return }
-            let label = (value as? any RelayTextAttachmentLabel)?.label
-                ?? String(localized: "Attachment", bundle: .module,
-                          comment: "Read-only table placeholder for an embedded item that cannot be rendered in the cell.")
-            attachments.append((range, label))
-        }
-        for (range, label) in attachments.reversed() {
-            var attributes = text.attributes(at: range.location, effectiveRange: nil)
-            attributes[.attachment] = nil
-            display.replaceCharacters(in: range, with: NSAttributedString(string: label, attributes: attributes))
-        }
-        #if os(macOS)
-        return (try? AttributedString(display, including: \.appKit)) ?? AttributedString(display.string)
-        #else
-        return (try? AttributedString(display, including: \.uiKit)) ?? AttributedString(display.string)
-        #endif
-    }
-}
-
-/// Table data refreshes the shared system-measured attachment surface.
-@MainActor
-final class RelayTableGridView: RelayHostingAttachmentView<RelayTableContent> {
-    unowned let table: RelayTableAttachment
-    private var proposedWidth: CGFloat = 0
-
-    init(table: RelayTableAttachment) {
-        self.table = table
-        super.init(rootView: RelayTableContent(cells: table.cells, rows: table.rows, columns: table.columns))
-    }
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-
-    @discardableResult override func layout(width: CGFloat) -> CGSize {
-        proposedWidth = width
-        return super.layout(width: width)
-    }
-
-    func refresh() {
-        rootView = RelayTableContent(cells: table.cells, rows: table.rows, columns: table.columns)
-        if proposedWidth > 0 { layout(width: proposedWidth) }
-    }
-
-    func cellsReplaced(_ old: Range<Int>, count: Int) { refresh() }
 }

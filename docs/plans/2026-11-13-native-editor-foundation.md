@@ -59,13 +59,90 @@ Implementation decisions:
 - Remove custom block fragments, manual disclosure/cursor/chip painting, guessed
   final-line height and nearest-character scanning. Folding stays a semantic
   command using Apple's content-storage enumeration hook.
-- Tables retain their canonical tree and range mapping, but become read-only
-  system-layout attachments. Native cell editing/merged-cell web presentation is
-  deferred; remote changes and whole-table copy/delete must still preserve meaning.
+- Tables retain their canonical tree and range mapping. The subsequently approved
+  native table implementation below replaces the initial read-only presentation.
 - Native text sizing uses documented framework measurements at sizing boundaries,
   never in drawing or in response to a selection-only redraw. The paper keeps its
   host-owned scroll view. App title sizing follows the same policy.
-- Comrak remains the universal parser; no swift-markdown or TextKit 1 fallback.
+- Comrak remains the universal parser; no swift-markdown. The surrounding paper
+  remains TextKit 2; the explicitly approved table views use Apple's TextKit 1.
+
+## Native table views — approved follow-up
+
+Douglas approved one Apple TextKit 1 view per table on November 13, keeping the
+surrounding paper on TextKit 2. No third-party table library or custom geometry.
+
+Apple's Xcode MCP `DocumentationSearch` returned current `NSTextTable`,
+`NSTextTableBlock`, UIKit table construction and AppKit `orderFrontTablePanel`
+documentation. Framework-filtered queries reported "Asset is not installed";
+unfiltered searches succeeded. The installed stable toolchain was Xcode 27.2.
+Stock runtime probes on macOS 27.2.1 and iOS 27.2 confirmed that introducing
+`textBlocks` switches the entire text view to TextKit 1, leaves independent text
+views on TextKit 2, and does not switch back after table removal. Therefore each
+table deliberately constructs its own `NSLayoutManager`/`NSTextContainer` stack.
+The outer text view never receives native table paragraph attributes.
+
+The implementation maps the existing canonical cells to `NSTextTableBlock`
+attributes, including row/column spans. Apple handles layout, wrapping, selection,
+pointer hit testing and caret placement. AppKit measurement uses native used/extra
+line bounds; UIKit uses native `sizeThatFits`. The host keeps the vertical viewport.
+`RelayNativeTableProjection` stores semantic UTF-16 ranges only, distinguishing
+native cell-ending paragraph separators from canonical cell content. Unchanged
+native block identities survive text edits; projection updates replace changed
+cells, not the entire canonical table.
+
+`RelayTableEditor` sends admitted native typing, paragraph edits, marked input,
+formatting and undo/redo through the existing `RelayPaperTextEditing` owner.
+UIKit also inserts text without calling its should-change delegate on some
+`UITextInput` paths. The adapter adopts the exact character range and length
+delta reported by `NSTextStorage`, mapped before updating presentation offsets,
+through those same engine commands. It does not diff the rendered table or infer
+text from geometry. Native Select All's final paragraph separator maps to the
+last canonical cell endpoint, so structural commands use the visible selection.
+Peer changes use the existing canonical splice and anchored-selection paths.
+Structural controls use the shared table command catalog on every platform.
+The AppKit table panel cannot bypass that owner with independent mutations.
+No RTF/Markdown round-trip, second document state, or native undo history owns
+durable edits.
+
+Separate text views have separate selection boundaries; continuous selection
+from outer prose into individual cells is not synthesized. Text replacements
+crossing native cell separators are refused; shared structural commands operate
+on canonical selected cells. Tables containing attachments that require TextKit 2
+view providers remain read-only with native text labels; all canonical nodes are
+preserved. Ordinary table text and supported inline marks are editable.
+
+The final focused Mac run passed 28 table, TextKit-boundary and command tests,
+including native typing, canonical/peer convergence, collaborative undo,
+active-cell peer caret mapping, marked-input commit, structural commands,
+native hit testing, Select All and restoration of unsupported native-only
+formatting. Four mounted iPhone tests, including replacement/deletion/Return
+cases, passed using an actual window and first responder. The complete Swift
+package run passed its functional checks; three existing prose timing gates
+failed in that run and all three passed in a fresh process with unchanged
+thresholds. The timing failures were not reproduced in that fresh process;
+their precise cause was not established.
+Logs: `/tmp/relay-native-table-tests-{full,latest-focused,perf-rerun}.log` and
+`/tmp/relay-native-table-iphone-adoption-tests.log`.
+The app's full package suite passed 1,621 tests against the local candidate.
+Final candidate Release builds passed for macOS, iOS and visionOS, using the
+stable Xcode 27.2 toolchain and isolated caches. App publication also verifies
+the tracked dependency pin against this published source without an override.
+
+Actual mouse dispatch was exercised in the standalone stock AppKit probe.
+The package suite checks Apple's native hit target and insertion index: sending
+tracking events inside Swift Testing caused its helper to exit before reporting
+a result, so that incomplete run is not counted as a pass. These checks do not
+establish manual acceptance in Douglas's original paper.
+
+The preceding stock UIKit probe found a border overlap when mixing
+prose and tables in one text view; a table-only view sized by Apple's fitting API
+contained the complete table without compensation.
+
+Owning Apple APIs: [NSTextTable](https://developer.apple.com/documentation/appkit/nstexttable),
+[NSTextTableBlock](https://developer.apple.com/documentation/appkit/nstexttableblock),
+[UIKit attributed-string tables](https://developer.apple.com/documentation/uikit/adding-tables-to-attributed-strings),
+and [NSTextStorage edit notifications](https://developer.apple.com/documentation/appkit/nstextstorage/didprocesseditingnotification).
 
 ## Large-list performance qualification — accepted native limit
 

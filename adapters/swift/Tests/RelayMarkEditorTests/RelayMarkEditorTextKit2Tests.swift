@@ -10,29 +10,33 @@ import AppKit
 import UIKit
 #endif
 
-/// The paper editor is one TextKit 2 editor. Touching a text view's TextKit 1
-/// layout manager permanently switches that view to compatibility mode.
+/// The paper stays on TextKit 2. Only its isolated native table adapters may
+/// create a TextKit 1 layout manager; they never downgrade the containing paper.
 @MainActor
 struct RelayMarkEditorTextKit2Tests {
     private static let forbidden = try! NSRegularExpression(
         pattern: #"\blayoutManager\b|(?<!willSwitchTo)NSLayoutManager|numberOfGlyphs|glyphIndex|glyphRange|CollaborationTextView\(frame"#)
+    private static let forbiddenInTableAdapter = try! NSRegularExpression(
+        pattern: #"numberOfGlyphs|glyphIndex|glyphRange|CollaborationTextView\(frame"#)
 
-    @Test func sourcesNeverReachForATextKit1LayoutManager() throws {
+    @Test func textKit1IsConfinedToTheNativeTableAdapter() throws {
         let sources = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appending(path: "Sources")
         let files = try #require(FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil))
+        let tableAdapter = sources.appending(path: "RelayMarkEditor/RelayNativeTableView.swift").standardizedFileURL
         var offenders: [String] = []
         for case let file as URL in files where file.pathExtension == "swift" {
             let text = try String(contentsOf: file, encoding: .utf8)
+            let forbidden = file.standardizedFileURL == tableAdapter ? Self.forbiddenInTableAdapter : Self.forbidden
             for (index, line) in text.components(separatedBy: "\n").enumerated() {
                 let range = NSRange(line.startIndex..., in: line)
-                if Self.forbidden.firstMatch(in: line, range: range) != nil {
+                if forbidden.firstMatch(in: line, range: range) != nil {
                     offenders.append(file.lastPathComponent + ":" + String(index + 1))
                 }
             }
         }
-        #expect(offenders.isEmpty, "TextKit 1 API in Sources: \(offenders)")
+        #expect(offenders.isEmpty, "TextKit 1 outside the table adapter or glyph geometry in Sources: \(offenders)")
     }
 
     private func fixture(_ name: String) throws -> Data {

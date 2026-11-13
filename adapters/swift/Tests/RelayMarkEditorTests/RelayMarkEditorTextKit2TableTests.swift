@@ -9,7 +9,7 @@ import RelayMarkProseProjection
 #if os(macOS)
 import AppKit
 
-/// Tables use a system-laid-out read-only attachment, preserving their canonical tree.
+/// Each table has a native TextKit 1 editor inside the paper's TextKit 2 attachment.
 @MainActor @Suite(.serialized)
 struct RelayMarkEditorTextKit2TableTests {
     @MainActor private struct Mounted {
@@ -29,16 +29,16 @@ struct RelayMarkEditorTextKit2TableTests {
         func retire() { coordinator.retire(view); window.contentView = nil; window.close() }
     }
 
-    private func mount(_ markdown: String) throws -> Mounted {
+    private func mount(_ markdown: String, canEdit: @escaping () -> Bool = { true }) throws -> Mounted {
         _ = NSApplication.shared
         let document = RelayMarkNativeDocument()
         _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(markdown, namespace: "tables"))
-        return try mount(document: document)
+        return try mount(document: document, canEdit: canEdit)
     }
 
-    private func mount(document: RelayMarkNativeDocument) throws -> Mounted {
+    private func mount(document: RelayMarkNativeDocument, canEdit: @escaping () -> Bool = { true }) throws -> Mounted {
         _ = NSApplication.shared
-        let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
+        let editor = try RelayMarkEditorSession(document: document, canEdit: canEdit, persist: { _ in })
         let coordinator = RelayMarkEditorView.TextCoordinator(session: editor)
         let view = coordinator.makeTextView(accessibilityLabel: "Paper")
         let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 480, height: 360),
@@ -63,6 +63,27 @@ struct RelayMarkEditorTextKit2TableTests {
     After
     """
 
+    private func focus(_ range: NSRange, in paper: Mounted) throws -> RelayNativeTableTextView {
+        let grid = paper.table.grid
+        grid.layout(width: 400)
+        paper.window.displayIfNeeded()
+        let native = try #require(grid.projection.nativeRange(forPaper: range))
+        #expect(paper.window.makeFirstResponder(grid.textView))
+        grid.textView.setSelectedRange(native)
+        return grid.textView
+    }
+
+    private func cellIDs(_ document: RelayMarkNativeDocument) throws -> [String] {
+        let tree = try #require(JSONSerialization.jsonObject(with: document.snapshot()) as? [String: Any])
+        func visit(_ node: [String: Any]) -> [String] {
+            let children = (node["children"] as? [[String: Any]] ?? []).flatMap(visit)
+            guard ["tableCell", "tableHeader"].contains(node["name"] as? String ?? ""),
+                  let id = (node["attributes"] as? [String: Any])?["relaymarkId"] as? String else { return children }
+            return [id] + children
+        }
+        return visit(tree)
+    }
+
     @Test func aTableIsOnePreservedAttachmentWithSystemLayout() throws {
         let paper = try mount(table)
         defer { paper.retire() }
@@ -71,10 +92,233 @@ struct RelayMarkEditorTextKit2TableTests {
         #expect(paper.table.cells.map(\.text.string) == ["Name", "Note", "left cell", "right cell", "lower left", "lower right"])
         let size = paper.table.grid.layout(width: 400)
         #expect(size.width > 0 && size.height > 0)
+        #expect(paper.table.grid.textView.textLayoutManager == nil, "Only the native table view uses TextKit 1")
+        #expect(paper.view.textLayoutManager != nil, "Loading the table must not downgrade the paper")
         #expect(paper.table.readable.string == "Name\tNote\nleft cell\tright cell\nlower left\tlower right")
         // The paper keeps the cells' text; the view maps its offsets around the table.
         let after = paper.offset("After")
         #expect(paper.view.paper.tables.paper(after) == (paper.paperText as NSString).range(of: "After").location)
+    }
+
+    @Test func nativeTableEditabilityTracksThePaperWithoutChangingContent() throws {
+        var editable = true
+        let paper = try mount(table, canEdit: { editable })
+        defer { paper.retire() }
+        let native = paper.table.grid.textView
+        #expect(native.isEditable)
+        editable = false
+        paper.coordinator.update(paper.view)
+        #expect(!native.isEditable)
+        editable = true
+        paper.coordinator.update(paper.view)
+        #expect(native.isEditable)
+        #expect(paper.view.textLayoutManager != nil && native.textLayoutManager == nil)
+    }
+
+    @Test func nativeHitTestingMapsTheIntendedTableCellToCanonicalText() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let canonical = (paper.paperText as NSString).range(of: "lower right")
+        let initial = (paper.paperText as NSString).range(of: "Name")
+        let native = try focus(NSRange(location: initial.location, length: 0), in: paper)
+        let range = try #require(paper.table.grid.projection.nativeRange(forPaper: canonical))
+        let rect = native.firstRect(forCharacterRange: range, actualRange: nil)
+        #expect(rect.width > 0 && rect.height > 0)
+        let point = paper.window.convertPoint(fromScreen: NSPoint(x: rect.midX, y: rect.midY))
+        let superview = try #require(paper.view.superview)
+        let target = try #require(paper.view.hitTest(superview.convert(point, from: nil)))
+        try #require(target === native, "The paper attachment must deliver the native text view's own mouse events")
+        // AppKit owns the insertion-point hit test; the adapter only maps its
+        // character offset back to the canonical document.
+        let insertion = native.characterIndexForInsertion(at: native.convert(point, from: nil))
+        native.setSelectedRange(NSRange(location: insertion, length: 0))
+        let selected = try #require(paper.editor.nativeSelection)
+        #expect(selected.location >= canonical.location && NSMaxRange(selected) <= NSMaxRange(canonical))
+        #expect(paper.view.textLayoutManager != nil && native.textLayoutManager == nil)
+    }
+
+    @Test func nativeCellTypingUsesSharedDocumentHistoryAndPreservesCellIdentities() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let before = paper.paperText
+        let originalIDs = try cellIDs(paper.document)
+        let peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(paper.document.encodeUpdate())
+        let insertion = (before as NSString).range(of: "left cell").location + 4
+        let native = try focus(NSRange(location: insertion, length: 0), in: paper)
+        native.insertText(" edited", replacementRange: native.selectedRange())
+        paper.coordinator.update(paper.view)
+        #expect(paper.editor.failure == nil)
+        #expect(paper.paperText.contains("left edited cell"))
+        #expect(native.string.contains("left edited cell"))
+        #expect(try cellIDs(paper.document) == originalIDs)
+        try peer.applyUpdate(paper.document.encodeUpdate())
+        #expect(String(try peer.richProseProjection().text.characters) == paper.paperText)
+        #expect(paper.view.textLayoutManager != nil && native.textLayoutManager == nil)
+
+        // The changed cell length must also move the following cell's mapping.
+        let nextCell = (paper.paperText as NSString).range(of: "right cell").location + 2
+        _ = try focus(NSRange(location: nextCell, length: 0), in: paper)
+        #expect(paper.editor.nativeSelection == NSRange(location: nextCell, length: 0))
+        native.moveRight(nil)
+        #expect(paper.editor.nativeSelection == NSRange(location: nextCell + 1, length: 0))
+        native.moveLeft(nil)
+        #expect(paper.editor.nativeSelection == NSRange(location: nextCell, length: 0))
+
+        try #require(native.undoManager).undo()
+        paper.coordinator.update(paper.view)
+        #expect(paper.paperText == before, "The cell must use collaboration-owned undo")
+        #expect(native.string.contains("left cell") && !native.string.contains("edited"))
+        #expect(try cellIDs(paper.document) == originalIDs)
+        try peer.applyUpdate(paper.document.encodeUpdate())
+        #expect(String(try peer.richProseProjection().text.characters) == before)
+    }
+
+    @Test func unsupportedNativeFormattingRestoresCanonicalCellAttributes() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let canonical = (paper.paperText as NSString).range(of: "left cell")
+        let native = try focus(canonical, in: paper)
+        let range = try #require(paper.table.grid.projection.nativeRange(forPaper: canonical))
+        let storage = try #require(native.textStorage)
+        let original = storage.attributedSubstring(from: range)
+        let snapshot = try paper.document.snapshot()
+
+        // A native attribute edit does not have a text replacement to journal.
+        // Unsupported styling must not survive outside the shared document.
+        storage.addAttribute(.foregroundColor, value: NSColor.systemPink, range: range)
+        native.didChangeText()
+
+        #expect(storage.attributedSubstring(from: range).isEqual(to: original))
+        #expect(try paper.document.snapshot() == snapshot)
+        #expect(paper.view.textLayoutManager != nil && native.textLayoutManager == nil)
+    }
+
+    @Test func aPeerEditMapsTheFocusedNativeCellCaret() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let start = (paper.paperText as NSString).range(of: "left cell").location
+        let native = try focus(NSRange(location: start + 3, length: 0), in: paper)
+        let oldCaret = native.selectedRange()
+        let peer = RelayMarkNativeDocument()
+        try peer.applyUpdate(paper.document.encodeUpdate())
+        let position = try #require(try peer.richProseProjection().textPosition(replacing: NSRange(location: start, length: 0)))
+        try paper.editor.applyRemoteUpdate(try peer.typeText("Peer ", replacing: 0, at: 0, path: position.path).update)
+        paper.coordinator.update(paper.view)
+        #expect(native.string.contains("Peer left cell"))
+        #expect(native.selectedRange() == NSRange(location: oldCaret.location + 5, length: 0))
+        #expect(paper.window.firstResponder === native)
+        #expect(paper.view.textLayoutManager != nil)
+    }
+
+    @Test func nativeCellSelectionDrivesTheSharedRowCommand() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let originalIDs = try cellIDs(paper.document)
+        let start = (paper.paperText as NSString).range(of: "left cell").location
+        let native = try focus(NSRange(location: start + 1, length: 0), in: paper)
+        #expect(try paper.editor.prepareTableEdit().available.contains(.addRowAfter))
+        paper.editor.performSelectedTableCommand(.addRowAfter)
+        paper.coordinator.update(paper.view)
+        #expect(paper.editor.failure == nil)
+        #expect(paper.table.rows == 4)
+        #expect(Set(originalIDs).isSubset(of: Set(try cellIDs(paper.document))))
+        #expect(paper.table.cells.filter { !$0.text.string.isEmpty }.map(\.text.string) ==
+            ["Name", "Note", "left cell", "right cell", "lower left", "lower right"])
+        #expect(native.string.contains("lower right"))
+        #expect(paper.view.textLayoutManager != nil && native.textLayoutManager == nil)
+    }
+
+    @Test func markedCellTextStaysPrivateUntilItsNativeCommit() async throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let before = paper.paperText
+        let initial = try paper.document.encodeUpdate()
+        let insertion = (before as NSString).range(of: "right cell").location
+        let native = try focus(NSRange(location: insertion, length: 0), in: paper)
+        native.setMarkedText("に", selectedRange: NSRange(location: 1, length: 0),
+                             replacementRange: NSRange(location: NSNotFound, length: 0))
+        native.setMarkedText("にほん", selectedRange: NSRange(location: 3, length: 0),
+                             replacementRange: NSRange(location: NSNotFound, length: 0))
+        #expect(native.hasMarkedText())
+        #expect(paper.paperText == before)
+        #expect(try paper.document.encodeUpdate() == initial)
+        native.insertText("日本", replacementRange: NSRange(location: NSNotFound, length: 0))
+        for _ in 0..<8 { await Task.yield() }
+        try paper.editor.finishNativeComposition()
+        paper.coordinator.update(paper.view)
+        #expect(!native.hasMarkedText())
+        #expect(paper.editor.failure == nil)
+        #expect(paper.paperText.contains("日本right cell"))
+        #expect(native.string.contains("日本right cell"))
+        #expect(paper.view.textLayoutManager != nil)
+    }
+
+    @Test func aCanonicalMergedCellUsesApplesRowSpan() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let source = paper.paperText as NSString
+        let start = source.range(of: "Name").location
+        let end = source.range(of: "left cell").location
+        _ = try focus(NSRange(location: start, length: end - start), in: paper)
+        #expect(try paper.editor.prepareTableEdit().available.contains(.mergeCells))
+        paper.editor.performSelectedTableCommand(.mergeCells)
+        paper.coordinator.update(paper.view)
+        #expect(paper.editor.failure == nil)
+        let model = try #require(paper.table.cells.first { $0.rowSpan == 2 })
+        let range = try #require(paper.table.grid.projection.nativeRange(forPaper:
+            NSRange(location: paper.table.start + model.range.location, length: 0)))
+        let attributes = paper.table.grid.textView.textStorage!.attributes(at: range.location, effectiveRange: nil)
+        let style = try #require(attributes[.paragraphStyle] as? NSParagraphStyle)
+        let block = try #require(style.textBlocks.last as? NSTextTableBlock)
+        #expect(block.rowSpan == 2 && block.columnSpan == 1)
+        #expect(block.startingRow == 0 && block.startingColumn == 0)
+        #expect(paper.view.textLayoutManager != nil)
+    }
+
+    @Test func nativeSelectAllMapsTheLastCellBeforeSharedTableCommands() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let originalCellTexts = paper.table.cells.map(\.text.string)
+        let previousCaret = (paper.paperText as NSString).range(of: "left cell").location
+        let native = try focus(NSRange(location: previousCaret, length: 0), in: paper)
+
+        native.selectAll(nil)
+
+        #expect(native.selectedRange() == NSRange(location: 0, length: native.string.utf16.count))
+        #expect(paper.editor.nativeSelection == paper.table.canonicalRange,
+            "The final native separator must not leave a stale canonical caret")
+        #expect(paper.table.grid.projection.editablePaperRange(forNative: native.selectedRange()) == nil,
+            "Mapping selection must not allow native replacement across cell boundaries")
+        #expect(try paper.editor.prepareTableEdit().available.contains(.mergeCells))
+        paper.editor.performSelectedTableCommand(.mergeCells)
+        paper.coordinator.update(paper.view)
+        #expect(paper.editor.failure == nil)
+        #expect(paper.table.cells.count == 1)
+        // The canonical engine removes rows covered entirely by the merged cell.
+        #expect(paper.table.cells.first?.rowSpan == 1)
+        #expect(paper.table.cells.first?.columnSpan == 2)
+        for text in originalCellTexts {
+            #expect(paper.table.cells.first?.text.string.contains(text) == true)
+        }
+        #expect(paper.view.textLayoutManager != nil && native.textLayoutManager == nil)
+    }
+
+    @Test func nativeTextReplacementCannotConsumeACellBoundary() throws {
+        let paper = try mount(table)
+        defer { paper.retire() }
+        let before = try paper.document.snapshot()
+        let first = (paper.paperText as NSString).range(of: "left cell")
+        let second = (paper.paperText as NSString).range(of: "right cell")
+        let native = try focus(NSRange(location: first.location, length: 0), in: paper)
+        let start = try #require(paper.table.grid.projection.nativeRange(forPaper: first)).location
+        let end = NSMaxRange(try #require(paper.table.grid.projection.nativeRange(forPaper: second)))
+        let originalNativeText = native.string
+        native.setSelectedRange(NSRange(location: start, length: end - start))
+        native.insertText("Replacement", replacementRange: native.selectedRange())
+        #expect(try paper.document.snapshot() == before)
+        #expect(native.string == originalNativeText)
+        #expect(paper.table.cells.count == 6)
     }
 
     @Test func peerEditsInACellKeepTheLocalCaret() throws {
@@ -187,8 +431,7 @@ struct RelayMarkEditorTextKit2TableTests {
         var updates: [Data] = []
         let peerEditor = try RelayMarkEditorSession(document: peer, persist: { updates.append($0.update) })
         peerEditor.setNativeSelection((String(peerEditor.text.characters) as NSString).range(of: "Insert here"))
-        // The portable engine still accepts tables from other clients even though
-        // native menus do not offer creating an uneditable empty table.
+        // A peer inserts through the same portable table command as native controls.
         peerEditor.insertTable()
         #expect(peerEditor.failure == nil)
         try paper.editor.applyRemoteUpdate(try #require(updates.last))

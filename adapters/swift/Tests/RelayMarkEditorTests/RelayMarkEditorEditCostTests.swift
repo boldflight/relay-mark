@@ -304,7 +304,7 @@ struct RelayMarkEditorEditCostTests {
         defer { coordinator.retire(view) }
         coordinator.update(view)
         // After marks and at paragraph starts, where TextKit's typing attributes come
-        // from a neighbour. Table contents below use the preserved read-only projection.
+        // from a neighbour. Table contents below are projected through their attachment.
         let places = ["Heading bold", "Plain bold", "a link", "First item", "Open task", "Last"].map { ($0, true) } +
             ["Plain", "First", "Open", "Last"].map { ($0, false) }
         for (needle, after) in places {
@@ -316,7 +316,7 @@ struct RelayMarkEditorEditCostTests {
             #expect(editor.textRevision != before && editor.failure == nil, "typing after \(needle)")
             expectRendersLikeFullRender(view, editor)
         }
-        // Shared table edits refresh the read-only native attachment.
+        // Shared table edits refresh the native table attachment.
         for needle in ["left", "right"] {
             let at = (String(editor.text.characters) as NSString).range(of: needle).location + needle.utf16.count
             #expect(editor.typeNatively(range: NSRange(location: at, length: 0), replacement: "z"))
@@ -785,9 +785,8 @@ struct RelayMarkEditorEditCostTests {
         return document
     }
 
-    /// Supported native work beside a preserved read-only table, plus a peer's
-    /// cell edit. Cell-editor operations belong to the shared engine tests; the
-    /// native adapter does not expose an editable text view inside a table.
+    /// Native work beside a table, plus a peer's cell edit. Focused table-view
+    /// tests separately exercise local input through its native text view.
     private func tableEdits(bytes: Int) async throws -> Probe {
         let document = try tablePaper(bytes: bytes)
         let peer = RelayMarkNativeDocument(); try peer.applyUpdate(document.encodeUpdate())
@@ -816,7 +815,7 @@ struct RelayMarkEditorEditCostTests {
             let path = try #require(peer.richProseProjection().textPosition(replacing: NSRange(location: paper.location, length: 0))).path
             let typed = try peer.typeText("p", replacing: 0, at: 1, path: path).update
             try measure("peer type") { try editor.applyRemoteUpdate(typed); coordinator.update(view) }
-            #expect(view.selectedRange() == selection, "a peer's read-only cell update keeps the local prose selection")
+            #expect(view.selectedRange() == selection, "a peer's cell update keeps the local prose selection")
             try peer.applyUpdate(document.encodeUpdate(since: peer.stateVector()))
             return samples
         }, finish: {

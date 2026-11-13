@@ -133,9 +133,6 @@ public extension RelayMarkEditorSession {
         case .listDepth(.outdent): return canOutdentSelectedListItem
         case .mark(.code): return canFormatInlineCodeSelection
         case .mark, .offeredMark: return canFormatInlineSelection
-        // Native tables are preserved read-only attachments until an established
-        // cell editor is selected. Do not offer creating a grid the user cannot fill.
-        case .insert(.table): return false
         case .insert: return canInsertBlock
         }
     }

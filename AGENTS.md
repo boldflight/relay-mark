@@ -51,7 +51,12 @@ app hosts, RelayMark adapters, read-only projections and auxiliary editors.
 - Text rendering, shaping, wrapping, line/paragraph layout, caret placement,
   selection, hit testing, list-marker placement and scrolling primitives must
   come from Apple's documented text system or a deliberately selected,
-  established, maintained library. Use TextKit 2 for the native editor.
+  established, maintained library. Keep the surrounding paper on TextKit 2.
+  Douglas approved one explicitly initialized Apple TextKit 1 text view per
+  table on November 13, 2026. Use `NSTextTable`/`NSTextTableBlock` and native
+  controls and measurements there; never let a table downgrade the paper view.
+  Cell edits, structural commands and undo still use the shared canonical engine
+  and collaboration history. This exception does not permit custom geometry.
 - ZERO bespoke text geometry or layout algorithms: no guessed line heights,
   reconstructed glyph/character rectangles, nearest-character loops, manually
   positioned bullets/numbers/carets, click-offset corrections, parallel layout

@@ -113,6 +113,9 @@ package protocol RelayPaperTextEditing: AnyObject {
     func undo()
     func redo()
     func beginComposition() throws -> Composition
+    func declareMarkedInput(_ literal: String?, replacement: NSRange, selection: NSRange,
+        platform: RelayDeclaredMarkedInput.Platform, suppliedReplacement: NSRange?,
+        phase: RelayDeclaredMarkedInput.Phase, from composition: Composition) -> Bool
     func commitComposition(_ proposed: AttributedString, from composition: Composition) throws
     /// Commits declared marked input in place when it stays inside one text leaf.
     func commitCompositionNatively(from composition: Composition, renderedLength: Int,
@@ -150,6 +153,9 @@ extension RelayPaperTextEditing {
     package func toggleMarkNatively(_ mark: RelayMarkFormattingMark, range: NSRange) -> Bool { false }
     package func commitCompositionNatively(from composition: Composition, renderedLength: Int,
                                    rendered: (NSRange) -> String?) -> (range: NSRange, text: String)? { nil }
+    package func declareMarkedInput(_ literal: String?, replacement: NSRange, selection: NSRange,
+        platform: RelayDeclaredMarkedInput.Platform, suppliedReplacement: NSRange?,
+        phase: RelayDeclaredMarkedInput.Phase, from composition: Composition) -> Bool { false }
     package func acceptsNativeReplacement(baseline: String, range: NSRange, replacement: String) -> Bool { true }
     package func handleNativeListIndent(backward: Bool) -> Bool { false }
     package func deleteTableNatively(at paperLocation: Int) -> Bool { false }

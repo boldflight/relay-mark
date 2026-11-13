@@ -296,6 +296,12 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing> {
         }
     }
 
+    /// Retiring the outer editor also retires any marked input owned by its
+    /// independent native table views. They never keep a second session alive.
+    func retireTables(_ view: any RelayPaperTextView) {
+        for table in view.paper.tableAttachments.values { table.editing?.cancelComposition() }
+    }
+
     // MARK: Input
 
     /// Decides a replacement TextKit is about to make in the paper view.
@@ -450,6 +456,9 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing> {
     /// Ends a composition with the paper the view shows.
     func finishComposition(_ view: any RelayPaperTextView) throws {
         guard !view.retired, view.editingSession === session else { throw CancellationError() }
+        for table in view.paper.tableAttachments.values where table.editing?.isComposing == true {
+            try table.editing?.finishComposition()
+        }
         guard let token = composition else { return }
         let wasUpdating = updating
         updating = true
@@ -481,6 +490,10 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing> {
         if !view.isPaperEditable {
             if let composition { session.cancelComposition(composition) }
             composition = nil; view.cancelCompositionCompletion(); view.unmarkPaperText()
+            for table in view.paper.tableAttachments.values {
+                table.editing?.cancelComposition()
+                if table.isGridLoaded { table.grid.refresh() }
+            }
         }
         // Observed, so a host tick (which changes a task's state, not the paper's text) re-renders;
         // compared as one number, never by reading every task item per update.
@@ -528,6 +541,10 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing> {
             return table
         }
         let table = RelayTableAttachment(identity: identity, start: start, cells: cells)
+        table.editing = RelayTableEditor(table: table, paperView: view, session: session) { [weak self, weak view] in
+            guard let self, let view else { return }
+            self.update(view)
+        }
         view.paper.tableAttachments[identity] = table
         return table
     }
@@ -535,10 +552,11 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing> {
     private func syncSelection(_ view: any RelayPaperTextView) {
         let tables = view.paper.tables
         if let range = session.nativeSelection {
-            if let hit = tables.table(holding: range),
-               let span = tables.spans.first(where: { $0.table === hit.table }) {
+            if let index = tables.table(containing: range) {
+                let span = tables.spans[index]
                 let shown = NSRange(location: span.view, length: 1)
                 if view.viewSelection != shown { view.showSelection(shown) }
+                if span.table.isGridLoaded { span.table.grid.showSelection(paper: range) }
             } else if let shown = tables.view(range), NSMaxRange(shown) <= view.viewLength, view.viewSelection != shown {
                 view.showSelection(shown)
             }
