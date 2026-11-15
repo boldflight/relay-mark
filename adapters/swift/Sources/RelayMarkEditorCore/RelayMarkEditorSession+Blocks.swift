@@ -372,19 +372,26 @@ extension RelayMarkEditorSession {
         retryPersistence()
     }
 
-    private func selectedRichTextBlock() throws -> (index: Int, range: NSRange, name: String, level: Int?)? {
+    private func selectedRichTextBlock() throws -> SelectedTextBlock? {
         guard isEditable, pending == nil,
               activeComposition == nil, let selection = nativeSelection else { return nil }
-        let projection = try currentProjection()
-        guard let row = projection.blockRanges.enumerated().first(where: { index, range in
-            projection.blockPaths[index].count == 1 && selection.location >= range.location &&
-                NSMaxRange(selection) <= NSMaxRange(range)
-        }), let tree = try document.editingTree(),
-              let blocks = tree["children"] as? [[String: Any]] else { return nil }
-        let index = projection.blockPaths[row.offset][0]
-        guard blocks.indices.contains(index), let name = blocks[index]["name"] as? String,
-              ["paragraph", "heading"].contains(name) else { return nil }
-        return (index, selection, name, (blocks[index]["attributes"] as? [String: Any])?["level"] as? Int)
+        // A Format menu asks once per block style; the answer holds until the paper or selection changes.
+        if let cached = selectedTextBlockCache, cached.revision == document.revision, cached.selection == selection {
+            return cached.block
+        }
+        // Only the blocks the selection touches, and the one top-level node
+        // holding it, are read: never the whole paper.
+        let projection = try currentProjection().restricted(covering: selection)
+        let ranges = projection.blockRanges, paths = projection.blockPaths
+        var block: SelectedTextBlock?
+        if let row = ranges.indices.first(where: {
+            paths[$0].count == 1 && selection.location >= ranges[$0].location && NSMaxRange(selection) <= NSMaxRange(ranges[$0])
+        }), let node = try document.editingTopLevelNode(paths[row][0]),
+           let name = node["name"] as? String, ["paragraph", "heading"].contains(name) {
+            block = (paths[row][0], selection, name, (node["attributes"] as? [String: Any])?["level"] as? Int)
+        }
+        selectedTextBlockCache = (document.revision, selection, block)
+        return block
     }
 
     public var canSetSelectedBlockStyle: Bool { (try? selectedRichTextBlock()) != nil }

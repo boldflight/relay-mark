@@ -10,7 +10,14 @@ import RelayMarkSwift
 /// persists each exact update through its existing account-bound journal.
 @MainActor @Observable
 public final class RelayMarkEditorSession {
-    public internal(set) var text: AttributedString { didSet { textRevision &+= 1; scheduleWordCount() } }
+    public internal(set) var text: AttributedString {
+        didSet { textRevision &+= 1; selectionText = text; textLength = text.utf16.count; scheduleWordCount() }
+    }
+    /// `text` and its UTF-16 length, kept with it (the same storage, never a
+    /// copy). Selection reads use them, so asking what is selected does not
+    /// make a view observe every keystroke; the selection callback reports changes.
+    @ObservationIgnored private var selectionText = AttributedString()
+    @ObservationIgnored private var textLength = 0
     /// Counted after typing pauses, so a footer never reads the whole paper per keystroke.
     public internal(set) var wordCount = 0
     @ObservationIgnored var wordCountTask: Task<Void, Never>?
@@ -37,6 +44,9 @@ public final class RelayMarkEditorSession {
     @ObservationIgnored private var selectedRange: NSRange?
     /// The document projection, kept for the document revision it describes.
     @ObservationIgnored var projectionCache: (revision: Int, value: RelayMarkCollaborativeProse)?
+    typealias SelectedTextBlock = (index: Int, range: NSRange, name: String, level: Int?)
+    /// The top-level paragraph or heading holding the selection, for the document revision and selection it was read at.
+    @ObservationIgnored var selectedTextBlockCache: (revision: Int, selection: NSRange, block: SelectedTextBlock?)?
     /// Sections of the text revision they were read from.
     @ObservationIgnored var sectionCache: (revision: Int, sections: [RelayPaperSection])?
     /// A host's request to move keyboard focus into the paper, until a view takes it.
@@ -79,8 +89,9 @@ public final class RelayMarkEditorSession {
         }
         if let atom = nativeEntityReferenceAtoms.first(where: { contains($0.range) }) { return atom.entityID }
         // Only the selected runs are read, so the cost follows the selection, not the paper.
+        let text = selectionText
         let probe = selection.length == 0
-            ? NSRange(location: selection.location, length: selection.location < text.utf16.count ? 1 : 0) : selection
+            ? NSRange(location: selection.location, length: selection.location < textLength ? 1 : 0) : selection
         guard probe.length > 0, let range = Range(probe, in: text) else { return nil }
         var selectedIDs = Set<String>()
         for run in text[range].runs {
@@ -151,6 +162,8 @@ public final class RelayMarkEditorSession {
         self.canEdit = canEdit
         self.persist = persist
         text = projection.text
+        selectionText = projection.text
+        textLength = projection.text.utf16.count
         projectionCache = (document.revision, projection)
         wordCount = Self.words(in: String(projection.text.characters))
         isSupported = true // The shared projector validated a canonical identified document.
@@ -720,7 +733,7 @@ public final class RelayMarkEditorSession {
 
     public var nativeSelection: NSRange? {
         guard !invalidated, let range = selectedRange else { return nil }
-        let length = text.utf16.count
+        let length = textLength
         let location = min(range.location, length)
         return NSRange(location: location, length: min(range.length, length - location))
     }

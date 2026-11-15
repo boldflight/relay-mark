@@ -407,6 +407,20 @@ public final class RelayMarkNativeDocument {
     /// The number of top-level nodes.
     public var topLevelCount: Int { Int(root.length()) }
 
+    /// Top-level node `index` as `editingTree()` shows it, read without the
+    /// rest of the paper; nil when there is none.
+    package func editingTopLevelNode(_ index: Int) throws -> [String: Any]? {
+        guard topLevelCount > 0 else {
+            // The empty fragment's placeholder paragraph.
+            let blocks = Self.projected(["kind": "fragment", "children": [Any]()])["children"] as? [[String: Any]] ?? []
+            return blocks.indices.contains(index) ? blocks[index] : nil
+        }
+        guard index >= 0, index < topLevelCount else { return nil }
+        // Through JSON, so values have the same types as in `editingTree()`.
+        let data = try JSONSerialization.data(withJSONObject: snapshot(topLevel: index..<(index + 1)), options: [.sortedKeys])
+        return ((try JSONSerialization.jsonObject(with: data) as? [String: Any])?["children"] as? [[String: Any]])?.first
+    }
+
     /// The element name of top-level node `index`, such as `table`.
     func topLevelName(_ index: Int) -> String? { root.child(at: UInt32(index))?.tag() }
 

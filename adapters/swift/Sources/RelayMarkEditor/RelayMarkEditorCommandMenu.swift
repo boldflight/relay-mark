@@ -16,6 +16,8 @@ public struct RelayMarkEditorCommandMenu: View {
     }
 
     public var body: some View {
+        // Availability follows the text: the selection itself is not observed.
+        let _ = session?.text
         ForEach(RelayMarkEditorCommand.Section.allCases, id: \.self) { section in
             Section {
                 ForEach(RelayMarkEditorCommand.commands(in: section)) { command in

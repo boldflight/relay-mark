@@ -758,9 +758,10 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
         }
 
     public var canFormatInlineCodeSelection: Bool {
-        guard canFormatInlineSelection, let range = nativeSelection,
-              let selected = Range(range, in: String(text.characters)) else { return false }
-        return !String(text.characters)[selected].contains(where: { $0 == "\n" || $0 == "\u{2028}" })
+        guard canFormatInlineSelection, let range = nativeSelection else { return false }
+        let plain = String(text.characters)
+        guard let selected = Range(range, in: plain) else { return false }
+        return !plain[selected].contains(where: { $0 == "\n" || $0 == "\u{2028}" })
     }
 
     public func toggleInlineMark(_ mark: RelayMarkFormattingMark) {

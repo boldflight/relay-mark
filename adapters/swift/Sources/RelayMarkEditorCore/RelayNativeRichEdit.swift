@@ -277,13 +277,16 @@ enum RelayNativeRichEdit {
     /// structural separators and nodes that disallow marks.
     private static func formattingSlices(in projection: RelayMarkCollaborativeProse,
                                          range: NSRange) -> [RelayMarkCollaborativeProse.TextRange]? {
+        // A caret formats nothing; decide that before copying the paper's text.
+        guard range.location >= 0, range.length > 0 else { return nil }
         let plain = String(projection.text.characters)
-        guard range.location >= 0, range.length > 0, NSMaxRange(range) <= plain.utf16.count,
+        guard NSMaxRange(range) <= plain.utf16.count,
               Range(range, in: plain) != nil else { return nil }
+        let intents = projection.blockIntents
         for (index, block) in projection.blockRanges.enumerated()
             where NSIntersectionRange(block, range).length > 0 {
-            guard projection.blockIntents.indices.contains(index) else { return nil }
-            if projection.blockIntents[index].components.contains(where: {
+            guard intents.indices.contains(index) else { return nil }
+            if intents[index].components.contains(where: {
                 if case .codeBlock = $0.kind { return true }
                 return false
             }) { return nil }

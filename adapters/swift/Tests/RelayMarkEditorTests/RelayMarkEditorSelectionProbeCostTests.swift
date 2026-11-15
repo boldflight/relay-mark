@@ -42,7 +42,9 @@ struct RelayMarkEditorSelectionProbeCostTests {
 
     /// Types `count` characters after `needle`, with the two selection changes a
     /// real keystroke reports, each answered by the host's structure probes.
-    private func type(after needle: String, count: Int, probes: Bool = true) throws -> Sample {
+    /// `formatMenu` also asks every editor command's availability once per
+    /// keystroke, as a Format menu observing the paper's text does.
+    private func type(after needle: String, count: Int, probes: Bool = true, formatMenu: Bool = false) throws -> Sample {
         let document = RelayMarkNativeDocument()
         _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(Self.markdown, namespace: "probe-cost"))
         let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
@@ -62,6 +64,7 @@ struct RelayMarkEditorSelectionProbeCostTests {
             for _ in 0..<count {
                 if editor.typeNatively(range: NSRange(location: caret, length: 0), replacement: "x") { typed += 1 }
                 caret += 1
+                if formatMenu { for command in RelayMarkEditorCommand.all { _ = editor.canPerform(command) } }
                 // The text view reports its selection again once it adopts the edit.
                 editor.setNativeSelection(NSRange(location: caret, length: 0))
             }
@@ -73,10 +76,11 @@ struct RelayMarkEditorSelectionProbeCostTests {
     @Test("Typing with selection probes records its cost in a paragraph, a table cell and a list item")
     func recordsProbeCost() throws {
         let count = 40
-        let carets = [("paragraph without probes", "para-12-3", false), ("paragraph", "para-12-3", true),
-                      ("table cell", "cell-t1-r1c1", true), ("ordered item", "ordered-14-1", true)]
-        for (label, needle, probes) in carets {
-            let sample = try type(after: needle, count: count, probes: probes)
+        let carets = [("paragraph without probes", "para-12-3", false, false), ("paragraph", "para-12-3", true, false),
+                      ("table cell", "cell-t1-r1c1", true, false), ("ordered item", "ordered-14-1", true, false),
+                      ("paragraph, Format menu only", "para-12-3", false, true)]
+        for (label, needle, probes, formatMenu) in carets {
+            let sample = try type(after: needle, count: count, probes: probes, formatMenu: formatMenu)
             #expect(sample.typed == count, "\(label) accepted every character")
             print("probe-cost \(label): \(count) keystrokes \(sample.elapsed) " +
                   "(\(sample.elapsed / count) each), snapshots \(sample.snapshots), full encodes \(sample.encodes)")
@@ -103,6 +107,15 @@ struct RelayMarkEditorSelectionProbeCostTests {
         return found
     }
 
+    private func paperWideBlockStyle(_ paper: Paper, selection: NSRange) -> Bool {
+        guard let row = paper.ranges.indices.first(where: {
+            paper.paths[$0].count == 1 && selection.location >= paper.ranges[$0].location &&
+                NSMaxRange(selection) <= NSMaxRange(paper.ranges[$0])
+        }), let blocks = paper.tree["children"] as? [[String: Any]] else { return false }
+        let index = paper.paths[row][0]
+        return blocks.indices.contains(index) && ["paragraph", "heading"].contains(blocks[index]["name"] as? String ?? "")
+    }
+
     private func paperWideListStart(_ paper: Paper, selection: NSRange) -> Int? {
         guard let row = paper.ranges.firstIndex(where: {
             selection.location >= $0.location && NSMaxRange(selection) <= NSMaxRange($0)
@@ -116,7 +129,29 @@ struct RelayMarkEditorSelectionProbeCostTests {
         return (node["attributes"] as? [String: Any])?["start"] as? Int ?? 1
     }
 
-    @Test("Cheap prechecks offer table and list-start commands at exactly the carets the whole paper does")
+    private func sweep(_ editor: RelayMarkEditorSession, offersCommands: Bool) throws {
+        let length = editor.text.utf16.count, projection = try editor.currentProjection()
+        let paper = Paper(ranges: projection.blockRanges, paths: projection.blockPaths,
+                          tree: try #require(try editor.document.editingTree()))
+        var tables = 0, lists = 0
+        for location in 0...length {
+            editor.setNativeSelection(NSRange(location: location, length: 0))
+            let table = (try? editor.prepareTableEdit()) != nil
+            #expect(table == paperWideTableCell(paper, at: location), "table command at \(location)")
+            for span in [0, 1, 4] where location + span <= length {
+                let selection = NSRange(location: location, length: span)
+                editor.setNativeSelection(selection)
+                let start = try? editor.prepareListStartEdit().start
+                #expect(start == paperWideListStart(paper, selection: selection), "list start at \(selection)")
+                #expect(editor.canSetSelectedBlockStyle == paperWideBlockStyle(paper, selection: selection), "block style at \(selection)")
+                if span == 0, start != nil { lists += 1 }
+            }
+            if table { tables += 1 }
+        }
+        #expect(!offersCommands || (tables > 0 && lists > 0), "the paper offers both commands somewhere")
+    }
+
+    @Test("Cheap prechecks offer table, list-start and block-style commands at exactly the carets the whole paper does")
     func prechecksKeepTheOfferedCommands() throws {
         let nested = """
         Intro paragraph
@@ -150,28 +185,18 @@ struct RelayMarkEditorSelectionProbeCostTests {
         Last paragraph
         """
         let sections = Self.markdown.components(separatedBy: "## Section 4")[0]
-        for markdown in [nested, sections] {
+        for markdown in [nested, sections, ""] {
             let document = RelayMarkNativeDocument()
             _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(markdown, namespace: "probe-equivalence"))
             let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
-            let length = editor.text.utf16.count, projection = try editor.currentProjection()
-            let paper = Paper(ranges: projection.blockRanges, paths: projection.blockPaths,
-                              tree: try #require(try document.editingTree()))
-            var tables = 0, lists = 0
-            for location in 0...length {
-                editor.setNativeSelection(NSRange(location: location, length: 0))
-                let table = (try? editor.prepareTableEdit()) != nil
-                #expect(table == paperWideTableCell(paper, at: location), "table command at \(location)")
-                for span in [0, 1, 4] where location + span <= length {
-                    let selection = NSRange(location: location, length: span)
-                    editor.setNativeSelection(selection)
-                    let start = try? editor.prepareListStartEdit().start
-                    #expect(start == paperWideListStart(paper, selection: selection), "list start at \(selection)")
-                    if span == 0, start != nil { lists += 1 }
-                }
-                if table { tables += 1 }
+            try sweep(editor, offersCommands: !markdown.isEmpty)
+            // Typing splices the projection in place; the prechecks read the spliced blocks.
+            for needle in ["one", "second", "Intro", "lone", "para-2-1", "cell-t0-r1c1", "ordered-1-1"] {
+                let found = (String(editor.text.characters) as NSString).range(of: needle)
+                guard found.location != NSNotFound else { continue }
+                #expect(editor.typeNatively(range: NSRange(location: NSMaxRange(found), length: 0), replacement: "z"))
             }
-            #expect(tables > 0 && lists > 0, "the paper offers both commands somewhere")
+            try sweep(editor, offersCommands: !markdown.isEmpty)
         }
     }
 }
