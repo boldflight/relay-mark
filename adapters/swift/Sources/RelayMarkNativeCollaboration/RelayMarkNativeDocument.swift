@@ -263,14 +263,17 @@ public final class RelayMarkNativeDocument {
 
     /// A fragment holding the top-level list `node` with only items `items`, and the paper's metadata.
     func snapshot(items: Range<Int>, ofTopLevel node: Int) throws -> [String: Any] {
-        guard let list = root.child(at: UInt32(node)), list.kind() == "element", let tag = list.tag(),
-              items.lowerBound >= 0, items.upperBound <= Int(list.length()) else { throw Failure.invalidAnchor }
-        let children = try items.map { index -> [String: Any] in
-            guard let child = list.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
-            return try snapshot(child)
+        var object: [String: Any] = try document.transactSync { transaction in
+            guard let list = self.root.child(at: UInt32(node), in: transaction), list.kind(in: transaction) == "element",
+                  let tag = list.tag(in: transaction),
+                  items.lowerBound >= 0, items.upperBound <= Int(list.length(in: transaction)) else { throw Failure.invalidAnchor }
+            let children = try items.map { index -> [String: Any] in
+                guard let child = list.child(at: UInt32(index), in: transaction) else { throw Failure.invalidAnchor }
+                return try self.snapshot(child, in: transaction)
+            }
+            return ["kind": "fragment", "children": [["kind": "element", "name": tag,
+                "attributes": try list.attributes(in: transaction), "children": children]]]
         }
-        var object: [String: Any] = ["kind": "fragment", "children": [["kind": "element", "name": tag,
-            "attributes": try list.attributes(), "children": children]]]
         try addMetadata(to: &object)
         return object
     }
@@ -311,9 +314,11 @@ public final class RelayMarkNativeDocument {
         guard integrationStatus().isComplete, range.lowerBound >= 0, range.upperBound <= Int(root.length()) else {
             throw RelayMarkNativeDocumentProjection.Failure.unsupported("incomplete update")
         }
-        let nodes = try range.map { index -> [String: Any] in
-            guard let child = root.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
-            return try snapshot(child)
+        let nodes = try document.transactSync { transaction in
+            try range.map { index -> [String: Any] in
+                guard let child = self.root.child(at: UInt32(index), in: transaction) else { throw Failure.invalidAnchor }
+                return try self.snapshot(child, in: transaction)
+            }
         }
         let fragment = try JSONSerialization.data(withJSONObject: ["kind": "fragment", "children": nodes], options: [.sortedKeys])
         _ = try RelayMarkNativeDocumentProjection.project(snapshot: fragment)
@@ -372,7 +377,8 @@ public final class RelayMarkNativeDocument {
         wholePaperSnapshots += 1
         // The whole paper's bridged tree is released once it is encoded.
         return try autoreleasepool {
-            var object = try snapshot(root)
+            // One read transaction for the whole tree, not one per node accessor.
+            var object = try document.transactSync { try self.snapshot(self.root, in: $0) }
             try addMetadata(to: &object)
             return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
         }
@@ -381,11 +387,13 @@ public final class RelayMarkNativeDocument {
     /// The same shape for just the top-level nodes in `range`, with the paper's
     /// metadata, for a command that reads and writes only those nodes.
     func snapshot(topLevel range: Range<Int>) throws -> [String: Any] {
-        guard range.lowerBound >= 0, range.upperBound <= Int(root.length()) else { throw Failure.invalidAnchor }
-        var object: [String: Any] = ["kind": "fragment", "children": try range.map { index -> [String: Any] in
-            guard let child = root.child(at: UInt32(index)) else { throw Failure.invalidAnchor }
-            return try snapshot(child)
-        }]
+        var object: [String: Any] = try document.transactSync { transaction in
+            guard range.lowerBound >= 0, range.upperBound <= Int(self.root.length(in: transaction)) else { throw Failure.invalidAnchor }
+            return ["kind": "fragment", "children": try range.map { index -> [String: Any] in
+                guard let child = self.root.child(at: UInt32(index), in: transaction) else { throw Failure.invalidAnchor }
+                return try self.snapshot(child, in: transaction)
+            }]
+        }
         try addMetadata(to: &object)
         return object
     }
@@ -1896,22 +1904,24 @@ public final class RelayMarkNativeDocument {
         }
     }
 
-    private func snapshot(_ node: YXmlNode) throws -> [String: Any] {
-        switch node.kind() {
+    /// Every accessor reads in `transaction`; opening one per call would cost
+    /// a queue hop and an FFI transaction for each node.
+    private func snapshot(_ node: YXmlNode, in transaction: YrsTransaction) throws -> [String: Any] {
+        switch node.kind(in: transaction) {
         case "fragment":
-            return ["kind": "fragment", "children": try node.children().map(snapshot)]
+            return ["kind": "fragment", "children": try node.children(in: transaction).map { try snapshot($0, in: transaction) }]
         case "element":
-            guard let tag = node.tag() else { throw Failure.unsupportedXMLNode("missing element tag") }
-            return ["kind": "element", "name": tag, "attributes": try node.attributes(),
-                    "children": try node.children().map(snapshot)]
+            guard let tag = node.tag(in: transaction) else { throw Failure.unsupportedXMLNode("missing element tag") }
+            return ["kind": "element", "name": tag, "attributes": try node.attributes(in: transaction),
+                    "children": try node.children(in: transaction).map { try snapshot($0, in: transaction) }]
         case "text":
-            let delta: [[String: Any]] = try node.delta().map { run in
+            let delta: [[String: Any]] = try node.delta(in: transaction).map { run in
                 if run.attributes.isEmpty { return ["insert": run.text] }
                 return ["insert": run.text, "attributes": run.attributes]
             }
             return ["kind": "text", "delta": delta]
         default:
-            throw Failure.unsupportedXMLNode(node.kind())
+            throw Failure.unsupportedXMLNode(node.kind(in: transaction))
         }
     }
 }

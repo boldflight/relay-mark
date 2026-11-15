@@ -33,10 +33,15 @@ extension RelayMarkEditorSession {
                             let selection = nativeSelection, selection.location >= 0, selection.length >= 0 else {
             throw ListStartFailure.selectionChanged
         }
-        let projection = try currentProjection()
+        // Only the blocks the selection touches are read: the first block
+        // holding the whole selection is among them.
+        let projection = try currentProjection().restricted(covering: selection)
         guard let row = projection.blockRanges.firstIndex(where: {
             selection.location >= $0.location && NSMaxRange(selection) <= NSMaxRange($0)
+        }), projection.blockIntents[row].components.contains(where: {
+            if case .orderedList = $0.kind { true } else { false }
         }), var node = try document.editingTree() else {
+            // Outside every ordered list the paper itself is never read.
             throw ListStartFailure.selectionChanged
         }
         // The immediate containing list owns numbering. A nested bullet item
@@ -162,6 +167,13 @@ extension RelayMarkEditorSession {
             throw TableCommandFailure.changed
         }
         let projection = try currentProjection()
+        // Only a caret in a table cell's text reads the paper and checkpoints it.
+        guard let block = Self.block(at: selection.location, in: projection),
+              block.projection.tableCells.contains(where: {
+                  selection.location >= $0.range.location && selection.location <= NSMaxRange($0.range)
+              }) else {
+            throw TableCommandFailure.changed
+        }
         let snapshot = try document.snapshot()
         guard let tree = try RelayMarkNativeDocument.editingTree(snapshot),
               let anchorCell = tableCell(at: selection.location, projection: projection, tree: tree) else {
@@ -175,7 +187,8 @@ extension RelayMarkEditorSession {
         let anchor = try document.anchor(path: anchorCell.path, index: 0)
         let head = try headCell.map { try document.anchor(path: $0.path, index: 0) }
         let available = RelayMarkNativeRichTableCommand.availableOperations(document: document,
-            cellAnchor: anchor, expectedCellID: anchorCell.id, headAnchor: head, expectedHeadCellID: headCell?.id)
+            cellAnchor: anchor, expectedCellID: anchorCell.id, headAnchor: head, expectedHeadCellID: headCell?.id,
+            expectedSnapshot: snapshot, projection: projection)
         return TableStructureEdit(owner: compositionOwner, checkpoint: try document.encodeUpdate(),
                                   snapshot: snapshot, range: selection, anchor: anchor, cellID: anchorCell.id,
                                   head: head, headCellID: headCell?.id, selection: try selectionAnchors(),
@@ -185,12 +198,9 @@ extension RelayMarkEditorSession {
     /// The innermost table cell containing the projected block at `location`.
     private func tableCell(at location: Int, projection: RelayMarkCollaborativeProse,
                            tree: [String: Any]) -> (path: [Int], id: String)? {
-        let candidates = projection.blockRanges.indices.filter { index in
-            location >= projection.blockRanges[index].location && location <= NSMaxRange(projection.blockRanges[index])
-        }
-        guard candidates.count == 1 else { return nil }
+        guard let block = Self.block(at: location, in: projection) else { return nil }
         var node = tree, prefix: [Int] = [], found: (path: [Int], id: String)?
-        for index in projection.blockPaths[candidates[0]] {
+        for index in block.path {
             guard let children = node["children"] as? [[String: Any]], children.indices.contains(index) else { return nil }
             node = children[index]
             prefix.append(index)
@@ -201,6 +211,18 @@ extension RelayMarkEditorSession {
         }
         guard let found, found.path.count >= 3 else { return nil }
         return found
+    }
+
+    /// The one projected block whose range holds `location`, at either edge,
+    /// read from just the blocks touching it; nil when none or several do.
+    /// `projection` is restricted to those blocks.
+    private static func block(at location: Int, in paper: RelayMarkCollaborativeProse)
+        -> (path: [Int], projection: RelayMarkCollaborativeProse)? {
+        let local = paper.restricted(covering: NSRange(location: location, length: 0))
+        let ranges = local.blockRanges
+        let candidates = ranges.indices.filter { location >= ranges[$0].location && location <= NSMaxRange(ranges[$0]) }
+        guard candidates.count == 1 else { return nil }
+        return (local.blockPaths[candidates[0]], local)
     }
 
     func performTableCommand(_ operation: TableOperation, using edit: TableStructureEdit) throws {

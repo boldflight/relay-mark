@@ -20,10 +20,17 @@ public enum RelayMarkNativeRichTableCommand {
 
     public static func availableOperations(document: RelayMarkNativeDocument, cellAnchor: Data,
                                            expectedCellID: String, headAnchor: Data? = nil,
-                                           expectedHeadCellID: String? = nil) -> Set<Operation> {
+                                           expectedHeadCellID: String? = nil,
+                                           expectedSnapshot: Data? = nil,
+                                           projection: RelayMarkCollaborativeProse? = nil) -> Set<Operation> {
+        // A caller that just took the paper's snapshot, or holds its current
+        // projection, passes them, so the paper is not read again here.
         guard let request = try? context(document: document, anchor: (cellAnchor, expectedCellID),
-            head: headAnchor.map { ($0, expectedHeadCellID ?? "") }, expectedSnapshot: document.snapshot()) else { return [] }
-        return Set(Operation.allCases.filter { (try? prepare($0, request: request)) != nil })
+            head: headAnchor.map { ($0, expectedHeadCellID ?? "") }, expectedSnapshot: expectedSnapshot ?? document.snapshot(),
+            projection: projection),
+              // Every operation is asked of the same paper, encoded once.
+              let paper = try? JSONSerialization.data(withJSONObject: request.source.json()) else { return [] }
+        return Set(Operation.allCases.filter { (try? prepare($0, paper: paper, selection: request.selection)) != nil })
     }
 
     public static func apply(_ operation: Operation, document: RelayMarkNativeDocument,
@@ -38,14 +45,18 @@ public enum RelayMarkNativeRichTableCommand {
 
     private struct Context { let tree: [String: Any], source: PMNode, selection: [String: Any] }
     private static func prepare(_ operation: Operation, request: Context) throws -> Data {
-        try RelayMarkContentEditCodec.command(document: JSONSerialization.data(withJSONObject: request.source.json()),
-            request: JSONSerialization.data(withJSONObject: ["command": operation.rawValue, "selection": request.selection]))
+        try prepare(operation, paper: JSONSerialization.data(withJSONObject: request.source.json()), selection: request.selection)
+    }
+
+    private static func prepare(_ operation: Operation, paper: Data, selection: [String: Any]) throws -> Data {
+        try RelayMarkContentEditCodec.command(document: paper,
+            request: JSONSerialization.data(withJSONObject: ["command": operation.rawValue, "selection": selection]))
     }
 
     private static func context(document: RelayMarkNativeDocument, anchor: (Data, String), head: (Data, String)?,
-                                expectedSnapshot: Data) throws -> Context {
+                                expectedSnapshot: Data, projection: RelayMarkCollaborativeProse? = nil) throws -> Context {
         guard document.integrationStatus().isComplete, try document.snapshot() == expectedSnapshot,
-              try document.richProseProjection().isEditable,
+              try (projection ?? document.richProseProjection()).isEditable,
               let tree = try RelayMarkNativeDocument.editingTree(expectedSnapshot) else { throw Failure.invalidAnchor }
         func cellPath(_ reference: (Data, String)) throws -> [Int] {
             guard let position = try document.resolve(anchor: reference.0), position.index == 0, position.path.count >= 3 else { throw Failure.invalidAnchor }

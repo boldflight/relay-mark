@@ -1,5 +1,6 @@
 import Foundation
 import CoreFoundation
+import Synchronization
 import RelayMarkSwift
 
 /// Deliberately bounded editable projection; unsupported structure is preserved by the replica.
@@ -402,12 +403,26 @@ public struct RelayMarkCollaborativeProse {
     private static let markupNames: Set<String> = ["horizontalRule", "relayButton", "relayAnchor", "relayConnection",
                                                    "relayEntityReference", "agentSuggestion", "image", "videoEmbed"]
 
-    nonisolated(unsafe) private static var cachedDirectiveDefinitions: [[String: Any]]?
-    private static func directiveDefinitions() throws -> [[String: Any]] {
-        if let cachedDirectiveDefinitions { return cachedDirectiveDefinitions }
-        let value = try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.directiveDefinitions()) as? [[String: Any]] ?? []
-        cachedDirectiveDefinitions = value
-        return value
+    /// What projection reads from the engine's directive definitions: every
+    /// directive name, and the authored attribute names of each name's first definition.
+    private struct DirectiveSchema: Sendable {
+        let names: Set<String>
+        let attributeKeys: [String: Set<String>]
+    }
+    /// Read once from the engine. A projection may run on any thread, so the
+    /// cache is locked; a failed read is not cached and is tried again.
+    private static let cachedDirectiveSchema = Mutex<DirectiveSchema?>(nil)
+    private static func directiveSchema() throws -> DirectiveSchema {
+        if let cached = cachedDirectiveSchema.withLock({ $0 }) { return cached }
+        let definitions = try JSONSerialization.jsonObject(with: RelayMarkSourceCodec.directiveDefinitions()) as? [[String: Any]] ?? []
+        var seen: Set<String> = [], attributeKeys: [String: Set<String>] = [:]
+        for definition in definitions {
+            guard let name = definition["name"] as? String, seen.insert(name).inserted else { continue }
+            if let fields = definition["attributes"] as? [String: Any] { attributeKeys[name] = Set(fields.keys) }
+        }
+        let schema = DirectiveSchema(names: seen, attributeKeys: attributeKeys)
+        cachedDirectiveSchema.withLock { $0 = schema }
+        return schema
     }
 
     /// The same portable mark presentation used by document text leaves.
@@ -624,8 +639,8 @@ public struct RelayMarkCollaborativeProse {
     private static func project(_ node: [String: Any], dialect: Dialect, identityStart: Int,
                                 parent: PresentationIntent? = nil, ordinal: Int = 1,
                                 indexBase: Int = 0, row: Row? = nil) throws -> (Chunk, AttributedString, Int) {
-        let directiveDefinitions = try Self.directiveDefinitions()
-        let genericNames = Set(directiveDefinitions.compactMap { $0["name"] as? String })
+        let directiveSchema = try Self.directiveSchema()
+        let genericNames = directiveSchema.names
         var authoredWidgets: [AuthoredWidget] = []
         var value = AttributedString()
         var ranges: [NSRange] = [], paths: [[Int]] = []
@@ -935,7 +950,7 @@ public struct RelayMarkCollaborativeProse {
                 }
                 if name=="questionOption" { allowed.formUnion(["id","correct","points","settings"]) }
                 if name=="relayDataView" { allowed.formUnion(["source","projection","columns","filter","sort","group","limit","title"]) }
-                if let definition=directiveDefinitions.first(where:{$0["name"] as? String == name}),let fields=definition["attributes"] as? [String:Any] { allowed.formUnion(fields.keys) }
+                if let keys=directiveSchema.attributeKeys[name] { allowed.formUnion(keys) }
                 if paperControl == nil && entityReference == nil && suggestion == nil && media == nil &&
                     !Set(attributes.keys).isSubset(of: allowed) { supported = false }
                 let intent = PresentationIntent(kind, identity: identity, parent: parent)

@@ -82,4 +82,96 @@ struct RelayMarkEditorSelectionProbeCostTests {
                   "(\(sample.elapsed / count) each), snapshots \(sample.snapshots), full encodes \(sample.encodes)")
         }
     }
+
+    /// The availability a caret had before the cheap prechecks: the whole
+    /// paper's blocks and tree, read for every probe.
+    /// The paper is not edited during the sweep, so its blocks and tree are read once.
+    private struct Paper { let ranges: [NSRange]; let paths: [[Int]]; let tree: [String: Any] }
+
+    private func paperWideTableCell(_ paper: Paper, at location: Int) -> Bool {
+        let ranges = paper.ranges
+        let candidates = ranges.indices.filter { location >= ranges[$0].location && location <= NSMaxRange(ranges[$0]) }
+        guard candidates.count == 1 else { return false }
+        var node = paper.tree
+        var depth = 0, found = false
+        for index in paper.paths[candidates[0]] {
+            guard let children = node["children"] as? [[String: Any]], children.indices.contains(index) else { return false }
+            node = children[index]; depth += 1
+            if ["tableCell", "tableHeader"].contains(node["name"] as? String ?? ""),
+               (node["attributes"] as? [String: Any])?["relaymarkId"] is String { found = depth >= 3 }
+        }
+        return found
+    }
+
+    private func paperWideListStart(_ paper: Paper, selection: NSRange) -> Int? {
+        guard let row = paper.ranges.firstIndex(where: {
+            selection.location >= $0.location && NSMaxRange(selection) <= NSMaxRange($0)
+        }) else { return nil }
+        var node = paper.tree
+        for index in paper.paths[row].dropLast(2) {
+            guard let children = node["children"] as? [[String: Any]], children.indices.contains(index) else { return nil }
+            node = children[index]
+        }
+        guard node["name"] as? String == "orderedList" else { return nil }
+        return (node["attributes"] as? [String: Any])?["start"] as? Int ?? 1
+    }
+
+    @Test("Cheap prechecks offer table and list-start commands at exactly the carets the whole paper does")
+    func prechecksKeepTheOfferedCommands() throws {
+        let nested = """
+        Intro paragraph
+
+        | A | B |
+        | --- | --- |
+        | one | two |
+        | three | four |
+
+        1. first
+        2. second
+           - nested bullet
+           - another
+             3. deep ordered
+             4. deeper
+        3. third
+
+           with a second paragraph
+
+        - bullet top
+          5. ordered in bullet
+          6. more
+
+        > 7. quoted ordered
+        > 8. quoted more
+
+        | C |
+        | --- |
+        | lone |
+
+        Last paragraph
+        """
+        let sections = Self.markdown.components(separatedBy: "## Section 4")[0]
+        for markdown in [nested, sections] {
+            let document = RelayMarkNativeDocument()
+            _ = try document.initializeDocument(authoredAST: RelayMarkSourceCodec.parseDocument(markdown, namespace: "probe-equivalence"))
+            let editor = try RelayMarkEditorSession(document: document, persist: { _ in })
+            let length = editor.text.utf16.count, projection = try editor.currentProjection()
+            let paper = Paper(ranges: projection.blockRanges, paths: projection.blockPaths,
+                              tree: try #require(try document.editingTree()))
+            var tables = 0, lists = 0
+            for location in 0...length {
+                editor.setNativeSelection(NSRange(location: location, length: 0))
+                let table = (try? editor.prepareTableEdit()) != nil
+                #expect(table == paperWideTableCell(paper, at: location), "table command at \(location)")
+                for span in [0, 1, 4] where location + span <= length {
+                    let selection = NSRange(location: location, length: span)
+                    editor.setNativeSelection(selection)
+                    let start = try? editor.prepareListStartEdit().start
+                    #expect(start == paperWideListStart(paper, selection: selection), "list start at \(selection)")
+                    if span == 0, start != nil { lists += 1 }
+                }
+                if table { tables += 1 }
+            }
+            #expect(tables > 0 && lists > 0, "the paper offers both commands somewhere")
+        }
+    }
 }
