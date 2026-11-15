@@ -34,6 +34,10 @@ public final class RelayMarkNativeDocument {
 
     private let document: YDocument
     private let root: YXmlNode
+    /// Whole-paper reads so far: snapshots and full state encodes. Tests read
+    /// them to see what one keystroke costs; nothing else depends on them.
+    package private(set) var wholePaperSnapshots = 0
+    package private(set) var wholePaperEncodes = 0
     private let metadata: YMap<RelayMarkValue>
     private let trackedOrigin: Origin
     /// Writes with this origin are local but not tracked by the undo manager (the Yjs trackedOrigins mechanism).
@@ -350,7 +354,8 @@ public final class RelayMarkNativeDocument {
 
     /// A complete Yjs update when `vector` is nil, otherwise the missing diff.
     public func encodeUpdate(since vector: Data? = nil) throws -> Data {
-        try Data(document.transactSync { transaction in
+        if vector == nil { wholePaperEncodes += 1 }
+        return try Data(document.transactSync { transaction in
             if let vector {
                 return try transaction.transactionEncodeStateAsUpdateFromSv(stateVector: Array(vector))
             }
@@ -364,8 +369,9 @@ public final class RelayMarkNativeDocument {
 
     /// The same lossless XML JSON shape used by the existing collaboration adapter.
     public func snapshot() throws -> Data {
+        wholePaperSnapshots += 1
         // The whole paper's bridged tree is released once it is encoded.
-        try autoreleasepool {
+        return try autoreleasepool {
             var object = try snapshot(root)
             try addMetadata(to: &object)
             return try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
