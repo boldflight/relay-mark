@@ -12,8 +12,8 @@ public enum RelayMarkCollectionSet {
         case collection, inbox, pinned, recent, shared, trash
     }
 
-    /// Whether the `workspace.shell` entity type catalog is held in full; a
-    /// `type_slugs` filter is applied only against a complete one.
+    /// Whether the `workspace.shell` entity type catalog is held in full.
+    /// Selected `type_slugs` restrict cards independently of catalog coverage.
     public enum ShellCoverage: String, Sendable {
         case complete, partial
     }

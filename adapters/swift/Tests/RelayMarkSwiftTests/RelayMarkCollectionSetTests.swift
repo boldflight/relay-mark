@@ -7,7 +7,7 @@ import Testing
 /// vendored as spec/relaymark/collection-set-v1.json) through the Swift engine
 /// binding, so Apple lists the same members in the same order as the web.
 struct RelayMarkCollectionSetTests {
-    static let pinnedSHA256 = "36e31c51468f5d554efa38c680ea05cccdd70d895e5e162363db6e7c56100896"
+    static let pinnedSHA256 = "028392b40b04232c9edf7c305f5ad4a6bf5e715ee76f6c2df3f9d9929134d6d3"
 
     @Test func everySharedCaseListsAsTheContractSays() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()

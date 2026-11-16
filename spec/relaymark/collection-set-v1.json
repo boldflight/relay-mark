@@ -935,7 +935,7 @@
    }
   },
   {
-   "name": "type_slugs ignored while the shell catalog is partial",
+   "name": "type_slugs restrict members while the shell catalog is partial",
    "list": "collection",
    "entity_id": "C",
    "account": "00000000-0000-4000-8000-00000000000a",
@@ -949,17 +949,15 @@
    "shell_entity_types": "partial",
    "expect": {
     "ids": [
-     "t3",
-     "t2",
-     "t1"
+     "t3"
     ],
-    "total": 3,
+    "total": 1,
     "page": 1,
     "page_count": 1
    }
   },
   {
-   "name": "type_slugs naming no enabled type filter nothing",
+   "name": "type_slugs naming no held type match no members",
    "list": "collection",
    "entity_id": "C",
    "account": "00000000-0000-4000-8000-00000000000a",
@@ -972,12 +970,8 @@
    "page_size": 24,
    "shell_entity_types": "complete",
    "expect": {
-    "ids": [
-     "t3",
-     "t2",
-     "t1"
-    ],
-    "total": 3,
+    "ids": [],
+    "total": 0,
     "page": 1,
     "page_count": 1
    }

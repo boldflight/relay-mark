@@ -158,11 +158,10 @@ struct Filter<'p> {
 }
 
 impl<'p> Filter<'p> {
-    fn new(kind: &'p str, params: &'p Value, account: &'p Value, enabled: Option<&[String]>) -> Self {
-        let types = match enabled {
-            Some(enabled) => values(params.get("type_slugs")).into_iter().map(|v| js_trim(&v).to_lowercase()).filter(|v| enabled.contains(v)).collect(),
-            None => Vec::new(),
-        };
+    fn new(kind: &'p str, params: &'p Value, account: &'p Value) -> Self {
+        // Selection is already normalized by the host. Catalog readiness must
+        // never broaden a requested filter into every type.
+        let types = values(params.get("type_slugs")).into_iter().map(|v| js_trim(&v).to_lowercase()).filter(|v| !v.is_empty()).collect();
         Filter {
             kind,
             account,
@@ -350,7 +349,6 @@ pub fn evaluate(input: &Value) -> Result<Value> {
     let Some(records) = input.get("records").and_then(Value::as_array) else { bail!("Missing collection set records") };
     let mut cards = Map::new();
     let mut memberships: Vec<(&str, &Value)> = Vec::new();
-    let mut enabled: Vec<String> = Vec::new();
     let mut types: Vec<&Value> = Vec::new();
     for record in records {
         let (Some(projection), Some(key), Some(payload)) = (str_field(record, "projection"), str_field(record, "key"), record.get("payload")) else {
@@ -362,7 +360,6 @@ pub fn evaluate(input: &Value) -> Result<Value> {
             }
             COLLECTION_MEMBER => memberships.push((key, payload)),
             WORKSPACE_SHELL if str_field(payload, "kind") == Some("entity_type") => {
-                enabled.extend(str_field(payload, "slug").map(str::to_owned));
                 types.push(payload);
             }
             _ => {}
@@ -371,10 +368,7 @@ pub fn evaluate(input: &Value) -> Result<Value> {
     let list = str_field(input, "list").unwrap_or("");
     let params = input.get("params").filter(|p| p.is_object()).cloned().unwrap_or_else(|| json!({}));
     let account = input.get("account").cloned().unwrap_or(Value::Null);
-    // Leased rows already passed authoritative type membership. A missing
-    // or partial shell catalog cannot establish an alternative local filter.
-    let catalog = (str_field(input, "shell_entity_types") == Some("complete")).then_some(enabled.as_slice());
-    let filter = Filter::new(if list == "collection" { "collection" } else { list }, &params, &account, catalog);
+    let filter = Filter::new(if list == "collection" { "collection" } else { list }, &params, &account);
     let sort = str_field(&params, "sort").unwrap_or("suggested");
     let dir = str_field(&params, "dir").unwrap_or("desc");
 

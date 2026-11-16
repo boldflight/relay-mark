@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
 /// The authority's SHA-256. Re-vendoring changes this and the case count together.
-const PINNED_SHA256: &str = "36e31c51468f5d554efa38c680ea05cccdd70d895e5e162363db6e7c56100896";
+const PINNED_SHA256: &str = "028392b40b04232c9edf7c305f5ad4a6bf5e715ee76f6c2df3f9d9929134d6d3";
 const PINNED_CASES: usize = 51;
 
 fn bytes() -> Vec<u8> {

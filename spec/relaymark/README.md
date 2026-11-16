@@ -543,6 +543,10 @@ server and web own the cases, and relaymark-core (`collection_set` job, Swift
 fixture; it has no JavaScript runtime here because the web keeps its own
 `assets/js/sync/collection_set.js`.
 
+Selected `type_slugs` always restrict the held cards, including while the type
+catalog is partial. A selected slug with no matching cards yields no members;
+it never broadens the request to every type.
+
 A collection list is `partial` only when its id is in the case's top-level
 `server_projected` list (the population manifest's `collection.member` list;
 absent means empty) or its card is not held. Every other collection, shared,
