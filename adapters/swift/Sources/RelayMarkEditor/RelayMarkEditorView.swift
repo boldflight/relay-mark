@@ -101,8 +101,10 @@ public struct RelayMarkEditorView: NSViewRepresentable {
         var services = RelayMarkEditorServices() {
             didSet {
                 mediaImages = services.imageStore
+                editor.linkService = services.links
                 onActivatePaperButton = services.paperControls.map { controls in { controls.activatePaperButton(id: $0) } }
-                onActivateFragmentLink = services.links.map { links in { links.activateFragmentLink($0) } }
+                handlesLink = services.links.map { links in { links.handlesLink($0) } }
+                onActivateLink = services.links.map { links in { links.activateLink($0) } }
                 onImageInputFailure = services.inputRefused
                 onBeginImageInput = services.images.map { images in { images.beginImageInput(at: $0, filename: $1, contentType: $2) } }
                 onBeginImageBatchInputs = services.images.map { images in { images.beginImageInputs(at: $0, files: $1) } }
@@ -114,7 +116,8 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             set { editor.mediaImages = newValue }
         }
         var onActivatePaperButton: ((String) -> Void)?
-        var onActivateFragmentLink: ((String) -> Void)?
+        var handlesLink: ((String) -> Bool)?
+        var onActivateLink: ((String) -> Void)?
         var onImageInputFailure: ((String) -> Void)?
         var onBeginImageBatchInputs: ((NSRange, [RelayMarkImageFile]) -> [RelayMarkImageIntake]?)?
         var onBeginImageInput: ((NSRange, String, String) -> RelayMarkImageIntake?)?
@@ -272,13 +275,14 @@ public struct RelayMarkEditorView: NSViewRepresentable {
             return menu
         }
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
-            guard let href = (link as? URL)?.absoluteString ?? (link as? String), href.hasPrefix("#"),
-                  let activate = onActivateFragmentLink,
+            guard let href = (link as? URL)?.absoluteString ?? (link as? String), handlesLink?(href) == true,
+                  let activate = onActivateLink,
                   let view = textView as? CollaborationTextView, !view.retired,
                   view.editingSession === session, !session.isInvalidated else { return false }
+            let before = session.nativeSelection
             activate(href)
             update(view)
-            view.scrollRangeToVisible(view.viewSelection)
+            if session.nativeSelection != before { view.scrollRangeToVisible(view.viewSelection) }
             return true
         }
 
@@ -977,8 +981,10 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         var services = RelayMarkEditorServices() {
             didSet {
                 mediaImages = services.imageStore
+                editor.linkService = services.links
                 onActivatePaperButton = services.paperControls.map { controls in { controls.activatePaperButton(id: $0) } }
-                onActivateFragmentLink = services.links.map { links in { links.activateFragmentLink($0) } }
+                handlesLink = services.links.map { links in { links.handlesLink($0) } }
+                onActivateLink = services.links.map { links in { links.activateLink($0) } }
                 onImageInputFailure = services.inputRefused
                 onBeginImageInput = services.images.map { images in { images.beginImageInput(at: $0, filename: $1, contentType: $2) } }
                 onBeginImageBatchInputs = services.images.map { images in { images.beginImageInputs(at: $0, files: $1) } }
@@ -990,7 +996,8 @@ public struct RelayMarkEditorView: UIViewRepresentable {
             set { editor.mediaImages = newValue }
         }
         var onActivatePaperButton: ((String) -> Void)?
-        var onActivateFragmentLink: ((String) -> Void)?
+        var handlesLink: ((String) -> Bool)?
+        var onActivateLink: ((String) -> Void)?
         var onImageInputFailure: ((String) -> Void)?
         var onBeginImageBatchInputs: ((NSRange, [RelayMarkImageFile]) -> [RelayMarkImageIntake]?)?
         var onBeginImageInput: ((NSRange, String, String) -> RelayMarkImageIntake?)?
@@ -1163,17 +1170,18 @@ public struct RelayMarkEditorView: UIViewRepresentable {
         }
         func textView(_ textView: UITextView, primaryActionFor textItem: UITextItem,
                       defaultAction: UIAction) -> UIAction? {
-            guard case .link(let url) = textItem.content, url.absoluteString.hasPrefix("#"),
+            guard case .link(let url) = textItem.content, handlesLink?(url.absoluteString) == true,
                   let view = textView as? CollaborationTextView,
-                  let activate = onActivateFragmentLink else { return defaultAction }
+                  let activate = onActivateLink else { return defaultAction }
             let href = url.absoluteString
             let owner = ObjectIdentifier(session)
             return UIAction { [weak self, weak view] _ in
                 guard let self, let view, !view.retired, view.editingSession === session,
                       ObjectIdentifier(session) == owner, !session.isInvalidated else { return }
+                let before = session.nativeSelection
                 activate(href)
                 update(view)
-                view.scrollRangeToVisible(view.viewSelection)
+                if session.nativeSelection != before { view.scrollRangeToVisible(view.viewSelection) }
             }
         }
 

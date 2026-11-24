@@ -263,6 +263,7 @@ extension RelayPaperTextView {
 /// a range command into the session, and its result comes back as a splice.
 @MainActor
 final class RelayPaperEditor<Session: RelayPaperTextEditing> {
+    var linkService: (any RelayMarkLinkService)?
     var session: Session
     var mediaImages: RelayMarkImageStore?
     var updating = false
@@ -543,6 +544,16 @@ final class RelayPaperEditor<Session: RelayPaperTextEditing> {
         let table = RelayTableAttachment(identity: identity, start: start, cells: cells)
         table.editing = RelayTableEditor(table: table, paperView: view, session: session) { [weak self, weak view] in
             guard let self, let view else { return }
+            self.update(view)
+        }
+        table.handlesLink = { [weak self, weak view, weak table] href in
+            guard let self, let view, let table, !view.retired, view.editingSession === self.session,
+                  !self.session.isInvalidated, view.paper.tables.spans.contains(where: { $0.table === table }) else { return false }
+            return self.linkService?.handlesLink(href) == true
+        }
+        table.activateLink = { [weak self, weak view, weak table] href in
+            guard let self, let view, table?.handlesLink?(href) == true else { return }
+            self.linkService?.activateLink(href)
             self.update(view)
         }
         view.paper.tableAttachments[identity] = table

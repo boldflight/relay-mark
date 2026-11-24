@@ -112,6 +112,12 @@ final class RelayTableGridView: PlatformTableView {
 
 #if os(macOS)
 extension RelayTableGridView: NSTextViewDelegate {
+    func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        guard let href = (link as? URL)?.absoluteString ?? (link as? String), table.handlesLink?(href) == true else { return false }
+        table.activateLink?(href)
+        return true
+    }
+
     func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
         guard let replacementString else { return false }
         return shouldChange(affectedCharRange, replacement: replacementString)
@@ -213,6 +219,14 @@ final class RelayNativeTableTextView: NSTextView {
 }
 #else
 extension RelayTableGridView: UITextViewDelegate {
+    func textView(_ textView: UITextView, primaryActionFor item: UITextItem, defaultAction: UIAction) -> UIAction? {
+        guard case .link(let url) = item.content, table.handlesLink?(url.absoluteString) == true else { return defaultAction }
+        return UIAction { [weak self] _ in
+            guard let self, self.table.handlesLink?(url.absoluteString) == true else { return }
+            self.table.activateLink?(url.absoluteString)
+        }
+    }
+
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         shouldChange(range, replacement: text)
     }

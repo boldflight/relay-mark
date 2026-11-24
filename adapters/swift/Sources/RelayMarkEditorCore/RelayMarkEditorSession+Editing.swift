@@ -233,10 +233,20 @@ extension RelayMarkEditorSession: RelayPaperTextEditing {
             failure = InlineAtomEditFailure.changed.localizedDescription
             return
         }
+        insertReferenceLink(destination: "relay:entity/\(id)", label: label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? id : label, using: edit)
+    }
+
+    /// Inserts a link already resolved by the host. Product target identity and
+    /// authorization stay with the host; the portable codec validates its marks.
+    /// The selection fence, journal and undo owner are the same as entity links.
+    public func insertReferenceLink(destination: String, label: String, using edit: ReferenceInsertion) {
+        guard edit.kind == .entity else { failure = InlineAtomEditFailure.changed.localizedDescription; return }
         let label = label.trimmingCharacters(in: .whitespacesAndNewlines)
-        let link: [String: Any] = ["href": "relay:entity/\(id)", "target": "_blank",
+        let link: [String: Any] = ["href": destination, "target": "_blank",
                                    "rel": "noopener noreferrer nofollow", "class": NSNull(), "title": NSNull()]
-        insertReferenceContent([.text(label.isEmpty ? id : label, attributes: ["link": link]), .text(" ")],
+        do { try RelayMarkSourceCodec.validateTextAttributes(["link": link]) }
+        catch { failure = error.localizedDescription; return }
+        insertReferenceContent([.text(label.isEmpty ? destination : label, attributes: ["link": link]), .text(" ")],
                                using: edit)
     }
 

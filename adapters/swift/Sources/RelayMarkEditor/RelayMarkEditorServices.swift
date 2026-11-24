@@ -30,9 +30,10 @@ public struct RelayMarkImageFile: Sendable, Equatable {
     func beginStructuredPaste(at range: NSRange, itemCount: Int, plainText: String?) -> RelayMarkPasteIntake?
 }
 
-/// Links inside the paper, such as `#heading` fragments.
+/// Link routing belongs to the host, including section links and product links.
 @MainActor public protocol RelayMarkLinkService {
-    func activateFragmentLink(_ href: String)
+    func handlesLink(_ href: String) -> Bool
+    func activateLink(_ href: String)
 }
 
 /// Paper controls, such as buttons, which act outside the document.

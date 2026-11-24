@@ -27,6 +27,8 @@ struct RelayTableCellModel {
 @MainActor
 final class RelayTableAttachment: NSTextAttachment {
     var editing: (any RelayTableEditing)?
+    var handlesLink: ((String) -> Bool)?
+    var activateLink: ((String) -> Void)?
     let identity: Int
     /// The paper offset of the table's first cell; cell ranges count from it.
     var start: Int { didSet { loadedGrid?.updateStart(start) } }
